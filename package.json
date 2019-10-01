@@ -6,7 +6,8 @@
   "scripts": {
     "start": "NODE_ENV=development webpack-dev-server --config ./config/webpack/webpack.dev.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "echo \"no build yet\""
+    "clean": "rm -rf dist",
+    "build": "yarn clean && NODE_ENV=production webpack --config ./config/webpack/webpack.prod.js"
   },
   "repository": {
     "type": "git",

@@ -1,27 +1,32 @@
 // const webpack = require("webpack");
-const path = require("path");
-const merge = require("webpack-merge");
-const TerserPlugin = require("terser-webpack-plugin");
+const { resolve } = require('path');
+const path = require('path');
+const merge = require('webpack-merge');
+const TerserPlugin = require('terser-webpack-plugin');
 
-const cloudDist = path.resolve(__dirname, "..", "dist/cloud");
-const HtmlWebpackPlugin = require("html-webpack-plugin");
-const common = require("./webpack.common.js");
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const common = require('./webpack.common.js');
 // const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 
+const rootDir = resolve(__dirname, '../../');
+const dist = path.resolve(rootDir, 'dist');
+
 module.exports = merge(common, {
-  mode: "production",
-  devtool: "source-map",
+  mode: 'production',
+  devtool: 'source-map',
   entry: {
-    main: path.resolve(__dirname, "..", "src", "index.jsx")
+    main: path.resolve(rootDir, 'src/index.jsx'),
   },
   output: {
-    path: cloudDist,
-    filename: "[name].[contenthash:8].js",
-    chunkFilename: "[name].[contenthash:8].chunk.js",
-    publicPath: "/"
+    path: dist,
+    filename: '[name].[contenthash:8].js',
+    chunkFilename: '[name].[contenthash:8].chunk.js',
+    publicPath: '/',
   },
   optimization: {
-    minimizer: [new TerserPlugin({ parallel: true, sourceMap: true })]
+    minimizer: [
+      new TerserPlugin({ parallel: true, sourceMap: true }),
+    ],
   },
   plugins: [
     new HtmlWebpackPlugin({
@@ -37,16 +42,16 @@ module.exports = merge(common, {
               </html>
             `,
       meta: {
-        viewport: "width=device-width, initial-scale=1"
+        viewport: 'width=device-width, initial-scale=1',
       },
-      title: "",
-      filename: "index.html",
+      title: '',
+      filename: 'index.html',
       minify: {
         useShortDoctype: true,
         keepClosingSlash: true,
         collapseWhitespace: true,
-        preserveLineBreaks: true
-      }
-    })
-  ]
+        preserveLineBreaks: true,
+      },
+    }),
+  ],
 });
