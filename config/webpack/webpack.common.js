@@ -13,6 +13,10 @@ const isDev =
 const globals = {
   __DEV__: isDev && !process.env.LINKED_DEV,
   __config__: JSON.stringify(config),
+  __MAPBOX_KEY__: JSON.stringify(
+    process.env.mapbox_api ||
+      'pk.eyJ1IjoibWFtb3MtdGVzdCIsImEiOiJjazE3Z3hyYWswN2VyM2tsamVkbG4zbG55In0.GP5FDvb2C54QIipGdIczQA',
+  ),
 };
 
 const rootDir = resolve(__dirname, '../../');
