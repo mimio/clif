@@ -1,1 +1,9 @@
-git@github.com:mimio/970-sage.git
+{
+  "name": "970sage",
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json"
+    }
+  ]
+}
