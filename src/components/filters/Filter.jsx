@@ -10,6 +10,7 @@ const StyledFilter = styled.div`
   position: relative;
   background: purple;
   margin: 0px 0px 1px 1px;
+  cursor: pointer;
 `;
 
 export default function Filter() {

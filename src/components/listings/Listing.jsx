@@ -12,6 +12,7 @@ const StyledListing = styled.div`
   align-items: center;
   border-radius: 10px;
   margin-bottom: ${p => p.theme.size(4)};
+  cursor: pointer;
 `;
 
 export default function Listing() {
