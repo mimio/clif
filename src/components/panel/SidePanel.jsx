@@ -1,18 +1,25 @@
 import React from 'react';
-import { css } from '@emotion/core';
+import styled from '@emotion/styled';
+import Toggle from './Toggle';
 
-const sidePanelCss = open => css`
-  width: 300px;
-  height: 100%;
-  background: white;
+const Container = styled.div`
+  display: flex;
   position: absolute;
   top: 0;
   left: 0;
-  transform: ${open ? 'translateX(0px)' : 'translateX(-1000px)'};
-  transition: transform 0.5s ease-in;
+  min-width: 300px;
+  height: 100%;
+  background: white;
+  transform: ${p =>
+    p.showing ? 'translateX(0px)' : 'translateX(-300px)'};
   z-index: 10;
+  transition: transform 0.3s ease-in-out;
 `;
 
-export default function SidePanel() {
-  return <div css={sidePanelCss(false)} />;
+export default function SidePanel({ showing, toggleSidePanel }) {
+  return (
+    <Container showing={showing}>
+      <Toggle onClick={toggleSidePanel} />
+    </Container>
+  );
 }

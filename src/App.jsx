@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from '@emotion/styled';
 import Map from 'components/map/Map';
-import SidePanel from './components/panel/SidePanel';
+import SidePanel from './containers/SidePanel';
 
 const Container = styled.main`
   display: flex;

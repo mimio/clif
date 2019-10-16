@@ -1,4 +1,6 @@
 import { combineReducers } from 'redux';
+import { appReducer } from './app';
+
 export default combineReducers({
-  test: (state = {}) => state,
+  app: appReducer,
 });
