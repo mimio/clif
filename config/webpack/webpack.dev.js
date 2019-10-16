@@ -4,8 +4,6 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const WriteFilePlugin = require('write-file-webpack-plugin');
 const common = require('./webpack.common.js');
 
-const isDev = !(process.env.NODE_ENV === 'production');
-
 module.exports = merge(common, {
   mode: 'development',
   devtool: 'cheap-module-eval-source-map',
