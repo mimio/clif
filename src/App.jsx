@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from '@emotion/styled';
+import Map from 'components/map/Map';
 
 const Container = styled.main`
   display: flex;
@@ -13,4 +14,8 @@ const Container = styled.main`
     sans-serif;
 `;
 
-export default () => <Container>kelp</Container>;
+export default () => (
+  <Container>
+    <Map />
+  </Container>
+);

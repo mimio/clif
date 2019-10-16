@@ -7,7 +7,6 @@ const globalCss = css`
     height: 100%;
     width: 100%;
     position: relative;
-    background: darkolivegreen;
   }
 `;
 
