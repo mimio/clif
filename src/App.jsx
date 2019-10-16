@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from '@emotion/styled';
 import Map from 'components/map/Map';
+import SidePanel from './components/panel/SidePanel';
 
 const Container = styled.main`
   display: flex;
@@ -16,6 +17,7 @@ const Container = styled.main`
 
 export default () => (
   <Container>
+    <SidePanel />
     <Map />
   </Container>
 );
