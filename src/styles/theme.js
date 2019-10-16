@@ -1,13 +1,16 @@
 import { get } from 'lodash-es';
 import colors from './colors';
-import widths from './widths';
+import sizes from './sizes';
+
+const GRID_SIZE = 4;
 
 const lookup = {
   ...colors,
-  ...widths,
+  ...sizes,
 };
 
 export default {
   get: prop => get(lookup, prop),
+  size: num => `${GRID_SIZE * num}px`,
   colors,
 };

@@ -1,9 +1,13 @@
 import React from 'react';
 import styled from '@emotion/styled';
 import Toggle from './Toggle';
+import Listings from '../listings/Listings';
+import Filters from '../filters/Filters';
+import SearchBar from '../search/SearchBar';
 
 const Container = styled.div`
   display: flex;
+  flex-direction: column;
   position: absolute;
   top: 0;
   left: 0;
@@ -19,6 +23,9 @@ export default function SidePanel({ showing, toggleSidePanel }) {
   return (
     <Container showing={showing}>
       <Toggle onClick={toggleSidePanel} />
+      <SearchBar />
+      <Filters />
+      <Listings />
     </Container>
   );
 }

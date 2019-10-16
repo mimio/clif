@@ -10,7 +10,7 @@ const Container = styled.main`
   color: white;
   justify-content: center;
   align-items: center;
-  font-size: 150px;
+  overflow: hidden;
   font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial,
     sans-serif;
 `;
