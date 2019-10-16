@@ -5,9 +5,7 @@ import { composeWithDevTools } from 'redux-devtools-extension/developmentOnly';
 import { createStore, applyMiddleware, compose } from 'redux';
 import appReducer from './modules';
 
-const rootReducer = (state, action) => {
-  return appReducer(state, action);
-};
+const rootReducer = (state, action) => appReducer(state, action);
 
 function configureStore() {
   const middlewares = [thunk, reduxPackMiddleware];

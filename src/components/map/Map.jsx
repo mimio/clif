@@ -16,6 +16,7 @@ const MapContainer = styled.div`
 
 class Map extends Component {
   mapRef = createRef();
+
   map = null;
 
   componentDidMount() {

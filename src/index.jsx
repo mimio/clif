@@ -3,10 +3,10 @@ import { BrowserRouter, Route } from 'react-router-dom';
 import { render } from 'react-dom';
 import { Provider } from 'react-redux';
 import { ThemeProvider } from 'emotion-theming';
-import GlobalStyles from './styles/GlobalStyles';
+import { hot } from 'react-hot-loader/root';
 
 import 'normalize.css';
-import { hot } from 'react-hot-loader/root';
+import GlobalStyles from './styles/GlobalStyles';
 import App from './App';
 
 import storeConfigs from './store';
