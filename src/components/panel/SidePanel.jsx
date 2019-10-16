@@ -7,11 +7,10 @@ const Container = styled.div`
   position: absolute;
   top: 0;
   left: 0;
-  min-width: 300px;
+  min-width: ${({ theme }) => theme.get('sidePanelWidth')};
   height: 100%;
-  background: white;
-  transform: ${p =>
-    p.showing ? 'translateX(0px)' : 'translateX(-300px)'};
+  background: ${({ theme }) => theme.get('gray')};
+  transform: ${p => (p.showing ? '' : `translateX(-100%)`)};
   z-index: 10;
   transition: transform 0.3s ease-in-out;
 `;

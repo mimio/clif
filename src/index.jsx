@@ -6,6 +6,8 @@ import { ThemeProvider } from 'emotion-theming';
 import { hot } from 'react-hot-loader/root';
 
 import 'normalize.css';
+
+import theme from './styles/theme';
 import GlobalStyles from './styles/GlobalStyles';
 import App from './App';
 
@@ -18,7 +20,7 @@ const root = document.getElementById('root');
 const Main = hot(() => (
   <>
     <GlobalStyles />
-    <ThemeProvider theme={{}}>
+    <ThemeProvider theme={theme}>
       <Provider store={store}>
         <BrowserRouter basename="/">
           <Route path="/:tab?/:subTab?" component={App} />
