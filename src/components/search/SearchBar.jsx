@@ -5,7 +5,7 @@ const StyledSearch = styled.div`
   height: ${p => p.theme.get('searchBarHeight')};
   width: 100%;
   position: relative;
-  background: ${p => p.theme.get('white')};
+  background: ${p => p.theme.get('offWhite')};
 `;
 
 const SearchInput = styled.input`
