@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import styled from '@emotion/styled';
 import Map from 'components/map/Map';
 import SidePanel from './containers/SidePanel';
@@ -15,9 +15,14 @@ const Container = styled.main`
     sans-serif;
 `;
 
-export default () => (
-  <Container>
-    <SidePanel />
-    <Map />
-  </Container>
-);
+export default ({ fetchData }) => {
+  useEffect(() => {
+    fetchData();
+  });
+  return (
+    <Container>
+      <SidePanel />
+      <Map />
+    </Container>
+  );
+};

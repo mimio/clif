@@ -6,10 +6,11 @@ import { ThemeProvider } from 'emotion-theming';
 import { hot } from 'react-hot-loader/root';
 
 import 'normalize.css';
+import '../fonts/fonts.css';
 
 import theme from './styles/theme';
 import GlobalStyles from './styles/GlobalStyles';
-import App from './App';
+import App from './containers/App';
 
 import storeConfigs from './store';
 
