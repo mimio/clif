@@ -4,7 +4,7 @@ import { FETCH_DATA } from './actions';
 const initialState = {
   isLoading: true,
   error: null,
-  data: null,
+  data: {},
 };
 
 export const geojsonReducer = (state = initialState, action) => {

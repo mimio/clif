@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import styled from '@emotion/styled';
-import Map from 'components/map/Map';
+import Map from 'containers/Map';
 import SidePanel from './containers/SidePanel';
 
 const Container = styled.main`
