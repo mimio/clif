@@ -8,7 +8,6 @@ const StyledListings = styled.div`
   height: 100%;
   width: 100%;
   flex-direction: column;
-
   overflow: auto;
 `;
 
@@ -16,21 +15,13 @@ const Inner = styled.div`
   margin: ${p => p.theme.size(4)};
 `;
 
-export default function Listings() {
+export default function Listings({ list }) {
   return (
     <StyledListings>
       <Inner>
-        <Listing />
-        <Listing />
-        <Listing />
-        <Listing />
-        <Listing />
-        <Listing />
-        <Listing />
-        <Listing />
-        <Listing />
-        <Listing />
-        <Listing />
+        {list.map(item => (
+          <Listing item={item} />
+        ))}
       </Inner>
     </StyledListings>
   );
