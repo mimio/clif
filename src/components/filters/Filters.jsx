@@ -11,14 +11,19 @@ const StyledFilters = styled.div`
 `;
 
 export default function Filters() {
+  // todo: these are fake as fuck
   return (
     <StyledFilters>
-      <Filter />
-      <Filter />
-      <Filter />
-      <Filter />
-      <Filter />
-      <Filter />
+      {[
+        'SNOWMOBILING',
+        'RAFTING',
+        'ATV',
+        'HORSES',
+        'FISHING',
+        'CLEAR',
+      ].map((category, i) => (
+        <Filter name={category} index={i} />
+      ))}
     </StyledFilters>
   );
 }

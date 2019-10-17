@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from '@emotion/styled';
+import { ReactComponent as SnowmobileIcon } from './snowmobile.svg';
 
 const StyledListing = styled.div`
   background: ${p => p.theme.get('lightGray')};
@@ -33,14 +34,17 @@ const StyledName = styled.span`
   font-family: Antonio;
   font-weight: 700;
   font-size: 20px;
+  text-transform: uppercase;
 `;
 
 const StyledDescription = styled.span`
   font-size: 16px;
 `;
 
-const Icon = styled.div`
+const Icon = styled(SnowmobileIcon)`
   width: 64px;
+  padding: ${p => p.theme.size(5)};
+  color: #303132;
 `;
 
 export default function Listing({ item: { Name } }) {
