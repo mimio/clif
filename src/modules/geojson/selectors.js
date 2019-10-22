@@ -1,7 +1,10 @@
 import { createSelector } from 'reselect';
-import { getSearchEngine } from 'utils/search';
 import { arrayToFeatureCollection } from 'utils/geojson';
-import { selectSearchValue } from '../filters';
+import { get } from 'lodash-es';
+import {
+  selectSearchResults,
+  selectSearchValue,
+} from '../filters/selectors';
 
 export const selectGeoJsonState = state => state.geojson;
 
@@ -16,16 +19,26 @@ export const selectFeatureList = createSelector(selectData, data =>
 
 export const selectFilteredResults = createSelector(
   selectSearchValue,
+  selectSearchResults,
   selectFeatureList,
-  (searchValue, features) => {
-    const engine = getSearchEngine();
-    if (!engine || !searchValue) return features;
-    const results = engine.search(searchValue).map(feat => feat.UID);
-    return features.filter(feat => results.includes(feat.UID));
-  },
+  (value, results, features) =>
+    !value
+      ? features
+      : features.filter(feat => results.includes(feat.UID)),
+);
+
+export const selectSelectedFeatureId = createSelector(
+  selectGeoJsonState,
+  geojson => geojson.selectedFeature,
 );
 
 export const selectLookup = createSelector(selectData, data => data);
+
+export const selectSelectedFeature = createSelector(
+  selectSelectedFeatureId,
+  selectLookup,
+  (id, lookup) => get(lookup, id, null),
+);
 
 export const selectGeoJson = createSelector(
   selectFilteredResults,

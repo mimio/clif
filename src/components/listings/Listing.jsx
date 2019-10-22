@@ -47,9 +47,9 @@ const Icon = styled(SnowmobileIcon)`
   color: #303132;
 `;
 
-export default function Listing({ item: { Name } }) {
+export default function Listing({ item: { Name, UID }, onClick }) {
   return (
-    <StyledListing>
+    <StyledListing onClick={() => onClick(UID)}>
       <Icon />
       <NameContainer>
         <StyledName>{Name}</StyledName>

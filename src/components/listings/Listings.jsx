@@ -15,12 +15,12 @@ const Inner = styled.div`
   margin: ${p => p.theme.size(4)};
 `;
 
-export default function Listings({ list }) {
+export default function Listings({ list, selectFeature }) {
   return (
     <StyledListings>
       <Inner>
         {list.map(item => (
-          <Listing item={item} />
+          <Listing onClick={selectFeature} item={item} />
         ))}
       </Inner>
     </StyledListings>

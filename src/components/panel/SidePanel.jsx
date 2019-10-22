@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from '@emotion/styled';
 import Listings from 'containers/Listings';
+import Detail from 'containers/Detail';
 import SearchBar from 'containers/Search';
 import Toggle from './Toggle';
 import Filters from '../filters/Filters';
@@ -11,7 +12,7 @@ const Container = styled.div`
   position: absolute;
   top: 0;
   left: 0;
-  min-width: ${({ theme }) => theme.get('sidePanelWidth')};
+  width: ${({ theme }) => theme.get('sidePanelWidth')};
   height: 100%;
   background: ${({ theme }) => theme.get('gray')};
   transform: ${p => (p.showing ? '' : `translateX(-100%)`)};
@@ -19,13 +20,17 @@ const Container = styled.div`
   transition: transform 0.3s ease-in-out;
 `;
 
-export default function SidePanel({ showing, toggleSidePanel }) {
+export default function SidePanel({
+  showing,
+  toggleSidePanel,
+  showDetailView,
+}) {
   return (
     <Container showing={showing}>
       <Toggle onClick={toggleSidePanel} />
       <SearchBar />
       <Filters />
-      <Listings />
+      {showDetailView ? <Detail /> : <Listings />}
     </Container>
   );
 }
