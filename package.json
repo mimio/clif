@@ -103,7 +103,9 @@
   },
   "dependencies": {
     "@svgr/webpack": "^4.3.3",
-    "mapbox-gl": "^1.4.1"
+    "js-search": "^1.4.3",
+    "mapbox-gl": "^1.4.1",
+    "stemmer": "^1.0.4"
   },
   "husky": {
     "hooks": {

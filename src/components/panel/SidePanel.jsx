@@ -1,9 +1,9 @@
 import React from 'react';
 import styled from '@emotion/styled';
 import Listings from 'containers/Listings';
+import SearchBar from 'containers/Search';
 import Toggle from './Toggle';
 import Filters from '../filters/Filters';
-import SearchBar from '../search/SearchBar';
 
 const Container = styled.div`
   display: flex;

@@ -1,10 +1,11 @@
 import { connect } from 'react-redux';
-import { selectFeatureList } from 'modules/geojson';
+
 import Listings from '../components/listings/Listings';
+import { selectFilteredResults } from '../modules/geojson';
 
 export default connect(
   state => ({
-    list: selectFeatureList(state),
+    list: selectFilteredResults(state),
   }),
   null,
 )(Listings);

@@ -19,10 +19,13 @@ const SearchInput = styled.input`
   margin-left: ${p => p.theme.size(4)};
 `;
 
-export default function SearchBar() {
+export default function SearchBar({ updateSearch }) {
   return (
     <StyledSearch>
-      <SearchInput placeholder="Search..." />
+      <SearchInput
+        onChange={e => updateSearch(e.target.value)}
+        placeholder="Search..."
+      />
     </StyledSearch>
   );
 }

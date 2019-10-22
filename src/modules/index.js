@@ -7,7 +7,7 @@ import { geojsonReducer } from './geojson/reducer';
 
 export default combineReducers({
   app: appReducer,
-  filter: filterReducer,
+  filters: filterReducer,
   geojson: geojsonReducer,
   map: mapReducer,
 });
