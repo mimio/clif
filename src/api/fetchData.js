@@ -1,3 +1,5 @@
-const url = 'https://mountaingames.com/wp-json/maps-api/locations';
+import data from '../../data/trailData.json';
 
-export const fetchData = () => fetch(url).then(res => res.json());
+// const url = 'https://mountaingames.com/wp-json/maps-api/locations';
+
+export const fetchData = async () => data;

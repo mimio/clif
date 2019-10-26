@@ -40,6 +40,40 @@ export const selectSelectedFeature = createSelector(
   (id, lookup) => get(lookup, id, null),
 );
 
+export const selectTrailGeoJson = createSelector(
+  selectFeatureList,
+  data => {
+    const geojson = {
+      type: 'FeatureCollection',
+      features: data
+        .filter(el => el.type === 'LineString')
+        .map(({ coordinates, type, ...rest }) => ({
+          type: 'Feature',
+          geometry: { type, coordinates },
+          properties: rest,
+        })),
+    };
+    return geojson;
+  },
+);
+
+export const selectWaypointsGeoJson = createSelector(
+  selectFeatureList,
+  data => {
+    const geojson = {
+      type: 'FeatureCollection',
+      features: data
+        .filter(el => el.type === 'Point')
+        .map(({ coordinates, type, ...rest }) => ({
+          type: 'Feature',
+          geometry: { type, coordinates },
+          properties: rest,
+        })),
+    };
+    return geojson;
+  },
+);
+
 export const selectGeoJson = createSelector(
   selectFilteredResults,
   features => arrayToFeatureCollection(Object.values(features)),

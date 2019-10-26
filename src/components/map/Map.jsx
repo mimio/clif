@@ -3,8 +3,6 @@ import styled from '@emotion/styled';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { config } from './config';
-import layers from './layers';
-import { emptyGeoJson } from '../../utils/geojson';
 
 const MapContainer = styled.div`
   height: 100%;
@@ -38,13 +36,8 @@ class Map extends Component {
   }
 
   addLayers = () => {
-    Object.entries(layers).forEach(([k, v]) => {
-      this.map.addSource(k, {
-        type: 'geojson',
-        data: emptyGeoJson,
-      });
-      this.map.addLayer(v);
-    });
+    const { mapLayers } = this.props;
+    this.map.addLayer(mapLayers);
   };
 
   getLayer = id =>
@@ -71,12 +64,11 @@ class Map extends Component {
     });
 
   updateData = async () => {
-    const { geojson } = this.props;
-
-    Object.keys(layers).forEach(async k => {
-      const source = await this.getSource(k);
-      source.setData(geojson);
-    });
+    // const { geojson } = this.props;
+    // Object.keys(layers).forEach(async k => {
+    //   const source = await this.getSource(k);
+    //   source.setData(geojson);
+    // });
   };
 
   onMapLoaded = () => {
