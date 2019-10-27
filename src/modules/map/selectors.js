@@ -1,18 +1,36 @@
 import { createSelector } from 'reselect';
-import { selectTrailGeoJson } from '../geojson';
+import {
+  selectTrailGeoJson,
+  selectWaypointsGeoJson,
+} from '../geojson';
 
 export const selectMapLayers = createSelector(
   selectTrailGeoJson,
-  trailData => ({
-    id: 'lines',
-    type: 'line',
-    source: {
-      type: 'geojson',
-      data: trailData,
+  selectWaypointsGeoJson,
+  (trailData, waypointData) => [
+    {
+      id: 'trails',
+      type: 'line',
+      source: {
+        type: 'geojson',
+        data: trailData,
+      },
+      paint: {
+        'line-width': 3,
+        'line-color': ['get', 'color'],
+      },
     },
-    paint: {
-      'line-width': 3,
-      'line-color': ['get', 'color'],
+    {
+      id: 'waypoints',
+      type: 'circle',
+      source: {
+        type: 'geojson',
+        data: waypointData,
+      },
+      paint: {
+        'circle-color': ['get', 'color'],
+        'circle-radius': 5,
+      },
     },
-  }),
+  ],
 );

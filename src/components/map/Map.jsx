@@ -37,7 +37,7 @@ class Map extends Component {
 
   addLayers = () => {
     const { mapLayers } = this.props;
-    this.map.addLayer(mapLayers);
+    mapLayers.forEach(layer => this.map.addLayer(layer));
   };
 
   getLayer = id =>
