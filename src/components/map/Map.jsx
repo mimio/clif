@@ -16,6 +16,10 @@ const MapContainer = styled.div`
 class Map extends Component {
   mapRef = createRef();
 
+  mapLoaded = false;
+
+  hoveredFeature = null;
+
   map = null;
 
   componentDidUpdate(prevProps) {
@@ -34,13 +38,22 @@ class Map extends Component {
   }
 
   initialize = () => {
-    const { mapConfig } = this.props;
-
+    const { mapConfig, mapLayers } = this.props;
+    const layerIds = mapLayers.map(layer => layer.id);
+    console.log(layerIds);
     this.map = new mapboxgl.Map({
       ...mapConfig,
       container: this.mapRef.current,
     });
     this.map.on('load', this.onMapLoaded);
+    this.map.on('mousemove', 'trails', this.onMouseMove);
+    this.map.on('mousemove', 'waypoints', this.onMouseMove);
+    this.map.on('mouseleave', 'trails', () =>
+      this.onMouseLeave('trails'),
+    );
+    this.map.on('mouseleave', 'waypoints', () =>
+      this.onMouseLeave('waypoints'),
+    );
   };
 
   addLayers = () => {
@@ -81,6 +94,52 @@ class Map extends Component {
 
   onMapLoaded = () => {
     this.addLayers();
+    this.map.on('idle', () => {
+      this.mapLoaded = true;
+    });
+  };
+
+  updateCursor = (pointer = false) => {
+    this.map.getCanvas().style.cursor = pointer
+      ? 'pointer'
+      : 'initial';
+  };
+
+  onMouseMove = e => {
+    if (!this.mapLoaded) return;
+    const feature = e.features[0];
+
+    this.updateCursor();
+    if (feature) {
+      if (this.hoveredFeature) {
+        this.map.setFeatureState(
+          {
+            source: feature.source,
+            id: this.hoveredFeature,
+          },
+          { hover: false },
+        );
+        this.hoveredFeature = null;
+      }
+
+      this.updateCursor(true);
+      this.hoveredFeature = feature.id;
+
+      this.map.setFeatureState(
+        { source: feature.source, id: this.hoveredFeature },
+        { hover: true },
+      );
+    }
+  };
+
+  onMouseLeave = layer => {
+    if (this.hoveredFeature) {
+      this.updateCursor(false);
+      this.map.setFeatureState(
+        { source: layer, id: this.hoveredFeature },
+        { hover: false },
+      );
+    }
   };
 
   render() {
