@@ -9,9 +9,7 @@ import Filters from '../filters/Filters';
 const Container = styled.div`
   display: flex;
   flex-direction: column;
-  position: absolute;
-  top: 0;
-  left: 0;
+  flex-shrink: 0;
   width: ${({ theme }) => theme.get('sidePanelWidth')};
   height: 100%;
   background: ${({ theme }) => theme.get('gray')};

@@ -2,7 +2,6 @@ import React, { Component, createRef } from 'react';
 import styled from '@emotion/styled';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { config } from './config';
 
 const MapContainer = styled.div`
   height: 100%;
@@ -19,21 +18,30 @@ class Map extends Component {
 
   map = null;
 
-  componentDidMount() {
-    this.map = new mapboxgl.Map({
-      ...config,
-      container: this.mapRef.current,
-    });
-    this.map.on('load', this.onMapLoaded);
-  }
-
   componentDidUpdate(prevProps) {
-    const { geojson: prevGeoJson } = prevProps;
+    const {
+      geojson: prevGeoJson,
+      mapConfig: { prevMapConfig },
+    } = prevProps;
+
     const { geojson } = this.props;
+    if (this.props.mapConfig && !prevMapConfig) {
+      this.initialize();
+    }
     if (geojson.features.length !== prevGeoJson.features.length) {
       this.updateData();
     }
   }
+
+  initialize = () => {
+    const { mapConfig } = this.props;
+
+    this.map = new mapboxgl.Map({
+      ...mapConfig,
+      container: this.mapRef.current,
+    });
+    this.map.on('load', this.onMapLoaded);
+  };
 
   addLayers = () => {
     const { mapLayers } = this.props;

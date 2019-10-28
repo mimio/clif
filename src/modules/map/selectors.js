@@ -1,8 +1,21 @@
 import { createSelector } from 'reselect';
+import bbox from '@turf/bbox';
 import {
   selectTrailGeoJson,
   selectWaypointsGeoJson,
 } from '../geojson';
+import { config } from './config';
+
+export const selectMapConfig = createSelector(
+  selectTrailGeoJson,
+  geojson => {
+    if (!geojson) return null;
+    return {
+      ...config,
+      bounds: bbox(geojson),
+    };
+  },
+);
 
 export const selectMapLayers = createSelector(
   selectTrailGeoJson,
