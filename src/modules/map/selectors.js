@@ -30,7 +30,12 @@ export const selectMapLayers = createSelector(
         generateId: true, // https://github.com/mapbox/mapbox-gl-js/pull/7043
       },
       paint: {
-        'line-width': 3,
+        'line-width': [
+          'case',
+          ['boolean', ['feature-state', 'hover'], false],
+          5,
+          3,
+        ],
         'line-color': [
           'case',
           ['boolean', ['feature-state', 'hover'], false],
