@@ -38,9 +38,8 @@ class Map extends Component {
   }
 
   initialize = () => {
-    const { mapConfig, mapLayers } = this.props;
-    const layerIds = mapLayers.map(layer => layer.id);
-    console.log(layerIds);
+    const { mapConfig } = this.props;
+    if (this.mapLoaded) return;
     this.map = new mapboxgl.Map({
       ...mapConfig,
       container: this.mapRef.current,
