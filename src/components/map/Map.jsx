@@ -24,16 +24,11 @@ class Map extends Component {
 
   componentDidUpdate(prevProps) {
     const {
-      geojson: prevGeoJson,
       mapConfig: { prevMapConfig },
     } = prevProps;
 
-    const { geojson } = this.props;
     if (this.props.mapConfig && !prevMapConfig) {
       this.initialize();
-    }
-    if (geojson.features.length !== prevGeoJson.features.length) {
-      this.updateData();
     }
   }
 
@@ -83,14 +78,6 @@ class Map extends Component {
       this.map.on('idle', resolver);
     });
 
-  updateData = async () => {
-    // const { geojson } = this.props;
-    // Object.keys(layers).forEach(async k => {
-    //   const source = await this.getSource(k);
-    //   source.setData(geojson);
-    // });
-  };
-
   onMapLoaded = () => {
     this.addLayers();
     this.map.on('idle', () => {
@@ -107,9 +94,10 @@ class Map extends Component {
   onMouseMove = e => {
     if (!this.mapLoaded) return;
     const feature = e.features[0];
-
+    console.log(this.props);
     this.updateCursor();
     if (feature) {
+      console.log(feature);
       if (this.hoveredFeature) {
         this.map.setFeatureState(
           {

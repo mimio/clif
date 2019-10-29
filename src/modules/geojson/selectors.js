@@ -49,6 +49,7 @@ export const selectTrailGeoJson = createSelector(
         .filter(el => el.type === 'LineString')
         .map(({ coordinates, type, ...rest }) => ({
           type: 'Feature',
+          id: rest.UID,
           geometry: { type, coordinates },
           properties: rest,
         })),

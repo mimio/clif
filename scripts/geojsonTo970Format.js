@@ -1,7 +1,6 @@
 /* eslint no-param-reassign:0 */
 const fs = require('fs-extra');
 const path = require('path');
-const uuid = require('uuid/v1');
 const randomColor = require('random-color');
 
 const files = [
@@ -15,10 +14,10 @@ async function convert() {
     files.flatMap(async file => {
       const json = await fs.readJson(file);
 
-      return json.features.reduce((acc, curr) => {
+      return json.features.reduce((acc, curr, i) => {
         const { name: Name, miles } = curr.properties;
         const { type, coordinates } = curr.geometry;
-        const UID = uuid();
+        const UID = i;
         const color = randomColor();
         acc[UID] = {
           UID,

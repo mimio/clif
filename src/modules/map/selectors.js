@@ -27,7 +27,6 @@ export const selectMapLayers = createSelector(
       source: {
         type: 'geojson',
         data: trailData,
-        generateId: true, // https://github.com/mapbox/mapbox-gl-js/pull/7043
       },
       paint: {
         'line-width': [
@@ -50,7 +49,6 @@ export const selectMapLayers = createSelector(
       source: {
         type: 'geojson',
         data: waypointData,
-        generateId: true,
       },
       paint: {
         'circle-color': ['get', 'color'],
