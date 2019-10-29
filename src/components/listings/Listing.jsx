@@ -49,7 +49,7 @@ const Icon = styled(SnowmobileIcon)`
 `;
 
 export default function Listing({
-  item: { Name, UID, type },
+  item: { Name, UID, type, miles },
   onClick,
   onMouseEnter,
   onMouseLeave,
@@ -64,7 +64,7 @@ export default function Listing({
       <Icon />
       <NameContainer>
         <StyledName>{Name}</StyledName>
-        <StyledDescription>2.3M| +/- 1000ft</StyledDescription>
+        <StyledDescription>{`${miles}M | +/- 1000ft`}</StyledDescription>
       </NameContainer>
     </StyledListing>
   );

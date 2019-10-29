@@ -21,7 +21,6 @@ class Map extends Component {
 
   componentDidUpdate(prevProps) {
     const { isMapLoaded: wasMapLoaded } = prevProps;
-
     if (!wasMapLoaded && !this.props.isMapLoaded) {
       this.initialize();
     }
