@@ -17,23 +17,19 @@ const MapContainer = styled.div`
 class Map extends Component {
   mapRef = createRef();
 
-  mapLoaded = false;
-
   map = null;
 
   componentDidUpdate(prevProps) {
-    const {
-      mapConfig: { prevMapConfig },
-    } = prevProps;
+    const { isMapLoaded: wasMapLoaded } = prevProps;
 
-    if (this.props.mapConfig && !prevMapConfig && !this.mapLoaded) {
+    if (!wasMapLoaded && !this.props.isMapLoaded) {
       this.initialize();
     }
   }
 
   initialize = () => {
-    const { mapConfig } = this.props;
-    if (this.mapLoaded) return;
+    const { mapConfig, isMapLoaded } = this.props;
+    if (isMapLoaded) return;
     this.map = setMap(
       new mapboxgl.Map({
         ...mapConfig,
@@ -52,6 +48,12 @@ class Map extends Component {
       this.map.on('mouseleave', layer.id, unhoverFeature);
     });
   };
+
+  addControls = () =>
+    this.map.addControl(
+      new mapboxgl.NavigationControl(),
+      'top-right',
+    );
 
   getLayer = id =>
     new Promise(resolve => {
@@ -77,9 +79,11 @@ class Map extends Component {
     });
 
   onMapLoaded = () => {
+    const { mapLoaded } = this.props;
     this.addLayers();
+    this.addControls();
     this.map.on('idle', () => {
-      this.mapLoaded = true;
+      mapLoaded();
     });
   };
 

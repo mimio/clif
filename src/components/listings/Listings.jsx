@@ -17,15 +17,18 @@ const Inner = styled.div`
 
 export default function Listings({
   list,
+  isLoading,
   selectFeature,
   hoverFeature,
   unhoverFeature,
 }) {
+  if (isLoading) return null;
   return (
     <StyledListings>
       <Inner>
         {list.map(item => (
           <Listing
+            key={item.UID}
             onClick={selectFeature}
             onMouseEnter={hoverFeature}
             onMouseLeave={unhoverFeature}

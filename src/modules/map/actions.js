@@ -5,6 +5,7 @@ export const SELECT_FEATURE = 'geojson/selectFeature';
 export const CLEAR_SELECTION = 'geojson/clearSelection';
 export const HOVER_FEATURE = 'geojson/hoverFeature';
 export const UNHOVER_FEATURE = 'geojson/unhoverFeature';
+export const MAP_LOADED = 'map/loaded';
 
 export const selectFeature = id => ({
   type: SELECT_FEATURE,
@@ -13,6 +14,10 @@ export const selectFeature = id => ({
 
 export const clearSelection = () => ({
   type: CLEAR_SELECTION,
+});
+
+export const mapLoaded = () => ({
+  type: MAP_LOADED,
 });
 
 export const unhoverFeature = () => (dispatch, getState, getMap) => {

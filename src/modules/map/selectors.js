@@ -22,6 +22,10 @@ export const selectMapConfig = createSelector(
   },
 );
 
+export const selectMapLoaded = createSelector(selectMapState, map =>
+  get(map, 'mapLoaded', false),
+);
+
 export const selectMapLayers = createSelector(
   selectTrailGeoJson,
   selectWaypointsGeoJson,

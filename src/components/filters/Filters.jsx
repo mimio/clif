@@ -22,7 +22,7 @@ export default function Filters() {
         'FISHING',
         'CLEAR',
       ].map((category, i) => (
-        <Filter name={category} index={i} />
+        <Filter key={category} name={category} index={i} />
       ))}
     </StyledFilters>
   );
