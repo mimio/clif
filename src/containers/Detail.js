@@ -3,7 +3,7 @@ import Detail from '../components/listings/Detail';
 import {
   selectSelectedFeature,
   clearSelection,
-} from '../modules/geojson';
+} from '../modules/map';
 
 export default connect(
   state => ({

@@ -16,7 +16,8 @@ const StyledListing = styled.div`
   user-select: none;
   cursor: pointer;
   -webkit-overflow-scrolling: touch;
-  &:active {
+  &:active,
+  &:hover {
     background: ${p => p.theme.get('limeGreen')};
     color: ${p => p.theme.get('gray')};
   }
@@ -47,9 +48,19 @@ const Icon = styled(SnowmobileIcon)`
   color: #303132;
 `;
 
-export default function Listing({ item: { Name, UID }, onClick }) {
+export default function Listing({
+  item: { Name, UID, type },
+  onClick,
+  onMouseEnter,
+  onMouseLeave,
+}) {
+  const source = type === 'Point' ? 'waypoints' : 'trails';
   return (
-    <StyledListing onClick={() => onClick(UID)}>
+    <StyledListing
+      onClick={() => onClick(UID)}
+      onMouseEnter={() => onMouseEnter({ id: UID, source })}
+      onMouseLeave={() => onMouseLeave({ id: UID, source })}
+    >
       <Icon />
       <NameContainer>
         <StyledName>{Name}</StyledName>

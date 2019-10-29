@@ -1,6 +1,7 @@
 import React, { Component, createRef } from 'react';
 import styled from '@emotion/styled';
 import mapboxgl from 'mapbox-gl';
+import { setMap } from 'utils/map';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const MapContainer = styled.div`
@@ -18,8 +19,6 @@ class Map extends Component {
 
   mapLoaded = false;
 
-  hoveredFeature = null;
-
   map = null;
 
   componentDidUpdate(prevProps) {
@@ -27,7 +26,7 @@ class Map extends Component {
       mapConfig: { prevMapConfig },
     } = prevProps;
 
-    if (this.props.mapConfig && !prevMapConfig) {
+    if (this.props.mapConfig && !prevMapConfig && !this.mapLoaded) {
       this.initialize();
     }
   }
@@ -35,24 +34,23 @@ class Map extends Component {
   initialize = () => {
     const { mapConfig } = this.props;
     if (this.mapLoaded) return;
-    this.map = new mapboxgl.Map({
-      ...mapConfig,
-      container: this.mapRef.current,
-    });
+    this.map = setMap(
+      new mapboxgl.Map({
+        ...mapConfig,
+        container: this.mapRef.current,
+      }),
+    );
+
     this.map.on('load', this.onMapLoaded);
-    this.map.on('mousemove', 'trails', this.onMouseMove);
-    this.map.on('mousemove', 'waypoints', this.onMouseMove);
-    this.map.on('mouseleave', 'trails', () =>
-      this.onMouseLeave('trails'),
-    );
-    this.map.on('mouseleave', 'waypoints', () =>
-      this.onMouseLeave('waypoints'),
-    );
   };
 
   addLayers = () => {
-    const { mapLayers } = this.props;
-    mapLayers.forEach(layer => this.map.addLayer(layer));
+    const { mapLayers, hoverFeature, unhoverFeature } = this.props;
+    mapLayers.forEach(layer => {
+      this.map.addLayer(layer);
+      this.map.on('mousemove', layer.id, hoverFeature);
+      this.map.on('mouseleave', layer.id, unhoverFeature);
+    });
   };
 
   getLayer = id =>
@@ -85,54 +83,10 @@ class Map extends Component {
     });
   };
 
-  updateCursor = (pointer = false) => {
-    this.map.getCanvas().style.cursor = pointer
-      ? 'pointer'
-      : 'initial';
-  };
-
-  onMouseMove = e => {
-    if (!this.mapLoaded) return;
-    const feature = e.features[0];
-    console.log(this.props);
-    this.updateCursor();
-    if (feature) {
-      console.log(feature);
-      if (this.hoveredFeature) {
-        this.map.setFeatureState(
-          {
-            source: feature.source,
-            id: this.hoveredFeature,
-          },
-          { hover: false },
-        );
-        this.hoveredFeature = null;
-      }
-
-      this.updateCursor(true);
-      this.hoveredFeature = feature.id;
-
-      this.map.setFeatureState(
-        { source: feature.source, id: this.hoveredFeature },
-        { hover: true },
-      );
-    }
-  };
-
-  onMouseLeave = layer => {
-    if (this.hoveredFeature) {
-      this.updateCursor(false);
-      this.map.setFeatureState(
-        { source: layer, id: this.hoveredFeature },
-        { hover: false },
-      );
-    }
-  };
-
   render() {
     return (
       <MapContainer>
-        <div ref={this.mapRef} />
+        <div id="mapbox-map" ref={this.mapRef} />
       </MapContainer>
     );
   }

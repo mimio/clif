@@ -8,16 +8,18 @@ const files = [
   path.resolve(__dirname, '../data/waypoints.geojson'),
 ];
 
+let featId = 0;
+
 async function convert() {
   const features = {};
   await Promise.all(
     files.flatMap(async file => {
       const json = await fs.readJson(file);
 
-      return json.features.reduce((acc, curr, i) => {
+      return json.features.reduce((acc, curr) => {
         const { name: Name, miles } = curr.properties;
         const { type, coordinates } = curr.geometry;
-        const UID = i;
+        const UID = featId;
         const color = randomColor();
         acc[UID] = {
           UID,
@@ -27,10 +29,12 @@ async function convert() {
           coordinates,
           color: color.hexString(),
         };
+        featId += 1;
         return acc;
       }, features);
     }),
   );
+  console.log(Object.keys(features).length);
 
   const fp = path.resolve(__dirname, '../data/trailData.json');
   fs.outputJSONSync(fp, features);

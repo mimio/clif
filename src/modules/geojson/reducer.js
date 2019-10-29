@@ -1,15 +1,10 @@
 import { handle } from 'redux-pack';
-import {
-  FETCH_DATA,
-  SELECT_FEATURE,
-  CLEAR_SELECTION,
-} from './actions';
+import { FETCH_DATA } from './actions';
 
 const initialState = {
   isLoading: true,
   error: null,
   data: {},
-  selectedFeature: null,
 };
 
 export const geojsonReducer = (state = initialState, action) => {
@@ -27,16 +22,6 @@ export const geojsonReducer = (state = initialState, action) => {
           data: payload,
         }),
       });
-    case SELECT_FEATURE:
-      return {
-        ...state,
-        selectedFeature: payload,
-      };
-    case CLEAR_SELECTION:
-      return {
-        ...state,
-        selectedFeature: null,
-      };
     default:
       return state;
   }

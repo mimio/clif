@@ -1,6 +1,6 @@
 import { createSelector } from 'reselect';
 import { arrayToFeatureCollection } from 'utils/geojson';
-import { get } from 'lodash-es';
+
 import {
   selectSearchResults,
   selectSearchValue,
@@ -14,7 +14,10 @@ export const selectData = createSelector(
 );
 
 export const selectFeatureList = createSelector(selectData, data =>
-  Object.values(data),
+  Object.values(data).filter(
+    feature => feature.type === 'LineString',
+    // todo: remove me - filtering out waypoints
+  ),
 );
 
 export const selectFilteredResults = createSelector(
@@ -27,18 +30,7 @@ export const selectFilteredResults = createSelector(
       : features.filter(feat => results.includes(feat.UID)),
 );
 
-export const selectSelectedFeatureId = createSelector(
-  selectGeoJsonState,
-  geojson => geojson.selectedFeature,
-);
-
 export const selectLookup = createSelector(selectData, data => data);
-
-export const selectSelectedFeature = createSelector(
-  selectSelectedFeatureId,
-  selectLookup,
-  (id, lookup) => get(lookup, id, null),
-);
 
 export const selectTrailGeoJson = createSelector(
   selectFeatureList,
