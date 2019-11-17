@@ -5,6 +5,7 @@ const path = require('path');
 const files = [
   path.resolve(__dirname, '../data/trails.geojson'),
   path.resolve(__dirname, '../data/waypoints.geojson'),
+  path.resolve(__dirname, '../data/areas.geojson'),
 ];
 
 let featId = 0;

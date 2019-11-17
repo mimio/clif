@@ -2,7 +2,7 @@ import { createSelector } from 'reselect';
 import { get } from 'lodash-es';
 import bbox from '@turf/bbox';
 import colors from 'styles/colors';
-import { TRAILS, WAYPOINTS, AREAS } from 'constants/sources';
+import { POINT, LINE, POLYGON } from 'constants/featureTypes';
 
 import {
   selectTrailGeoJson,
@@ -35,7 +35,7 @@ export const selectMapLayers = createSelector(
   selectAreasGeoJson,
   (trailData, waypointData, areasData) => [
     {
-      id: TRAILS,
+      id: LINE,
       type: 'line',
       source: {
         type: 'geojson',
@@ -57,7 +57,7 @@ export const selectMapLayers = createSelector(
       },
     },
     {
-      id: WAYPOINTS,
+      id: POINT,
       type: 'circle',
       source: {
         type: 'geojson',
@@ -81,7 +81,7 @@ export const selectMapLayers = createSelector(
       },
     },
     {
-      id: AREAS,
+      id: POLYGON,
       type: 'fill',
       source: {
         type: 'geojson',

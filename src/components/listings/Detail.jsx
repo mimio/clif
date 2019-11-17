@@ -44,6 +44,7 @@ const StyledName = styled.div`
   text-transform: uppercase;
   margin: 20px 0px;
 `;
+
 const StyledDescription = styled.div`
   font-size: 16px;
   font-family: Arial, Helvetica, sans-serif;

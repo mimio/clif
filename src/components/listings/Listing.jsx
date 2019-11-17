@@ -82,7 +82,7 @@ const getIcon = type => {
     case POLYGON:
       return StyledPolygonIcon;
     default:
-      return null;
+      return () => null;
   }
 };
 
@@ -107,13 +107,12 @@ export default function Listing({
   onMouseEnter,
   onMouseLeave,
 }) {
-  const source = type === POINT ? 'waypoints' : 'trails';
   const Icon = getIcon(type);
   return (
     <Container
-      onClick={() => onClick({ id: UID, source })}
-      onMouseEnter={() => onMouseEnter({ id: UID, source })}
-      onMouseLeave={() => onMouseLeave({ id: UID, source })}
+      onClick={() => onClick({ id: UID, source: type })}
+      onMouseEnter={() => onMouseEnter({ id: UID, source: type })}
+      onMouseLeave={() => onMouseLeave({ id: UID, source: type })}
     >
       <IconContainer>
         <Icon />
