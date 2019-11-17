@@ -1,6 +1,7 @@
 import { createSelector } from 'reselect';
 import { get } from 'lodash-es';
 import bbox from '@turf/bbox';
+import colors from 'styles/colors';
 
 import {
   selectTrailGeoJson,
@@ -47,8 +48,8 @@ export const selectMapLayers = createSelector(
         'line-color': [
           'case',
           ['boolean', ['feature-state', 'hover'], false],
-          'white',
-          ['get', 'color'],
+          colors.ultraLimeGreen,
+          colors.darkLimeGreen,
         ],
       },
     },
@@ -60,12 +61,19 @@ export const selectMapLayers = createSelector(
         data: waypointData,
       },
       paint: {
-        'circle-color': ['get', 'color'],
-        'circle-radius': [
+        'circle-color': 'transparent',
+        'circle-radius': 6,
+        'circle-stroke-color': [
           'case',
           ['boolean', ['feature-state', 'hover'], false],
-          10,
-          5,
+          colors.ultraLimeGreen,
+          colors.limeGreen,
+        ],
+        'circle-stroke-width': [
+          'case',
+          ['boolean', ['feature-state', 'hover'], false],
+          8,
+          6,
         ],
       },
     },

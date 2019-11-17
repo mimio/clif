@@ -4,7 +4,6 @@ import Listings from 'containers/Listings';
 import Detail from 'containers/Detail';
 import SearchBar from 'containers/Search';
 import Toggle from './Toggle';
-import Filters from '../filters/Filters';
 
 const Container = styled.div`
   display: flex;
@@ -27,7 +26,6 @@ export default function SidePanel({
     <Container showing={showing}>
       <Toggle onClick={toggleSidePanel} />
       <SearchBar />
-      <Filters />
       {showDetailView ? <Detail /> : <Listings />}
     </Container>
   );
