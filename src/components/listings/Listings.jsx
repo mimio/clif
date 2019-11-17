@@ -1,4 +1,5 @@
 import React from 'react';
+import { size } from 'styles';
 import styled from '@emotion/styled';
 
 import Listing from './Listing';
@@ -12,10 +13,11 @@ const StyledListings = styled.div`
 `;
 
 const Inner = styled.div`
-  margin: ${p => p.theme.size(4)};
+  margin: ${size(4)};
 `;
 
 export default function Listings({
+  className,
   list,
   isLoading,
   selectFeature,
@@ -24,7 +26,7 @@ export default function Listings({
 }) {
   if (isLoading) return null;
   return (
-    <StyledListings>
+    <StyledListings className={className}>
       <Inner>
         {list.map(item => (
           <Listing

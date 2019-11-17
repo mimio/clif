@@ -1,4 +1,6 @@
 import React from 'react';
+import PropTypes from 'prop-types';
+import { getStyle, size } from 'styles';
 import styled from '@emotion/styled';
 
 const Container = styled.div`
@@ -8,18 +10,19 @@ const Container = styled.div`
   flex-direction: column;
   align-items: center;
   font-family: Antonio;
-  color: ${p => p.theme.get('limeGreen')};
+  color: ${getStyle('limeGreen')};
+  background: transparent;
   padding: 20px 0;
 `;
 
 const BigButton = styled.button`
   height: 100px;
   width: 100%;
-  color: ${p => p.theme.get('limeGreen')};
+  color: ${getStyle('limeGreen')};
   cursor: pointer;
   &:hover {
-    color: ${p => p.theme.get('gray')};
-    background: ${p => p.theme.get('limeGreen')};
+    color: ${getStyle('gray')};
+    background: ${getStyle('limeGreen')};
   }
   display: flex;
   justify-content: center;
@@ -28,12 +31,12 @@ const BigButton = styled.button`
   background: none;
   outline: 0;
   border: none;
-  box-shadow: inset 0 0 0 5px ${p => p.theme.get('limeGreen')};
+  box-shadow: inset 0 0 0 5px ${getStyle('limeGreen')};
   padding: 20px;
 `;
 
 const Inner = styled.div`
-  margin: ${p => p.theme.size(4)};
+  margin: ${size(4)};
 `;
 
 const StyledName = styled.div`
@@ -48,12 +51,15 @@ const StyledDescription = styled.div`
   margin-bottom: 20px;
 `;
 
-export default function Detail({
-  feature: { Name, ShortDescription },
-  clearSelection,
-}) {
+// allows the details to have an exit transition without a blip of empty data
+let lastFeature = {};
+
+const Detail = ({ className, clearSelection, feature }) => {
+  if (feature) lastFeature = feature;
+  const { Name, ShortDescription } = feature || lastFeature;
+
   return (
-    <Container>
+    <Container className={className}>
       <Inner>
         <StyledName>{Name}</StyledName>
         <StyledDescription>{ShortDescription}</StyledDescription>
@@ -63,4 +69,17 @@ export default function Detail({
       </Inner>
     </Container>
   );
-}
+};
+
+Detail.propTypes = {
+  className: PropTypes.string,
+  clearSelection: PropTypes.func.isRequired,
+  feature: PropTypes.object,
+};
+
+Detail.defaultProps = {
+  className: '',
+  feature: {},
+};
+
+export default Detail;

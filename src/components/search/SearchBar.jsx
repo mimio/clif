@@ -1,11 +1,12 @@
 import React from 'react';
+import { getStyle, size } from 'styles';
 import styled from '@emotion/styled';
 
 const StyledSearch = styled.div`
-  height: ${p => p.theme.get('searchBarHeight')};
+  height: ${getStyle('searchBarHeight')};
   width: 100%;
   position: relative;
-  background: ${p => p.theme.get('offWhite')};
+  background: ${getStyle('offWhite')};
 `;
 
 const SearchInput = styled.input`
@@ -16,7 +17,7 @@ const SearchInput = styled.input`
   outline: 0;
   border: 0;
   background: none;
-  margin-left: ${p => p.theme.size(4)};
+  margin-left: ${size(4)};
 `;
 
 export default function SearchBar({ updateSearch }) {

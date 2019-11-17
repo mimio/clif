@@ -1,6 +1,6 @@
-import { get } from 'lodash-es';
 import { createSelector } from 'reselect';
 import { arrayToFeatureCollection } from 'utils/geojson';
+import { POINT, LINE, POLYGON } from 'constants/featureTypes';
 
 import {
   selectSearchResults,
@@ -30,36 +30,31 @@ export const selectFilteredResults = createSelector(
 
 export const selectLookup = createSelector(selectData, data => data);
 
+const makeGeojson = (data, geometryType) => ({
+  type: 'FeatureCollection',
+  features: data
+    .filter(({ type }) => type === geometryType)
+    .map(({ coordinates, type, ...rest }) => ({
+      type: 'Feature',
+      id: rest.UID,
+      geometry: { type, coordinates },
+      properties: rest,
+    })),
+});
+
 export const selectTrailGeoJson = createSelector(
   selectFeatureList,
-  data => {
-    const geojson = {
-      type: 'FeatureCollection',
-      features: data
-        .filter(el => el.type === 'LineString')
-        .map(({ coordinates, type, ...rest }) => ({
-          type: 'Feature',
-          id: rest.UID,
-          geometry: { type, coordinates },
-          properties: rest,
-        })),
-    };
-    return geojson;
-  },
+  data => makeGeojson(data, LINE),
 );
 
 export const selectWaypointsGeoJson = createSelector(
   selectFeatureList,
-  data => ({
-    type: 'FeatureCollection',
-    features: data
-      .filter(el => get(el, 'type') === 'Point')
-      .map(({ coordinates, type, ...rest }) => ({
-        type: 'Feature',
-        geometry: { type, coordinates },
-        properties: rest,
-      })),
-  }),
+  data => makeGeojson(data, POINT),
+);
+
+export const selectAreasGeoJson = createSelector(
+  selectFeatureList,
+  data => makeGeojson(data, POLYGON),
 );
 
 export const selectGeoJson = createSelector(

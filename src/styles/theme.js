@@ -1,16 +1,16 @@
-import { get } from 'lodash-es';
 import colors from './colors';
 import sizes from './sizes';
+import transitions from './transitions';
 
-const GRID_SIZE = 4;
-
-const lookup = {
-  ...colors,
-  ...sizes,
-};
-
-export default {
-  get: prop => get(lookup, prop),
-  size: num => `${GRID_SIZE * num}px`,
+const theme = {
   colors,
+  sizes,
+  transitions,
 };
+
+export const flatStanley = Object.values(theme).reduce(
+  (acc, val) => ({ ...acc, ...val }),
+  [],
+);
+
+export default theme;

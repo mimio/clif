@@ -12,6 +12,7 @@ export default {
   purple: '#612A6E',
   offWhite: '#F0F0F0',
   black: '#000',
+  transparentBlack: 'rgba(20, 20, 20, 0.6)',
   gray: '#454545',
   lightGray: '#696969',
 };

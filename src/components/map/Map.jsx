@@ -40,11 +40,17 @@ class Map extends Component {
   };
 
   addLayers = () => {
-    const { mapLayers, hoverFeature, unhoverFeature } = this.props;
+    const {
+      mapLayers,
+      hoverFeature,
+      unhoverFeature,
+      selectFeature,
+    } = this.props;
     mapLayers.forEach(layer => {
       this.map.addLayer(layer);
       this.map.on('mousemove', layer.id, hoverFeature);
       this.map.on('mouseleave', layer.id, unhoverFeature);
+      this.map.on('click', layer.id, selectFeature);
     });
   };
 

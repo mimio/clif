@@ -1,25 +1,30 @@
 import React from 'react';
+import { POINT, LINE, POLYGON } from 'constants/featureTypes';
+import { getStyle, size } from 'styles';
 import styled from '@emotion/styled';
 import { ReactComponent as SnowmobileIcon } from './snowmobile.svg';
+import { ReactComponent as PolygonIcon } from './polygon.svg';
 
-const StyledListing = styled.div`
-  background: ${p => p.theme.get('lightGray')};
-  height: ${p => p.theme.get('listingHeight')};
+const Container = styled.div`
+  background: ${getStyle('lightGray')};
+  height: ${getStyle('listingHeight')};
   width: 100%;
   display: flex;
   flex-shrink: 0;
   justify-content: center;
   align-items: center;
   border-radius: 16px;
-  color: ${p => p.theme.get('limeGreen')};
-  margin-bottom: ${p => p.theme.size(4)};
+  color: ${getStyle('limeGreen')};
+  margin-bottom: ${size(4)};
+  position: relative;
   user-select: none;
   cursor: pointer;
   -webkit-overflow-scrolling: touch;
+  transition: ${getStyle('hue')};
   &:active,
   &:hover {
-    background: ${p => p.theme.get('limeGreen')};
-    color: ${p => p.theme.get('gray')};
+    background: ${getStyle('limeGreen')};
+    color: ${getStyle('gray')};
   }
 `;
 
@@ -42,30 +47,81 @@ const StyledDescription = styled.span`
   font-size: 16px;
 `;
 
-const Icon = styled(SnowmobileIcon)`
-  width: 64px;
-  padding: ${p => p.theme.size(5)};
+const StyledSnowmobileIcon = styled(SnowmobileIcon)`
+  width: 100%;
   color: #303132;
 `;
 
+const StyledPolygonIcon = styled(PolygonIcon)`
+  width: 100%;
+`;
+
+const WaypointIcon = styled.div`
+  background: none;
+  border: 8px solid ${getStyle('darkLimeGreen')};
+  border-radius: 50%;
+  height: ${size(4)};
+  width: ${size(4)};
+`;
+
+const IconContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: ${getStyle('listingHeight')};
+  width: ${size(16)};
+  padding: 0 ${size(5)};
+`;
+
+const getIcon = type => {
+  switch (type) {
+    case POINT:
+      return WaypointIcon;
+    case LINE:
+      return StyledSnowmobileIcon;
+    case POLYGON:
+      return StyledPolygonIcon;
+    default:
+      return null;
+  }
+};
+
+const getDescription = (item = {}) => {
+  const { type } = item;
+  switch (type) {
+    case POINT:
+      return '6000ft';
+    case LINE:
+      return `${item.miles}M | +/- 1000ft`;
+    case POLYGON:
+      return '1000 sq ft';
+    default:
+      return null;
+  }
+};
+
 export default function Listing({
-  item: { Name, UID, type, miles },
+  item: { Name, UID, type },
+  item,
   onClick,
   onMouseEnter,
   onMouseLeave,
 }) {
-  const source = type === 'Point' ? 'waypoints' : 'trails';
+  const source = type === POINT ? 'waypoints' : 'trails';
+  const Icon = getIcon(type);
   return (
-    <StyledListing
-      onClick={() => onClick(UID)}
+    <Container
+      onClick={() => onClick({ id: UID, source })}
       onMouseEnter={() => onMouseEnter({ id: UID, source })}
       onMouseLeave={() => onMouseLeave({ id: UID, source })}
     >
-      <Icon />
+      <IconContainer>
+        <Icon />
+      </IconContainer>
       <NameContainer>
         <StyledName>{Name}</StyledName>
-        <StyledDescription>{`${miles}M | +/- 1000ft`}</StyledDescription>
+        <StyledDescription>{getDescription(item)}</StyledDescription>
       </NameContainer>
-    </StyledListing>
+    </Container>
   );
 }

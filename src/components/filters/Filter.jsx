@@ -1,4 +1,5 @@
 import React from 'react';
+import { getProp } from 'styles';
 import styled from '@emotion/styled';
 
 const colors = [
@@ -17,7 +18,7 @@ const StyledFilter = styled.div`
   justify-content: center;
   align-items: center;
   position: relative;
-  background: ${p => p.theme.get(p.color)};
+  background: ${getProp('color')};
   margin: 0px 0px 1px 1px;
   cursor: pointer;
 `;
