@@ -7,7 +7,10 @@ import {
 } from './actions';
 
 const initialState = {
-  selectedFeature: null,
+  selectedFeature: {
+    source: null,
+    id: null,
+  },
   hoveredFeature: {
     source: null,
     id: null,
@@ -25,7 +28,7 @@ export function mapReducer(state = initialState, action) {
     case CLEAR_SELECTION:
       return {
         ...state,
-        selectedFeature: null,
+        selectedFeature: initialState.hoveredFeature,
       };
     case HOVER_FEATURE:
       return {

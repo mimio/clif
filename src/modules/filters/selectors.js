@@ -15,6 +15,6 @@ export const selectSearchResults = createSelector(
     if (!engine) return [];
     const results = engine.search(value);
 
-    return results.map(feat => feat.UID);
+    return results.map(feat => feat.id);
   },
 );

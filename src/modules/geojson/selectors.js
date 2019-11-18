@@ -25,7 +25,7 @@ export const selectFilteredResults = createSelector(
   (value, results, features) =>
     !value
       ? features
-      : features.filter(feat => results.includes(feat.UID)),
+      : features.filter(feat => results.includes(feat.id)),
 );
 
 export const selectLookup = createSelector(selectData, data => data);
@@ -36,7 +36,7 @@ const makeGeojson = (data, geometryType) => ({
     .filter(({ type }) => type === geometryType)
     .map(({ coordinates, type, ...rest }) => ({
       type: 'Feature',
-      id: rest.UID,
+      id: rest.id,
       geometry: { type, coordinates },
       properties: rest,
     })),

@@ -9,7 +9,7 @@ const searchKeys = ['Name', 'Category', 'ShortDescription'];
 
 let searchEngine;
 export const createSearchEngine = data => {
-  searchEngine = new Search('UID');
+  searchEngine = new Search('id');
   searchEngine.tokenizer = new StemmingTokenizer(
     stemmer,
     new SimpleTokenizer(),

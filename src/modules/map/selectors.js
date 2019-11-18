@@ -29,6 +29,17 @@ export const selectMapLoaded = createSelector(selectMapState, map =>
   get(map, 'mapLoaded', false),
 );
 
+const makeStateCase = (value, fallbackValue) => [
+  'case',
+  [
+    'any',
+    ['boolean', ['feature-state', 'hover'], false],
+    ['boolean', ['feature-state', 'selected'], false],
+  ],
+  value,
+  fallbackValue,
+];
+
 export const selectMapLayers = createSelector(
   selectTrailGeoJson,
   selectWaypointsGeoJson,
@@ -42,18 +53,11 @@ export const selectMapLayers = createSelector(
         data: trailData,
       },
       paint: {
-        'line-width': [
-          'case',
-          ['boolean', ['feature-state', 'hover'], false],
-          5,
-          3,
-        ],
-        'line-color': [
-          'case',
-          ['boolean', ['feature-state', 'hover'], false],
+        'line-width': makeStateCase(5, 3),
+        'line-color': makeStateCase(
           colors.ultraLimeGreen,
           colors.darkLimeGreen,
-        ],
+        ),
       },
     },
     {
@@ -66,18 +70,11 @@ export const selectMapLayers = createSelector(
       paint: {
         'circle-color': 'transparent',
         'circle-radius': 6,
-        'circle-stroke-color': [
-          'case',
-          ['boolean', ['feature-state', 'hover'], false],
+        'circle-stroke-color': makeStateCase(
           colors.ultraLimeGreen,
           colors.limeGreen,
-        ],
-        'circle-stroke-width': [
-          'case',
-          ['boolean', ['feature-state', 'hover'], false],
-          8,
-          6,
-        ],
+        ),
+        'circle-stroke-width': makeStateCase(8, 6),
       },
     },
     {
@@ -89,12 +86,7 @@ export const selectMapLayers = createSelector(
       },
       paint: {
         'fill-color': colors.limeGreen,
-        'fill-opacity': [
-          'case',
-          ['boolean', ['feature-state', 'hover'], false],
-          0.8,
-          0.5,
-        ],
+        'fill-opacity': makeStateCase(0.8, 0.5),
       },
     },
   ],
@@ -112,11 +104,11 @@ export const selectHoveredFeatureId = createSelector(
 
 export const selectSelectedFeatureId = createSelector(
   selectMapState,
-  map => map.selectedFeature,
+  map => get(map, 'selectedFeature.id'),
 );
 
 export const selectSelectedFeature = createSelector(
   selectSelectedFeatureId,
   selectLookup,
-  (id, lookup) => get(lookup, id, null),
+  (id, lookup) => get(lookup, id, {}),
 );

@@ -101,7 +101,7 @@ const getDescription = (item = {}) => {
 };
 
 export default function Listing({
-  item: { Name, UID, type },
+  item: { Name, id, type },
   item,
   onClick,
   onMouseEnter,
@@ -110,9 +110,9 @@ export default function Listing({
   const Icon = getIcon(type);
   return (
     <Container
-      onClick={() => onClick({ id: UID, source: type })}
-      onMouseEnter={() => onMouseEnter({ id: UID, source: type })}
-      onMouseLeave={() => onMouseLeave({ id: UID, source: type })}
+      onClick={() => onClick({ id, source: type })}
+      onMouseEnter={() => onMouseEnter({ id, source: type })}
+      onMouseLeave={() => onMouseLeave({ id, source: type })}
     >
       <IconContainer>
         <Icon />

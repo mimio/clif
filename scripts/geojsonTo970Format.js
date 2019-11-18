@@ -19,12 +19,13 @@ async function convert() {
       return json.features.reduce((acc, curr) => {
         const { name: Name, miles } = curr.properties;
         const { type, coordinates } = curr.geometry;
-        const UID = featId;
-        acc[UID] = {
-          UID,
+        const id = featId;
+        acc[id] = {
+          id,
           Name,
           miles,
           type,
+          source: type,
           coordinates,
         };
         featId += 1;

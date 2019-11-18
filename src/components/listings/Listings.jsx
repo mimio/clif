@@ -30,7 +30,7 @@ export default function Listings({
       <Inner>
         {list.map(item => (
           <Listing
-            key={item.UID}
+            key={item.id}
             onClick={selectFeature}
             onMouseEnter={hoverFeature}
             onMouseLeave={unhoverFeature}
