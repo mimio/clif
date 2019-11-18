@@ -8,7 +8,7 @@ const files = [
   path.resolve(__dirname, '../data/areas.geojson'),
 ];
 
-let featId = 0;
+let featId = 1;
 
 async function convert() {
   const features = {};
@@ -23,6 +23,8 @@ async function convert() {
         acc[id] = {
           id,
           Name,
+          ShortDescription:
+            'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor.',
           miles,
           type,
           source: type,

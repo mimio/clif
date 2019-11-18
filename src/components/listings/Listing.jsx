@@ -4,15 +4,13 @@ import { getStyle, size } from 'styles';
 import styled from '@emotion/styled';
 import { ReactComponent as SnowmobileIcon } from './snowmobile.svg';
 import { ReactComponent as PolygonIcon } from './polygon.svg';
+import { Centered, Column, Row } from '../layout';
 
-const Container = styled.div`
+const Container = styled(Row)`
   background: ${getStyle('lightGray')};
   height: ${getStyle('listingHeight')};
   width: 100%;
-  display: flex;
   flex-shrink: 0;
-  justify-content: center;
-  align-items: center;
   border-radius: 16px;
   color: ${getStyle('limeGreen')};
   margin-bottom: ${size(4)};
@@ -28,11 +26,8 @@ const Container = styled.div`
   }
 `;
 
-const NameContainer = styled.div`
-  display: flex;
-  flex-direction: column;
+const NameContainer = styled(Column)`
   align-items: flex-start;
-  width: 100%;
   line-height: 1.5;
 `;
 
@@ -48,29 +43,20 @@ const StyledDescription = styled.span`
 `;
 
 const StyledSnowmobileIcon = styled(SnowmobileIcon)`
-  width: 100%;
   color: #303132;
-`;
-
-const StyledPolygonIcon = styled(PolygonIcon)`
-  width: 100%;
 `;
 
 const WaypointIcon = styled.div`
   background: none;
   border: 8px solid ${getStyle('darkLimeGreen')};
   border-radius: 50%;
-  height: ${size(4)};
-  width: ${size(4)};
+  height: ${size(8)};
+  width: ${size(8)};
 `;
 
-const IconContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: ${getStyle('listingHeight')};
-  width: ${size(16)};
-  padding: 0 ${size(5)};
+const IconContainer = styled(Centered)`
+  height: 100%;
+  width: ${size(22)};
 `;
 
 const getIcon = type => {
@@ -80,7 +66,7 @@ const getIcon = type => {
     case LINE:
       return StyledSnowmobileIcon;
     case POLYGON:
-      return StyledPolygonIcon;
+      return PolygonIcon;
     default:
       return () => null;
   }

@@ -6,12 +6,6 @@ import Detail from 'containers/Detail';
 import SearchBar from 'containers/Search';
 import Toggle from './Toggle';
 
-const Subcontainer = styled.div`
-  position: relative;
-  height: 100%;
-  width: 100%;
-`;
-
 const StyledListings = styled(Listings)`
   transition: ${getStyle('hue')};
 `;
@@ -60,10 +54,8 @@ const SidePanel = ({ showDetailView, showing, toggleSidePanel }) => (
   >
     <Toggle onClick={toggleSidePanel} />
     <SearchBar />
-    <Subcontainer>
-      <StyledDetail />
-      <StyledListings />
-    </Subcontainer>
+    <StyledListings />
+    <StyledDetail />
   </Container>
 );
 

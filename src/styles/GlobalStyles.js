@@ -1,7 +1,18 @@
 import React from 'react';
 import { Global, css } from '@emotion/core';
 
+import colors from './colors';
+
 const globalCss = css`
+  html {
+    box-sizing: border-box;
+  }
+  *,
+  *:before,
+  *:after {
+    box-sizing: inherit;
+  }
+
   html,
   body,
   #root {
@@ -29,12 +40,12 @@ const globalCss = css`
     }
 
     ::-webkit-scrollbar-thumb {
-      background-color: rgba(0, 0, 0, 0.4);
+      background-color: ${colors.limeGreen};
       &:hover {
-        background-color: rgba(60, 60, 60, 0.2);
+        background-color: ${colors.darkLimeGreen};
       }
       &:active {
-        background-color: rgba(60, 60, 60, 0.3);
+        background-color: ${colors.darkLimeGreen};
       }
     }
   }
