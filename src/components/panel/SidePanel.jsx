@@ -17,50 +17,43 @@ const StyledDetail = styled(Detail)`
   transition: ${getStyle('hue')};
 `;
 
-const SHOW_DETAILS = 'showDetails';
-const SHOW_LISTINGS = 'showListings';
-
 const Container = styled.div`
-  position: absolute;
   top: 0;
   left: 0;
-  display: flex;
   flex-direction: column;
   flex-shrink: 0;
   width: ${getStyle('sidePanelWidth')};
-  height: 100%;
+  height: 50%;
   background: ${getStyle('transparentBlack')};
   z-index: 10;
+  transform: ${p => `translateY(${p.showing ? '1%' : '0%'})`};
   transition: transform 0.3s ease-in-out;
-  &.${SHOW_DETAILS} {
-    ${StyledListings} {
-      opacity: 0;
-      pointer-events: none;
-    }
-  }
-  &.${SHOW_LISTINGS} {
-    ${StyledDetail} {
-      opacity: 0;
-      pointer-events: none;
-    }
-  }
+  ${({ showDetailView }) =>
+    showDetailView
+      ? `${StyledListings} {
+        opacity: 0;
+        pointer-events: none;
+      }`
+      : `${StyledDetail} {
+        opacity: 0;
+        pointer-events: none;
+      }`}
 `;
 
 const SidePanel = ({ showDetailView, showing, toggleSidePanel }) => (
   <Container
     css={mq({
-      top: ['50%', '50%', '50%', 0],
-      height: ['unset', 'unset', 'unset', '100%'],
-      width: ['100%', '100%', '100%', '470px'],
+      top: ['50%', 0],
+      height: ['unset', '100%'],
+      width: ['100%', '470px'],
     })}
-    className={showDetailView ? SHOW_DETAILS : SHOW_LISTINGS}
     showing={showing}
-    showDetail={showDetailView}
+    showDetailView={showDetailView}
   >
     <Toggle onClick={toggleSidePanel} />
     <SearchBar />
-    <StyledListings />
     <StyledDetail />
+    <StyledListings />
   </Container>
 );
 
