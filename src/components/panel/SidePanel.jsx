@@ -49,8 +49,9 @@ const Container = styled.div`
 const SidePanel = ({ showDetailView, showing, toggleSidePanel }) => (
   <Container
     css={mq({
-      top: ['unset', 'unset', 'unset', 0],
-      bottom: [0, 0, 0, 'unset'],
+      top: ['50%', '50%', '50%', 0],
+      height: ['unset', 'unset', 'unset', '100%'],
+      width: ['100%', '100%', '100%', '470px'],
     })}
     className={showDetailView ? SHOW_DETAILS : SHOW_LISTINGS}
     showing={showing}
