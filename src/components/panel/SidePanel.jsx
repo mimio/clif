@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from '@emotion/styled';
-import { getStyle } from 'styles';
+import { getStyle, mq } from 'styles';
 import Listings from 'containers/Listings';
 import Detail from 'containers/Detail';
 import SearchBar from 'containers/Search';
@@ -48,6 +48,10 @@ const Container = styled.div`
 
 const SidePanel = ({ showDetailView, showing, toggleSidePanel }) => (
   <Container
+    css={mq({
+      top: ['unset', 'unset', 'unset', 0],
+      bottom: [0, 0, 0, 'unset'],
+    })}
     className={showDetailView ? SHOW_DETAILS : SHOW_LISTINGS}
     showing={showing}
     showDetail={showDetailView}
