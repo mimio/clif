@@ -4,24 +4,28 @@ import styled from '@emotion/styled';
 
 const StyledSearch = styled.div`
   height: ${getStyle('searchBarHeight')};
+  padding: ${size(2)};
+  background: ${getStyle('gray')};
   width: 100%;
   position: relative;
-  background: ${getStyle('gray')};
   flex-shrink: 0;
 `;
 
 const SearchInput = styled.input`
   color: ${getStyle('limeGreen')};
+  border-radius: 6px;
+  height: ${getStyle('searchBarHeight')};
   font-size: 18pt;
   font-family: Antonio;
+  font-weight: bold;
   height: 100%;
   width: 100%;
-  padding: 0;
+  padding: ${size(2)};
   margin: 0;
   outline: 0;
   border: 0;
-  background: none;
-  margin-left: ${size(4)};
+  background: white;
+
   ::placeholder {
     color: ${getStyle('limeGreen')};
     opacity: 0.7;

@@ -10,6 +10,7 @@ const StyledListings = styled.div`
   width: 100%;
   flex-direction: column;
   overflow: auto;
+  overflow: overlay; /* only works in Chrome, Safari */
 `;
 
 const Inner = styled.ul`

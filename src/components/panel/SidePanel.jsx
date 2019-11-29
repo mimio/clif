@@ -7,6 +7,7 @@ import Toggle from './Toggle';
 import { Column } from '../layout';
 
 const StyledListings = styled(Listings)`
+  background: ${getStyle('transparentBlack')};
   transition: ${getStyle('hue')};
 `;
 
@@ -22,7 +23,6 @@ const SidePanelContainer = styled(Column)`
   height: 100%;
   ${responsiveStyles}
   flex-shrink: 0;
-  background: ${getStyle('transparentBlack')};
   z-index: 10;
   transition: transform 0.3s ease-in-out;
 `;

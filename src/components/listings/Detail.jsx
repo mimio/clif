@@ -39,7 +39,6 @@ const BigButton = styled.button`
 const IMAGE_HEIGHT = size(70);
 
 const Inner = styled(Column)`
-  padding: 0 ${size(4)};
   width: 100%;
   height: calc(100% - ${IMAGE_HEIGHT} - ${size(35)});
   overflow-y: auto;
