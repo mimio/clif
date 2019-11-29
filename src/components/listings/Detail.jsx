@@ -4,12 +4,13 @@ import { getStyle, size } from 'styles';
 import styled from '@emotion/styled';
 import { Column } from '../layout';
 
-const Container = styled(Column)`
+const Container = styled.div`
   width: 100%;
   height: 100%;
   font-family: Antonio;
   color: ${getStyle('limeGreen')};
   background: transparent;
+  overflow: scroll;
 `;
 
 const BigButton = styled.button`

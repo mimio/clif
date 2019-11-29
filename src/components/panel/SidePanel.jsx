@@ -2,59 +2,37 @@ import React from 'react';
 import styled from '@emotion/styled';
 import { getStyle, mq } from 'styles';
 import Listings from 'containers/Listings';
-import Detail from 'containers/Detail';
 import SearchBar from 'containers/Search';
 import Toggle from './Toggle';
+import { Column } from '../layout';
 
 const StyledListings = styled(Listings)`
   transition: ${getStyle('hue')};
 `;
 
-const StyledDetail = styled(Detail)`
-  position: absolute;
-  top: 0;
-  left: 0;
-  transition: ${getStyle('hue')};
-`;
+const responsiveStyles = ({ theme }) =>
+  mq({
+    width: ['100%', theme.sizes.sidePanelWidth],
+    transform: ['translateY(50%)', 'translateY(0)'],
+  });
 
-const Container = styled.div`
-  top: 0;
+const SidePanelContainer = styled(Column)`
+  position: absolute;
   left: 0;
-  flex-direction: column;
+  height: 100%;
+  ${responsiveStyles}
   flex-shrink: 0;
-  width: ${getStyle('sidePanelWidth')};
-  height: 50%;
   background: ${getStyle('transparentBlack')};
   z-index: 10;
-  transform: ${p => `translateY(${p.showing ? '1%' : '0%'})`};
   transition: transform 0.3s ease-in-out;
-  ${({ showDetailView }) =>
-    showDetailView
-      ? `${StyledListings} {
-        opacity: 0;
-        pointer-events: none;
-      }`
-      : `${StyledDetail} {
-        opacity: 0;
-        pointer-events: none;
-      }`}
 `;
 
-const SidePanel = ({ showDetailView, showing, toggleSidePanel }) => (
-  <Container
-    css={mq({
-      top: ['50%', 0],
-      height: ['unset', '100%'],
-      width: ['100%', '470px'],
-    })}
-    showing={showing}
-    showDetailView={showDetailView}
-  >
-    <Toggle onClick={toggleSidePanel} />
+const SidePanel = ({ showing, toggleSidePanel }) => (
+  <SidePanelContainer showing={showing}>
+    <Toggle rotate={!showing} onClick={toggleSidePanel} />
     <SearchBar />
-    <StyledDetail />
     <StyledListings />
-  </Container>
+  </SidePanelContainer>
 );
 
 export default SidePanel;

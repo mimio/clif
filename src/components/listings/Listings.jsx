@@ -12,7 +12,7 @@ const StyledListings = styled.div`
   overflow: auto;
 `;
 
-const Inner = styled.div`
+const Inner = styled.ul`
   margin: ${size(4)};
 `;
 

@@ -7,6 +7,9 @@ import { ReactComponent as PolygonIcon } from './polygon.svg';
 import { Centered, Column, Row } from '../layout';
 
 const Container = styled(Row)`
+  display: flex;
+  justify-content: start;
+  align-items: center;
   background: ${getStyle('lightGray')};
   height: ${getStyle('listingHeight')};
   width: 100%;

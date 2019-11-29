@@ -9,6 +9,6 @@ export const config = {
   center: [-83.03721979999995, 34.30808378645919],
   bearing: 0,
   fitBoundsOptions: {
-    padding: 100,
+    padding: 200,
   },
 };

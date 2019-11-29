@@ -4,7 +4,6 @@ const path = require('path');
 const merge = require('webpack-merge');
 const TerserPlugin = require('terser-webpack-plugin');
 
-const HtmlWebpackPlugin = require('html-webpack-plugin');
 const common = require('./webpack.common.js');
 // const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 
@@ -28,30 +27,4 @@ module.exports = merge(common, {
       new TerserPlugin({ parallel: true, sourceMap: true }),
     ],
   },
-  plugins: [
-    new HtmlWebpackPlugin({
-      templateContent: `
-              <!DOCTYPE html>
-              <html lang="en">
-                <head>
-                  <meta charset="utf-8">
-                </head>
-                <body>
-                  <div id="root"></div>
-                </body>
-              </html>
-            `,
-      meta: {
-        viewport: 'width=device-width, initial-scale=1',
-      },
-      title: '',
-      filename: 'index.html',
-      minify: {
-        useShortDoctype: true,
-        keepClosingSlash: true,
-        collapseWhitespace: true,
-        preserveLineBreaks: true,
-      },
-    }),
-  ],
 });
