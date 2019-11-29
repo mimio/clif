@@ -1,5 +1,6 @@
 import { connect } from 'react-redux';
 
+import { selectShowDetailView } from 'modules/app';
 import Listings from '../components/listings/Listings';
 import { selectFilteredResults } from '../modules/geojson';
 
@@ -14,6 +15,7 @@ export default connect(
   state => ({
     list: selectFilteredResults(state),
     isLoading: !selectMapLoaded(state),
+    showDetails: selectShowDetailView(state),
   }),
   { selectFeature, hoverFeature, unhoverFeature },
 )(Listings);

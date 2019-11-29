@@ -10,5 +10,5 @@ export const selectSidePanelOpen = createSelector(
 
 export const selectShowDetailView = createSelector(
   selectSelectedFeature,
-  (feature = {}) => !!feature.id,
+  feature => !!feature.id,
 );
