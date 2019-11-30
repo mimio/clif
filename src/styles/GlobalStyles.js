@@ -49,6 +49,10 @@ const globalCss = css`
       }
     }
   }
+  ul {
+    padding: 0;
+    margin-right: 0;
+  }
 `;
 
 export default function GlobalStyles() {

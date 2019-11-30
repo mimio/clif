@@ -3,7 +3,7 @@ import styled from '@emotion/styled';
 import Map from 'containers/Map';
 import SidePanel from './containers/SidePanel';
 
-const Container = styled.main`
+const AppContainer = styled.main`
   display: flex;
   height: 100%;
   width: 100%;
@@ -18,11 +18,12 @@ const Container = styled.main`
 export default ({ fetchData }) => {
   useEffect(() => {
     fetchData();
-  });
+  }, []);
+
   return (
-    <Container>
+    <AppContainer>
       <SidePanel />
       <Map />
-    </Container>
+    </AppContainer>
   );
 };

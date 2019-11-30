@@ -1,6 +1,6 @@
 import { get } from 'lodash-es';
 import { createSelector } from 'reselect';
-import { selectSelectedFeature } from '../map';
+import { selectSelectedFeature, selectMapLoaded } from '../map';
 
 export const selectAppState = state => state.app;
 export const selectSidePanelOpen = createSelector(
@@ -10,5 +10,10 @@ export const selectSidePanelOpen = createSelector(
 
 export const selectShowDetailView = createSelector(
   selectSelectedFeature,
-  (feature = {}) => !!feature.id,
+  feature => !!feature.id,
+);
+
+export const selectIsLoading = createSelector(
+  selectMapLoaded,
+  mapLoaded => !mapLoaded,
 );

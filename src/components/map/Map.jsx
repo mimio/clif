@@ -93,8 +93,9 @@ class Map extends Component {
   };
 
   render() {
+    const { className, css } = this.props;
     return (
-      <MapContainer>
+      <MapContainer className={className} css={css}>
         <div id="mapbox-map" ref={this.mapRef} />
       </MapContainer>
     );

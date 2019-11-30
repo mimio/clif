@@ -3,6 +3,7 @@ import { size } from 'styles';
 import styled from '@emotion/styled';
 
 import Listing from './Listing';
+import Detail from '../../containers/Detail';
 
 const StyledListings = styled.div`
   display: flex;
@@ -10,34 +11,52 @@ const StyledListings = styled.div`
   width: 100%;
   flex-direction: column;
   overflow: auto;
+  overflow: overlay; /* only works in Chrome, Safari */
 `;
 
-const Inner = styled.div`
+const Inner = styled.ul`
   margin: ${size(4)};
 `;
+
+const List = ({
+  list,
+  selectFeature,
+  hoverFeature,
+  unhoverFeature,
+}) => (
+  <Inner>
+    {list.map(item => (
+      <Listing
+        key={item.id}
+        onClick={selectFeature}
+        onMouseEnter={hoverFeature}
+        onMouseLeave={unhoverFeature}
+        item={item}
+      />
+    ))}
+  </Inner>
+);
 
 export default function Listings({
   className,
   list,
-  isLoading,
   selectFeature,
   hoverFeature,
   unhoverFeature,
+  showDetails,
 }) {
-  if (isLoading) return null;
   return (
     <StyledListings className={className}>
-      <Inner>
-        {list.map(item => (
-          <Listing
-            key={item.id}
-            onClick={selectFeature}
-            onMouseEnter={hoverFeature}
-            onMouseLeave={unhoverFeature}
-            item={item}
-          />
-        ))}
-      </Inner>
+      {!showDetails ? (
+        <List
+          list={list}
+          selectFeature={selectFeature}
+          hoverFeature={hoverFeature}
+          unhoverFeature={unhoverFeature}
+        />
+      ) : (
+        <Detail />
+      )}
     </StyledListings>
   );
 }
