@@ -6,7 +6,6 @@ import { selectFilteredResults } from '../modules/geojson';
 
 import {
   selectFeature,
-  selectMapLoaded,
   hoverFeature,
   unhoverFeature,
 } from '../modules/map';
@@ -14,7 +13,6 @@ import {
 export default connect(
   state => ({
     list: selectFilteredResults(state),
-    isLoading: !selectMapLoaded(state),
     showDetails: selectShowDetailView(state),
   }),
   { selectFeature, hoverFeature, unhoverFeature },

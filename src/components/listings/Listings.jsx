@@ -40,14 +40,11 @@ const List = ({
 export default function Listings({
   className,
   list,
-  isLoading,
   selectFeature,
   hoverFeature,
   unhoverFeature,
   showDetails,
 }) {
-  if (isLoading) return null;
-
   return (
     <StyledListings className={className}>
       {!showDetails ? (

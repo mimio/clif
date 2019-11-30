@@ -14,25 +14,29 @@ const StyledListings = styled(Listings)`
 const responsiveStyles = ({ theme }) =>
   mq({
     width: ['100%', theme.sizes.sidePanelWidth],
-    transform: ['translateY(50%)', 'translateY(0)'],
   });
 
 const SidePanelContainer = styled(Column)`
   position: absolute;
   left: 0;
   height: 100%;
+  transform: ${({ showing }) =>
+    `translateY(${showing ? '50%' : '100%'})`};
   ${responsiveStyles}
   flex-shrink: 0;
   z-index: 10;
   transition: transform 0.3s ease-in-out;
 `;
 
-const SidePanel = ({ showing, toggleSidePanel }) => (
-  <SidePanelContainer showing={showing}>
-    <Toggle rotate={!showing} onClick={toggleSidePanel} />
-    <SearchBar />
-    <StyledListings />
-  </SidePanelContainer>
-);
+const SidePanel = ({ showing, toggleSidePanel, isLoading }) =>
+  isLoading ? null : (
+    <>
+      <Toggle showing={showing} onClick={toggleSidePanel} />
+      <SidePanelContainer showing={showing}>
+        <SearchBar />
+        <StyledListings />
+      </SidePanelContainer>
+    </>
+  );
 
 export default SidePanel;
