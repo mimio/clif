@@ -1,47 +1,50 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { getStyle, size } from 'styles';
+import { getStyle, size, mq } from 'styles';
 import styled from '@emotion/styled';
 import { Column } from '../layout';
+import { ReactComponent as Chevron } from '../panel/chevronDown.svg';
 
-const Container = styled.div`
+const DetailContainer = styled.div`
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   font-family: Antonio;
+  position: relative;
   color: ${getStyle('limeGreen')};
   background: transparent;
-  overflow: scroll;
+  overflow: overlay;
 `;
 
 const BigButton = styled.button`
-  height: ${size(25)};
-  width: calc(100% - ${size(10)});
-  transition: ${getStyle('hue')};
+  display: ${mq({ display: ['none', 'unset'] })}
+  justify-content: center;
+  align-items: center;
+  min-height: ${size(25)};
   color: ${getStyle('limeGreen')};
   cursor: pointer;
   &:hover {
     color: ${getStyle('gray')};
     background: ${getStyle('limeGreen')};
   }
-  display: flex;
-  justify-content: center;
-  align-items: center;
   text-transform: uppercase;
   background: none;
   outline: 0;
   border: none;
   box-shadow: inset 0 0 0 5px ${getStyle('limeGreen')};
-  transition: ${getStyle('limeGreen')};
   padding: ${size(5)};
   margin: ${size(5)};
 `;
 
-const IMAGE_HEIGHT = size(70);
-
 const Inner = styled(Column)`
   width: 100%;
-  height: calc(100% - ${IMAGE_HEIGHT} - ${size(35)});
-  overflow-y: auto;
+  ${mq({
+    height: ['100%', 'unset'],
+  })}
+  flex-shrink: 0;
+
+  display: flex;
   > * {
     width: 100%;
     padding: ${size(8)} ${size(5)};
@@ -60,6 +63,26 @@ const Inner = styled(Column)`
   }
 `;
 
+const MobileBackButton = styled.button`
+  background: ${getStyle('limeGreen')};
+  outline: 0;
+  border: none;
+  padding: ${size(4)};
+  position: absolute;
+  left: ${size(2)};
+  top: ${size(2)};
+  display: ${mq({ display: ['flex', 'none'] })};
+  justify-content: center;
+  align-items: center;
+  text-transform: uppercase;
+  > svg {
+    transform: rotate(90deg);
+    height: 12px;
+    width: 12px;
+    margin-right: ${size(1)};
+  }
+`;
+
 const StyledName = styled.div`
   font-size: 27px;
   text-transform: uppercase;
@@ -74,20 +97,19 @@ const StyledDescription = styled.div`
 `;
 
 const ImageContainer = styled.div`
-  height: ${IMAGE_HEIGHT};
   width: 100%;
+  min-height: 30%;
   background-image: url('http://www.addalittledazzle.com/wp-content/uploads/2015/07/banana-e1436314532597.jpg');
+  background-repeat: no-repeat;
+  background-position-x: center;
+  background-size: cover;
 `;
 
-// allows the details to have an exit transition without a blip of empty data
-let lastFeature = {};
-
-const Detail = ({ className, clearSelection, feature }) => {
-  if (feature) lastFeature = feature;
-  const { Name, ShortDescription } = feature || lastFeature;
+const Detail = ({ clearSelection, feature }) => {
+  const { Name, ShortDescription } = feature;
 
   return (
-    <Container className={className}>
+    <DetailContainer>
       <ImageContainer />
       <Inner>
         <StyledName>{Name}</StyledName>
@@ -96,18 +118,20 @@ const Detail = ({ className, clearSelection, feature }) => {
       <BigButton onClick={clearSelection}>
         <span>Go Back</span>
       </BigButton>
-    </Container>
+      <MobileBackButton onClick={clearSelection}>
+        <Chevron />
+        <span>Back</span>
+      </MobileBackButton>
+    </DetailContainer>
   );
 };
 
 Detail.propTypes = {
-  className: PropTypes.string,
   clearSelection: PropTypes.func.isRequired,
   feature: PropTypes.object,
 };
 
 Detail.defaultProps = {
-  className: '',
   feature: {},
 };
 

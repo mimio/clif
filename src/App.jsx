@@ -3,7 +3,7 @@ import styled from '@emotion/styled';
 import Map from 'containers/Map';
 import SidePanel from './containers/SidePanel';
 
-const DesktopContainer = styled.main`
+const AppContainer = styled.main`
   display: flex;
   height: 100%;
   width: 100%;
@@ -21,9 +21,9 @@ export default ({ fetchData }) => {
   }, []);
 
   return (
-    <DesktopContainer>
+    <AppContainer>
       <SidePanel />
       <Map />
-    </DesktopContainer>
+    </AppContainer>
   );
 };

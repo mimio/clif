@@ -28,8 +28,8 @@ const ToggleContainer = styled(Centered)`
   transition-delay: 0.05s;
   box-shadow: 0px 0px 4px 0px rgba(0, 0, 0, 1);
   > svg {
-    height: 30px;
-    width: 30px;
+    height: 28px;
+    width: 28px;
     transform: ${({ showing }) => `rotate(${showing ? 0 : 180}deg)`};
     transition: transform 0.3s ease;
     transform-origin: center;
