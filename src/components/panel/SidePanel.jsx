@@ -11,17 +11,16 @@ const StyledListings = styled(Listings)`
   transition: ${getStyle('hue')};
 `;
 
-const responsiveStyles = ({ theme }) =>
+const responsiveStyles = ({ theme, showing }) =>
   mq({
     width: ['100%', theme.sizes.sidePanelWidth],
+    transform: [`translateY(${showing ? '50%' : '100%'})`, 'unset'],
   });
 
 const SidePanelContainer = styled(Column)`
   position: absolute;
   left: 0;
   height: 100%;
-  transform: ${({ showing }) =>
-    `translateY(${showing ? '50%' : '100%'})`};
   ${responsiveStyles}
   flex-shrink: 0;
   z-index: 10;
