@@ -7,6 +7,7 @@ import { MapButton } from './styles';
 
 const StyledMapButton = styled(MapButton)`
   font-weight: ${getBool('selected', 'bold', 'normal')};
+  font-size: 8px;
 `;
 
 const FullExtent = ({ selectBasemap, selectedBasemap }) => (

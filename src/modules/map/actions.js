@@ -1,5 +1,6 @@
 import { get } from 'lodash-es';
 import { USER_LOCATION } from 'constants/sources';
+import { basemaps } from 'constants/map';
 import {
   selectHoveredFeature,
   selectSelectedFeature,
@@ -13,11 +14,23 @@ export const CLEAR_SELECTION = 'geojson/clearSelection';
 export const HOVER_FEATURE = 'geojson/hoverFeature';
 export const UNHOVER_FEATURE = 'geojson/unhoverFeature';
 export const UPDATE_USER_LOCATION = 'geojson/setUserLocation';
+export const SELECT_BASEMAP = 'geojson/selectBasemap';
 export const MAP_LOADED = 'map/loaded';
 
 export const mapLoaded = () => ({
   type: MAP_LOADED,
 });
+
+export const selectBasemap = basemap => (dispatch, _, getMap) => {
+  const map = getMap();
+
+  dispatch({
+    type: SELECT_BASEMAP,
+    payload: basemap,
+  });
+
+  map.setStyle(basemaps[basemap]);
+};
 
 export const setUserLocationSource = () => (_, getState, getMap) => {
   const state = getState();

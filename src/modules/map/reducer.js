@@ -1,3 +1,4 @@
+import { SATELLITE_BASEMAP } from 'constants/map';
 import {
   SELECT_FEATURE,
   CLEAR_SELECTION,
@@ -5,6 +6,7 @@ import {
   UNHOVER_FEATURE,
   MAP_LOADED,
   UPDATE_USER_LOCATION,
+  SELECT_BASEMAP,
 } from './actions';
 import { config } from './config';
 
@@ -20,6 +22,7 @@ const initialState = {
   },
   userLocation: null,
   mapLoaded: false,
+  selectedBasemap: SATELLITE_BASEMAP,
 };
 
 export function mapReducer(state = initialState, action) {
@@ -54,6 +57,11 @@ export function mapReducer(state = initialState, action) {
       return {
         ...state,
         userLocation: payload,
+      };
+    case SELECT_BASEMAP:
+      return {
+        ...state,
+        selectedBasemap: payload,
       };
     default:
       return state;
