@@ -13,7 +13,7 @@ const TopControls = styled(MapButtonGroup)`
 
 const BottomControls = styled(MapButtonGroup)`
   position: absolute;
-  top: 210px;
+  top: 180px;
   right: 10px;
 `;
 
