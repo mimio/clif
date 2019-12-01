@@ -1,5 +1,5 @@
 import React from 'react';
-import { POINT, LINE, POLYGON } from 'constants/featureTypes';
+import { POINT, LINE, POLYGON } from 'constants/sources';
 import { getStyle, size } from 'styles';
 import styled from '@emotion/styled';
 import { ReactComponent as SnowmobileIcon } from './snowmobile.svg';

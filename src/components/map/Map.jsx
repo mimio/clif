@@ -3,6 +3,7 @@ import styled from '@emotion/styled';
 import mapboxgl from 'mapbox-gl';
 import { setMap } from 'utils/map';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import Controls from './controls';
 
 const MapContainer = styled.div`
   height: 100%;
@@ -97,6 +98,7 @@ class Map extends Component {
     return (
       <MapContainer className={className} css={css}>
         <div id="mapbox-map" ref={this.mapRef} />
+        <Controls />
       </MapContainer>
     );
   }

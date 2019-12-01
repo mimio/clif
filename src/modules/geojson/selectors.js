@@ -1,6 +1,6 @@
 import { createSelector } from 'reselect';
 import { arrayToFeatureCollection } from 'utils/geojson';
-import { POINT, LINE, POLYGON } from 'constants/featureTypes';
+import { POINT, LINE, POLYGON } from 'constants/sources';
 
 import {
   selectSearchResults,
