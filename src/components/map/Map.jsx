@@ -3,6 +3,7 @@ import styled from '@emotion/styled';
 import mapboxgl from 'mapbox-gl';
 import { setMap } from 'utils/map';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import ResetButton from './ResetButton';
 
 const MapContainer = styled.div`
   height: 100%;
@@ -70,32 +71,18 @@ class Map extends Component {
       this.map.on('idle', resolver);
     });
 
-  // todo: move into utils? safe getSource/getLayer
-  // wait until map is idle (all is loaded) before
-  // trying to access source / layer
-  getSource = id =>
-    new Promise(resolve => {
-      const resolver = () => {
-        const source = this.map.getSource(id);
-        resolve(source);
-        this.map.off('idle', resolver);
-      };
-      this.map.on('idle', resolver);
-    });
-
   onMapLoaded = () => {
     const { mapLoaded } = this.props;
     this.addLayers();
     this.addControls();
-    this.map.on('idle', () => {
-      mapLoaded();
-    });
+    this.map.on('idle', () => mapLoaded());
   };
 
   render() {
-    const { className, css } = this.props;
+    const { className, css, resetMap } = this.props;
     return (
       <MapContainer className={className} css={css}>
+        <ResetButton onClick={resetMap} />
         <div id="mapbox-map" ref={this.mapRef} />
       </MapContainer>
     );

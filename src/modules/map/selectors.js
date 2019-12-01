@@ -10,16 +10,16 @@ import {
   selectAreasGeoJson,
   selectLookup,
 } from '../geojson';
-import { config } from './config';
 
 export const selectMapState = state => state.map;
 
 export const selectMapConfig = createSelector(
+  selectMapState,
   selectTrailGeoJson,
-  geojson => {
+  (map, geojson) => {
     if (!geojson) return null;
     return {
-      ...config,
+      ...map.config,
       bounds: bbox(geojson),
     };
   },

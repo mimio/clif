@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import styled from '@emotion/styled';
 import { getStyle, mq } from 'styles';
 import { Centered } from 'components/layout';
@@ -14,9 +14,10 @@ const ToggleContainer = styled(Centered)`
   cursor: pointer;
   z-index: 10;
   position: absolute;
+  bottom: 0;
   border-radius: 100%;
-  transform: ${({ showing }) =>
-    `translateY(${showing ? '-60%' : 'calc(50vh - 55px)'})`};
+  transform: ${({ showing, top }) =>
+    `translateY(${showing ? `-${top / 2 + 10}px` : `-10px`})`};
   background: ${getStyle('limeGreen')};
   background-image: radial-gradient(
     circle at 20% -20%,
@@ -37,8 +38,17 @@ const ToggleContainer = styled(Centered)`
 `;
 
 export default function Toggle({ onClick, showing }) {
+  const [height, setHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    const updateHeight = () => setHeight(window.innerHeight);
+    window.addEventListener('resize', updateHeight);
+    updateHeight();
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
+
   return (
-    <ToggleContainer showing={showing} onClick={onClick}>
+    <ToggleContainer top={height} showing={showing} onClick={onClick}>
       <ChevronDown />
     </ToggleContainer>
   );

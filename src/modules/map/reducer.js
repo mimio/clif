@@ -5,8 +5,10 @@ import {
   UNHOVER_FEATURE,
   MAP_LOADED,
 } from './actions';
+import { config } from './config';
 
 const initialState = {
+  config,
   selectedFeature: {
     source: null,
     id: null,

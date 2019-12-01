@@ -2,6 +2,7 @@ import { get } from 'lodash-es';
 import {
   selectHoveredFeature,
   selectSelectedFeature,
+  selectMapConfig,
 } from './selectors';
 
 export const SELECT_FEATURE = 'geojson/selectFeature';
@@ -95,4 +96,10 @@ export const hoverFeature = e => (dispatch, getState, getMap) => {
     type: HOVER_FEATURE,
     payload,
   });
+};
+
+export const resetMap = () => (dispatch, getState, getMap) => {
+  const map = getMap();
+  const { bounds, fitBoundsOptions } = selectMapConfig(getState());
+  map.fitBounds(bounds, fitBoundsOptions);
 };

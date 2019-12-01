@@ -10,6 +10,7 @@ import {
   selectMapLayers,
   selectMapLoaded,
   unhoverFeature,
+  resetMap,
 } from '../modules/map';
 
 export default connect(
@@ -19,5 +20,11 @@ export default connect(
     isMapLoaded: selectMapLoaded(state),
     hoveredFeatureId: selectHoveredFeatureId(state),
   }),
-  { hoverFeature, unhoverFeature, mapLoaded, selectFeature },
+  {
+    hoverFeature,
+    unhoverFeature,
+    mapLoaded,
+    selectFeature,
+    resetMap,
+  },
 )(Map);
