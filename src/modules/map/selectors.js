@@ -35,15 +35,18 @@ export const selectMapLoaded = createSelector(selectMapState, map =>
   get(map, 'mapLoaded', false),
 );
 
-const makeStateCase = (value, fallbackValue) => [
+const makeHoverCase = (hoverValue, defaultValue) => [
   'case',
-  [
-    'any',
-    ['boolean', ['feature-state', 'hover'], false],
-    ['boolean', ['feature-state', 'selected'], false],
-  ],
-  value,
-  fallbackValue,
+  ['boolean', ['feature-state', 'hover'], false],
+  hoverValue,
+  defaultValue,
+];
+
+const makeSelectedCase = (selectedValue, defaultValue) => [
+  'case',
+  ['boolean', ['feature-state', 'selected'], false],
+  selectedValue,
+  defaultValue,
 ];
 
 export const selectUserLocation = createSelector(
@@ -76,8 +79,8 @@ export const selectMapLayers = createSelector(
         data: areasData,
       },
       paint: {
-        'fill-color': colors.limeGreen,
-        'fill-opacity': makeStateCase(0.8, 0.5),
+        'fill-color': makeSelectedCase(colors.teal, colors.limeGreen),
+        'fill-opacity': makeHoverCase(0.8, 0.5),
       },
     },
     {
@@ -88,9 +91,9 @@ export const selectMapLayers = createSelector(
         data: trailData,
       },
       paint: {
-        'line-width': makeStateCase(5, 3),
-        'line-color': makeStateCase(
-          colors.ultraLimeGreen,
+        'line-width': makeHoverCase(5, 3),
+        'line-color': makeSelectedCase(
+          colors.teal,
           colors.darkLimeGreen,
         ),
       },
@@ -105,11 +108,11 @@ export const selectMapLayers = createSelector(
       paint: {
         'circle-color': 'transparent',
         'circle-radius': 6,
-        'circle-stroke-color': makeStateCase(
-          colors.ultraLimeGreen,
+        'circle-stroke-width': makeHoverCase(8, 6),
+        'circle-stroke-color': makeSelectedCase(
+          colors.teal,
           colors.limeGreen,
         ),
-        'circle-stroke-width': makeStateCase(8, 6),
       },
     },
     {
