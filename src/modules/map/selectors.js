@@ -69,6 +69,18 @@ export const selectMapLayers = createSelector(
   selectUserLocationGeoJson,
   (trailData, waypointData, areasData, userLocationData) => [
     {
+      id: POLYGON,
+      type: 'fill',
+      source: {
+        type: 'geojson',
+        data: areasData,
+      },
+      paint: {
+        'fill-color': colors.limeGreen,
+        'fill-opacity': makeStateCase(0.8, 0.5),
+      },
+    },
+    {
       id: LINE,
       type: 'line',
       source: {
@@ -98,18 +110,6 @@ export const selectMapLayers = createSelector(
           colors.limeGreen,
         ),
         'circle-stroke-width': makeStateCase(8, 6),
-      },
-    },
-    {
-      id: POLYGON,
-      type: 'fill',
-      source: {
-        type: 'geojson',
-        data: areasData,
-      },
-      paint: {
-        'fill-color': colors.limeGreen,
-        'fill-opacity': makeStateCase(0.8, 0.5),
       },
     },
     {
