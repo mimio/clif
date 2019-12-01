@@ -29,7 +29,7 @@ export const selectBasemap = basemap => (dispatch, _, getMap) => {
     payload: basemap,
   });
 
-  map.setStyle(basemaps[basemap]);
+  map.setStyle(basemaps[basemap], { diff: true });
 };
 
 export const setUserLocationSource = () => (_, getState, getMap) => {
