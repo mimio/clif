@@ -2,6 +2,7 @@ import { createSelector } from 'reselect';
 import { get } from 'lodash-es';
 import bbox from '@turf/bbox';
 import colors from 'styles/colors';
+import { emptyGeoJson } from 'utils/geojson';
 import {
   POINT,
   LINE,
@@ -58,10 +59,7 @@ export const selectUserLocationGeoJson = createSelector(
           type: 'Point',
           coordinates: location,
         }
-      : {
-          type: 'FeatureCollection',
-          features: [],
-        },
+      : emptyGeoJson,
 );
 
 export const selectMapLayers = createSelector(

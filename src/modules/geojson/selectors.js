@@ -30,31 +30,24 @@ export const selectFilteredResults = createSelector(
 
 export const selectLookup = createSelector(selectData, data => data);
 
-const makeGeojson = (data, geometryType) => ({
-  type: 'FeatureCollection',
-  features: data
-    .filter(({ type }) => type === geometryType)
-    .map(({ coordinates, type, ...rest }) => ({
-      type: 'Feature',
-      id: rest.id,
-      geometry: { type, coordinates },
-      properties: rest,
-    })),
-});
+const makeFilteredGeojson = (data, geometryType) => {
+  const filtered = data.filter(({ type }) => type === geometryType);
+  return arrayToFeatureCollection(filtered);
+};
 
 export const selectTrailGeoJson = createSelector(
   selectFeatureList,
-  data => makeGeojson(data, LINE),
+  data => makeFilteredGeojson(data, LINE),
 );
 
 export const selectWaypointsGeoJson = createSelector(
   selectFeatureList,
-  data => makeGeojson(data, POINT),
+  data => makeFilteredGeojson(data, POINT),
 );
 
 export const selectAreasGeoJson = createSelector(
   selectFeatureList,
-  data => makeGeojson(data, POLYGON),
+  data => makeFilteredGeojson(data, POLYGON),
 );
 
 export const selectGeoJson = createSelector(

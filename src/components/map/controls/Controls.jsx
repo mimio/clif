@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from '@emotion/styled';
 import Geolocation from 'containers/Geolocation';
+import FullExtent from 'containers/FullExtent';
 import { MapButtonGroup } from './styles';
 
 const StyledMapButtonGroup = styled(MapButtonGroup)`
@@ -11,6 +12,7 @@ const StyledMapButtonGroup = styled(MapButtonGroup)`
 
 const Controls = () => (
   <StyledMapButtonGroup>
+    <FullExtent />
     <Geolocation />
   </StyledMapButtonGroup>
 );
