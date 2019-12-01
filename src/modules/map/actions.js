@@ -1,9 +1,11 @@
 import { get } from 'lodash-es';
 import { USER_LOCATION } from 'constants/sources';
+import { basemaps } from 'constants/map';
 import {
   selectHoveredFeature,
   selectSelectedFeature,
   selectMapConfig,
+  selectMapLayers,
   selectUserLocation,
   selectUserLocationGeoJson,
 } from './selectors';
@@ -13,11 +15,33 @@ export const CLEAR_SELECTION = 'geojson/clearSelection';
 export const HOVER_FEATURE = 'geojson/hoverFeature';
 export const UNHOVER_FEATURE = 'geojson/unhoverFeature';
 export const UPDATE_USER_LOCATION = 'geojson/setUserLocation';
+export const SELECT_BASEMAP = 'geojson/selectBasemap';
 export const MAP_LOADED = 'map/loaded';
 
 export const mapLoaded = () => ({
   type: MAP_LOADED,
 });
+
+export const selectBasemap = basemap => (
+  dispatch,
+  getState,
+  getMap,
+) => {
+  const state = getState();
+  const map = getMap();
+
+  const mapLayers = selectMapLayers(state);
+
+  dispatch({
+    type: SELECT_BASEMAP,
+    payload: basemap,
+  });
+
+  map.setStyle(basemaps[basemap]);
+  map.once('style.load', () =>
+    mapLayers.forEach(layer => map.addLayer(layer)),
+  );
+};
 
 export const setUserLocationSource = () => (_, getState, getMap) => {
   const state = getState();
