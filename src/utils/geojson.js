@@ -4,18 +4,14 @@ export const emptyGeoJson = {
 };
 
 export const createGeoJsonFeature = ({
-  Longitude,
-  Latitude,
+  coordinates,
+  type,
   ...rest
 }) => ({
   type: 'Feature',
-  geometry: {
-    coordinates: [parseFloat(Longitude), parseFloat(Latitude)],
-    type: 'Point',
-  },
-  properties: {
-    ...rest,
-  },
+  id: rest.id,
+  geometry: { type, coordinates },
+  properties: rest,
 });
 
 export const arrayToFeatureCollection = data => ({

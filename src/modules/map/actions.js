@@ -1,18 +1,60 @@
 import { get } from 'lodash-es';
+import bbox from '@turf/bbox';
+import { USER_LOCATION } from 'constants/sources';
+import { desktopPadding } from 'constants/map';
 import {
   selectHoveredFeature,
   selectSelectedFeature,
+  selectUserLocation,
+  selectUserLocationGeoJson,
 } from './selectors';
+import { selectGeoJson } from '../geojson/selectors';
 
 export const SELECT_FEATURE = 'geojson/selectFeature';
 export const CLEAR_SELECTION = 'geojson/clearSelection';
 export const HOVER_FEATURE = 'geojson/hoverFeature';
 export const UNHOVER_FEATURE = 'geojson/unhoverFeature';
+export const UPDATE_USER_LOCATION = 'geojson/setUserLocation';
 export const MAP_LOADED = 'map/loaded';
 
 export const mapLoaded = () => ({
   type: MAP_LOADED,
 });
+
+export const setUserLocationSource = () => (_, getState, getMap) => {
+  const state = getState();
+  const map = getMap();
+
+  const userLocationGeojson = selectUserLocationGeoJson(state);
+  map.getSource(USER_LOCATION).setData(userLocationGeojson);
+};
+
+export const setUserLocation = location => dispatch => {
+  dispatch({
+    type: UPDATE_USER_LOCATION,
+    payload: location,
+  });
+  dispatch(setUserLocationSource());
+};
+
+export const panToUser = () => (_, getState, getMap) => {
+  const state = getState();
+  const map = getMap();
+
+  const userLocation = selectUserLocation(state);
+  map.panTo(userLocation);
+};
+
+export const zoomToFullExtent = () => (_, getState, getMap) => {
+  const state = getState();
+  const map = getMap();
+
+  const geojson = selectGeoJson(state);
+
+  const extent = bbox(geojson);
+
+  map.fitBounds(extent, { padding: desktopPadding });
+};
 
 export const unhoverFeature = () => (dispatch, getState, getMap) => {
   const map = getMap();

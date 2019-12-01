@@ -1,6 +1,7 @@
+import { desktopPadding } from 'constants/map';
+
 export const config = {
   accessToken: __MAPBOX_KEY__,
-  // style: 'mapbox://styles/mapbox/satellite-v9',
   style: 'mapbox://styles/mapbox/satellite-v9',
   // style: 'mapbox://styles/mamos-test/ck29zxy133p9j1ck3xlqnxers',
   // style: 'mapbox://styles/mapbox/streets-v11',
@@ -9,6 +10,6 @@ export const config = {
   center: [-83.03721979999995, 34.30808378645919],
   bearing: 0,
   fitBoundsOptions: {
-    padding: 200,
+    padding: desktopPadding,
   },
 };

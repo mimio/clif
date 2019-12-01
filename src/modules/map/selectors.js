@@ -2,7 +2,13 @@ import { createSelector } from 'reselect';
 import { get } from 'lodash-es';
 import bbox from '@turf/bbox';
 import colors from 'styles/colors';
-import { POINT, LINE, POLYGON } from 'constants/featureTypes';
+import { emptyGeoJson } from 'utils/geojson';
+import {
+  POINT,
+  LINE,
+  POLYGON,
+  USER_LOCATION,
+} from 'constants/sources';
 
 import {
   selectTrailGeoJson,
@@ -40,11 +46,40 @@ const makeStateCase = (value, fallbackValue) => [
   fallbackValue,
 ];
 
+export const selectUserLocation = createSelector(
+  selectMapState,
+  map => get(map, 'userLocation'),
+);
+
+export const selectUserLocationGeoJson = createSelector(
+  selectUserLocation,
+  location =>
+    location
+      ? {
+          type: 'Point',
+          coordinates: location,
+        }
+      : emptyGeoJson,
+);
+
 export const selectMapLayers = createSelector(
   selectTrailGeoJson,
   selectWaypointsGeoJson,
   selectAreasGeoJson,
-  (trailData, waypointData, areasData) => [
+  selectUserLocationGeoJson,
+  (trailData, waypointData, areasData, userLocationData) => [
+    {
+      id: POLYGON,
+      type: 'fill',
+      source: {
+        type: 'geojson',
+        data: areasData,
+      },
+      paint: {
+        'fill-color': colors.limeGreen,
+        'fill-opacity': makeStateCase(0.8, 0.5),
+      },
+    },
     {
       id: LINE,
       type: 'line',
@@ -78,15 +113,17 @@ export const selectMapLayers = createSelector(
       },
     },
     {
-      id: POLYGON,
-      type: 'fill',
+      id: USER_LOCATION,
+      type: 'circle',
       source: {
         type: 'geojson',
-        data: areasData,
+        data: userLocationData,
       },
       paint: {
-        'fill-color': colors.limeGreen,
-        'fill-opacity': makeStateCase(0.8, 0.5),
+        'circle-color': colors.ultraLimeGreen,
+        'circle-radius': 6,
+        'circle-stroke-width': 8,
+        'circle-stroke-color': colors.transparentLimeGreen,
       },
     },
   ],
