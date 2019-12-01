@@ -31,6 +31,7 @@ export const selectBasemap = basemap => (
   const map = getMap();
 
   const mapLayers = selectMapLayers(state);
+  const selectedFeature = selectSelectedFeature(state);
 
   dispatch({
     type: SELECT_BASEMAP,
@@ -38,9 +39,13 @@ export const selectBasemap = basemap => (
   });
 
   map.setStyle(basemaps[basemap]);
-  map.once('style.load', () =>
-    mapLayers.forEach(layer => map.addLayer(layer)),
-  );
+  map.once('style.load', () => {
+    mapLayers.forEach(layer => map.addLayer(layer));
+    if (selectedFeature) {
+      const { id, source } = selectedFeature;
+      map.setFeatureState({ id, source }, { selected: true });
+    }
+  });
 };
 
 export const setUserLocationSource = () => (_, getState, getMap) => {
