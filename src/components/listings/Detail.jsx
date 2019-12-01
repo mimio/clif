@@ -2,8 +2,9 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { getStyle, size, mq } from 'styles';
 import styled from '@emotion/styled';
-import { Column } from '../layout';
+import { Column, Row } from '../layout';
 import { ReactComponent as Chevron } from '../panel/chevronDown.svg';
+import NextPrevSelector from '../../containers/NextPrevSelector';
 
 const DetailContainer = styled.div`
   display: flex;
@@ -86,6 +87,7 @@ const MobileBackButton = styled.button`
 const StyledName = styled.div`
   font-size: 27px;
   text-transform: uppercase;
+  width: 100%;
 `;
 
 const StyledDescription = styled.div`
@@ -105,6 +107,11 @@ const ImageContainer = styled.div`
   background-size: cover;
 `;
 
+const Header = styled(Row)`
+  width: 100%;
+  justify-content: space-between;
+`;
+
 const Detail = ({ clearSelection, feature }) => {
   const { Name, ShortDescription } = feature;
 
@@ -112,7 +119,10 @@ const Detail = ({ clearSelection, feature }) => {
     <DetailContainer>
       <ImageContainer />
       <Inner>
-        <StyledName>{Name}</StyledName>
+        <Header>
+          <StyledName>{Name}</StyledName>
+          <NextPrevSelector />
+        </Header>
         <StyledDescription>{ShortDescription}</StyledDescription>
       </Inner>
       <BigButton onClick={clearSelection}>
