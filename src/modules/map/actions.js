@@ -8,6 +8,7 @@ import {
   selectUserLocation,
   selectUserLocationGeoJson,
 } from './selectors';
+import { selectFeatureList } from '../geojson';
 
 export const SELECT_FEATURE = 'geojson/selectFeature';
 export const CLEAR_SELECTION = 'geojson/clearSelection';
@@ -107,6 +108,26 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
     payload,
   });
 };
+
+export const selectFeatureSequentially = direction => (
+  dispatch,
+  getState,
+) => {
+  const state = getState();
+  const selectedFeature = selectSelectedFeature(state);
+  const features = selectFeatureList(state);
+  const nextId =
+    (features.indexOf(selectedFeature) + direction) % features.length;
+
+  const nextFeature =
+    nextId < 0 ? features[features.length - 1] : features[nextId];
+
+  dispatch(selectFeature({ features: [nextFeature] }));
+};
+export const selectNextFeature = () => dispatch =>
+  dispatch(selectFeatureSequentially(1));
+export const selectPrevFeature = () => dispatch =>
+  dispatch(selectFeatureSequentially(-1));
 
 export const hoverFeature = e => (dispatch, getState, getMap) => {
   const map = getMap();
