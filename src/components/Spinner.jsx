@@ -28,8 +28,8 @@ export default styled.div`
   border-radius: 50%;
   background: transparent;
 
-  border-top: 4px solid ${getStyle('ultraLimeGreen')};
-  border-right: 4px solid ${getStyle('ultraLimeGreen')};
+  border-top: 4px solid ${getStyle('limeGreen')};
+  border-right: 4px solid ${getStyle('limeGreen')};
   border-bottom: 4px solid rgba(0, 0, 0, 0.1);
   border-left: 4px solid rgba(0, 0, 0, 0.1);
 

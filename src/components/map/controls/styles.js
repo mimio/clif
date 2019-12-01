@@ -1,5 +1,6 @@
 import styled from '@emotion/styled';
 import { getStyle } from 'styles';
+import { centered } from 'styles/layout';
 import { Column } from '../../layout';
 
 // default mapbox button size
@@ -17,14 +18,18 @@ export const MapButtonGroup = styled(Column)`
 `;
 
 export const MapButton = styled.button`
+  ${centered};
   height: ${SIZE};
   width: 100%;
-  padding: 6px 10px;
+  padding: 0;
   transition: ${getStyle('hue')};
   background: transparent;
   color: #333333;
   cursor: pointer;
   border: none;
+  svg {
+    width: 10px;
+  }
   &:hover {
     background: rgba(0, 0, 0, 0.05);
   }
