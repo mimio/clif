@@ -5,6 +5,7 @@ import {
   selectHoveredFeature,
   selectSelectedFeature,
   selectMapConfig,
+  selectMapLayers,
   selectUserLocation,
   selectUserLocationGeoJson,
 } from './selectors';
@@ -21,15 +22,25 @@ export const mapLoaded = () => ({
   type: MAP_LOADED,
 });
 
-export const selectBasemap = basemap => (dispatch, _, getMap) => {
+export const selectBasemap = basemap => (
+  dispatch,
+  getState,
+  getMap,
+) => {
+  const state = getState();
   const map = getMap();
+
+  const mapLayers = selectMapLayers(state);
 
   dispatch({
     type: SELECT_BASEMAP,
     payload: basemap,
   });
 
-  map.setStyle(basemaps[basemap], { diff: true });
+  map.setStyle(basemaps[basemap]);
+  map.once('style.load', () =>
+    mapLayers.forEach(layer => map.addLayer(layer)),
+  );
 };
 
 export const setUserLocationSource = () => (_, getState, getMap) => {
