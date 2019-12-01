@@ -4,6 +4,7 @@ import {
   HOVER_FEATURE,
   UNHOVER_FEATURE,
   MAP_LOADED,
+  UPDATE_USER_LOCATION,
 } from './actions';
 import { config } from './config';
 
@@ -17,8 +18,10 @@ const initialState = {
     source: null,
     id: null,
   },
+  userLocation: null,
   mapLoaded: false,
 };
+
 export function mapReducer(state = initialState, action) {
   const { type, payload } = action;
   switch (type) {
@@ -46,6 +49,11 @@ export function mapReducer(state = initialState, action) {
       return {
         ...state,
         mapLoaded: true,
+      };
+    case UPDATE_USER_LOCATION:
+      return {
+        ...state,
+        userLocation: payload,
       };
     default:
       return state;

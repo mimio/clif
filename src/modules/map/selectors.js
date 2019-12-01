@@ -2,7 +2,13 @@ import { createSelector } from 'reselect';
 import { get } from 'lodash-es';
 import bbox from '@turf/bbox';
 import colors from 'styles/colors';
-import { POINT, LINE, POLYGON } from 'constants/featureTypes';
+import { emptyGeoJson } from 'utils/geojson';
+import {
+  POINT,
+  LINE,
+  POLYGON,
+  USER_LOCATION,
+} from 'constants/sources';
 
 import {
   selectTrailGeoJson,
@@ -29,22 +35,54 @@ export const selectMapLoaded = createSelector(selectMapState, map =>
   get(map, 'mapLoaded', false),
 );
 
-const makeStateCase = (value, fallbackValue) => [
+const makeHoverCase = (hoverValue, defaultValue) => [
   'case',
-  [
-    'any',
-    ['boolean', ['feature-state', 'hover'], false],
-    ['boolean', ['feature-state', 'selected'], false],
-  ],
-  value,
-  fallbackValue,
+  ['boolean', ['feature-state', 'hover'], false],
+  hoverValue,
+  defaultValue,
 ];
+
+const makeSelectedCase = (selectedValue, defaultValue) => [
+  'case',
+  ['boolean', ['feature-state', 'selected'], false],
+  selectedValue,
+  defaultValue,
+];
+
+export const selectUserLocation = createSelector(
+  selectMapState,
+  map => get(map, 'userLocation'),
+);
+
+export const selectUserLocationGeoJson = createSelector(
+  selectUserLocation,
+  location =>
+    location
+      ? {
+          type: 'Point',
+          coordinates: location,
+        }
+      : emptyGeoJson,
+);
 
 export const selectMapLayers = createSelector(
   selectTrailGeoJson,
   selectWaypointsGeoJson,
   selectAreasGeoJson,
-  (trailData, waypointData, areasData) => [
+  selectUserLocationGeoJson,
+  (trailData, waypointData, areasData, userLocationData) => [
+    {
+      id: POLYGON,
+      type: 'fill',
+      source: {
+        type: 'geojson',
+        data: areasData,
+      },
+      paint: {
+        'fill-color': makeSelectedCase(colors.teal, colors.limeGreen),
+        'fill-opacity': makeHoverCase(0.8, 0.5),
+      },
+    },
     {
       id: LINE,
       type: 'line',
@@ -53,9 +91,9 @@ export const selectMapLayers = createSelector(
         data: trailData,
       },
       paint: {
-        'line-width': makeStateCase(5, 3),
-        'line-color': makeStateCase(
-          colors.ultraLimeGreen,
+        'line-width': makeHoverCase(5, 3),
+        'line-color': makeSelectedCase(
+          colors.teal,
           colors.darkLimeGreen,
         ),
       },
@@ -70,23 +108,25 @@ export const selectMapLayers = createSelector(
       paint: {
         'circle-color': 'transparent',
         'circle-radius': 6,
-        'circle-stroke-color': makeStateCase(
-          colors.ultraLimeGreen,
+        'circle-stroke-width': makeHoverCase(8, 6),
+        'circle-stroke-color': makeSelectedCase(
+          colors.teal,
           colors.limeGreen,
         ),
-        'circle-stroke-width': makeStateCase(8, 6),
       },
     },
     {
-      id: POLYGON,
-      type: 'fill',
+      id: USER_LOCATION,
+      type: 'circle',
       source: {
         type: 'geojson',
-        data: areasData,
+        data: userLocationData,
       },
       paint: {
-        'fill-color': colors.limeGreen,
-        'fill-opacity': makeStateCase(0.8, 0.5),
+        'circle-color': colors.ultraLimeGreen,
+        'circle-radius': 6,
+        'circle-stroke-width': 8,
+        'circle-stroke-color': colors.transparentLimeGreen,
       },
     },
   ],

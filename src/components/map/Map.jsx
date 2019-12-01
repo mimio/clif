@@ -4,6 +4,7 @@ import mapboxgl from 'mapbox-gl';
 import { setMap } from 'utils/map';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import ResetButton from './ResetButton';
+import Controls from './controls';
 
 const MapContainer = styled.div`
   height: 100%;
@@ -84,6 +85,7 @@ class Map extends Component {
       <MapContainer className={className} css={css}>
         <ResetButton onClick={resetMap} />
         <div id="mapbox-map" ref={this.mapRef} />
+        <Controls />
       </MapContainer>
     );
   }
