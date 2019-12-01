@@ -1,6 +1,6 @@
 export const desktopPadding = {
-  top: 80,
-  bottom: 80,
-  left: 550,
-  right: 80,
+  top: 200,
+  bottom: 200,
+  left: 200,
+  right: 200,
 };

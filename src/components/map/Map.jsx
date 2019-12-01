@@ -3,7 +3,6 @@ import styled from '@emotion/styled';
 import mapboxgl from 'mapbox-gl';
 import { setMap } from 'utils/map';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import ResetButton from './ResetButton';
 import Controls from './controls';
 
 const MapContainer = styled.div`
@@ -80,10 +79,9 @@ class Map extends Component {
   };
 
   render() {
-    const { className, css, resetMap } = this.props;
+    const { className, css } = this.props;
     return (
       <MapContainer className={className} css={css}>
-        <ResetButton onClick={resetMap} />
         <div id="mapbox-map" ref={this.mapRef} />
         <Controls />
       </MapContainer>

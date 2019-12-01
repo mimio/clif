@@ -1,7 +1,5 @@
 import { get } from 'lodash-es';
-import bbox from '@turf/bbox';
 import { USER_LOCATION } from 'constants/sources';
-import { desktopPadding } from 'constants/map';
 import {
   selectHoveredFeature,
   selectSelectedFeature,
@@ -9,7 +7,6 @@ import {
   selectUserLocation,
   selectUserLocationGeoJson,
 } from './selectors';
-import { selectGeoJson } from '../geojson/selectors';
 
 export const SELECT_FEATURE = 'geojson/selectFeature';
 export const CLEAR_SELECTION = 'geojson/clearSelection';
@@ -44,17 +41,6 @@ export const panToUser = () => (_, getState, getMap) => {
 
   const userLocation = selectUserLocation(state);
   map.panTo(userLocation);
-};
-
-export const zoomToFullExtent = () => (_, getState, getMap) => {
-  const state = getState();
-  const map = getMap();
-
-  const geojson = selectGeoJson(state);
-
-  const extent = bbox(geojson);
-
-  map.fitBounds(extent, { padding: desktopPadding });
 };
 
 export const unhoverFeature = () => (dispatch, getState, getMap) => {

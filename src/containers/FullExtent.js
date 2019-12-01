@@ -1,8 +1,8 @@
 import { connect } from 'react-redux';
 import FullExtent from 'components/map/controls/FullExtent';
-import { zoomToFullExtent } from '../modules/map';
+import { resetMap } from '../modules/map';
 
 export default connect(
   null,
-  { zoomToFullExtent },
+  { zoomToFullExtent: resetMap },
 )(FullExtent);

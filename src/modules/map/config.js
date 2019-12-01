@@ -11,5 +11,6 @@ export const config = {
   bearing: 0,
   fitBoundsOptions: {
     padding: desktopPadding,
+    duration: 0,
   },
 };

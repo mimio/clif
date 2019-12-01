@@ -10,7 +10,6 @@ import {
   selectMapLayers,
   selectMapLoaded,
   unhoverFeature,
-  resetMap,
 } from '../modules/map';
 
 export default connect(
@@ -25,6 +24,5 @@ export default connect(
     unhoverFeature,
     mapLoaded,
     selectFeature,
-    resetMap,
   },
 )(Map);
