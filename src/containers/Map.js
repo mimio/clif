@@ -1,4 +1,5 @@
 import { connect } from 'react-redux';
+import { selectMapConfig } from '../modules/app/selectors';
 import Map from '../components/map/Map';
 
 import {
@@ -6,7 +7,6 @@ import {
   mapLoaded,
   selectFeature,
   selectHoveredFeatureId,
-  selectMapConfig,
   selectMapLayers,
   selectMapLoaded,
   unhoverFeature,

@@ -1,6 +1,6 @@
 import { createSelector } from 'reselect';
 import { get } from 'lodash-es';
-import bbox from '@turf/bbox';
+
 import colors from 'styles/colors';
 import { emptyGeoJson } from 'utils/geojson';
 import { basemaps } from 'constants/map';
@@ -28,21 +28,6 @@ export const selectSelectedBasemap = createSelector(
 export const selectSelectedBasemapUrl = createSelector(
   selectSelectedBasemap,
   basemap => basemaps[basemap],
-);
-
-export const selectMapConfig = createSelector(
-  selectMapState,
-  selectTrailGeoJson,
-  selectSelectedBasemapUrl,
-  (map, geojson, style) => {
-    if (!geojson) return null;
-
-    return {
-      ...map.config,
-      bounds: bbox(geojson),
-      style,
-    };
-  },
 );
 
 export const selectMapLoaded = createSelector(selectMapState, map =>

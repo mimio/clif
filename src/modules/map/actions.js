@@ -4,12 +4,13 @@ import { basemaps } from 'constants/map';
 import {
   selectHoveredFeature,
   selectSelectedFeature,
-  selectMapConfig,
   selectMapLayers,
   selectUserLocation,
   selectUserLocationGeoJson,
 } from './selectors';
+
 import { selectFeatureList } from '../geojson';
+import { selectMapConfig } from '../app/selectors';
 
 export const SELECT_FEATURE = 'geojson/selectFeature';
 export const CLEAR_SELECTION = 'geojson/clearSelection';
@@ -111,7 +112,11 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
     console.log(err);
   }
 
-  if (!feature) return null;
+  if (!feature) {
+    // click off feature will deselect feature
+    if (selected) dispatch(unhoverFeature());
+    return null;
+  }
 
   const payload = { source: feature.source, id: feature.id };
   if (selected.id !== feature.id) dispatch(clearSelection());
