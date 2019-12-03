@@ -1,4 +1,4 @@
-import { get } from 'lodash-es';
+import { get, isEmpty } from 'lodash-es';
 import { USER_LOCATION } from 'constants/sources';
 import { basemaps } from 'constants/map';
 import {
@@ -7,6 +7,7 @@ import {
   selectMapLayers,
   selectUserLocation,
   selectUserLocationGeoJson,
+  selectSelectedBasemap,
 } from './selectors';
 
 import { selectFeatureList } from '../geojson';
@@ -30,10 +31,13 @@ export const selectBasemap = basemap => (
   getMap,
 ) => {
   const state = getState();
-  const map = getMap();
+  const selectedBasemap = selectSelectedBasemap(state);
+  if (selectedBasemap === basemap) return;
 
   const mapLayers = selectMapLayers(state);
   const selectedFeature = selectSelectedFeature(state);
+
+  const map = getMap();
 
   dispatch({
     type: SELECT_BASEMAP,
@@ -43,7 +47,7 @@ export const selectBasemap = basemap => (
   map.setStyle(basemaps[basemap]);
   map.once('style.load', () => {
     mapLayers.forEach(layer => map.addLayer(layer));
-    if (selectedFeature) {
+    if (!isEmpty(selectedFeature)) {
       const { id, source } = selectedFeature;
       map.setFeatureState({ id, source }, { selected: true });
     }
