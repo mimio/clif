@@ -101,7 +101,8 @@ const StyledDescription = styled.div`
 const ImageContainer = styled.div`
   width: 100%;
   min-height: 30%;
-  background-image: url('http://www.addalittledazzle.com/wp-content/uploads/2015/07/banana-e1436314532597.jpg');
+  background-image: ${p => 
+    `url(${p.image || 'http://www.addalittledazzle.com/wp-content/uploads/2015/07/banana-e1436314532597.jpg'})`};
   background-repeat: no-repeat;
   background-position-x: center;
   background-size: cover;
@@ -113,17 +114,18 @@ const Header = styled(Row)`
 `;
 
 const Detail = ({ clearSelection, feature }) => {
-  const { Name, ShortDescription } = feature;
+
+  const { Name, description, image } = feature;
 
   return (
     <DetailContainer>
-      <ImageContainer />
+      <ImageContainer image={image} />
       <Inner>
         <Header>
           <StyledName>{Name}</StyledName>
           <NextPrevSelector />
         </Header>
-        <StyledDescription>{ShortDescription}</StyledDescription>
+        <StyledDescription>{description}</StyledDescription>
       </Inner>
       <BigButton onClick={clearSelection}>
         <span>Go Back</span>

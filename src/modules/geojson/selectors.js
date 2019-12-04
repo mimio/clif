@@ -1,3 +1,4 @@
+import { get } from 'lodash-es';
 import { createSelector } from 'reselect';
 import { arrayToFeatureCollection } from 'utils/geojson';
 import { POINT, LINE, POLYGON } from 'constants/sources';
@@ -9,14 +10,43 @@ import {
 
 export const selectGeoJsonState = state => state.geojson;
 
+
+// todo: this is where all the fixing of data coming from their
+// api is at - we should get them to fix it on their end
+// should prolly be in reducer ;) 
+// start data-fixing --------------------------------------------
 export const selectData = createSelector(
   selectGeoJsonState,
-  state => state.data,
+  state => {
+    const data = get(state, 'data', {});
+    return Object.entries(data).reduce((acc, [id, feat]) => {
+      acc[id] = {
+        id,
+        ...feat
+      };
+      return acc;
+    }, {});
+  },
 );
 
-export const selectFeatureList = createSelector(selectData, data =>
-  Object.values(data),
-);
+
+const types = {
+  'point': POINT,
+  'line': LINE,
+  'area': POLYGON
+};
+
+const parseCoordinates = coords => Array.isArray(coords) ? coords.map(c => parseFloat(c)) : parseFloat(coords);
+
+export const selectRawFeatureList = createSelector(selectData, data => Object.values(data));
+
+export const selectFeatureList = createSelector(selectData, data => Object.entries(data).map(([id, feat]) => ({
+      ...feat,
+      id,
+      type: types[feat.type],
+      coordinates: feat.type === 'area' ? [feat.coordinates.map(parseCoordinates)] : feat.coordinates.map(parseCoordinates)
+    })));
+// end data-fixing --------------------------------------------
 
 export const selectFilteredResults = createSelector(
   selectSearchValue,
@@ -54,3 +84,4 @@ export const selectGeoJson = createSelector(
   selectFilteredResults,
   features => arrayToFeatureCollection(Object.values(features)),
 );
+

@@ -139,8 +139,10 @@ export const selectFeatureSequentially = direction => (
   getState,
 ) => {
   const state = getState();
-  const selectedFeature = selectSelectedFeature(state);
   const features = selectFeatureList(state);
+
+  const selectedFeature = features.find(feat => feat.id === selectSelectedFeature(state).id);
+
   const nextId =
     (features.indexOf(selectedFeature) + direction) % features.length;
 
