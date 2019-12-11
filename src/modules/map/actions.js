@@ -118,7 +118,7 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
 
   if (!feature) {
     // click off feature will deselect feature
-    if (selected) dispatch(unhoverFeature());
+    if (selected) dispatch(clearSelection());
     return null;
   }
 
@@ -141,7 +141,9 @@ export const selectFeatureSequentially = direction => (
   const state = getState();
   const features = selectFeatureList(state);
 
-  const selectedFeature = features.find(feat => feat.id === selectSelectedFeature(state).id);
+  const selectedFeature = features.find(
+    feat => feat.id === selectSelectedFeature(state).id,
+  );
 
   const nextId =
     (features.indexOf(selectedFeature) + direction) % features.length;

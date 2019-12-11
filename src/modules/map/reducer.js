@@ -36,7 +36,7 @@ export function mapReducer(state = initialState, action) {
     case CLEAR_SELECTION:
       return {
         ...state,
-        selectedFeature: initialState.hoveredFeature,
+        selectedFeature: initialState.selectedFeature,
       };
     case HOVER_FEATURE:
       return {
