@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { getStyle, size, mq } from 'styles';
 import styled from '@emotion/styled';
 import { Column, Row } from '../layout';
+import Video from './Video';
 import { ReactComponent as Chevron } from '../panel/chevronDown.svg';
 import NextPrevSelector from '../../containers/NextPrevSelector';
 
@@ -101,8 +102,9 @@ const StyledDescription = styled.div`
 const ImageContainer = styled.div`
   width: 100%;
   min-height: 30%;
-  background-image: ${p => 
-    `url(${p.image || 'http://www.addalittledazzle.com/wp-content/uploads/2015/07/banana-e1436314532597.jpg'})`};
+  background-image: ${p =>
+    `url(${p.image ||
+      'http://www.addalittledazzle.com/wp-content/uploads/2015/07/banana-e1436314532597.jpg'})`};
   background-repeat: no-repeat;
   background-position-x: center;
   background-size: cover;
@@ -114,12 +116,15 @@ const Header = styled(Row)`
 `;
 
 const Detail = ({ clearSelection, feature }) => {
-
-  const { Name, description, image } = feature;
+  const { Name, description, image, video } = feature;
 
   return (
     <DetailContainer>
-      <ImageContainer image={image} />
+      {video.length ? (
+        <Video url={video} />
+      ) : (
+        <ImageContainer image={image} />
+      )}
       <Inner>
         <Header>
           <StyledName>{Name}</StyledName>
