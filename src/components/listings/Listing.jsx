@@ -76,14 +76,13 @@ const getIcon = type => {
 };
 
 const getDescription = (item = {}) => {
-  const { type } = item;
+  const { type, miles, elevation } = item;
   switch (type) {
     case POINT:
-      return '6000ft';
-    case LINE:
-      return `${item.miles}M | +/- 1000ft`;
     case POLYGON:
-      return '1000 sq ft';
+      return `${elevation}ft`;
+    case LINE:
+      return `${miles}mi | +/- ${elevation}ft`;
     default:
       return null;
   }

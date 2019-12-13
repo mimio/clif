@@ -104,9 +104,10 @@ const ImageContainer = styled.div`
   min-height: 30%;
   background-image: ${p =>
     `url(${p.image ||
-      'http://www.addalittledazzle.com/wp-content/uploads/2015/07/banana-e1436314532597.jpg'})`};
+      'https://61053f0f9fe52485e695-eb3473ee85ccfb740806f4100aeb4704.ssl.cf1.rackcdn.com/2018/03/Snowmobile3-1024x576.png'})`};
   background-repeat: no-repeat;
   background-position-x: center;
+  background-position-y: center;
   background-size: cover;
 `;
 

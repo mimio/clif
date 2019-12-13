@@ -4,23 +4,28 @@ import { getStyle } from 'styles';
 import { ReactComponent as Chevron } from '../panel/chevronDown.svg';
 
 const NextPrevContainer = styled.div`
-  width: 100%;
   display: flex;
   justify-content: flex-end;
   user-select: none;
-  > svg {
-    cursor: pointer;
-    height: 30px;
-    width: 30px;
+`;
+
+const ChevronBase = styled(Chevron)`
+  cursor: pointer;
+  height: 30px;
+  width: 30px;
+  fill: ${getStyle('darkLimeGreen')};
+  transition: ${getStyle('hue')};
+  &:hover {
     fill: ${getStyle('limeGreen')};
   }
 `;
 
-const PrevArrow = styled(Chevron)`
+const PrevArrow = styled(ChevronBase)`
   transform: rotate(90deg);
+  margin-right: 16px;
 `;
 
-const NextArrow = styled(Chevron)`
+const NextArrow = styled(ChevronBase)`
   transform: rotate(-90deg);
 `;
 
