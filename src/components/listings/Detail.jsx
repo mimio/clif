@@ -4,6 +4,7 @@ import { POINT, LINE, POLYGON } from 'constants/sources';
 import { getStyle, size, mq } from 'styles';
 import styled from '@emotion/styled';
 import { Column, Row, ItemRow } from '../layout';
+import Video from './Video';
 import { ReactComponent as Chevron } from '../panel/chevronDown.svg';
 import NextPrevSelector from '../../containers/NextPrevSelector';
 
@@ -137,11 +138,15 @@ const getMetrics = ({ source, miles, elevation } = {}) => {
 };
 
 const Detail = ({ clearSelection, feature }) => {
-  const { Name, description, image } = feature;
+  const { Name, description, image, video } = feature;
 
   return (
     <DetailContainer>
-      <ImageContainer image={image} />
+      {video.length ? (
+        <Video url={video} />
+      ) : (
+        <ImageContainer image={image} />
+      )}
       <Inner>
         <Header>
           <StyledName>{Name}</StyledName>
