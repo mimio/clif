@@ -14,21 +14,8 @@ export const selectData = createSelector(selectGeoJsonState, state =>
   get(state, 'data', {}),
 );
 
-const types = {
-  point: POINT,
-  line: LINE,
-  area: POLYGON,
-};
-
-export const selectRawFeatureList = createSelector(selectData, data =>
-  Object.values(data),
-);
-
 export const selectFeatureList = createSelector(selectData, data =>
-  Object.values(data).map(feat => ({
-    ...feat,
-    type: types[feat.type],
-  })),
+  Object.values(data),
 );
 
 export const selectFilteredResults = createSelector(
@@ -44,7 +31,9 @@ export const selectFilteredResults = createSelector(
 export const selectLookup = createSelector(selectData, data => data);
 
 const makeFilteredGeojson = (data, geometryType) => {
-  const filtered = data.filter(({ type }) => type === geometryType);
+  const filtered = data.filter(
+    ({ source }) => source === geometryType,
+  );
   return arrayToFeatureCollection(filtered);
 };
 

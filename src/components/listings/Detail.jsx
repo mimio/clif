@@ -1,8 +1,9 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { POINT, LINE, POLYGON } from 'constants/sources';
 import { getStyle, size, mq } from 'styles';
 import styled from '@emotion/styled';
-import { Column, Row } from '../layout';
+import { Column, Row, ItemRow } from '../layout';
 import { ReactComponent as Chevron } from '../panel/chevronDown.svg';
 import NextPrevSelector from '../../containers/NextPrevSelector';
 
@@ -115,6 +116,26 @@ const Header = styled(Row)`
   justify-content: space-between;
 `;
 
+const Metrics = styled(ItemRow)``;
+
+const getMetrics = ({ source, miles, elevation } = {}) => {
+  const elevationMetric = <span>{`${elevation}ft`}</span>;
+  switch (source) {
+    case POINT:
+    case POLYGON:
+      return elevationMetric;
+    case LINE:
+      return (
+        <>
+          <span>{`${miles}mi`}</span>
+          {elevationMetric}
+        </>
+      );
+    default:
+      return null;
+  }
+};
+
 const Detail = ({ clearSelection, feature }) => {
   const { Name, description, image } = feature;
 
@@ -126,6 +147,7 @@ const Detail = ({ clearSelection, feature }) => {
           <StyledName>{Name}</StyledName>
           <NextPrevSelector />
         </Header>
+        <Metrics>{getMetrics(feature)}</Metrics>
         <StyledDescription>{description}</StyledDescription>
       </Inner>
       <BigButton onClick={clearSelection}>

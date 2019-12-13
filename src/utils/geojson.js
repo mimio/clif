@@ -5,14 +5,16 @@ export const emptyGeoJson = {
 
 export const createGeoJsonFeature = ({
   coordinates,
-  type,
-  ...rest
-}) => ({
-  type: 'Feature',
-  id: rest.id,
-  geometry: { type, coordinates },
-  properties: rest,
-});
+  ...properties
+}) => {
+  const { source, id } = properties;
+  return {
+    type: 'Feature',
+    id,
+    geometry: { type: source, coordinates },
+    properties,
+  };
+};
 
 export const arrayToFeatureCollection = data => ({
   type: 'FeatureCollection',

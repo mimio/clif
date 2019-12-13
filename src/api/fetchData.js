@@ -1,12 +1,13 @@
+import { POINT, LINE, POLYGON } from 'constants/sources';
 // import data from '../../data/trailData.json';
 
 const url =
   'https://sageoutdooradventures.com/wp-json/maps-api/locations';
 
 const type = {
-  point: 'Point',
-  line: 'LineString',
-  area: 'Polygon',
+  point: POINT,
+  line: LINE,
+  area: POLYGON,
 };
 
 export const fetchData = async () => {

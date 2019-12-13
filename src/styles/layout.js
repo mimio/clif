@@ -1,4 +1,5 @@
 import { css } from '@emotion/core';
+import { size } from 'styles';
 
 const flexClass = `
  display: flex;
@@ -22,14 +23,14 @@ export const column = css`
 `;
 
 // sp = "spacing"
-export const itemRow = ({ theme: { size }, sp }) => css`
+export const itemRow = ({ sp }) => css`
   > *:not(:last-child) {
     margin-right: ${size(sp || 4)};
   }
   ${row};
 `;
 
-export const itemColumn = ({ theme: { size }, sp }) => css`
+export const itemColumn = ({ sp }) => css`
   > *:not(:last-child) {
     margin-bottom: ${size(sp || 4)};
   }

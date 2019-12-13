@@ -1,6 +1,6 @@
 import { get } from 'lodash-es';
 import { createSelector } from 'reselect';
-import {  selectGeoJson  } from 'modules/geojson';
+import { selectGeoJson } from 'modules/geojson';
 import bbox from '@turf/bbox';
 import turfCenter from '@turf/center';
 
@@ -39,7 +39,7 @@ export const selectMapConfig = createSelector(
     const {
       geometry: { coordinates: center },
     } = turfCenter(geojson);
-    
+
     return {
       ...map.config,
       bounds,

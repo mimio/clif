@@ -41,7 +41,7 @@ const StyledName = styled.span`
   text-transform: uppercase;
 `;
 
-const StyledDescription = styled.span`
+const StyledMetrics = styled.span`
   font-size: 16px;
 `;
 
@@ -62,8 +62,8 @@ const IconContainer = styled(Centered)`
   width: ${size(22)};
 `;
 
-const getIcon = type => {
-  switch (type) {
+const getIcon = source => {
+  switch (source) {
     case POINT:
       return WaypointIcon;
     case LINE:
@@ -75,9 +75,9 @@ const getIcon = type => {
   }
 };
 
-const getDescription = (item = {}) => {
-  const { type, miles, elevation } = item;
-  switch (type) {
+const getMetrics = (item = {}) => {
+  const { source, miles, elevation } = item;
+  switch (source) {
     case POINT:
     case POLYGON:
       return `${elevation}ft`;
@@ -89,25 +89,25 @@ const getDescription = (item = {}) => {
 };
 
 export default function Listing({
-  item: { Name, id, type },
+  item: { Name, id, source },
   item,
   onClick,
   onMouseEnter,
   onMouseLeave,
 }) {
-  const Icon = getIcon(type);
+  const Icon = getIcon(source);
   return (
     <Container
-      onClick={() => onClick({ id, source: type })}
-      onMouseEnter={() => onMouseEnter({ id, source: type })}
-      onMouseLeave={() => onMouseLeave({ id, source: type })}
+      onClick={() => onClick({ id, source })}
+      onMouseEnter={() => onMouseEnter({ id, source })}
+      onMouseLeave={() => onMouseLeave({ id, source })}
     >
       <IconContainer>
         <Icon />
       </IconContainer>
       <NameContainer>
         <StyledName>{Name}</StyledName>
-        <StyledDescription>{getDescription(item)}</StyledDescription>
+        <StyledMetrics>{getMetrics(item)}</StyledMetrics>
       </NameContainer>
     </Container>
   );
