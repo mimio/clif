@@ -5,7 +5,10 @@ import { getStyle, size, mq } from 'styles';
 import styled from '@emotion/styled';
 import { Column, Row, ItemRow } from '../layout';
 import Video from './Video';
+import DetailMetric from './DetailMetric';
 import { ReactComponent as Chevron } from '../panel/chevronDown.svg';
+import { ReactComponent as Line } from './line.svg';
+import { ReactComponent as Ruler } from './ruler.svg';
 import NextPrevSelector from '../../containers/NextPrevSelector';
 
 const DetailContainer = styled.div`
@@ -121,7 +124,9 @@ const Header = styled(Row)`
 const Metrics = styled(ItemRow)``;
 
 const getMetrics = ({ source, miles, elevation } = {}) => {
-  const elevationMetric = <span>{`${elevation}ft`}</span>;
+  const elevationMetric = (
+    <DetailMetric Icon={Ruler} text={`${elevation}ft`} />
+  );
   switch (source) {
     case POINT:
     case POLYGON:
@@ -129,8 +134,8 @@ const getMetrics = ({ source, miles, elevation } = {}) => {
     case LINE:
       return (
         <>
-          <span>{`${miles}mi`}</span>
           {elevationMetric}
+          <DetailMetric Icon={Line} text={`${miles}mi`} />
         </>
       );
     default:
@@ -153,7 +158,7 @@ const Detail = ({ clearSelection, feature }) => {
           <StyledName>{Name}</StyledName>
           <NextPrevSelector />
         </Header>
-        <Metrics>{getMetrics(feature)}</Metrics>
+        <Metrics sp={8}>{getMetrics(feature)}</Metrics>
         <StyledDescription>{description}</StyledDescription>
       </Inner>
       <BigButton onClick={clearSelection}>

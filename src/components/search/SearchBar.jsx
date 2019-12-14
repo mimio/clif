@@ -21,6 +21,7 @@ const SearchButton = styled.button`
   outline: none;
   cursor: pointer;
   svg {
+    transition: ${getStyle('hue')};
     opacity: 0.8;
     color: ${getStyle('limeGreen')};
   }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { size } from 'styles';
+import { getStyle, size } from 'styles';
 import styled from '@emotion/styled';
 
 import Listing from './Listing';
@@ -13,6 +13,14 @@ const StyledListings = styled.div`
   flex-direction: column;
   overflow: auto;
   overflow: overlay; /* only works in Chrome, Safari */
+`;
+
+const NoResults = styled.span`
+  color: ${getStyle('limeGreen')};
+  font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial,
+    sans-serif;
+  margin-top: 48px;
+  font-size: 24px;
 `;
 
 const Inner = styled(ItemColumn.withComponent('ul'))`
@@ -35,6 +43,7 @@ const List = ({
         item={item}
       />
     ))}
+    {list.length < 1 && <NoResults>No Results</NoResults>}
   </Inner>
 );
 
