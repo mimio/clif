@@ -4,6 +4,7 @@ import styled from '@emotion/styled';
 
 import Listing from './Listing';
 import Detail from '../../containers/Detail';
+import { ItemColumn } from '../layout';
 
 const StyledListings = styled.div`
   display: flex;
@@ -14,7 +15,7 @@ const StyledListings = styled.div`
   overflow: overlay; /* only works in Chrome, Safari */
 `;
 
-const Inner = styled.ul`
+const Inner = styled(ItemColumn.withComponent('ul'))`
   margin: ${size(4)};
 `;
 

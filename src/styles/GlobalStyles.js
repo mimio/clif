@@ -23,14 +23,14 @@ const globalCss = css`
   }
   * {
     ::-webkit-scrollbar {
-      height: 20px;
-      width: 20px;
+      height: 12px;
+      width: 12px;
       background-color: rgba(255, 255, 255, 0);
     }
 
     ::-webkit-scrollbar-track,
     ::-webkit-scrollbar-thumb {
-      border: 8px solid rgba(255, 255, 255, 0);
+      border: 3px solid rgba(255, 255, 255, 0);
       border-radius: 10px;
       background-clip: padding-box;
     }

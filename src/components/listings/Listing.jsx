@@ -16,7 +16,6 @@ const Container = styled(Row)`
   flex-shrink: 0;
   border-radius: 16px;
   color: ${getStyle('limeGreen')};
-  margin-bottom: ${size(4)};
   position: relative;
   user-select: none;
   cursor: pointer;
