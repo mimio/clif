@@ -1,9 +1,12 @@
 import React from 'react';
 import { POINT, LINE, POLYGON } from 'constants/sources';
+import { POI, VIEW_POINT, PARKING } from 'constants/subtypes';
 import { getStyle, size } from 'styles';
 import styled from '@emotion/styled';
 import { ReactComponent as SnowmobileIcon } from './snowmobile.svg';
 import { ReactComponent as PolygonIcon } from './polygon.svg';
+import { ReactComponent as ParkingIcon } from './parking.svg';
+import { ReactComponent as CameraIcon } from './camera.svg';
 import { Centered, Column, Row } from '../layout';
 
 const Container = styled(Row)`
@@ -59,18 +62,29 @@ const WaypointIcon = styled.div`
 const IconContainer = styled(Centered)`
   height: 100%;
   width: ${size(22)};
+  svg {
+    width: ${size(10)};
+  }
 `;
 
-const getIcon = source => {
-  switch (source) {
-    case POINT:
+const getIcon = ({ source, subtype } = {}) => {
+  switch (subtype) {
+    case POI:
       return WaypointIcon;
-    case LINE:
-      return StyledSnowmobileIcon;
-    case POLYGON:
-      return PolygonIcon;
-    default:
-      return () => null;
+    case VIEW_POINT:
+      return CameraIcon;
+    case PARKING:
+      return ParkingIcon;
+    default: {
+      switch (source) {
+        case LINE:
+          return StyledSnowmobileIcon;
+        case POLYGON:
+          return PolygonIcon;
+        default:
+          return () => null;
+      }
+    }
   }
 };
 
@@ -94,7 +108,7 @@ export default function Listing({
   onMouseEnter,
   onMouseLeave,
 }) {
-  const Icon = getIcon(source);
+  const Icon = getIcon(item);
   return (
     <Container
       onClick={() => onClick({ id, source })}
