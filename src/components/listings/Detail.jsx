@@ -77,6 +77,7 @@ const MobileBackButton = styled.button`
   display: ${mq({ display: ['flex', 'none'] })};
   justify-content: center;
   align-items: center;
+  cursor: pointer;
   text-transform: uppercase;
   > svg {
     transform: rotate(90deg);
