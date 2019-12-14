@@ -16,7 +16,7 @@ const globals = {
   __config__: JSON.stringify(config),
   __MAPBOX_KEY__: JSON.stringify(
     process.env.mapbox_api ||
-      'pk.eyJ1IjoibWFtb3MtdGVzdCIsImEiOiJjazE3Z3Y1cXgwNWtoM25waWowb3Ftc2FuIn0.Bh81xm6DjTI5UNX9iAm9JQ',
+      'pk.eyJ1Ijoic2FnZW91dGRvb3JzIiwiYSI6ImNrM3J1b212bTAwYzUzY3BvcW12bHUzdmIifQ.TFneAdZOyFpLmIoA0j_MZA',
   ),
 };
 
