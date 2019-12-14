@@ -15,12 +15,13 @@ const responsiveStyles = ({ theme, showing }) =>
   mq({
     width: ['100%', theme.sizes.sidePanelWidth],
     transform: [`translateY(${showing ? '50%' : '150%'})`, 'unset'],
+    height: ['50%', '100%'],
   });
 
 const SidePanelContainer = styled(Column)`
   position: absolute;
   left: 0;
-  height: 50%;
+
   ${responsiveStyles}
   flex-shrink: 0;
   z-index: 10;
