@@ -14,13 +14,13 @@ const StyledListings = styled(Listings)`
 const responsiveStyles = ({ theme, showing }) =>
   mq({
     width: ['100%', theme.sizes.sidePanelWidth],
-    transform: [`translateY(${showing ? '50%' : '100%'})`, 'unset'],
+    transform: [`translateY(${showing ? '50%' : '150%'})`, 'unset'],
   });
 
 const SidePanelContainer = styled(Column)`
   position: absolute;
   left: 0;
-  height: 100%;
+  height: 50%;
   ${responsiveStyles}
   flex-shrink: 0;
   z-index: 10;
