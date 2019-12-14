@@ -10,5 +10,6 @@ export const TOPO_BASEMAP = 'topo_basemap';
 
 export const basemaps = {
   [SATELLITE_BASEMAP]: 'mapbox://styles/mapbox/satellite-v9',
-  [TOPO_BASEMAP]: 'mapbox://styles/mapbox/streets-v11',
+  [TOPO_BASEMAP]:
+    'mapbox://styles/sageoutdoors/ck44uripr1gms1dqok3gtotzl',
 };
