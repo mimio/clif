@@ -24,7 +24,7 @@ const Main = hot(() => (
     <ThemeProvider theme={theme}>
       <Provider store={store}>
         <BrowserRouter basename="/">
-          <Route path="/:tab?/:subTab?" component={App} />
+          <Route path="/:tab?" component={App} />
         </BrowserRouter>
       </Provider>
     </ThemeProvider>

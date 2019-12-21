@@ -1,5 +1,5 @@
 export default {
-  white: '#fff',
+  background1: '#000',
   darkGreen: '#74831B',
   oceanGreen: '#0E727B',
   ultraLimeGreen: '#D2F216',

@@ -32,21 +32,11 @@
         "peerDependencies": false
       }
     ],
-    "no-param-reassign": [
-      "error",
-      {
-        "props": true,
-        "ignorePropertyModificationsFor": [
-          "draftState",
-          "draftDevice"
-        ]
-      }
-    ]
+    "no-param-reassign": 1
   },
   "globals": {
     "__DEV__": true,
     "__config__": true,
-    "__MAPBOX_KEY__": true,
     "__CLOUD__": true
   }
 }

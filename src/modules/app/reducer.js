@@ -1,17 +1,12 @@
-import { TOGGLE_SIDE_PANEL } from './actions';
+import { HELLO } from 'constants/tabs';
 
 const initialState = {
-  sidePanelOpen: true,
+  selectedTab: HELLO,
 };
 
 export function appReducer(state = initialState, action) {
   const { type } = action;
   switch (type) {
-    case TOGGLE_SIDE_PANEL:
-      return {
-        ...state,
-        sidePanelOpen: !state.sidePanelOpen,
-      };
     default:
       return state;
   }
