@@ -1,8 +1,11 @@
 import { connect } from 'react-redux';
-import { selectSelectedTab } from 'modules/app';
+import { selectSelectedTab, selectAppProgress } from 'modules/app';
 import Navigation from '../components/Navigation';
 
 export default connect(
-  state => ({ selectedTab: selectSelectedTab(state) }),
+  state => ({
+    selectedTab: selectSelectedTab(state),
+    appProgress: selectAppProgress(state),
+  }),
   null,
 )(Navigation);

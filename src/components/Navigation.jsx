@@ -1,8 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import styled from '@emotion/styled';
+import PropTypes from 'prop-types';
 import { TabPropType } from 'utils/prop-types';
+import { getStyle, size } from 'styles';
+import { centered } from 'styles/layout';
 import { HELLO, WORK, CONTACT, orderedTabs } from 'constants/tabs';
-import { ItemRow } from './layout';
+import { Row } from './layout';
 import { Navigation as NavigationText } from './Text';
 
 const copy = {
@@ -11,20 +15,44 @@ const copy = {
   [CONTACT]: 'say hi',
 };
 
-const Navigation = ({ selectedTab }) => (
-  <ItemRow sp={8}>
+const StyledLink = styled(Link)`
+  ${centered};
+  height: ${size(15)};
+  width: ${size(30)};
+`;
+
+const Progress = styled.div`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: ${({ progress }) => `${progress}%`};
+  background: ${getStyle('text1')};
+`;
+
+const Container = styled(Row)`
+  position: relative;
+  > a:not(a:last-child) {
+    margin-right: ${size(8)};
+  }
+`;
+
+const Navigation = ({ appProgress, selectedTab }) => (
+  <Container>
     {orderedTabs.map(tab => (
-      <Link to={`/${tab}`} key={tab}>
+      <StyledLink to={`/${tab}`} key={tab}>
         <NavigationText active={tab === selectedTab}>
           {copy[tab]}
         </NavigationText>
-      </Link>
+      </StyledLink>
     ))}
-  </ItemRow>
+    <Progress progress={appProgress} />
+  </Container>
 );
 
 Navigation.propTypes = {
   selectedTab: TabPropType,
+  appProgress: PropTypes.number.isRequired,
 };
 
 Navigation.defaultProps = {

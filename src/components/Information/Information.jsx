@@ -22,7 +22,9 @@ const copy = {
   },
 };
 
-const Container = styled(Column)``;
+const Container = styled(Column)`
+  align-items: flex-start;
+`;
 
 // splay tab information out simultaneously and animate directly
 
