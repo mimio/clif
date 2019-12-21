@@ -23,6 +23,9 @@ const globalCss = css`
     padding: 0;
     margin-right: 0;
   }
+  a {
+    text-decoration: none;
+  }
 `;
 
 export default function GlobalStyles() {

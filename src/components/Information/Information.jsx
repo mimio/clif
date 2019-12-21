@@ -2,8 +2,8 @@ import React from 'react';
 import styled from '@emotion/styled';
 import { TabPropType } from 'utils/prop-types';
 import { HELLO, WORK, CONTACT } from 'constants/tabs';
-import { Column } from './layout';
-import { Heading, SubHeading } from './Text';
+import { Column } from '../layout';
+import { Heading, SubHeading } from '../Text';
 
 const copy = {
   [HELLO]: {
@@ -27,6 +27,7 @@ const Container = styled(Column)``;
 // splay tab information out simultaneously and animate directly
 
 const Information = ({ selectedTab }) => {
+  if (!selectedTab) return null;
   const { header, subheader } = copy[selectedTab];
   return (
     <Container>
@@ -37,7 +38,11 @@ const Information = ({ selectedTab }) => {
 };
 
 Information.propTypes = {
-  selectedTab: TabPropType.isRequired,
+  selectedTab: TabPropType,
+};
+
+Information.defaultProps = {
+  selectedTab: null,
 };
 
 export default Information;
