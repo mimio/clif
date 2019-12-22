@@ -22,6 +22,4 @@ export const Navigation = styled(Base)`
   font-weight: 700;
   font-size: 16px;
   letter-spacing: 10px;
-  color: ${({ active }) =>
-    active ? getStyle('text1') : getStyle('text2')};
 `;

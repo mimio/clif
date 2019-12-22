@@ -1,5 +1,4 @@
 import { orderedTabs } from 'constants/tabs';
-import history from '../../history';
 import { selectSelectedTab, selectProgress } from './selectors';
 
 const base = 'app';
@@ -18,7 +17,6 @@ export const selectTab = tab => (dispatch, getState) => {
   const selectedTab = selectSelectedTab(state);
   if (tab !== selectedTab) {
     dispatch({ type: SELECT_TAB, payload: tab });
-    history.push(`/${tab}`);
 
     const progress =
       100 * (orderedTabs.indexOf(tab) / orderedTabs.length);
@@ -34,7 +32,6 @@ export const setProgress = progress => (dispatch, getState) => {
   const selectedTab = selectSelectedTab(state);
   if (tab !== selectedTab) {
     dispatch({ type: SELECT_TAB, payload: tab });
-    history.push(`/${tab}`);
   }
 };
 

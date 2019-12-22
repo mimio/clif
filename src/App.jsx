@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
+import { TabPropType } from 'utils/prop-types';
 import { getStyle, size } from 'styles';
 import { Column } from 'components';
 import Information from './containers/Information';
@@ -23,9 +24,11 @@ const StyledNavigation = styled(Navigation)`
 
 const App = ({
   addProgress,
+  history,
   match: {
     params: { tab },
   },
+  selectedTab,
   selectTab,
 }) => {
   useEffect(
@@ -35,13 +38,20 @@ const App = ({
     [tab],
   );
 
+  useEffect(
+    () => {
+      if (selectedTab) history.push(`/${selectedTab}`);
+    },
+    [selectedTab],
+  );
+
   useEffect(() => {
     const listener = window.addEventListener(
       'wheel',
       ({ deltaX, deltaY }) =>
         addProgress(
           (Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY) /
-            20,
+            40,
         ),
     );
     return () => {
@@ -59,8 +69,14 @@ const App = ({
 
 App.propTypes = {
   addProgress: PropTypes.func.isRequired,
+  history: PropTypes.object.isRequired,
   match: PropTypes.object.isRequired,
   selectTab: PropTypes.func.isRequired,
+  selectedTab: TabPropType,
+};
+
+App.defaultProps = {
+  selectedTab: null,
 };
 
 export default App;

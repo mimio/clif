@@ -16,10 +16,33 @@ const copy = {
 };
 
 const StyledLink = styled(Link)`
+  position: relative;
   ${centered};
   height: ${size(15)};
   width: ${size(30)};
+  ${NavigationText} {
+    color: ${({ active }) =>
+      active ? getStyle('text1') : getStyle('text2')};
+    transition: ${getStyle('hue')};
+  }
+  &:hover {
+    ${NavigationText} {
+      color: ${({ active }) =>
+        active ? getStyle('text1') : getStyle('text3')};
+    }
+  }
 `;
+
+// ::after {
+//   content: '';
+//   position: absolute;
+//   bottom: 0;
+//   left: 0;
+//   width: 100%;
+//   height: 2px;
+//   background: ${({ active }) => active ? getStyle('text2') : 'transparent'};
+//   transition: ${getStyle('hue')};
+// }
 
 const Progress = styled.div`
   position: absolute;
@@ -40,10 +63,12 @@ const Container = styled(Row)`
 const Navigation = ({ progress, className, selectedTab }) => (
   <Container className={className}>
     {orderedTabs.map(tab => (
-      <StyledLink to={`/${tab}`} key={tab}>
-        <NavigationText active={tab === selectedTab}>
-          {copy[tab]}
-        </NavigationText>
+      <StyledLink
+        active={tab === selectedTab}
+        to={`/${tab}`}
+        key={tab}
+      >
+        <NavigationText>{copy[tab]}</NavigationText>
       </StyledLink>
     ))}
     <Progress progress={progress} />
