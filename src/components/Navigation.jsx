@@ -49,8 +49,8 @@ const Progress = styled.div`
   bottom: 0;
   left: 0;
   height: 2px;
+  background: ${getStyle('text2')};
   width: ${({ progress }) => `${progress}%`};
-  background: ${getStyle('text1')};
 `;
 
 const Container = styled(Row)`
