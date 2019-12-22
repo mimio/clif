@@ -37,8 +37,8 @@ const Container = styled(Row)`
   }
 `;
 
-const Navigation = ({ appProgress, selectedTab }) => (
-  <Container>
+const Navigation = ({ progress, className, selectedTab }) => (
+  <Container className={className}>
     {orderedTabs.map(tab => (
       <StyledLink to={`/${tab}`} key={tab}>
         <NavigationText active={tab === selectedTab}>
@@ -46,16 +46,18 @@ const Navigation = ({ appProgress, selectedTab }) => (
         </NavigationText>
       </StyledLink>
     ))}
-    <Progress progress={appProgress} />
+    <Progress progress={progress} />
   </Container>
 );
 
 Navigation.propTypes = {
+  className: PropTypes.string,
   selectedTab: TabPropType,
-  appProgress: PropTypes.number.isRequired,
+  progress: PropTypes.number.isRequired,
 };
 
 Navigation.defaultProps = {
+  className: '',
   selectedTab: null,
 };
 
