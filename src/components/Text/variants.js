@@ -12,6 +12,11 @@ export const Heading = styled(Base)`
   line-height: 120px;
 `;
 
+export const Credits = styled(Base)`
+  font-size: 10px;
+  color: ${getStyle('text2')};
+`;
+
 export const SubHeading = styled(Base)`
   font-weight: 200;
   font-size: 32px;

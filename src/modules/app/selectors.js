@@ -1,12 +1,12 @@
 import { get } from 'lodash-es';
 import { createSelector } from 'reselect';
 
-export const selectApp = state => state.app;
+export const selectState = state => state.app;
 
-export const selectProgress = createSelector(selectApp, app =>
+export const selectProgress = createSelector(selectState, app =>
   get(app, 'progress'),
 );
 
-export const selectSelectedTab = createSelector(selectApp, app =>
+export const selectSelectedTab = createSelector(selectState, app =>
   get(app, 'selectedTab'),
 );

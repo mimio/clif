@@ -6,6 +6,7 @@ import { getStyle, size } from 'styles';
 import { Column } from 'components';
 import Information from './containers/Information';
 import Navigation from './containers/Navigation';
+import Polygon from './containers/Polygon';
 
 const AppContainer = styled(Column)`
   height: 100%;
@@ -16,10 +17,24 @@ const AppContainer = styled(Column)`
   padding: ${size(30)} ${size(30)} ${size(20)};
 `;
 
+const StyledInformation = styled(Information)`
+  z-index: 3;
+`;
+
 const StyledNavigation = styled(Navigation)`
   position: absolute;
   bottom: ${size(20)};
   left: ${size(30)};
+  z-index: 3;
+`;
+
+const StyledPolygon = styled(Polygon)`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  z-index: 0;
 `;
 
 const App = ({
@@ -30,6 +45,7 @@ const App = ({
   },
   selectedTab,
   selectTab,
+  shufflePolygon,
 }) => {
   useEffect(
     () => {
@@ -46,6 +62,7 @@ const App = ({
   );
 
   useEffect(() => {
+    shufflePolygon();
     const listener = window.addEventListener(
       'wheel',
       ({ deltaX, deltaY }) =>
@@ -61,7 +78,8 @@ const App = ({
 
   return (
     <AppContainer>
-      <Information />
+      <StyledPolygon />
+      <StyledInformation />
       <StyledNavigation />
     </AppContainer>
   );

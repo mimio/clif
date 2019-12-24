@@ -103,7 +103,8 @@
   },
   "dependencies": {
     "@svgr/webpack": "^4.3.3",
-    "facepaint": "^1.2.1"
+    "facepaint": "^1.2.1",
+    "three": "^0.88.0"
   },
   "husky": {
     "hooks": {
