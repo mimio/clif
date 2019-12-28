@@ -4,6 +4,12 @@ import { selectSelectedTab, selectProgress } from './selectors';
 const base = 'app';
 export const SELECT_TAB = `${base}-selectTab`;
 export const SET_PROGRESS = `${base}-setProgress`;
+export const SET_MOUSE_COORDS = `${base}-setMouseCoords`;
+
+export const setMouseCoordinates = (x, y) => ({
+  type: SET_MOUSE_COORDS,
+  payload: [x, y],
+});
 
 const getTabFromProgress = progress => {
   if (progress === 100) return orderedTabs[orderedTabs.length - 1];

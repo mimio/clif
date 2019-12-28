@@ -5,7 +5,7 @@ import styled from '@emotion/styled';
 import { Credits } from './Text';
 
 const StyledCredits = styled(Credits.withComponent('a'))`
-  transition: ${getStyle('hue')};
+  transition: ${getStyle('linearHue')};
 `;
 
 const PolygonCredits = ({ author, url }) => (

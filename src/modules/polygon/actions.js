@@ -3,6 +3,7 @@ import fetchPolygon from 'api/fetchPolygon';
 const base = 'polygon';
 export const SHUFFLE_POLYGON = `${base}-shufflePolygon`;
 
+let index = 0;
 const assetsIds = [
   'ccQg0nHGSA9',
   '2mq7ScdwvdZ',
@@ -13,9 +14,12 @@ const assetsIds = [
   'a02W3MqEt0P',
   'c9fdvmLhrsT',
   '8nMC2GZProF',
-];
+].sort(() => Math.random() - 0.5);
 
-export const shufflePolygon = () => ({
-  type: SHUFFLE_POLYGON,
-  promise: fetchPolygon(assetsIds[0]),
-});
+export const shufflePolygon = () => dispatch => {
+  dispatch({
+    type: SHUFFLE_POLYGON,
+    promise: fetchPolygon(assetsIds[index]),
+  });
+  index = index === assetsIds.length - 1 ? 0 : index + 1;
+};

@@ -4,6 +4,7 @@ import { SHUFFLE_POLYGON } from './actions';
 const initialState = {
   polygon: null,
   isLoading: true,
+  hasError: false,
 };
 
 export function polygonReducer(state = initialState, action) {
@@ -20,6 +21,11 @@ export function polygonReducer(state = initialState, action) {
           polygon: payload,
           isLoading: false,
         }),
+        failure: prevState => ({
+          ...prevState,
+          isLoading: false,
+          hasError: true,
+        })
       });
     default:
       return state;

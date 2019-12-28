@@ -298,7 +298,7 @@ OBJLoader.prototype = {
     loader.setPath(this.path);
     loader.load(
       url,
-      (text) => {
+      text => {
         onLoad(scope.parse(text));
       },
       onProgress,
@@ -332,7 +332,7 @@ OBJLoader.prototype = {
 
     const lines = text.split('\n');
     let line = '';
-      let lineFirstChar = '';
+    let lineFirstChar = '';
     let lineLength = 0;
     let result = [];
 
@@ -417,7 +417,7 @@ OBJLoader.prototype = {
           .trim()
           .split(' ');
         let lineVertices = [];
-          const lineUVs = [];
+        const lineUVs = [];
 
         if (line.indexOf('/') === -1) {
           lineVertices = lineParts;
@@ -437,7 +437,7 @@ OBJLoader.prototype = {
 
         // WORKAROUND: https://bugs.chromium.org/p/v8/issues/detail?id=2869
         // var name = result[ 0 ].substr( 1 ).trim();
-        const name = (` ${  result[0].substr(1).trim()}`).substr(1);
+        const name = ` ${result[0].substr(1).trim()}`.substr(1);
 
         state.startObject(name);
       } else if (material_use_pattern.test(line)) {
@@ -487,7 +487,7 @@ OBJLoader.prototype = {
         // Handle null terminated files without exception
         if (line === '\0') continue;
 
-        throw new Error(`Unexpected line: '${  line  }'`);
+        throw new Error(`Unexpected line: '${line}'`);
       }
     }
 
@@ -498,8 +498,8 @@ OBJLoader.prototype = {
 
     for (var i = 0, l = state.objects.length; i < l; i++) {
       const object = state.objects[i];
-      const {geometry} = object;
-      const {materials} = object;
+      const { geometry } = object;
+      const { materials } = object;
       const isLine = geometry.type === 'Line';
 
       // Skip o/g line declarations that did not follow with any faces

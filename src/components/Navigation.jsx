@@ -23,7 +23,7 @@ const StyledLink = styled(Link)`
   ${NavigationText} {
     color: ${({ active }) =>
       active ? getStyle('text1') : getStyle('text2')};
-    transition: ${getStyle('hue')};
+    transition: ${getStyle('linearHue')};
   }
   &:hover {
     ${NavigationText} {
@@ -41,7 +41,7 @@ const StyledLink = styled(Link)`
 //   width: 100%;
 //   height: 2px;
 //   background: ${({ active }) => active ? getStyle('text2') : 'transparent'};
-//   transition: ${getStyle('hue')};
+//   transition: ${getStyle('linearHue')};
 // }
 
 const Progress = styled.div`

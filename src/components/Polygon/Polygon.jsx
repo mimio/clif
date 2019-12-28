@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
+import { isEqual } from 'lodash-es';
 import 'utils/OrbitControls';
 import * as THREE from 'three';
 import { getModelScale } from './utils';
@@ -10,6 +11,7 @@ const Canvas = styled.canvas`
   user-select: none;
   cursor: none;
   pointer-events: none;
+  opacity: 0.6;
 `;
 
 let camera;
@@ -22,6 +24,7 @@ export default class Polygon extends Component {
   static propTypes = {
     className: PropTypes.string,
     model: PropTypes.object,
+    progress: PropTypes.number.isRequired,
   };
 
   static defaultProps = {
@@ -34,15 +37,18 @@ export default class Polygon extends Component {
     this.draw(model);
   }
 
-  componentDidUpdate({ model: prevModel }) {
-    const { model } = this.props;
-    console.log('COMPONENT DID UPDATE', { model });
-    if (model !== prevModel) {
-      if (scene) {
-        scene.children.forEach(child => scene.remove(child));
-      }
-      this.draw(model);
-    }
+  componentDidUpdate({
+    model: prevModel,
+    progress: prevProgress,
+    mouseCoordinates: prevMouseCoordinates,
+  }) {
+    const { model, progress, mouseCoordinates } = this.props;
+    if (model !== prevModel) this.draw(model);
+    if (
+      progress !== prevProgress ||
+      !isEqual(mouseCoordinates, prevMouseCoordinates)
+    )
+      this.mirrorUser();
   }
 
   componentWillUnmount() {
@@ -54,6 +60,19 @@ export default class Polygon extends Component {
     window.removeEventListener('resize', this.onWindowResize, false);
   }
 
+  mirrorUser = () => {
+    const {
+      model,
+      mouseCoordinates: [x, y],
+      progress,
+    } = this.props;
+    const DAMPENING = 60;
+    if (model) {
+      model.rotation.x = y / DAMPENING;
+      model.rotation.y = progress / 30 + x / DAMPENING;
+    }
+  };
+
   onWindowResize = () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -61,20 +80,22 @@ export default class Polygon extends Component {
   };
 
   draw = model => {
-    console.log('DRAWING MODEL', model);
     if (!model) return;
+    if (scene) scene.children.forEach(child => scene.remove(child));
     camera = new THREE.PerspectiveCamera(
-      45,
+      20,
       window.innerWidth / window.innerHeight,
       1,
       10000,
     );
 
+    // camera.position.set(20, 10, 25);
     camera.position.set(20, 10, 25);
 
     controls = new THREE.OrbitControls(camera, this.root);
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.2;
+    controls.autoRotate = false;
+    controls.enableRotate = false;
+    controls.autoRotateSpeed = 0.0;
     controls.enableZoom = false;
     controls.enablePan = false;
     controls.enableDamping = true;
@@ -97,7 +118,7 @@ export default class Polygon extends Component {
     const light = new THREE.HemisphereLight(0xffffbb, 0x080820, 1);
     scene.add(light);
     scene.add(directionalLight);
-    scene.add(model);
+
     model.position.z = 0;
     model.position.y = 0;
     model.position.x = 0;
@@ -106,6 +127,9 @@ export default class Polygon extends Component {
     model.scale.x = sc;
     model.scale.y = sc;
     model.scale.z = sc;
+    this.mirrorUser();
+
+    scene.add(model);
 
     // this.setState({ camera, scene, renderer });
     window.addEventListener('resize', this.onWindowResize, false);

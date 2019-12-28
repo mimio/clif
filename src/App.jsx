@@ -7,6 +7,7 @@ import { Column } from 'components';
 import Information from './containers/Information';
 import Navigation from './containers/Navigation';
 import Polygon from './containers/Polygon';
+import ShufflePolygonButton from './containers/ShufflePolygonButton';
 
 const AppContainer = styled(Column)`
   height: 100%;
@@ -37,14 +38,22 @@ const StyledPolygon = styled(Polygon)`
   z-index: 0;
 `;
 
+const StyledShuffleButton = styled(ShufflePolygonButton)`
+  position: absolute;
+  top: ${size(40)};
+  right: ${size(30)};
+  z-index: 10;
+`;
+
 const App = ({
   addProgress,
   history,
   match: {
     params: { tab },
   },
-  selectedTab,
   selectTab,
+  selectedTab,
+  setMouseCoordinates,
   shufflePolygon,
 }) => {
   useEffect(
@@ -63,7 +72,11 @@ const App = ({
 
   useEffect(() => {
     shufflePolygon();
-    const listener = window.addEventListener(
+    const mouseListener = window.addEventListener(
+      'mousemove',
+      ({ clientX, clientY }) => setMouseCoordinates(clientX, clientY),
+    );
+    const wheelListener = window.addEventListener(
       'wheel',
       ({ deltaX, deltaY }) =>
         addProgress(
@@ -72,7 +85,8 @@ const App = ({
         ),
     );
     return () => {
-      window.removeEventListener('wheel', listener);
+      window.removeEventListener('wheel', wheelListener);
+      window.removeEventListener('mousemove', mouseListener);
     };
   }, []);
 
@@ -80,6 +94,7 @@ const App = ({
     <AppContainer>
       <StyledPolygon />
       <StyledInformation />
+      <StyledShuffleButton />
       <StyledNavigation />
     </AppContainer>
   );
@@ -91,6 +106,7 @@ App.propTypes = {
   match: PropTypes.object.isRequired,
   selectTab: PropTypes.func.isRequired,
   selectedTab: TabPropType,
+  setMouseCoordinates: PropTypes.func.isRequired,
 };
 
 App.defaultProps = {

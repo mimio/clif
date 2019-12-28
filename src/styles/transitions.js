@@ -3,11 +3,10 @@ export const speeds = {
   long: '0.5s',
 };
 
-const { short, long } = speeds;
+const { short } = speeds;
 
 export default {
-  hue: `color ${short} linear, background-color ${short} linear, opacity ${short} linear, fill ${short} linear, border-color ${short} linear`,
-  shadow: `box-shadow ${short} linear`,
-  size: `width ${long} ease-out, height ${long} ease-out`,
+  linearHue: `color ${short} linear, background-color ${short} linear, opacity ${short} linear, fill ${short} linear, border-color ${short} linear`,
+  easeOutSize: `width ${short} ease-out, height ${short} ease-out`,
   speeds,
 };
