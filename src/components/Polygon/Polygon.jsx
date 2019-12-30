@@ -1,7 +1,8 @@
 import React, { Component } from 'react';
 import styled from '@emotion/styled';
-import PropTypes from 'prop-types';
 import { isEqual } from 'lodash-es';
+import PropTypes from 'prop-types';
+import { MouseCoordPropType } from 'utils/prop-types';
 import 'utils/OrbitControls';
 import * as THREE from 'three';
 import { getModelScale } from './utils';
@@ -24,6 +25,7 @@ export default class Polygon extends Component {
   static propTypes = {
     className: PropTypes.string,
     model: PropTypes.object,
+    mouseCoordinates: MouseCoordPropType.isRequired,
     progress: PropTypes.number.isRequired,
   };
 

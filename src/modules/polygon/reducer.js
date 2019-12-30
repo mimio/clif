@@ -25,7 +25,7 @@ export function polygonReducer(state = initialState, action) {
           ...prevState,
           isLoading: false,
           hasError: true,
-        })
+        }),
       });
     default:
       return state;

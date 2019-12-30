@@ -1,13 +1,10 @@
-import {
-  SELECT_TAB,
-  SET_PROGRESS,
-  SET_MOUSE_COORDS,
-} from './actions';
+import { SELECT_TAB, SET_PROGRESS, SET_CURSOR } from './actions';
 
 const initialState = {
   selectedTab: null,
   progress: 0,
   mouseCoordinates: [0, 0],
+  isCursorActive: false,
 };
 
 export function appReducer(state = initialState, action) {
@@ -23,11 +20,14 @@ export function appReducer(state = initialState, action) {
         ...state,
         progress: payload,
       };
-    case SET_MOUSE_COORDS:
+    case SET_CURSOR: {
+      const { x, y, isActive } = payload;
       return {
         ...state,
-        mouseCoordinates: payload,
+        mouseCoordinates: [x, y],
+        isCursorActive: isActive,
       };
+    }
     default:
       return state;
   }

@@ -9,6 +9,7 @@ const globalCss = css`
   *:before,
   *:after {
     box-sizing: inherit;
+    cursor: none !important;
   }
 
   html,

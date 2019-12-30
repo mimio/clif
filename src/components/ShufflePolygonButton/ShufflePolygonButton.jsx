@@ -29,29 +29,34 @@ const Button = styled.button`
     border-radius: 50%;
     transition: ${getStyle('linearHue')}, ${getStyle('easeOutSize')};
   }
-  &:hover {
+  &:hover,
+  &:active {
     color: ${getStyle('text1')};
+    ${Circle} {
+      background: ${getStyle('ctaBackground2')};
+    }
+    ${Indicator} {
+      border-color: ${getStyle('ctaBackground2')};
+    }
+  }
+  &:hover {
     ${Circle} {
       width: ${size(16)};
       height: ${size(16)};
-      background: ${getStyle('ctaBackground2')};
     }
     ${Indicator} {
       width: ${size(24)};
       height: ${size(24)};
-      border-color: ${getStyle('ctaBackground2')};
     }
   }
   &:active {
     ${Circle} {
       width: ${size(15)};
       height: ${size(15)};
-      background: ${getStyle('ctaBackground2')};
     }
     ${Indicator} {
       width: ${size(23)};
       height: ${size(23)};
-      border-color: ${getStyle('ctaBackground2')};
     }
   }
   background: transparent;

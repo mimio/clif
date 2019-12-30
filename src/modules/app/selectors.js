@@ -11,6 +11,10 @@ export const selectSelectedTab = createSelector(selectState, app =>
   get(app, 'selectedTab'),
 );
 
+export const selectIsCursorActive = createSelector(selectState, app =>
+  get(app, 'isCursorActive'),
+);
+
 export const selectMouseCoordinates = createSelector(
   selectState,
   app => get(app, 'mouseCoordinates'),

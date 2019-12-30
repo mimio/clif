@@ -13,8 +13,7 @@ const copy = {
     // "Hello. I'm Clifton Campbell, a web developer with an eye for design.",
   },
   [WORK]: {
-    header:
-      'sd fsdf sdfsdfsdf asdasd sdfsdf sdfsdf sdfsdf sdfsdf',
+    header: 'sd fsdf sdfsdfsdf asdasd sdfsdf sdfsdf sdfsdf sdfsdf',
     // 'I spent 2 yrs at New York State Parks, 2 yrs at Nike, and 1 yr at Ubiquiti.',
     subheader: 'sdf sdf  sdf sdfsdfdfsdfs sdfsdfsdf sdfsdf dfsdfsdf.',
     // 'Originally a GIS technician, I transitioned into creating websites and software for major tech companies.',

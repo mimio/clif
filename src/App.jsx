@@ -4,10 +4,12 @@ import PropTypes from 'prop-types';
 import { TabPropType } from 'utils/prop-types';
 import { getStyle, size } from 'styles';
 import { Column } from 'components';
+import useSetCursor from './hooks/useSetCursor';
 import Information from './containers/Information';
 import Navigation from './containers/Navigation';
 import Polygon from './containers/Polygon';
 import ShufflePolygonButton from './containers/ShufflePolygonButton';
+import Cursor from './containers/Cursor';
 
 const AppContainer = styled(Column)`
   height: 100%;
@@ -53,7 +55,6 @@ const App = ({
   },
   selectTab,
   selectedTab,
-  setMouseCoordinates,
   shufflePolygon,
 }) => {
   useEffect(
@@ -70,12 +71,10 @@ const App = ({
     [selectedTab],
   );
 
+  useSetCursor();
+
   useEffect(() => {
     shufflePolygon();
-    const mouseListener = window.addEventListener(
-      'mousemove',
-      ({ clientX, clientY }) => setMouseCoordinates(clientX, clientY),
-    );
     const wheelListener = window.addEventListener(
       'wheel',
       ({ deltaX, deltaY }) =>
@@ -86,7 +85,6 @@ const App = ({
     );
     return () => {
       window.removeEventListener('wheel', wheelListener);
-      window.removeEventListener('mousemove', mouseListener);
     };
   }, []);
 
@@ -96,6 +94,7 @@ const App = ({
       <StyledInformation />
       <StyledShuffleButton />
       <StyledNavigation />
+      <Cursor />
     </AppContainer>
   );
 };
@@ -106,7 +105,6 @@ App.propTypes = {
   match: PropTypes.object.isRequired,
   selectTab: PropTypes.func.isRequired,
   selectedTab: TabPropType,
-  setMouseCoordinates: PropTypes.func.isRequired,
 };
 
 App.defaultProps = {
