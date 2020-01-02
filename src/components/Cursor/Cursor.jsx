@@ -24,12 +24,12 @@ const StyledCursor = styled.div`
   ${getBool(
     'isActive',
     `
-    height: ${size(6)};
-    width: ${size(6)};
+    height: ${size(8)};
+    width: ${size(8)};
   `,
   )};
   transition: ${getStyle('easeOutSize')};
-  background: ${getStyle('text1')};
+  background: ${getStyle('ctaBackground2')};
 `;
 
 const Cursor = ({ isCursorActive, mouseCoordinates: [x, y] }) => (
