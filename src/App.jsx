@@ -4,8 +4,12 @@ import PropTypes from 'prop-types';
 import { TabPropType } from 'utils/prop-types';
 import { getStyle, size } from 'styles';
 import { Column } from 'components';
+import useSetCursor from './hooks/useSetCursor';
 import Information from './containers/Information';
 import Navigation from './containers/Navigation';
+import Polygon from './containers/Polygon';
+import ShufflePolygonButton from './containers/ShufflePolygonButton';
+import Cursor from './containers/Cursor';
 
 const AppContainer = styled(Column)`
   height: 100%;
@@ -16,10 +20,31 @@ const AppContainer = styled(Column)`
   padding: ${size(30)} ${size(30)} ${size(20)};
 `;
 
+const StyledInformation = styled(Information)`
+  z-index: 3;
+`;
+
 const StyledNavigation = styled(Navigation)`
   position: absolute;
   bottom: ${size(20)};
   left: ${size(30)};
+  z-index: 3;
+`;
+
+const StyledPolygon = styled(Polygon)`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  z-index: 0;
+`;
+
+const StyledShuffleButton = styled(ShufflePolygonButton)`
+  position: absolute;
+  top: ${size(40)};
+  right: ${size(30)};
+  z-index: 10;
 `;
 
 const App = ({
@@ -28,8 +53,9 @@ const App = ({
   match: {
     params: { tab },
   },
-  selectedTab,
   selectTab,
+  selectedTab,
+  shufflePolygon,
 }) => {
   useEffect(
     () => {
@@ -45,8 +71,11 @@ const App = ({
     [selectedTab],
   );
 
+  useSetCursor();
+
   useEffect(() => {
-    const listener = window.addEventListener(
+    shufflePolygon();
+    const wheelListener = window.addEventListener(
       'wheel',
       ({ deltaX, deltaY }) =>
         addProgress(
@@ -55,14 +84,17 @@ const App = ({
         ),
     );
     return () => {
-      window.removeEventListener('wheel', listener);
+      window.removeEventListener('wheel', wheelListener);
     };
   }, []);
 
   return (
     <AppContainer>
-      <Information />
+      <StyledPolygon />
+      <StyledInformation />
+      <StyledShuffleButton />
       <StyledNavigation />
+      <Cursor />
     </AppContainer>
   );
 };

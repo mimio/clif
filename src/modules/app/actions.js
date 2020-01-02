@@ -4,6 +4,12 @@ import { selectSelectedTab, selectProgress } from './selectors';
 const base = 'app';
 export const SELECT_TAB = `${base}-selectTab`;
 export const SET_PROGRESS = `${base}-setProgress`;
+export const SET_CURSOR = `${base}-setCursor`;
+
+export const setCursor = payload => ({
+  type: SET_CURSOR,
+  payload,
+});
 
 const getTabFromProgress = progress => {
   if (progress === 100) return orderedTabs[orderedTabs.length - 1];
