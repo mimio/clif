@@ -1,22 +1,14 @@
 @font-face {
-  font-family: 'Manrope';
-  font-style: light;
-  font-weight: 200;
-  src: local('Manrope Light'),
-    url('./Manrope-Light.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Manrope';
-  font-style: normal;
-  font-weight: 500;
-  src: local('Manrope Bold'),
-    url('./Manrope-Bold.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Manrope';
+  font-family: 'Fat';
   font-style: bold;
   font-weight: 700;
-  src: local('Manrope Extra Bold'),
-    url('./Manrope-ExtraBold.woff2') format('woff2');
+  src: local('Fat'),
+    url('./FREEFATFONT-Slanted.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Andale Mono';
+  font-style: normal;
+  font-weight: 200;
+  src: local('Andale Mono'),
+    url('./AndaleMono.woff2') format('woff2');
 }

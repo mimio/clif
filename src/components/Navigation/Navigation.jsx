@@ -5,14 +5,15 @@ import PropTypes from 'prop-types';
 import { TabPropType } from 'utils/prop-types';
 import { getStyle, size } from 'styles';
 import { centered } from 'styles/layout';
-import { HELLO, WORK, CONTACT, orderedTabs } from 'constants/tabs';
-import { Row } from './layout';
-import { Navigation as NavigationText } from './Text';
+import { HELLO, WORK, PROJECTS, orderedTabs } from 'constants/tabs';
+import { HomeIcon } from 'icons';
+import { ItemRow } from '../layout';
+import { Detail } from '../Text';
 
 const copy = {
-  [HELLO]: 'hello',
-  [WORK]: 'work',
-  [CONTACT]: 'say hi',
+  [HELLO]: <HomeIcon />,
+  [PROJECTS]: 'Projects',
+  [WORK]: 'Work',
 };
 
 const StyledLink = styled(Link)`
@@ -20,47 +21,27 @@ const StyledLink = styled(Link)`
   ${centered};
   height: ${size(15)};
   width: ${size(30)};
-  ${NavigationText} {
+  ${Detail} {
     color: ${({ active }) =>
       active ? getStyle('text1') : getStyle('text2')};
     transition: ${getStyle('linearHue')};
   }
   &:hover {
-    ${NavigationText} {
+    ${Detail} {
       color: ${({ active }) =>
         active ? getStyle('text1') : getStyle('text3')};
     }
   }
 `;
 
-// ::after {
-//   content: '';
-//   position: absolute;
-//   bottom: 0;
-//   left: 0;
-//   width: 100%;
-//   height: 2px;
-//   background: ${({ active }) => active ? getStyle('text2') : 'transparent'};
-//   transition: ${getStyle('linearHue')};
-// }
-
-const Progress = styled.div`
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  background: ${getStyle('text2')};
-  width: ${({ progress }) => `${progress}%`};
-`;
-
-const Container = styled(Row)`
+const Container = styled(ItemRow)`
   position: relative;
   > a:not(a:last-child) {
     margin-right: ${size(8)};
   }
 `;
 
-const Navigation = ({ progress, className, selectedTab }) => (
+const Navigation = ({ className, selectedTab }) => (
   <Container className={className}>
     {orderedTabs.map(tab => (
       <StyledLink
@@ -68,17 +49,15 @@ const Navigation = ({ progress, className, selectedTab }) => (
         to={`/${tab}`}
         key={tab}
       >
-        <NavigationText>{copy[tab]}</NavigationText>
+        <Detail>{copy[tab]}</Detail>
       </StyledLink>
     ))}
-    <Progress progress={progress} />
   </Container>
 );
 
 Navigation.propTypes = {
   className: PropTypes.string,
   selectedTab: TabPropType,
-  progress: PropTypes.number.isRequired,
 };
 
 Navigation.defaultProps = {
