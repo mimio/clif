@@ -5,12 +5,18 @@ import { geoOrthographic, geoPath } from 'd3';
 import { feature } from 'topojson';
 import lands from './ne110m_land.json';
 
-const geojson = feature(lands, lands.objects.land);
+const continents = feature(lands, lands.objects.land);
+const countries = feature(lands, lands.objects.countries);
+
+const geojson = {
+  ...countries,
+  features: [continents, ...countries.features],
+};
 
 const Svg = styled.svg`
   fill: transparent;
   stroke: ${getStyle('text2')};
-  stroke-width: 0.5;
+  stroke-width: 0.2;
 `;
 
 export default class Globe extends Component {
