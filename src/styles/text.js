@@ -9,7 +9,7 @@ export const heading = css`
   ${base};
   font-family: 'Fat';
   color: ${getStyle('text2')};
-  font-size: 84px;
+  font-size: 84pt;
 `;
 
 const base2 = css`
@@ -20,12 +20,12 @@ const base2 = css`
 
 export const subheader = css`
   ${base2};
-  font-size: 22px;
+  font-size: 22pt;
 `;
 
 export const detail = css`
   ${base2};
-  font-size: 14px;
+  font-size: 14pt;
 `;
 
 export const detail2 = css`

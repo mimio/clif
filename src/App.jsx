@@ -5,8 +5,9 @@ import { Column } from 'components';
 import useSetCursor from './hooks/useSetCursor';
 // import Cursor from './containers/Cursor';
 import Navigation from './components/Navigation';
+import Pages from './pages';
 
-const AppContainer = styled(Column)`
+const Container = styled(Column)`
   height: 100%;
   width: 100%;
   overflow: hidden;
@@ -14,15 +15,11 @@ const AppContainer = styled(Column)`
   background: ${getStyle('background1')};
 `;
 
-// const StyledInformation = styled(Information)`
-//   z-index: 3;
-// `;
-
 const StyledNavigation = styled(Navigation)`
   position: absolute;
   top: ${size(4)};
   right: ${size(4)};
-  z-index: 3;
+  z-index: 4;
 `;
 
 // const StyledPolygon = styled(Polygon)`
@@ -44,10 +41,11 @@ const StyledNavigation = styled(Navigation)`
 const App = () => {
   useSetCursor();
   return (
-    <AppContainer>
+    <Container>
       {/* <Cursor /> */}
       <StyledNavigation />
-    </AppContainer>
+      <Pages />
+    </Container>
   );
 };
 

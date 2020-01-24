@@ -22,6 +22,14 @@ export const column = css`
   flex-direction: column;
 `;
 
+export const full = css`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+`;
+
 // sp = "spacing"
 export const itemRow = ({ sp }) => css`
   > *:not(:last-child) {

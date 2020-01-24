@@ -1,7 +1,7 @@
 import styled from '@emotion/styled';
 import { heading, subheader, detail, detail2 } from 'styles/text';
 
-export const Heading = styled.h1`
+export const Heading = styled.span`
   ${heading};
 `;
 
