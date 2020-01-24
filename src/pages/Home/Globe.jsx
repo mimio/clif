@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { d3 } from 'd3';
+import { geoOrthographic, geoPath } from 'd3';
 import { feature } from 'topojson';
 import lands from './ne110m_land.json';
 
@@ -19,14 +19,13 @@ export default class Globe extends Component {
   }
 
   render() {
-    const projection = d3
-      .geoOrthographic()
+    const projection = geoOrthographic()
       .fitSize([500, 500], geojson)
       .rotate([this.state.rotation]);
 
     console.log(projection);
 
-    const geoGenerator = d3.geoPath().projection(projection);
+    const geoGenerator = geoPath().projection(projection);
 
     const pathString = geoGenerator(geojson);
 
