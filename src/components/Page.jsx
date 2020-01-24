@@ -5,12 +5,8 @@ import { getBool, getStyle, size } from 'styles';
 import Header from './Header';
 import { Full } from './layout';
 
-const BackgroundContainer = styled(Full)`
-  z-index: 0;
-`;
-
 const HeaderContainer = styled(Full)`
-  height: unset;
+  height: min-content;
   ${getBool(
     'hasForeground',
     `
@@ -19,15 +15,21 @@ const HeaderContainer = styled(Full)`
   )};
 `;
 
-const ForegroundContainer = styled(Full)`
-  z-index: 3;
-  padding-top: ${size(4)};
-  padding-left: ${size(28)};
-  padding-right: ${size(13)};
-`;
-
 const ForegroundContentContainer = styled(Full)`
   overflow-y: auto;
+`;
+
+const ForegroundContainer = styled.div`
+  z-index: 3;
+  position: absolute;
+  top: ${size(4)};
+  height: calc(100% - ${size(4)});
+  left: ${size(28)};
+  width: calc(100% - ${size(28 + 13)});
+`;
+
+const BackgroundContainer = styled(Full)`
+  z-index: 0;
 `;
 
 const Page = ({ Background, Foreground }) => (
