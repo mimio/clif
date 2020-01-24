@@ -1,8 +1,11 @@
+const yellow = '#FFE520';
+const black = '#0F0E0E';
+
 export default {
-  background1: '#000',
+  background1: black,
   text1: '#FFF',
-  text2: 'rgba(140, 140, 140, 0.7)',
-  text3: 'rgba(190, 190, 190, 0.7)',
-  ctaBackground1: 'rgba(216, 216, 216, 0.11)',
-  ctaBackground2: 'rgba(216, 216, 216, 0.34)',
+  text2: yellow,
+  text3: black,
+  ctaBackground1: yellow,
+  ctaBackground2: 'rgba(255, 229, 32, 0.32)',
 };

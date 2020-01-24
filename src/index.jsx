@@ -28,7 +28,7 @@ const Main = hot(() => (
           <Route exact path="/">
             <Redirect to={`/${HELLO}`} />
           </Route>
-          <Route path="/:tab?" component={App} />
+          <Route path="/:tabId?" component={App} />
         </BrowserRouter>
       </Provider>
     </ThemeProvider>

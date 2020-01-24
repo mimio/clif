@@ -1,68 +1,103 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
-import { TabPropType } from 'utils/prop-types';
-import { getStyle, size } from 'styles';
+import { getBool, getStyle, size } from 'styles';
+import { detail } from 'styles/text';
 import { centered } from 'styles/layout';
 import { HELLO, WORK, PROJECTS, orderedTabs } from 'constants/tabs';
 import { HomeIcon } from 'icons';
-import { ItemRow } from '../layout';
-import { Detail } from '../Text';
+import { ItemColumn } from '../layout';
 
-const copy = {
-  [HELLO]: <HomeIcon />,
-  [PROJECTS]: 'Projects',
-  [WORK]: 'Work',
-};
+const StyledHomeIcon = styled(HomeIcon)`
+  height: 20px;
+  width: 20px;
+`;
 
 const StyledLink = styled(Link)`
-  position: relative;
   ${centered};
-  height: ${size(15)};
-  width: ${size(30)};
-  ${Detail} {
-    color: ${({ active }) =>
-      active ? getStyle('text1') : getStyle('text2')};
-    transition: ${getStyle('linearHue')};
+  ${detail};
+  position: relative;
+  writing-mode: vertical-lr;
+  z-index: 1;
+  width: ${size(6)};
+  padding: ${size(2)} 0;
+  ${StyledHomeIcon} {
+    color: ${getStyle('text1')};
   }
-  &:hover {
-    ${Detail} {
-      color: ${({ active }) =>
-        active ? getStyle('text1') : getStyle('text3')};
-    }
+  ${getBool(
+    'isActive',
+    `
+      color: ${getStyle('text3')};
+      ${StyledHomeIcon} {
+        color: ${getStyle('text2')};
+      }
+    `,
+    `
+      &:not(.${HELLO}):hover::after {
+        width: 20%;
+      }
+      &:not(.${HELLO}):active::after {
+        width: 12%;
+      }
+      &.${HELLO}:hover {
+        opacity: 0.9;
+      }
+      &.${HELLO}:active {
+        opacity: 0.8;
+      }
+  `,
+  )};
+  &:not(.${HELLO}) ::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: ${({ isActive }) => (isActive ? '100%' : 0)};
+    transition: ${getStyle('easeOutSize')};
+    background: ${getStyle('ctaBackground1')};
+    z-index: -1;
   }
 `;
 
-const Container = styled(ItemRow)`
+const Container = styled(ItemColumn)`
   position: relative;
   > a:not(a:last-child) {
     margin-right: ${size(8)};
   }
 `;
 
-const Navigation = ({ className, selectedTab }) => (
-  <Container className={className}>
-    {orderedTabs.map(tab => (
-      <StyledLink
-        active={tab === selectedTab}
-        to={`/${tab}`}
-        key={tab}
-      >
-        <Detail>{copy[tab]}</Detail>
-      </StyledLink>
-    ))}
-  </Container>
-);
+const copy = {
+  [HELLO]: <StyledHomeIcon />,
+  [PROJECTS]: 'Projects',
+  [WORK]: 'Work',
+};
+
+const Navigation = ({ className }) => {
+  const { tabId } = useParams();
+  return (
+    <Container className={className} sp={4}>
+      {orderedTabs.map(tab => (
+        <StyledLink
+          className={tab}
+          isActive={tab === tabId}
+          to={`/${tab}`}
+          key={tab}
+        >
+          {copy[tab]}
+        </StyledLink>
+      ))}
+    </Container>
+  );
+};
 
 Navigation.propTypes = {
   className: PropTypes.string,
-  selectedTab: TabPropType,
 };
 
 Navigation.defaultProps = {
   className: '',
-  selectedTab: null,
 };
 
 export default Navigation;

@@ -1,29 +1,18 @@
 import styled from '@emotion/styled';
-import { getStyle } from 'styles';
+import { heading, subheader, detail, detail2 } from 'styles/text';
 
-const Base = styled.span`
-  transition: ${getStyle('linearHue')};
+export const Heading = styled.h1`
+  ${heading};
 `;
 
-export const Heading = styled(Base.withComponent('h1'))`
-  font-family: 'Fat';
-  color: ${getStyle('textColor2')};
-  font-size: 84px;
+export const Subheader = styled.span`
+  ${subheader};
 `;
 
-const Base2 = styled(Base)`
-  font-family: 'Andale Mono';
-  color: ${getStyle('textColor1')};
+export const Detail = styled.span`
+  ${detail};
 `;
 
-export const Subheader = styled(Base2)`
-  font-size: 22px;
-`;
-
-export const Detail = styled(Base2)`
-  font-size: 14px;
-`;
-
-export const Detail2 = styled(Detail)`
-  color: ${getStyle('textColor1')};
+export const Detail2 = styled.span`
+  ${detail2};
 `;
