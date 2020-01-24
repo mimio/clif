@@ -2,6 +2,7 @@ import React from 'react';
 import styled from '@emotion/styled';
 import { ChildrenPropType } from 'utils/prop-types';
 import { getBool, getStyle, size } from 'styles';
+import { centered } from 'styles/layout';
 import Header from './Header';
 import { Full } from './layout';
 
@@ -30,6 +31,7 @@ const ForegroundContainer = styled.div`
 
 const BackgroundContainer = styled(Full)`
   z-index: 0;
+  ${centered};
 `;
 
 const Page = ({ Background, Foreground }) => (

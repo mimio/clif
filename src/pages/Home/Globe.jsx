@@ -1,21 +1,35 @@
 import React, { Component } from 'react';
+import styled from '@emotion/styled';
+import { getStyle } from 'styles';
 import { geoOrthographic, geoPath } from 'd3';
 import { feature } from 'topojson';
 import lands from './ne110m_land.json';
 
 const geojson = feature(lands, lands.objects.land);
 
+const Svg = styled.svg`
+  fill: transparent;
+  stroke: ${getStyle('text2')};
+  stroke-width: 0.5;
+`;
+
 export default class Globe extends Component {
   state = {
-    rotation: 0,
+    rotation: 1000,
   };
 
   componentDidMount() {
-    window.requestAnimationFrame(() => {
-      this.setState(({ rotation }) => ({
-        rotation: rotation + 0.2,
-      }));
-    });
+    this.interval = setInterval(
+      () =>
+        this.setState(({ rotation }) => ({
+          rotation: rotation + 0.3,
+        })),
+      50,
+    );
+  }
+
+  componentWillUnmount() {
+    clearInterval(this.interval);
   }
 
   render() {
@@ -23,16 +37,14 @@ export default class Globe extends Component {
       .fitSize([500, 500], geojson)
       .rotate([this.state.rotation]);
 
-    console.log(projection);
-
     const geoGenerator = geoPath().projection(projection);
 
     const pathString = geoGenerator(geojson);
 
     return (
-      <svg width={500} height={500}>
+      <Svg width={500} height={500}>
         <path d={pathString} />
-      </svg>
+      </Svg>
     );
   }
 }
