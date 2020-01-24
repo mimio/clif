@@ -99,7 +99,9 @@
   },
   "dependencies": {
     "@svgr/webpack": "^4.3.3",
-    "facepaint": "^1.2.1"
+    "d3": "^4.2.2",
+    "facepaint": "^1.2.1",
+    "topojson": "^3.0.2"
   },
   "husky": {
     "hooks": {
