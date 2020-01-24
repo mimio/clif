@@ -42,7 +42,7 @@ export default class Globe extends Component {
     const pathString = geoGenerator(geojson);
 
     return (
-      <Svg width={500} height={500}>
+      <Svg width="100%" height="100%" viewBox="40 20 400 400">
         <path d={pathString} />
       </Svg>
     );
