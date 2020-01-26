@@ -7,6 +7,6 @@ const { short } = speeds;
 
 export default {
   linearHue: `color ${short} linear, background-color ${short} linear, opacity ${short} linear, fill ${short} linear, border-color ${short} linear`,
-  easeOutSize: `width ${short} ease-out, height ${short} ease-out`,
+  easeOutSize: `transform ${short} ease-out, width ${short} ease-out, height ${short} ease-out`,
   speeds,
 };

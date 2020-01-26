@@ -18,6 +18,15 @@ const StyledLink = styled.a`
     width: ${size(4)};
     margin-right: ${size(2)};
   }
+  &:hover,
+  &:active,
+  &:focus {
+    color: ${getStyle('text3')};
+    background: ${getStyle('ctaBackground1')};
+  }
+  &:active {
+    opacity: 0.7 !important;
+  }
 `;
 
 const Link = ({ children, className, href, Icon }) => (

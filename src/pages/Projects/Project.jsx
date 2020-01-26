@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import styled from '@emotion/styled';
 import { EyeIcon } from 'icons';
-import { size } from 'styles';
+import { getStyle, size } from 'styles';
 import {
   Link,
   ItemRow,
@@ -12,9 +12,9 @@ import {
 } from 'components';
 
 const Image = styled.div`
-  position: absolute;
-  height: 100%;
-  width: 100%;
+  height: ${size(55)};
+  width: ${size(55)};
+  flex-shrink: 0;
   user-select: none;
   user-drag: none;
   z-index: 2;
@@ -22,31 +22,7 @@ const Image = styled.div`
   background-position: center center;
   background-size: cover;
   filter: grayscale(100%) brightness(1.15);
-`;
-
-const Background = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  background: hotpink;
-  opacity: 0.4;
-  transform: translate(8px, 8px);
-  z-index: 0;
-`;
-
-const ImageContainer = styled.div`
-  position: relative;
-  height: ${size(55)};
-  width: ${size(55)};
-  background: none;
-  flex-shrink: 0;
-  > * {
-    height: 100%;
-    width: 100%;
-    ${({ theme: { transitions } }) => `
-      transition: ${transitions.curvedAll};
-    `};
-  }
+  transition: ${getStyle('easeOutSize')};
 `;
 
 const TextColumn = styled(ItemColumn)`
@@ -66,12 +42,8 @@ const Container = styled(ItemRow)`
   padding: ${size(4)};
   &:hover {
     ${Image} {
-      transform: translate(-4px, -4px);
+      transform: translate(0, -4px);
       filter: grayscale(0%);
-    }
-    ${Background} {
-      transform: translate(12px, 12px);
-      opacity: 0.6;
     }
     ${StyledLink} {
       opacity: 1;
@@ -81,10 +53,7 @@ const Container = styled(ItemRow)`
 
 const Project = ({ title, subtitle, imgSrc, href }) => (
   <Container sp={17}>
-    <ImageContainer>
-      <Image imgSrc={imgSrc} />
-      <Background />
-    </ImageContainer>
+    <Image imgSrc={imgSrc} />
     <TextColumn sp={4}>
       <Subheader>{title}</Subheader>
       <Detail>{subtitle}</Detail>
