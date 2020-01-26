@@ -25,7 +25,7 @@ const ForegroundContentContainer = styled(Full)`
   z-index: 1;
   padding-top: ${size(52)};
   padding-right: ${size(30)};
-  padding-bottom: ${size(4)};
+  padding-bottom: ${size(20)};
   overflow-y: auto;
 `;
 
@@ -43,10 +43,15 @@ const BackgroundContainer = styled(Full)`
   ${centered};
 `;
 
-const Page = ({ Background, Foreground, foregroundProps }) => (
+const Page = ({
+  Background,
+  Foreground,
+  foregroundProps,
+  fadeForeground,
+}) => (
   <>
     <ForegroundContainer>
-      <HeaderContainer hasForeground={!!Foreground}>
+      <HeaderContainer hasForeground={fadeForeground}>
         <Header />
       </HeaderContainer>
       {Foreground && (
@@ -67,12 +72,14 @@ Page.propTypes = {
   Background: ChildrenPropType,
   Foreground: ChildrenPropType,
   foregroundProps: PropTypes.object,
+  fadeForeground: PropTypes.bool,
 };
 
 Page.defaultProps = {
   Background: null,
   Foreground: null,
   foregroundProps: {},
+  fadeForeground: false,
 };
 
 export default Page;

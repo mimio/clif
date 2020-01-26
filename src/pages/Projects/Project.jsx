@@ -38,7 +38,7 @@ const StyledLink = styled(Link)`
 const Container = styled(ItemRow)`
   flex-wrap: none;
   align-items: flex-start;
-  width: ${size(168)};
+  width: 100%;
   padding: ${size(4)};
   &:hover {
     ${Image} {

@@ -9,5 +9,6 @@ export default () => (
       projects.map(project => <Project {...project} />)
     }
     foregroundProps={{ sp: 23 }}
+    fadeForeground
   />
 );
