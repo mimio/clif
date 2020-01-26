@@ -30,5 +30,5 @@ export const detail = css`
 
 export const detail2 = css`
   ${base2};
-  color: ${getStyle('text1')};
+  color: ${getStyle('text2')};
 `;

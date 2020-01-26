@@ -6,6 +6,7 @@ export default {
   text1: '#FFF',
   text2: yellow,
   text3: black,
+  border1: yellow,
   ctaBackground1: yellow,
   ctaBackground2: 'rgba(255, 229, 32, 0.32)',
 };

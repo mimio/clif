@@ -7,7 +7,6 @@ import lands from './ne110m_land.json';
 
 const continents = feature(lands, lands.objects.land);
 const countries = feature(lands, lands.objects.countries);
-
 const geojson = {
   ...countries,
   features: [continents, ...countries.features],
@@ -48,7 +47,7 @@ export default class Globe extends Component {
     const pathString = geoGenerator(geojson);
 
     return (
-      <Svg width="100%" height="100%" viewBox="40 20 400 400">
+      <Svg width="100%" height="100%" viewBox="50 20 400 400">
         <path d={pathString} />
       </Svg>
     );
