@@ -20,10 +20,7 @@ export const selectLookup = createSelector(selectData, data =>
 
 export const selectGeoJson = createSelector(
   selectFeatureList,
-  features => {
-    console.log(arrayToFeatureCollection(Object.values(features)));
-    return arrayToFeatureCollection(Object.values(features));
-  },
+  features => arrayToFeatureCollection(Object.values(features)),
 );
 
 export const selectAreFeaturesEmpty = createSelector(

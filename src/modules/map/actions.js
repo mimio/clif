@@ -43,8 +43,6 @@ export const unhoverFeature = () => (dispatch, getState, getMap) => {
   const map = getMap();
   const hoveredId = selectHoveredFeatureId(getState());
 
-  console.log(hoveredId);
-
   if (hoveredId)
     map.setFeatureState(
       { source: WORK_SOURCE, id: hoveredId },
@@ -145,8 +143,6 @@ export const hoverFeature = e => (dispatch, getState, getMap) => {
 
   if (hoveredId !== id) dispatch(unhoverFeature());
   if (hoveredId === id) return null;
-
-  console.log(id);
 
   map.setFeatureState({ source: WORK_SOURCE, id }, { hover: true });
 
