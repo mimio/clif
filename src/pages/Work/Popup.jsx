@@ -4,13 +4,8 @@ import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import moment from 'moment';
 import { getStyle, size } from 'styles';
-import {
-  ItemColumn,
-  Subheader,
-  Subheader2,
-  Detail,
-  Detail2,
-} from 'components';
+import { subheader2 } from 'styles/text';
+import { ItemColumn, Subheader, Detail, Detail2 } from 'components';
 
 const Container = styled(ItemColumn)`
   background: ${getStyle('background1')};
@@ -19,6 +14,10 @@ const Container = styled(ItemColumn)`
   overflow-y: auto;
   width: 100%;
   height: 100%;
+`;
+
+const Company = styled.strong`
+  ${subheader2};
 `;
 
 const dateFormat = 'MMM YYYY';
@@ -36,7 +35,7 @@ const Popup = ({ popupId, feature }) => {
     <Container sp={7}>
       <Subheader>
         {`${role} @ `}
-        <Subheader2>{company}</Subheader2>
+        <Company>{company}</Company>
       </Subheader>
       <Detail>{description}</Detail>
       <Detail2>

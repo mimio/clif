@@ -111,7 +111,7 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
   const popupId = uuid();
   popup = new Popup({
     closeButton: false,
-    offset: 18,
+    offset: 30,
     maxWidth: sizes.popupWidth,
   })
     .setLngLat(feature.coordinates)

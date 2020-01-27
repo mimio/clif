@@ -6,6 +6,7 @@ import Globe from './Globe';
 
 const IntroBlurb = styled(Subheader)`
   font-size: 36pt;
+  line-height: 46pt;
 `;
 
 const blurb =

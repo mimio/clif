@@ -31,7 +31,7 @@ export const subheader2 = css`
 
 export const detail = css`
   ${base2};
-  font-size: 14pt;
+  font-size: 12pt;
 `;
 
 export const detail2 = css`
