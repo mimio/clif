@@ -19,6 +19,9 @@ const MapContainer = styled(Full)`
   .mapboxgl-popup-content {
     padding: 0;
   }
+  .mapboxgl-popup-tip {
+    display: none;
+  }
 `;
 
 class Map extends Component {

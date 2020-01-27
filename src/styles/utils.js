@@ -1,9 +1,7 @@
 import { get } from 'lodash-es';
 import { flatStanley } from './theme';
 
-const GRID_SIZE = 4;
-
-export const size = integer => `${integer * GRID_SIZE}px`;
+export { size } from './size';
 
 export const getStyle = key => get(flatStanley, key);
 
