@@ -23,6 +23,11 @@ export const subheader = css`
   font-size: 22pt;
 `;
 
+export const subheader2 = css`
+  ${base2};
+  color: ${getStyle('text2')};
+`;
+
 export const detail = css`
   ${base2};
   font-size: 14pt;
