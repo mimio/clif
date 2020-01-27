@@ -34,12 +34,12 @@ const Container = styled(Row)`
     'reverse',
     `
     flex-direction: row-reverse;
-    > *:first-child {
+    > div:first-of-type {
       margin-left: ${size(17)};
     }
   `,
     `
-    > *:first-child {
+    > div:first-of-type {
       margin-right: ${size(17)};
     }
   `,
