@@ -3,6 +3,7 @@ import uuid from 'uuid/v4';
 import { Popup } from 'mapbox-gl';
 import sizes from 'styles/sizes';
 import { WORK_SOURCE } from 'constants/source';
+import { BOUNDS_PADDING } from 'constants/map';
 import {
   selectLookup,
   selectGeoJsonBounds,
@@ -24,7 +25,6 @@ export const mapLoaded = () => ({
   type: MAP_LOADED,
 });
 
-const BOUNDS_PADDING = 100;
 export const fitBounds = () => (_, getState, getMap) => {
   const state = getState();
   const map = getMap();

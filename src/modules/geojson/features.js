@@ -7,6 +7,7 @@ export default [
     date: { start: 1420348252, end: 1467609052 },
     coordinates: [-73.7508132, 42.652377],
     id: 1,
+    outlier: true,
   },
   {
     company: 'City of Tigard',

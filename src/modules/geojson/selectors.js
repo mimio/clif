@@ -9,9 +9,8 @@ export const selectData = createSelector(selectState, state =>
   get(state, 'data', []),
 );
 
-export const selectFeatureList = createSelector(
-  selectData,
-  data => data,
+export const selectFeatureList = createSelector(selectData, data =>
+  Object.values(data),
 );
 
 export const selectLookup = createSelector(selectData, data =>
@@ -20,7 +19,15 @@ export const selectLookup = createSelector(selectData, data =>
 
 export const selectGeoJson = createSelector(
   selectFeatureList,
-  features => arrayToFeatureCollection(Object.values(features)),
+  features => arrayToFeatureCollection(features),
+);
+
+export const selectGeoJsonWithoutOutliers = createSelector(
+  selectFeatureList,
+  features =>
+    arrayToFeatureCollection(
+      features.filter(({ outlier }) => !outlier),
+    ),
 );
 
 export const selectAreFeaturesEmpty = createSelector(
@@ -34,7 +41,7 @@ export const selectIsInitialized = createSelector(
 );
 
 export const selectGeoJsonBounds = createSelector(
-  selectGeoJson,
+  selectGeoJsonWithoutOutliers,
   selectAreFeaturesEmpty,
   (geojson, isEmpty) => {
     if (isEmpty) return null;
