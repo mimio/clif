@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import moment from 'moment';
-import { size } from 'styles';
+import { getStyle, size } from 'styles';
 import {
   ItemColumn,
   Subheader,
@@ -13,6 +13,8 @@ import {
 } from 'components';
 
 const Container = styled(ItemColumn)`
+  background: ${getStyle('background1')};
+  align-items: flex-start;
   padding: ${size(4)};
   overflow-y: auto;
   width: 100%;
@@ -31,7 +33,7 @@ const Popup = ({ popupId, feature }) => {
     description,
   } = feature;
   return ReactDOM.createPortal(
-    <Container sp={2}>
+    <Container sp={7}>
       <Subheader>
         {`${role} @ `}
         <Subheader2>{company}</Subheader2>

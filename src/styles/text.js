@@ -21,10 +21,11 @@ const base2 = css`
 export const subheader = css`
   ${base2};
   font-size: 22pt;
+  line-height: 24pt;
 `;
 
 export const subheader2 = css`
-  ${base2};
+  ${subheader};
   color: ${getStyle('text2')};
 `;
 
@@ -34,6 +35,6 @@ export const detail = css`
 `;
 
 export const detail2 = css`
-  ${base2};
+  ${detail};
   color: ${getStyle('text2')};
 `;
