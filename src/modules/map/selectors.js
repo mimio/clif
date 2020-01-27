@@ -1,6 +1,6 @@
 import { createSelector } from 'reselect';
 import { get } from 'lodash-es';
-import { WORK_SOURCE } from 'constants/source';
+import { WORK_SOURCE, WORK_LABEL_SOURCE } from 'constants/source';
 import colors from 'styles/colors';
 import {
   selectGeoJson,
@@ -51,6 +51,20 @@ export const selectMapLayers = createSelector(selectGeoJson, data => [
       'circle-stroke-width': 8,
       'circle-stroke-color': colors.ctaBackground1,
       'circle-stroke-opacity': 0.2,
+    },
+  },
+  {
+    id: WORK_LABEL_SOURCE,
+    type: 'symbol',
+    source: {
+      type: 'geojson',
+      data,
+    },
+    paint: {
+      'text-color': colors.text2,
+    },
+    layout: {
+      'text-field': '{company}',
     },
   },
 ]);
