@@ -23,19 +23,19 @@ export const selectMapConfig = createSelector(
   }),
 );
 
-// const makeHoverCase = (hoverValue, defaultValue) => [
-//   'case',
-//   ['boolean', ['feature-state', 'hover'], false],
-//   hoverValue,
-//   defaultValue,
-// ];
+const makeHoverCase = (hoverValue, defaultValue) => [
+  'case',
+  ['boolean', ['feature-state', 'hover'], false],
+  hoverValue,
+  defaultValue,
+];
 
-// const makeSelectedCase = (selectedValue, defaultValue) => [
-//   'case',
-//   ['boolean', ['feature-state', 'selected'], false],
-//   selectedValue,
-//   defaultValue,
-// ];
+const makeSelectedCase = (selectedValue, defaultValue) => [
+  'case',
+  ['boolean', ['feature-state', 'selected'], false],
+  selectedValue,
+  defaultValue,
+];
 
 export const selectMapLayers = createSelector(selectGeoJson, data => [
   {
@@ -47,10 +47,10 @@ export const selectMapLayers = createSelector(selectGeoJson, data => [
     },
     paint: {
       'circle-color': colors.ctaBackground1,
-      'circle-radius': 6,
-      'circle-stroke-width': 8,
+      'circle-radius': 8,
+      'circle-stroke-width': makeSelectedCase(10, 8),
       'circle-stroke-color': colors.ctaBackground1,
-      'circle-stroke-opacity': 0.2,
+      'circle-stroke-opacity': makeHoverCase(0.3, 0.2),
     },
   },
   {
