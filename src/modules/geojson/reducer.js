@@ -1,5 +1,7 @@
+import data from './features';
+
 const initialState = {
-  data: [],
+  data,
 };
 
 export const geojsonReducer = (state = initialState, action) => {

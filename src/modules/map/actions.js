@@ -134,7 +134,11 @@ export const hoverFeature = e => (dispatch, getState, getMap) => {
   const map = getMap();
   const hoveredId = selectHoveredFeatureId(state);
 
+  console.log(hoveredId);
+
   const id = getId(e);
+
+  console.log(id);
 
   if (!id) return null;
 

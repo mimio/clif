@@ -1,6 +1,7 @@
 import { createSelector } from 'reselect';
 import { get } from 'lodash-es';
 import { WORK_SOURCE } from 'constants/source';
+import colors from 'styles/colors';
 import {
   selectGeoJson,
   selectLookup,
@@ -22,12 +23,12 @@ export const selectMapConfig = createSelector(
   }),
 );
 
-const makeHoverCase = (hoverValue, defaultValue) => [
-  'case',
-  ['boolean', ['feature-state', 'hover'], false],
-  hoverValue,
-  defaultValue,
-];
+// const makeHoverCase = (hoverValue, defaultValue) => [
+//   'case',
+//   ['boolean', ['feature-state', 'hover'], false],
+//   hoverValue,
+//   defaultValue,
+// ];
 
 // const makeSelectedCase = (selectedValue, defaultValue) => [
 //   'case',
@@ -39,18 +40,17 @@ const makeHoverCase = (hoverValue, defaultValue) => [
 export const selectMapLayers = createSelector(selectGeoJson, data => [
   {
     id: WORK_SOURCE,
-    type: 'symbol',
+    type: 'circle',
     source: {
       type: 'geojson',
       data,
     },
-    layout: {
-      'icon-image': 'marker',
-      'icon-allow-overlap': false,
-      'icon-size': 1.2,
-    },
     paint: {
-      'icon-opacity': makeHoverCase(0.7, 1),
+      'circle-color': colors.ctaBackground1,
+      'circle-radius': 6,
+      'circle-stroke-width': 8,
+      'circle-stroke-color': colors.ctaBackground1,
+      'circle-stroke-opacity': 0.2,
     },
   },
 ]);
