@@ -6,7 +6,7 @@ import Project from './Project';
 export default () => (
   <Page
     Foreground={() =>
-      projects.map(project => <Project {...project} />)
+      projects.map((project, i) => <Project {...project} index={i} />)
     }
     foregroundProps={{ sp: 23 }}
     fadeForeground

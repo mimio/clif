@@ -2,14 +2,8 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import styled from '@emotion/styled';
 import { EyeIcon } from 'icons';
-import { getStyle, size } from 'styles';
-import {
-  Link,
-  ItemRow,
-  ItemColumn,
-  Subheader,
-  Detail,
-} from 'components';
+import { getBool, getStyle, size } from 'styles';
+import { Link, Row, ItemColumn, Subheader, Detail } from 'components';
 
 const Image = styled.div`
   height: ${size(55)};
@@ -35,7 +29,21 @@ const StyledLink = styled(Link)`
   margin-top: ${size(6)} !important;
 `;
 
-const Container = styled(ItemRow)`
+const Container = styled(Row)`
+  ${getBool(
+    'reverse',
+    `
+    flex-direction: row-reverse;
+    > *:first-child {
+      margin-left: ${size(17)};
+    }
+  `,
+    `
+    > *:first-child {
+      margin-right: ${size(17)};
+    }
+  `,
+  )}
   flex-wrap: none;
   align-items: flex-start;
   width: 100%;
@@ -51,8 +59,8 @@ const Container = styled(ItemRow)`
   }
 `;
 
-const Project = ({ title, subtitle, imgSrc, href }) => (
-  <Container sp={17}>
+const Project = ({ title, subtitle, imgSrc, href, index }) => (
+  <Container reverse={index % 2 === 0}>
     <Image imgSrc={imgSrc} />
     <TextColumn sp={4}>
       <Subheader>{title}</Subheader>
@@ -66,6 +74,7 @@ const Project = ({ title, subtitle, imgSrc, href }) => (
 
 Project.propTypes = {
   imgSrc: PropTypes.string.isRequired,
+  index: PropTypes.number.isRequired,
   subtitle: PropTypes.string.isRequired,
   title: PropTypes.string.isRequired,
   href: PropTypes.string.isRequired,
