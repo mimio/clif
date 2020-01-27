@@ -6,7 +6,7 @@ export default [
       'i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff',
     date: { start: 1420348252, end: 1467609052 },
     coordinates: [-73.7508132, 42.652377],
-    id: 'nysp',
+    id: 1,
   },
   {
     company: 'City of Tigard',
@@ -15,7 +15,7 @@ export default [
       'i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff',
     date: { start: 1470287452, end: 1486185052 },
     coordinates: [-122.7689952, 45.424939],
-    id: 'tigard',
+    id: 2,
   },
   {
     company: 'Nike',
@@ -24,7 +24,7 @@ export default [
       'i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff',
     date: { start: 1503378652, end: 1545455452 },
     coordinates: [-122.8303353, 45.5077801],
-    id: 'nike',
+    id: 3,
   },
   // {
   //   company: 'Mimio',
@@ -41,6 +41,6 @@ export default [
       'i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff',
     date: { start: 1503378652, end: 1545455452 },
     coordinates: [-122.6854872, 45.5121414],
-    id: 'ubiq',
+    id: 4,
   },
 ];

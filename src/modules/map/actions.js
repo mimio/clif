@@ -43,6 +43,8 @@ export const unhoverFeature = () => (dispatch, getState, getMap) => {
   const map = getMap();
   const hoveredId = selectHoveredFeatureId(getState());
 
+  console.log(hoveredId);
+
   if (hoveredId)
     map.setFeatureState(
       { source: WORK_SOURCE, id: hoveredId },
@@ -80,9 +82,10 @@ export const clearSelection = () => (dispatch, getState, getMap) => {
   });
 };
 
-const getId = val => {
+const getId = (map, e) => {
+  const features = map.queryRenderedFeatures(e.point);
   try {
-    return get(val, 'features[0].id', val);
+    return get(features, '[0].properties.id', null);
   } catch (err) {
     // do nothing
     console.log(err);
@@ -97,7 +100,7 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
 
   const selectedId = selectSelectedFeatureId(state);
 
-  const id = getId(e);
+  const id = getId(map, e);
   if (!id) return null;
   const feature = selectLookup(state)[id];
 
@@ -134,11 +137,7 @@ export const hoverFeature = e => (dispatch, getState, getMap) => {
   const map = getMap();
   const hoveredId = selectHoveredFeatureId(state);
 
-  console.log(hoveredId);
-
-  const id = getId(e);
-
-  console.log(id);
+  const id = getId(map, e);
 
   if (!id) return null;
 
@@ -146,6 +145,8 @@ export const hoverFeature = e => (dispatch, getState, getMap) => {
 
   if (hoveredId !== id) dispatch(unhoverFeature());
   if (hoveredId === id) return null;
+
+  console.log(id);
 
   map.setFeatureState({ source: WORK_SOURCE, id }, { hover: true });
 
