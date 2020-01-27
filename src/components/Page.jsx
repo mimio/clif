@@ -17,6 +17,9 @@ const HeaderContainer = styled(Full)`
     background-image: ${getStyle('fadeIntoBackground')};
   `,
   )};
+  > * {
+    pointer-events: auto;
+  }
 `;
 
 const ForegroundContentContainer = styled(Full)`
@@ -27,6 +30,7 @@ const ForegroundContentContainer = styled(Full)`
   padding-right: ${size(30)};
   padding-bottom: ${size(20)};
   overflow-y: auto;
+  pointer-events: auto;
 `;
 
 const ForegroundContainer = styled.div`
@@ -36,6 +40,7 @@ const ForegroundContainer = styled.div`
   height: calc(100% - ${size(4)});
   left: ${size(28)};
   width: calc(100% - ${size(28)});
+  pointer-events: none;
 `;
 
 const BackgroundContainer = styled(Full)`

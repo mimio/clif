@@ -3,13 +3,17 @@ import thunk from 'redux-thunk';
 // import { createLogger } from 'redux-logger';
 import { composeWithDevTools } from 'redux-devtools-extension/developmentOnly';
 import { createStore, applyMiddleware, compose } from 'redux';
+import { getMap } from 'utils/map';
 
 import appReducer from './modules';
 
 const rootReducer = (state, action) => appReducer(state, action);
 
 function configureStore() {
-  const middlewares = [thunk, reduxPackMiddleware];
+  const middlewares = [
+    thunk.withExtraArgument(getMap),
+    reduxPackMiddleware,
+  ];
 
   let composeFn = compose;
 
