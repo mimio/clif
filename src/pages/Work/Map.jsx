@@ -29,7 +29,6 @@ class Map extends Component {
   static propTypes = {
     clearSelection: PropTypes.func.isRequired,
     hoverFeature: PropTypes.func.isRequired,
-    isMapLoaded: PropTypes.bool.isRequired,
     mapConfig: PropTypes.object,
     mapLayers: PropTypes.array.isRequired,
     mapLoaded: PropTypes.func.isRequired,
@@ -46,8 +45,7 @@ class Map extends Component {
   }
 
   initialize = () => {
-    const { mapConfig, isMapLoaded } = this.props;
-    if (isMapLoaded) return;
+    const { mapConfig } = this.props;
     this.map = setMap(
       new mapboxgl.Map({
         ...mapConfig,
