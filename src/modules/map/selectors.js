@@ -65,6 +65,10 @@ export const selectMapLayers = createSelector(selectGeoJson, data => [
     },
     layout: {
       'text-field': '{company}',
+      'text-font': ['Andale Mono Regular'],
+      'text-anchor': 'left',
+      'text-offset': [1.5, 0.3],
+      'text-transform': 'uppercase',
     },
   },
 ]);
