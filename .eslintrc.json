@@ -37,6 +37,7 @@
   "globals": {
     "__DEV__": true,
     "__config__": true,
+    "__MAPBOX_KEY__": true,
     "__CLOUD__": true
   }
 }
