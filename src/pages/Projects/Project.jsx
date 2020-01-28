@@ -32,6 +32,9 @@ const TextColumn = styled(ItemColumn)`
 const StyledLink = styled(Link)`
   opacity: 0.8;
   margin-top: ${size(6)} !important;
+  ${mobile(`
+    margin-top: ${size(2)} !important;
+  `)};
 `;
 
 const Container = styled(Row)`
