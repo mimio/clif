@@ -1,5 +1,5 @@
 const yellow = '#FFE520';
-const black = '#0F0E0E';
+const black = '#161616';
 
 export default {
   background1: black,

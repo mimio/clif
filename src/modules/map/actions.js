@@ -12,6 +12,7 @@ import {
   selectHoveredFeatureId,
   selectMapLoaded,
   selectSelectedFeatureId,
+  selectPopupId,
 } from './selectors';
 import {
   CLEAR_SELECTION,
@@ -19,6 +20,7 @@ import {
   MAP_LOADED,
   SELECT_FEATURE,
   UNHOVER_FEATURE,
+  SET_POPUP_ID,
 } from './types';
 
 export const mapLoaded = () => ({
@@ -91,42 +93,53 @@ const getId = (map, e) => {
   }
 };
 
+export const setPopupId = id => ({
+  type: SET_POPUP_ID,
+  payload: id,
+});
+
 export const selectFeature = e => (dispatch, getState, getMap) => {
   const state = getState();
   if (!selectMapLoaded(state)) return null;
   const map = getMap();
 
-  const selectedId = selectSelectedFeatureId(state);
+  const prevPopupId = selectPopupId(state);
+  const prevSelectedId = selectSelectedFeatureId(state);
 
   const id = getId(map, e);
   if (!id) return null;
   const feature = selectLookup(state)[id];
 
-  if (selectedId !== id) {
-    dispatch(clearSelection());
+  if (id !== prevSelectedId) {
+    map.setFeatureState(
+      { source: WORK_SOURCE, id: prevSelectedId },
+      { selected: false },
+    );
+    map.setFeatureState(
+      { source: WORK_SOURCE, id },
+      { selected: true },
+    );
+    return dispatch({
+      type: SELECT_FEATURE,
+      payload: id,
+    });
   }
 
-  removePopup();
-
-  const popupId = uuid();
-  popup = new Popup({
-    closeButton: false,
-    offset: 30,
-    maxWidth: sizes.popupWidth,
-  })
-    .setLngLat(feature.coordinates)
-    .setHTML(`<div id="${popupId}"></div>`)
-    .addTo(map);
-
-  map.setFeatureState(
-    { source: WORK_SOURCE, id },
-    { selected: true },
-  );
-
-  return dispatch({
-    type: SELECT_FEATURE,
-    payload: { id, popupId },
-  });
+  if (id !== prevSelectedId || !prevPopupId) {
+    removePopup();
+    const popupId = uuid();
+    popup = new Popup({
+      closeButton: false,
+      offset: 30,
+      maxWidth: sizes.popupWidth,
+    })
+      .once('close', () => dispatch(setPopupId(null)))
+      .setLngLat(feature.coordinates)
+      .setHTML(`<div id="${popupId}"></div>`)
+      .addTo(map);
+    return dispatch(setPopupId(popupId));
+  }
+  return null;
 };
 
 export const hoverFeature = e => (dispatch, getState, getMap) => {

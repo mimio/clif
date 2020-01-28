@@ -3,7 +3,7 @@ import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { getStyle } from 'styles';
+import { getBool, getStyle } from 'styles';
 import { Full } from 'components';
 import { setMap } from 'utils/map';
 
@@ -11,6 +11,7 @@ const MapContainer = styled(Full)`
   .mapboxgl-map {
     height: 100%;
     width: 100%;
+    pointer-events: ${getBool('isLoaded', 'auto', 'none')};
   }
   .mapboxgl-popup {
     width: ${getStyle('popupWidth')};
@@ -18,6 +19,18 @@ const MapContainer = styled(Full)`
   }
   .mapboxgl-popup-content {
     padding: 0;
+    box-shadow: 0 2px 4px rgba(180, 180, 180, 0.3);
+    @keyframes slidein {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    animation: 0.22s linear forwards slidein;
   }
   .mapboxgl-popup-tip {
     display: none;
@@ -32,6 +45,7 @@ class Map extends Component {
   static propTypes = {
     clearSelection: PropTypes.func.isRequired,
     hoverFeature: PropTypes.func.isRequired,
+    isMapLoaded: PropTypes.bool.isRequired,
     mapConfig: PropTypes.object,
     mapLayers: PropTypes.array.isRequired,
     mapLoaded: PropTypes.func.isRequired,
@@ -100,10 +114,14 @@ class Map extends Component {
   };
 
   render() {
-    const { className, css } = this.props;
+    const { className, css, isMapLoaded } = this.props;
 
     return (
-      <MapContainer className={className} css={css}>
+      <MapContainer
+        isLoaded={isMapLoaded}
+        className={className}
+        css={css}
+      >
         <div id="mapbox-map" ref={this.mapRef} />
       </MapContainer>
     );

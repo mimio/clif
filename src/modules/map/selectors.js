@@ -47,6 +47,19 @@ export const selectMapLayers = createSelector(
   selectWorkPathGeoJson,
   (data, lineData) => [
     {
+      id: WORK_PATH_SOURCE,
+      type: 'line',
+      source: {
+        type: 'geojson',
+        data: lineData,
+      },
+      paint: {
+        'line-color': colors.text2,
+        'line-opacity': 0.5,
+        'line-width': 1,
+      },
+    },
+    {
       id: WORK_SOURCE,
       type: 'circle',
       source: {
@@ -77,19 +90,6 @@ export const selectMapLayers = createSelector(
         'text-anchor': 'left',
         'text-offset': [1.5, 0.3],
         'text-transform': 'uppercase',
-      },
-    },
-    {
-      id: WORK_PATH_SOURCE,
-      type: 'line',
-      source: {
-        type: 'geojson',
-        data: lineData,
-      },
-      paint: {
-        'line-color': colors.text2,
-        'line-opacity': 0.5,
-        'line-width': 1,
       },
     },
   ],

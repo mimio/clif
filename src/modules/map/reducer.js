@@ -4,6 +4,7 @@ import {
   MAP_LOADED,
   SELECT_FEATURE,
   UNHOVER_FEATURE,
+  SET_POPUP_ID,
 } from './types';
 import { config } from './config';
 
@@ -21,8 +22,12 @@ export function mapReducer(state = initialState, action) {
     case SELECT_FEATURE:
       return {
         ...state,
-        selectedFeatureId: payload.id,
-        popupId: payload.popupId,
+        selectedFeatureId: payload,
+      };
+    case SET_POPUP_ID:
+      return {
+        ...state,
+        popupId: payload,
       };
     case CLEAR_SELECTION:
       return {
