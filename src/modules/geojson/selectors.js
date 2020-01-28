@@ -1,4 +1,5 @@
 import bbox from '@turf/bbox';
+import { lineString } from '@turf/helpers';
 import { get } from 'lodash-es';
 import { createSelector } from 'reselect';
 import { arrayToFeatureCollection } from 'utils/geojson';
@@ -38,6 +39,16 @@ export const selectAreFeaturesEmpty = createSelector(
 export const selectIsInitialized = createSelector(
   selectState,
   state => state.updateCount > 0,
+);
+
+export const selectWorkPathGeoJson = createSelector(
+  selectFeatureList,
+  features => {
+    const orderedCoords = features
+      .sort((a, b) => a.date.end > b.date.end)
+      .map(({ coordinates }) => coordinates);
+    return lineString(orderedCoords);
+  },
 );
 
 export const selectGeoJsonBounds = createSelector(

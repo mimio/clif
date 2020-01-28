@@ -100,6 +100,7 @@
   "dependencies": {
     "@svgr/webpack": "^4.3.3",
     "@turf/bbox": "^6.0.1",
+    "@turf/helpers": "^6.1.4",
     "d3": "^4.2.2",
     "facepaint": "^1.2.1",
     "mapbox-gl": "^1.6.1",
