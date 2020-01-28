@@ -111,10 +111,12 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
   const feature = selectLookup(state)[id];
 
   if (id !== prevSelectedId) {
-    map.setFeatureState(
-      { source: WORK_SOURCE, id: prevSelectedId },
-      { selected: false },
-    );
+    if (prevSelectedId) {
+      map.setFeatureState(
+        { source: WORK_SOURCE, id: prevSelectedId },
+        { selected: false },
+      );
+    }
     map.setFeatureState(
       { source: WORK_SOURCE, id },
       { selected: true },

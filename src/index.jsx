@@ -1,5 +1,10 @@
 import React from 'react';
-import { BrowserRouter, Route, Redirect } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Route,
+  Redirect,
+  Switch,
+} from 'react-router-dom';
 import { render } from 'react-dom';
 import { Provider } from 'react-redux';
 import { ThemeProvider } from 'emotion-theming';
@@ -25,10 +30,14 @@ const Main = hot(() => (
     <ThemeProvider theme={theme}>
       <Provider store={store}>
         <BrowserRouter basename="/">
-          <Route exact path="/">
-            <Redirect to={`/${HELLO}`} />
-          </Route>
-          <Route path="/:tabId?" component={App} />
+          <Switch>
+            <Route
+              exact
+              path="/"
+              component={() => <Redirect to={`/${HELLO}`} />}
+            />
+            <Route path="/:tabId?" component={App} />
+          </Switch>
         </BrowserRouter>
       </Provider>
     </ThemeProvider>

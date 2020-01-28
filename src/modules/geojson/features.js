@@ -3,7 +3,7 @@ export default [
     company: 'New York State Parks',
     role: 'Geospatial Technician I, Cartographer',
     description:
-      'i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff',
+      'I produced over 100 trailmaps and master planning maps for 20 New York state parks using ArcGIS 10.3, Python scripting, and Adobe Illustrator.',
     date: { start: 1420348252000, end: 1467609052000 },
     coordinates: [-73.7508132, 42.652377],
     id: 1,
@@ -13,7 +13,7 @@ export default [
     company: 'City of Tigard',
     role: 'Geospatial Technician I',
     description:
-      'i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff',
+      'I automated city GIS workflows using Python. I also created data products including complex transportation layers and published web applications using ArcGIS Online.',
     date: { start: 1470287452000, end: 1486185052000 },
     coordinates: [-122.7689952, 45.424939],
     id: 2,
@@ -22,7 +22,7 @@ export default [
     company: 'Nike',
     role: 'Software Engineer',
     description:
-      'i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff',
+      "I worked for Nike Digital's Content Management Service, helping to streamline the creation of content for Nike.com.",
     date: { start: 1503378652000, end: 1545455452000 },
     coordinates: [-122.8303353, 45.5077801],
     id: 3,
@@ -39,7 +39,7 @@ export default [
     company: 'Ubiquiti',
     role: 'Software Engineer',
     description:
-      'i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff',
+      'I sat in between design and project managers to create consumer facing tools and user interfaces in use by many thousands of customers.',
     date: { start: 1545455452000, end: 1579480362000 },
     coordinates: [-122.6854872, 45.5121414],
     id: 4,
