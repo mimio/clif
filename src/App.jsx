@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from '@emotion/styled';
 import { useHistory, useParams } from 'react-router-dom';
-import { getStyle, size } from 'styles';
+import { mobile, getStyle, size } from 'styles';
 import { Link, Column } from 'components';
 import { EnvelopeIcon } from 'icons';
 import email from 'constants/email';
@@ -32,6 +32,9 @@ const ContactLink = styled(Link)`
   right: ${size(4)};
   z-index: 4;
   border-radius: 5px;
+  ${mobile(`
+    width: ${size(7)};
+  `)};
 `;
 
 const App = () => {
