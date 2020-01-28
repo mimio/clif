@@ -8,7 +8,6 @@ export default () => (
     Foreground={() =>
       projects.map((project, i) => <Project {...project} index={i} />)
     }
-    foregroundProps={{ sp: 23 }}
     fadeForeground
   />
 );

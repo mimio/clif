@@ -3,7 +3,7 @@ import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { ChildrenPropType } from 'utils/prop-types';
 import { mobile, tablet, getBool, getStyle, size } from 'styles';
-import { centered, itemColumn } from 'styles/layout';
+import { centered } from 'styles/layout';
 import Header from './Header';
 import { Full } from './layout';
 
@@ -23,7 +23,6 @@ const HeaderContainer = styled(Full)`
 `;
 
 const ForegroundContentContainer = styled(Full)`
-  ${itemColumn};
   align-items: flex-start;
   z-index: 1;
   overflow-y: auto;
@@ -31,15 +30,21 @@ const ForegroundContentContainer = styled(Full)`
   padding-top: ${size(52)};
   padding-right: ${size(30)};
   padding-bottom: ${size(20)};
+  > *:not(:last-child) {
+    margin-bottom: ${size(27)};
+  }
   ${tablet(`
-    padding-top: ${size(48)};
+    padding-top: ${size(44)};
     padding-right: ${size(23)};
     padding-bottom: ${size(20)};
   `)}
   ${mobile(`
     padding-top: ${size(24)};
-    padding-right: ${size(17)};
+    padding-right: ${size(13)};
     padding-bottom: ${size(10)};
+    > *:not(:last-child) {
+      margin-bottom: ${size(13)};
+    }
   `)}
 `;
 
@@ -62,19 +67,14 @@ const BackgroundContainer = styled(Full)`
   ${centered};
 `;
 
-const Page = ({
-  Background,
-  Foreground,
-  foregroundProps,
-  fadeForeground,
-}) => (
+const Page = ({ Background, Foreground, fadeForeground }) => (
   <>
     <ForegroundContainer>
       <HeaderContainer hasForeground={fadeForeground}>
         <Header />
       </HeaderContainer>
       {Foreground && (
-        <ForegroundContentContainer {...foregroundProps}>
+        <ForegroundContentContainer>
           <Foreground />
         </ForegroundContentContainer>
       )}
@@ -90,14 +90,12 @@ const Page = ({
 Page.propTypes = {
   Background: ChildrenPropType,
   Foreground: ChildrenPropType,
-  foregroundProps: PropTypes.object,
   fadeForeground: PropTypes.bool,
 };
 
 Page.defaultProps = {
   Background: null,
   Foreground: null,
-  foregroundProps: {},
   fadeForeground: false,
 };
 
