@@ -2,12 +2,16 @@ import React from 'react';
 import styled from '@emotion/styled';
 import { useHistory, useParams } from 'react-router-dom';
 import { getStyle, size } from 'styles';
-import { Column } from 'components';
+import { Link, Column } from 'components';
+import { EnvelopeIcon } from 'icons';
+import email from 'constants/email';
 import { orderedTabs, HELLO } from 'constants/tabs';
 import useSetCursor from './hooks/useSetCursor';
 // import Cursor from './containers/Cursor';
 import Navigation from './components/Navigation';
 import Pages from './pages';
+
+console.log(Link);
 
 const Container = styled(Column)`
   height: 100%;
@@ -21,7 +25,15 @@ const StyledNavigation = styled(Navigation)`
   position: absolute;
   top: ${size(4)};
   right: ${size(4)};
+  z-index: 5;
+`;
+
+const ContactLink = styled(Link)`
+  position: absolute;
+  bottom: ${size(4)};
+  right: ${size(4)};
   z-index: 4;
+  border-radius: 5px;
 `;
 
 const App = () => {
@@ -36,6 +48,13 @@ const App = () => {
     <Container>
       {/* <Cursor /> */}
       <StyledNavigation />
+      <ContactLink
+        href={`mailto:${email}`}
+        Icon={EnvelopeIcon}
+        vertical
+      >
+        {email}
+      </ContactLink>
       <Pages />
     </Container>
   );
