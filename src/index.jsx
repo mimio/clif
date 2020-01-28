@@ -16,7 +16,7 @@ import '../fonts/fonts.css';
 
 import theme from './styles/theme';
 import GlobalStyles from './styles/GlobalStyles';
-import App from './containers/App';
+import App from './App';
 
 import storeConfigs from './store';
 
