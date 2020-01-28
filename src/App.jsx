@@ -11,8 +11,6 @@ import useSetCursor from './hooks/useSetCursor';
 import Navigation from './components/Navigation';
 import Pages from './pages';
 
-console.log(Link);
-
 const Container = styled(Column)`
   height: 100%;
   width: 100%;
