@@ -7,22 +7,22 @@ const flexClass = `
  align-items: center;
 `;
 
-export const centered = css`
+export const centered = `
   ${flexClass};
   justify-content: center;
 `;
 
-export const row = css`
+export const row = `
   ${flexClass};
   flex-direction: row;
 `;
 
-export const column = css`
+export const column = `
   ${flexClass};
   flex-direction: column;
 `;
 
-export const full = css`
+export const full = `
   position: absolute;
   top: 0;
   left: 0;

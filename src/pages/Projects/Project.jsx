@@ -2,12 +2,17 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import styled from '@emotion/styled';
 import { EyeIcon } from 'icons';
-import { getBool, getStyle, size } from 'styles';
+import { mobile, getBool, getStyle, size } from 'styles';
+import { column } from 'styles/layout';
 import { Link, Row, ItemColumn, Subheader, Detail } from 'components';
 
 const Image = styled.div`
   height: ${size(55)};
   width: ${size(55)};
+  ${mobile(`
+    height: ${size(32)};
+    width: 100%;
+  `)};
   flex-shrink: 0;
   user-select: none;
   user-drag: none;
@@ -34,6 +39,9 @@ const Container = styled(Row)`
     'reverse',
     `
     flex-direction: row-reverse;
+    ${mobile(`
+    ${column};
+  `)}
     > div:first-of-type {
       margin-left: ${size(17)};
     }
@@ -44,10 +52,17 @@ const Container = styled(Row)`
     }
   `,
   )}
+  ${mobile(`
+    ${column};
+    > div:first-of-type {
+      margin-right: 0;
+      margin-left: 0;
+      margin-bottom: ${size(5)};
+    }
+  `)}
   flex-wrap: none;
   align-items: flex-start;
   width: 100%;
-  padding: ${size(4)};
   &:hover {
     ${Image} {
       transform: translate(0, -4px);

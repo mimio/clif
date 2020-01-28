@@ -2,7 +2,7 @@ import React from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { ChildrenPropType } from 'utils/prop-types';
-import { getBool, getStyle, size } from 'styles';
+import { mobile, tablet, getBool, getStyle, size } from 'styles';
 import { centered, itemColumn } from 'styles/layout';
 import Header from './Header';
 import { Full } from './layout';
@@ -26,11 +26,21 @@ const ForegroundContentContainer = styled(Full)`
   ${itemColumn};
   align-items: flex-start;
   z-index: 1;
+  overflow-y: auto;
+  pointer-events: auto;
   padding-top: ${size(52)};
   padding-right: ${size(30)};
   padding-bottom: ${size(20)};
-  overflow-y: auto;
-  pointer-events: auto;
+  ${tablet(`
+    padding-top: ${size(48)};
+    padding-right: ${size(23)};
+    padding-bottom: ${size(20)};
+  `)}
+  ${mobile(`
+    padding-top: ${size(24)};
+    padding-right: ${size(17)};
+    padding-bottom: ${size(10)};
+  `)}
 `;
 
 const ForegroundContainer = styled.div`
@@ -41,6 +51,10 @@ const ForegroundContainer = styled.div`
   left: ${size(28)};
   width: calc(100% - ${size(28)});
   pointer-events: none;
+  ${tablet(`
+    left: ${size(4)};
+    width: calc(100% - ${size(4)});
+  `)}
 `;
 
 const BackgroundContainer = styled(Full)`
