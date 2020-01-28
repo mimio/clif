@@ -17,14 +17,16 @@ import {
 import {
   CLEAR_SELECTION,
   HOVER_FEATURE,
-  MAP_LOADED,
+  SET_MAP_LOADED,
   SELECT_FEATURE,
   UNHOVER_FEATURE,
   SET_POPUP_ID,
+  RESET_MAP,
 } from './types';
 
-export const mapLoaded = () => ({
-  type: MAP_LOADED,
+export const setMapLoaded = isLoaded => ({
+  type: SET_MAP_LOADED,
+  payload: isLoaded,
 });
 
 export const fitBounds = () => (_, getState, getMap) => {
@@ -166,3 +168,7 @@ export const hoverFeature = e => (dispatch, getState, getMap) => {
     payload: id,
   });
 };
+
+export const resetMap = () => ({
+  type: RESET_MAP,
+});

@@ -2,12 +2,13 @@ import { connect } from 'react-redux';
 import {
   clearSelection,
   hoverFeature,
-  mapLoaded,
+  setMapLoaded,
   selectFeature,
   selectMapConfig,
   selectMapLayers,
   selectMapLoaded,
   unhoverFeature,
+  resetMap,
 } from 'modules/map';
 import Map from '../Map';
 
@@ -20,8 +21,9 @@ export default connect(
   {
     clearSelection,
     hoverFeature,
-    mapLoaded,
+    setMapLoaded,
     selectFeature,
     unhoverFeature,
+    resetMap,
   },
 )(Map);

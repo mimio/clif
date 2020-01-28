@@ -1,10 +1,11 @@
 import {
   CLEAR_SELECTION,
   HOVER_FEATURE,
-  MAP_LOADED,
+  SET_MAP_LOADED,
   SELECT_FEATURE,
   UNHOVER_FEATURE,
   SET_POPUP_ID,
+  RESET_MAP,
 } from './types';
 import { config } from './config';
 
@@ -44,11 +45,13 @@ export function mapReducer(state = initialState, action) {
         ...state,
         hoveredFeatureId: initialState.hoveredFeatureId,
       };
-    case MAP_LOADED:
+    case SET_MAP_LOADED:
       return {
         ...state,
-        mapLoaded: true,
+        mapLoaded: payload,
       };
+    case RESET_MAP:
+      return initialState;
     default:
       return state;
   }

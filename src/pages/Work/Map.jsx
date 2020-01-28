@@ -48,9 +48,10 @@ class Map extends Component {
     isMapLoaded: PropTypes.bool.isRequired,
     mapConfig: PropTypes.object,
     mapLayers: PropTypes.array.isRequired,
-    mapLoaded: PropTypes.func.isRequired,
+    setMapLoaded: PropTypes.func.isRequired,
     selectFeature: PropTypes.func.isRequired,
     unhoverFeature: PropTypes.func.isRequired,
+    resetMap: PropTypes.func.isRequired,
   };
 
   static defaultProps = {
@@ -59,6 +60,10 @@ class Map extends Component {
 
   componentDidMount() {
     this.initialize();
+  }
+
+  componentWillUnmount() {
+    this.props.resetMap();
   }
 
   initialize = () => {
@@ -99,10 +104,10 @@ class Map extends Component {
     });
 
   onMapLoaded = () => {
-    const { clearSelection, mapLoaded, mapLayers } = this.props;
+    const { clearSelection, setMapLoaded, mapLayers } = this.props;
     this.addLayers();
     // this.addControls();
-    this.map.on('idle', () => mapLoaded());
+    this.map.on('idle', () => setMapLoaded(true));
     this.map.on('click', e => {
       if (
         this.map.queryRenderedFeatures(e.point, {
