@@ -119,7 +119,7 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
       { source: WORK_SOURCE, id },
       { selected: true },
     );
-    return dispatch({
+    dispatch({
       type: SELECT_FEATURE,
       payload: id,
     });
@@ -137,7 +137,7 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
       .setLngLat(feature.coordinates)
       .setHTML(`<div id="${popupId}"></div>`)
       .addTo(map);
-    return dispatch(setPopupId(popupId));
+    dispatch(setPopupId(popupId));
   }
   return null;
 };
