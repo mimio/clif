@@ -6,7 +6,8 @@ import { Link, Column } from 'components';
 import { EnvelopeIcon } from 'icons';
 import email from 'constants/email';
 import { orderedTabs, HELLO } from 'constants/tabs';
-// import useSetCursor from './hooks/useSetCursor';s
+// import useSetCursor from './hooks/useSetCursor';
+import useWatchScreenSize from 'hooks/useWatchScreenSize';
 // import Cursor from './containers/Cursor';
 import Navigation from './components/Navigation';
 import Pages from './pages';
@@ -39,6 +40,7 @@ const ContactLink = styled(Link)`
 
 const App = () => {
   // useSetCursor();
+  useWatchScreenSize();
   const { tabId } = useParams();
   if (!orderedTabs.includes(tabId)) {
     useHistory().push(`/${HELLO}`);

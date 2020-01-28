@@ -1,24 +1,18 @@
-import { SELECT_TAB, SET_PROGRESS, SET_CURSOR } from './actions';
+import { SET_SCREEN_SIZE, SET_CURSOR } from './actions';
 
 const initialState = {
-  selectedTab: null,
-  progress: 0,
   mouseCoordinates: [0, 0],
   isCursorActive: false,
+  screenSize: null,
 };
 
 export function appReducer(state = initialState, action) {
   const { type, payload } = action;
   switch (type) {
-    case SELECT_TAB:
+    case SET_SCREEN_SIZE:
       return {
         ...state,
-        selectedTab: payload,
-      };
-    case SET_PROGRESS:
-      return {
-        ...state,
-        progress: payload,
+        screenSize: payload,
       };
     case SET_CURSOR: {
       const { x, y, isActive } = payload;
