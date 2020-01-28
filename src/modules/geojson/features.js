@@ -1,7 +1,7 @@
 export default [
   {
     company: 'New York State Parks',
-    role: 'Geospatial Technician I, Cartographer',
+    role: 'Geospatial Technician I',
     description:
       'I produced over 100 trailmaps and master planning maps for 20 New York state parks using ArcGIS 10.3, Python scripting, and Adobe Illustrator.',
     date: { start: 1420348252000, end: 1467609052000 },
