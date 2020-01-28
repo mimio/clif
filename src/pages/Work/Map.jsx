@@ -8,6 +8,7 @@ import { Full } from 'components';
 import { setMap } from 'utils/map';
 
 const MapContainer = styled(Full)`
+  z-index: 1;
   .mapboxgl-map {
     height: 100%;
     width: 100%;

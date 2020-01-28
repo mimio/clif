@@ -105,6 +105,11 @@ export const selectSelectedFeatureId = createSelector(
   map => get(map, 'selectedFeatureId'),
 );
 
+export const selectIsFeatureSelected = createSelector(
+  selectSelectedFeatureId,
+  id => !!id,
+);
+
 export const selectSelectedFeature = createSelector(
   selectSelectedFeatureId,
   selectLookup,
