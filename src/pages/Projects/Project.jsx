@@ -38,13 +38,26 @@ const StyledLink = styled(Link)`
 `;
 
 const Container = styled(Row)`
+  flex-wrap: none;
+  align-items: flex-start;
+  width: 100%;
+  max-width: ${size(280)};
+  &:hover {
+    ${Image} {
+      transform: translate(0, -4px);
+      filter: grayscale(0%);
+    }
+    ${StyledLink} {
+      opacity: 1;
+    }
+  }
   ${getBool(
     'reverse',
     `
     flex-direction: row-reverse;
     ${mobile(`
-    ${column};
-  `)}
+      ${column};
+    `)}
     > div:first-of-type {
       margin-left: ${size(17)};
     }
@@ -63,18 +76,6 @@ const Container = styled(Row)`
       margin-bottom: ${size(5)};
     }
   `)}
-  flex-wrap: none;
-  align-items: flex-start;
-  width: 100%;
-  &:hover {
-    ${Image} {
-      transform: translate(0, -4px);
-      filter: grayscale(0%);
-    }
-    ${StyledLink} {
-      opacity: 1;
-    }
-  }
 `;
 
 const Project = ({ title, subtitle, imgSrc, href, index }) => (
