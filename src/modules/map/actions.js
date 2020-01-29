@@ -3,7 +3,7 @@ import uuid from 'uuid/v4';
 import { Popup } from 'mapbox-gl';
 import sizes from 'styles/sizes';
 import { WORK_SOURCE } from 'constants/source';
-import { BOUNDS_PADDING } from 'constants/map';
+import { BOUNDS_PADDING, BOUNDS_PADDING_MOBILE } from 'constants/map';
 import { selectIsMobile } from '../app/selectors';
 import {
   selectLookup,
@@ -16,6 +16,7 @@ import {
   selectPopupId,
   selectNextFeatureId,
   selectPrevFeatureId,
+  selectIsFeatureSelected,
 } from './selectors';
 import {
   CLEAR_SELECTION,
@@ -36,10 +37,15 @@ export const fitBounds = () => (_, getState, getMap) => {
   const state = getState();
   const map = getMap();
   const bounds = selectGeoJsonBounds(state);
+  const isMobile = selectIsMobile(state);
+  const isFeatureSelected = selectIsFeatureSelected(state);
 
   if (bounds) {
     map.fitBounds(bounds, {
-      padding: BOUNDS_PADDING,
+      padding:
+        isMobile && isFeatureSelected
+          ? BOUNDS_PADDING_MOBILE
+          : BOUNDS_PADDING,
     });
   }
 };
@@ -117,7 +123,8 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
 
   map.flyTo({
     center: feature.coordinates,
-    offset: [0, isMobile ? 0 : 180],
+    offset: [0, isMobile ? -60 : 180],
+    zoom: 12,
   });
 
   if (id !== prevSelectedId) {

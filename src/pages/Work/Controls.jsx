@@ -14,9 +14,7 @@ const Controls = ({
   selectPrevFeature,
 }) => (
   <ItemRow className={className}>
-    <Button onClick={fitBounds} Icon={ExpandIcon}>
-      RESET
-    </Button>
+    <Button onClick={fitBounds} Icon={ExpandIcon} />
     {isFeatureSelected && (
       <>
         <Button

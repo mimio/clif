@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import styled from '@emotion/styled';
 import Page from 'components/Page';
-import { getStyle } from 'styles';
+import { getStyle, tablet } from 'styles';
 import Popup from './containers/Popup';
 import Map from './containers/Map';
 import Controls from './containers/Controls';
@@ -13,6 +13,9 @@ const DesktopControls = styled(Controls)`
   bottom: ${getStyle('pageMinimumPadding')};
   left: ${getStyle('foregroundLeftPadding')};
   z-index: 6;
+  ${tablet(`
+    left: ${getStyle('pageMinimumPadding')};
+  `)}
 `;
 
 const Work = ({ isMobile }) => (

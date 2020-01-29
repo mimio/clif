@@ -77,7 +77,7 @@ const Page = ({
 }) => (
   <>
     <ForegroundContainer>
-      <HeaderContainer hasForeground={fadeForeground} sp={8}>
+      <HeaderContainer hasForeground={fadeForeground} sp={4}>
         <Header />
         {Subheader}
       </HeaderContainer>
