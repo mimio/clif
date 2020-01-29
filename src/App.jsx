@@ -7,8 +7,6 @@ import { EnvelopeIcon } from 'icons';
 import email from 'constants/email';
 import { orderedTabs, HELLO } from 'constants/tabs';
 import useWatchScreenSize from 'hooks/useWatchScreenSize';
-// import useSetCursor from './hooks/useSetCursor';
-// import Cursor from './containers/Cursor';
 import Navigation from './components/Navigation';
 import Pages from './pages';
 
@@ -39,7 +37,6 @@ const ContactLink = styled(Link)`
 `;
 
 const App = () => {
-  // useSetCursor();
   useWatchScreenSize();
   const { tabId } = useParams();
   if (!orderedTabs.includes(tabId)) {
@@ -49,7 +46,6 @@ const App = () => {
 
   return (
     <Container>
-      {/* <Cursor /> */}
       <StyledNavigation />
       <ContactLink
         href={`mailto:${email}`}
