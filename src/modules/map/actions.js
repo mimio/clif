@@ -14,6 +14,8 @@ import {
   selectMapLoaded,
   selectSelectedFeatureId,
   selectPopupId,
+  selectNextFeatureId,
+  selectPrevFeatureId,
 } from './selectors';
 import {
   CLEAR_SELECTION,
@@ -85,13 +87,13 @@ export const clearSelection = () => (dispatch, getState, getMap) => {
 };
 
 const getId = (map, e) => {
-  const features = map.queryRenderedFeatures(e.point);
+  if (typeof e === 'number' || typeof e === 'string') return e;
   try {
+    const features = map.queryRenderedFeatures(e.point);
     return get(features, '[0].properties.id', null);
   } catch (err) {
-    // do nothing
     console.log(err);
-    return null;
+    return e;
   }
 };
 
@@ -110,6 +112,7 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
   const prevSelectedId = selectSelectedFeatureId(state);
 
   const id = getId(map, e);
+  console.log({ e, id });
   if (!id) return null;
   const feature = selectLookup(state)[id];
 
@@ -150,6 +153,19 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
     dispatch(setPopupId(popupId));
   }
   return null;
+};
+
+export const selectNextFeature = () => (dispatch, getState) => {
+  const state = getState();
+  const nextFeatureId = selectNextFeatureId(state);
+  console.log({ nextFeatureId });
+  return dispatch(selectFeature(nextFeatureId));
+};
+
+export const selectPrevFeature = () => (dispatch, getState) => {
+  const state = getState();
+  const prevFeatureId = selectPrevFeatureId(state);
+  return dispatch(selectFeature(prevFeatureId));
 };
 
 export const hoverFeature = e => (dispatch, getState, getMap) => {

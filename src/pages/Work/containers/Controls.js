@@ -1,8 +1,19 @@
 import { connect } from 'react-redux';
-import { fitBounds } from 'modules/map';
+import {
+  fitBounds,
+  selectIsFeatureSelected,
+  selectIsFirstFeatureSelected,
+  selectIsLastFeatureSelected,
+  selectNextFeature,
+  selectPrevFeature,
+} from 'modules/map';
 import Controls from '../Controls';
 
 export default connect(
-  null,
-  { fitBounds },
+  state => ({
+    isFeatureSelected: selectIsFeatureSelected(state),
+    isFirstFeatureSelected: selectIsFirstFeatureSelected(state),
+    isLastFeatureSelected: selectIsLastFeatureSelected(state),
+  }),
+  { fitBounds, selectNextFeature, selectPrevFeature },
 )(Controls);

@@ -41,12 +41,22 @@ export const selectIsInitialized = createSelector(
   state => state.updateCount > 0,
 );
 
-export const selectWorkPathGeoJson = createSelector(
+export const selectChronologicalFeatures = createSelector(
   selectFeatureList,
+  features => features.sort((a, b) => a.date.end > b.date.end),
+);
+
+export const selectChronologicalFeatureIds = createSelector(
+  selectChronologicalFeatures,
+  features => features.map(({ id }) => id),
+);
+
+export const selectWorkPathGeoJson = createSelector(
+  selectChronologicalFeatures,
   features => {
-    const orderedCoords = features
-      .sort((a, b) => a.date.end > b.date.end)
-      .map(({ coordinates }) => coordinates);
+    const orderedCoords = features.map(
+      ({ coordinates }) => coordinates,
+    );
     return lineString(orderedCoords);
   },
 );

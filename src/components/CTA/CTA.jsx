@@ -35,6 +35,16 @@ const StyledLink = styled.a`
   svg {
     width: ${size(4)};
   }
+  ${getBool(
+    'hasChildren',
+    '',
+    `
+    svg {
+      margin-right: 0;
+      margin-bottom: 0;
+    }
+  `,
+  )}
   &:hover,
   &:active,
   &:focus {
@@ -44,6 +54,13 @@ const StyledLink = styled.a`
   &:active {
     opacity: 0.7 !important;
   }
+  ${getBool(
+    'disabled',
+    `
+    opacity: 0.5;
+    pointer-events: none;
+  `,
+  )}
 `;
 
 const StyledButton = StyledLink.withComponent('button');
@@ -51,6 +68,7 @@ const StyledButton = StyledLink.withComponent('button');
 const Link = ({
   children,
   className,
+  disabled,
   href,
   Icon,
   vertical,
@@ -70,6 +88,8 @@ const Link = ({
       className={className}
       vertical={vertical}
       onClick={onClick}
+      disabled={disabled}
+      hasChildren={!!children}
       {...props}
     >
       <Icon />
@@ -80,8 +100,9 @@ const Link = ({
 
 Link.propTypes = {
   Icon: ChildrenPropType.isRequired,
-  children: PropTypes.string.isRequired,
+  children: PropTypes.string,
   className: PropTypes.string,
+  disabled: PropTypes.bool,
   href: PropTypes.string,
   isLink: PropTypes.bool,
   onClick: PropTypes.func,
@@ -90,6 +111,8 @@ Link.propTypes = {
 
 Link.defaultProps = {
   className: '',
+  children: null,
+  disabled: false,
   href: '',
   isLink: false,
   onClick() {},

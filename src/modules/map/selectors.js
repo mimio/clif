@@ -11,6 +11,7 @@ import {
   selectLookup,
   selectGeoJsonBounds,
   selectWorkPathGeoJson,
+  selectChronologicalFeatureIds,
 } from '../geojson/selectors';
 
 export const selectMapState = state => state.map;
@@ -114,6 +115,38 @@ export const selectSelectedFeature = createSelector(
   selectSelectedFeatureId,
   selectLookup,
   (id, lookup) => get(lookup, id, {}),
+);
+
+export const selectIsFirstFeatureSelected = createSelector(
+  selectSelectedFeatureId,
+  selectChronologicalFeatureIds,
+  (id, ids) => ids.indexOf(id) === 0,
+);
+
+export const selectIsLastFeatureSelected = createSelector(
+  selectSelectedFeatureId,
+  selectChronologicalFeatureIds,
+  (id, ids) => ids.indexOf(id) === ids.length - 1,
+);
+
+export const selectPrevFeatureId = createSelector(
+  selectSelectedFeatureId,
+  selectChronologicalFeatureIds,
+  selectIsFirstFeatureSelected,
+  (id, ids, bail) => {
+    if (bail) return id;
+    return ids[ids.indexOf(id) - 1];
+  },
+);
+
+export const selectNextFeatureId = createSelector(
+  selectSelectedFeatureId,
+  selectChronologicalFeatureIds,
+  selectIsLastFeatureSelected,
+  (id, ids, bail) => {
+    if (bail) return id;
+    return ids[ids.indexOf(id) + 1];
+  },
 );
 
 export const selectPopupId = createSelector(
