@@ -113,6 +113,11 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
   if (!id) return null;
   const feature = selectLookup(state)[id];
 
+  map.flyTo({
+    center: feature.coordinates,
+    offset: [0, 100],
+  });
+
   if (id !== prevSelectedId) {
     if (prevSelectedId) {
       map.setFeatureState(
