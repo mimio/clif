@@ -1,11 +1,17 @@
-// import React from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
 // import styled from '@emotion/styled';
+import { Button } from 'components';
+import { ExpandIcon } from 'icons';
 
-const Controls = () => null;
+const Controls = ({ fitBounds }) => (
+  <Button onClick={fitBounds} Icon={ExpandIcon}>
+    RESET
+  </Button>
+);
 
 Controls.propTypes = {
-  resetBounds: PropTypes.func.isRequired,
+  fitBounds: PropTypes.func.isRequired,
 };
 
 export default Controls;

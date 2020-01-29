@@ -3,11 +3,13 @@ import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { ChildrenPropType } from 'utils/prop-types';
 import { mobile, tablet, getBool, getStyle, size } from 'styles';
-import { centered } from 'styles/layout';
+import { centered, itemColumn } from 'styles/layout';
 import Header from './Header';
 import { Full } from './layout';
 
 const HeaderContainer = styled(Full)`
+  ${itemColumn};
+  align-items: flex-start;
   height: min-content;
   width: calc(100% - ${size(15)});
   z-index: 2;
@@ -67,22 +69,26 @@ const BackgroundContainer = styled(Full)`
   ${centered};
 `;
 
-const Page = ({ Background, Foreground, fadeForeground }) => (
+const Page = ({
+  Background,
+  Foreground,
+  Subheader,
+  fadeForeground,
+}) => (
   <>
     <ForegroundContainer>
-      <HeaderContainer hasForeground={fadeForeground}>
+      <HeaderContainer hasForeground={fadeForeground} sp={8}>
         <Header />
+        {Subheader}
       </HeaderContainer>
       {Foreground && (
         <ForegroundContentContainer>
-          <Foreground />
+          {Foreground}
         </ForegroundContentContainer>
       )}
     </ForegroundContainer>
     {Background && (
-      <BackgroundContainer>
-        <Background />
-      </BackgroundContainer>
+      <BackgroundContainer>{Background}</BackgroundContainer>
     )}
   </>
 );
@@ -90,12 +96,14 @@ const Page = ({ Background, Foreground, fadeForeground }) => (
 Page.propTypes = {
   Background: ChildrenPropType,
   Foreground: ChildrenPropType,
+  Subheader: ChildrenPropType,
   fadeForeground: PropTypes.bool,
 };
 
 Page.defaultProps = {
   Background: null,
   Foreground: null,
+  Subheader: null,
   fadeForeground: false,
 };
 

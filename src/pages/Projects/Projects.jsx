@@ -5,9 +5,9 @@ import Project from './Project';
 
 export default () => (
   <Page
-    Foreground={() =>
-      projects.map((project, i) => <Project {...project} index={i} />)
-    }
+    Foreground={projects.map((project, i) => (
+      <Project {...project} index={i} />
+    ))}
     fadeForeground
   />
 );

@@ -38,7 +38,6 @@ export const fitBounds = () => (_, getState, getMap) => {
   if (bounds) {
     map.fitBounds(bounds, {
       padding: BOUNDS_PADDING,
-      maxZoom: 8,
     });
   }
 };

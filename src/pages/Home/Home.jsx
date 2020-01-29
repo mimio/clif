@@ -14,7 +14,7 @@ const blurb =
 
 export default () => (
   <Page
-    Background={Globe}
-    Foreground={() => <IntroBlurb>{blurb}</IntroBlurb>}
+    Background={<Globe />}
+    Foreground={<IntroBlurb>{blurb}</IntroBlurb>}
   />
 );

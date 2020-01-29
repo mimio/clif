@@ -9,6 +9,8 @@ import styled from '@emotion/styled';
 const StyledLink = styled.a`
   ${centered};
   border: ${getStyle('ctaBorder')};
+  cursor: pointer;
+  background: transparent;
   ${getBool(
     'vertical',
     `
@@ -44,6 +46,8 @@ const StyledLink = styled.a`
   }
 `;
 
+const StyledButton = StyledLink.withComponent('button');
+
 const Link = ({
   children,
   className,
@@ -53,6 +57,7 @@ const Link = ({
   isLink,
   onClick,
 }) => {
+  const Container = isLink ? StyledLink : StyledButton;
   const props = isLink
     ? {
         href,
@@ -61,7 +66,7 @@ const Link = ({
       }
     : {};
   return (
-    <StyledLink
+    <Container
       className={className}
       vertical={vertical}
       onClick={onClick}
@@ -69,7 +74,7 @@ const Link = ({
     >
       <Icon />
       {children}
-    </StyledLink>
+    </Container>
   );
 };
 
