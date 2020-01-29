@@ -4,6 +4,7 @@ import { Popup } from 'mapbox-gl';
 import sizes from 'styles/sizes';
 import { WORK_SOURCE } from 'constants/source';
 import { BOUNDS_PADDING } from 'constants/map';
+import { selectIsMobile } from '../app/selectors';
 import {
   selectLookup,
   selectGeoJsonBounds,
@@ -105,6 +106,7 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
   if (!selectMapLoaded(state)) return null;
   const map = getMap();
 
+  const isMobile = selectIsMobile(state);
   const prevPopupId = selectPopupId(state);
   const prevSelectedId = selectSelectedFeatureId(state);
 
@@ -129,7 +131,7 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
     });
   }
 
-  if (id !== prevSelectedId || !prevPopupId) {
+  if ((id !== prevSelectedId || !prevPopupId) && !isMobile) {
     removePopup();
     const popupId = uuid();
     popup = new Popup({

@@ -44,28 +44,50 @@ const StyledLink = styled.a`
   }
 `;
 
-const Link = ({ children, className, href, Icon, vertical }) => (
-  <StyledLink
-    className={className}
-    href={href}
-    target="_blank"
-    rel="noopener noreferrer"
-    vertical={vertical}
-  >
-    <Icon />
-    {children}
-  </StyledLink>
-);
+const Link = ({
+  children,
+  className,
+  href,
+  Icon,
+  vertical,
+  isLink,
+  onClick,
+}) => {
+  const props = isLink
+    ? {
+        href,
+        target: '_blank',
+        rel: 'noopener noreferrer',
+      }
+    : {};
+  return (
+    <StyledLink
+      className={className}
+      vertical={vertical}
+      onClick={onClick}
+      {...props}
+    >
+      <Icon />
+      {children}
+    </StyledLink>
+  );
+};
 
 Link.propTypes = {
-  children: PropTypes.string.isRequired,
-  className: PropTypes.string.isRequired,
-  href: PropTypes.string.isRequired,
   Icon: ChildrenPropType.isRequired,
+  children: PropTypes.string.isRequired,
+  className: PropTypes.string,
+  href: PropTypes.string,
+  isLink: PropTypes.bool,
+  onClick: PropTypes.func,
   vertical: PropTypes.bool,
 };
 
 Link.defaultProps = {
+  className: '',
+  href: '',
+  isLink: false,
+  onClick() {},
   vertical: false,
 };
 

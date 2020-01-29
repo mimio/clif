@@ -68,8 +68,8 @@ export const selectMapLayers = createSelector(
       },
       paint: {
         'circle-color': colors.ctaBackground1,
-        'circle-radius': 8,
-        'circle-stroke-width': makeSelectedCase(10, 8),
+        'circle-radius': makeSelectedCase(8, 6),
+        'circle-stroke-width': makeSelectedCase(10, 5),
         'circle-stroke-color': colors.ctaBackground1,
         'circle-stroke-opacity': makeHoverCase(0.3, 0.2),
       },

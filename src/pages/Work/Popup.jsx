@@ -14,6 +14,18 @@ const Container = styled(ItemColumn)`
   overflow-y: auto;
   width: 100%;
   height: 100%;
+  box-shadow: 0 2px 4px rgba(180, 180, 180, 0.3);
+  @keyframes slidein {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  animation: 0.22s linear forwards slidein;
   ${getBool(
     'isMobile',
     `
