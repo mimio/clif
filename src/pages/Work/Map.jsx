@@ -22,7 +22,8 @@ const MapContainer = styled(Full)`
     padding: 0;
     background: none;
   }
-  .mapboxgl-popup-tip {
+  .mapboxgl-popup-tip,
+  .mapboxgl-ctrl-logo {
     display: none;
   }
 `;

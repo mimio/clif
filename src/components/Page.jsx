@@ -53,14 +53,14 @@ const ForegroundContentContainer = styled(Full)`
 const ForegroundContainer = styled.div`
   z-index: 3;
   position: absolute;
-  top: ${size(4)};
-  height: calc(100% - ${size(4)});
-  left: ${size(28)};
+  top: ${getStyle('pageMinimumPadding')};
+  height: calc(100% - ${getStyle('pageMinimumPadding')});
+  left: ${getStyle('foregroundLeftPadding')};
   width: calc(100% - ${size(28)});
   pointer-events: none;
   ${tablet(`
-    left: ${size(4)};
-    width: calc(100% - ${size(4)});
+    left: ${getStyle('pageMinimumPadding')};
+    width: calc(100% - ${getStyle('pageMinimumPadding')});
   `)}
 `;
 

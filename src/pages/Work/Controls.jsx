@@ -5,6 +5,7 @@ import { Button, ItemRow } from 'components';
 import { ArrowLeftIcon, ArrowRightIcon, ExpandIcon } from 'icons';
 
 const Controls = ({
+  className,
   fitBounds,
   isFeatureSelected,
   isFirstFeatureSelected,
@@ -12,7 +13,7 @@ const Controls = ({
   selectNextFeature,
   selectPrevFeature,
 }) => (
-  <ItemRow>
+  <ItemRow className={className}>
     <Button onClick={fitBounds} Icon={ExpandIcon}>
       RESET
     </Button>
@@ -34,12 +35,17 @@ const Controls = ({
 );
 
 Controls.propTypes = {
+  className: PropTypes.string,
   fitBounds: PropTypes.func.isRequired,
   isFeatureSelected: PropTypes.bool.isRequired,
   isFirstFeatureSelected: PropTypes.bool.isRequired,
   isLastFeatureSelected: PropTypes.bool.isRequired,
   selectNextFeature: PropTypes.func.isRequired,
   selectPrevFeature: PropTypes.func.isRequired,
+};
+
+Controls.defaultProps = {
+  className: '',
 };
 
 export default Controls;

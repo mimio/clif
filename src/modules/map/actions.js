@@ -112,13 +112,12 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
   const prevSelectedId = selectSelectedFeatureId(state);
 
   const id = getId(map, e);
-  console.log({ e, id });
   if (!id) return null;
   const feature = selectLookup(state)[id];
 
   map.flyTo({
     center: feature.coordinates,
-    offset: [0, 100],
+    offset: [0, isMobile ? 0 : 180],
   });
 
   if (id !== prevSelectedId) {
@@ -158,7 +157,6 @@ export const selectFeature = e => (dispatch, getState, getMap) => {
 export const selectNextFeature = () => (dispatch, getState) => {
   const state = getState();
   const nextFeatureId = selectNextFeatureId(state);
-  console.log({ nextFeatureId });
   return dispatch(selectFeature(nextFeatureId));
 };
 
