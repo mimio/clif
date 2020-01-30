@@ -50,6 +50,20 @@ const ForegroundContentContainer = styled(Full)`
   `)}
 `;
 
+const pageSlideIn = `
+  @keyframes slidein {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  animation: 0.3s ease-in forwards slidein;
+`;
+
 const ForegroundContainer = styled.div`
   z-index: 3;
   position: absolute;
@@ -58,6 +72,7 @@ const ForegroundContainer = styled.div`
   left: ${getStyle('foregroundLeftPadding')};
   width: calc(100% - ${size(28)});
   pointer-events: none;
+  ${pageSlideIn};
   ${tablet(`
     left: ${getStyle('pageMinimumPadding')};
     width: calc(100% - ${getStyle('pageMinimumPadding')});
