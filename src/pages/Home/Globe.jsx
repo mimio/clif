@@ -48,7 +48,7 @@ export default class Globe extends Component {
 
   componentDidMount() {
     this.interval = setInterval(() => {
-      const change = this.coords[0] > 0 ? 0.1 : -0.1;
+      const change = this.coords[0] >= 0 ? 0.1 : -0.1;
       this.setState(({ rotationX }) => ({
         rotationX: rotationX + change,
       }));
