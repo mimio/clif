@@ -47,12 +47,7 @@ export default class Globe extends Component {
   };
 
   componentDidMount() {
-    this.interval = setInterval(() => {
-      const change = this.coords[0] >= 0 ? 0.1 : -0.1;
-      this.setState(({ rotationX }) => ({
-        rotationX: rotationX + change,
-      }));
-    }, 20);
+    this.interval = setInterval(this.rotate, 20);
     this.mouseListener = window.addEventListener(
       'mousemove',
       this.onMouseMove,
@@ -68,6 +63,13 @@ export default class Globe extends Component {
     window.removeEventListener('touchmove', this.touchListener);
     window.removeEventListener('mousemove', this.mouseListener);
   }
+
+  rotate = () => {
+    const change = this.coords[0] >= 0 ? 0.1 : -0.1;
+    this.setState(({ rotationX }) => ({
+      rotationX: rotationX + change,
+    }));
+  };
 
   onTouchMove = e => {
     const { clientX, clientY } = get(e, 'touches[0]');
