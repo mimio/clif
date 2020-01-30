@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import { get } from 'lodash-es';
 import styled from '@emotion/styled';
 import { getStyle } from 'styles';
 import { geoOrthographic, geoPath } from 'd3';
@@ -53,16 +54,27 @@ export default class Globe extends Component {
     }, 20);
     this.mouseListener = window.addEventListener(
       'mousemove',
-      this.updateCursor,
+      this.onMouseMove,
+    );
+    this.touchListener = window.addEventListener(
+      'touchmove',
+      this.onTouchMove,
     );
   }
 
   componentWillUnmount() {
     clearInterval(this.interval);
+    window.removeEventListener('touchmove', this.touchListener);
     window.removeEventListener('mousemove', this.mouseListener);
   }
 
-  updateCursor = ({ clientX, clientY }) => {
+  onTouchMove = e => {
+    const { clientX, clientY } = get(e, 'touches[0]');
+    if (!clientX || !clientY) return;
+    this.coords = normalizeCursorLocation([clientX, clientY]);
+  };
+
+  onMouseMove = ({ clientX, clientY }) => {
     this.coords = normalizeCursorLocation([clientX, clientY]);
   };
 
