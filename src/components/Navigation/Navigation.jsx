@@ -63,9 +63,6 @@ const StyledLink = styled(Link)`
 
 const Container = styled(ItemColumn)`
   position: relative;
-  > a:not(a:last-child) {
-    margin-right: ${size(8)};
-  }
 `;
 
 const copy = {
