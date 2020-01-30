@@ -64,6 +64,7 @@ export default class Globe extends Component {
     window.removeEventListener('mousemove', this.mouseListener);
   }
 
+  // rotation drives this animation -- putting mouse movement on component state froze animation so opted to set cursor related state on a non-state object
   rotate = () => {
     const change = this.coords[0] >= 0 ? 0.1 : -0.1;
     this.setState(({ rotationX }) => ({
