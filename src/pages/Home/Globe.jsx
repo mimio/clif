@@ -19,6 +19,13 @@ const normalizeCursorLocation = ([x, y]) => {
   return [_x, _y];
 };
 
+const bufferChange = (val, oldVal) => {
+  const difference = oldVal - val;
+  const max = 0.3;
+  const smallerChange = difference < 0 ? max : -max;
+  return Math.abs(difference) > max ? oldVal + smallerChange : val;
+};
+
 const Svg = styled.svg`
   fill: transparent;
   stroke: ${getStyle('text2')};
@@ -27,6 +34,12 @@ const Svg = styled.svg`
 
 export default class Globe extends Component {
   coords = [0, 0];
+
+  translateX = 200;
+
+  rotationY = 0;
+
+  translateY = 200;
 
   state = {
     rotationX: 1000,
@@ -40,9 +53,7 @@ export default class Globe extends Component {
     }, 20);
     this.mouseListener = window.addEventListener(
       'mousemove',
-      ({ clientX, clientY }) => {
-        this.coords = normalizeCursorLocation([clientX, clientY]);
-      },
+      this.updateCursor,
     );
   }
 
@@ -51,16 +62,28 @@ export default class Globe extends Component {
     window.removeEventListener('mousemove', this.mouseListener);
   }
 
+  updateCursor = ({ clientX, clientY }) => {
+    this.coords = normalizeCursorLocation([clientX, clientY]);
+  };
+
   getPathString = () => {
     const { rotationX } = this.state;
     const globeSize = 400;
-    const rotationY = this.coords[1] * 8;
-    const translateX = globeSize / 2 + this.coords[0] * 4;
-    const translateY = globeSize / 2 + this.coords[1] * 8;
+
+    this.rotationY = bufferChange(this.coords[1] * 8, this.rotationY);
+    this.translateX = bufferChange(
+      globeSize / 2 + this.coords[0] * 4,
+      this.translateX,
+    );
+    this.translateY = bufferChange(
+      globeSize / 2 + this.coords[1] * 8,
+      this.translateY,
+    );
+
     const projection = geoOrthographic()
       .fitSize([globeSize, globeSize], geojson)
-      .rotate([rotationX, rotationY])
-      .translate([translateX, translateY]);
+      .rotate([rotationX, this.rotationY])
+      .translate([this.translateX, this.translateY]);
 
     const geoGenerator = geoPath().projection(projection);
     return geoGenerator(geojson);
