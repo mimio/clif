@@ -48,8 +48,9 @@ export default class Globe extends Component {
 
   componentDidMount() {
     this.interval = setInterval(() => {
+      const change = this.coords[0] > 0 ? 0.1 : -0.1;
       this.setState(({ rotationX }) => ({
-        rotationX: rotationX + 0.1,
+        rotationX: rotationX + change,
       }));
     }, 20);
     this.mouseListener = window.addEventListener(
