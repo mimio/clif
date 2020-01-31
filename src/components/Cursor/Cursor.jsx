@@ -17,8 +17,7 @@ const StyledCursor = styled(Centered)`
   position: fixed;
   transform: translate(-50%, -50%);
   transition: ${getStyle('easeOutSize')};
-  background: ${getStyle('ctaBackground2')};
-  background: white;
+  background: ${getStyle('ctaBackground1')};
   mix-blend-mode: exclusion;
   z-index: 10000;
   border-radius: 50%;
