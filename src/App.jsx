@@ -3,6 +3,7 @@ import styled from '@emotion/styled';
 import { useHistory, useParams } from 'react-router-dom';
 import { mobile, getStyle, size } from 'styles';
 import { Link, Column } from 'components';
+import Cursor from 'components/Cursor';
 import { EnvelopeIcon } from 'icons';
 import email from 'constants/email';
 import { orderedTabs, HELLO } from 'constants/tabs';
@@ -46,6 +47,7 @@ const App = () => {
 
   return (
     <Container>
+      <Cursor />
       <StyledNavigation />
       <ContactLink
         href={`mailto:${email}`}

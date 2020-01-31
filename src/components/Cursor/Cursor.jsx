@@ -1,46 +1,54 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { get } from 'lodash-es';
 import styled from '@emotion/styled';
-import PropTypes from 'prop-types';
-import { MouseCoordPropType } from 'utils/prop-types';
-import { getBool, getProp, getStyle, size } from 'styles';
+import { getStyle, size } from 'styles';
+import { Centered } from '../layout';
 
-const Container = styled.div`
-  pointer-events: none;
-  position: absolute;
-  height: 100%;
-  width: 100%;
-  left: 0;
-  bottom: 0;
-  z-index: 1000;
-`;
+const isElementActive = element =>
+  ['BUTTON', 'A'].includes(get(element, 'nodeName'));
 
-const StyledCursor = styled.div`
+const isTargetActive = target =>
+  isElementActive(target) ||
+  isElementActive(get(target, 'parentElement')) ||
+  isElementActive(get(target, 'parentElement.parentElement'));
+
+const StyledCursor = styled(Centered)`
   pointer-events: none;
-  position: absolute;
-  top: ${getProp('y')}px;
-  left: ${getProp('x')}px;
-  height: ${size(5)};
-  width: ${size(5)};
-  ${getBool(
-    'isActive',
-    `
-    height: ${size(8)};
-    width: ${size(8)};
-  `,
-  )};
+  position: fixed;
+  transform: translate(-50%, -50%);
   transition: ${getStyle('easeOutSize')};
   background: ${getStyle('ctaBackground2')};
+  background: white;
+  mix-blend-mode: exclusion;
+  z-index: 10000;
+  border-radius: 50%;
 `;
 
-const Cursor = ({ isCursorActive, mouseCoordinates: [x, y] }) => (
-  <Container>
-    <StyledCursor isActive={isCursorActive} x={x} y={y} />
-  </Container>
-);
+const Cursor = () => {
+  const cursorEl = useRef(null);
+  useEffect(() => {
+    const style = get(cursorEl, 'current.style', {});
+    const onMouseMove = ({ clientX, clientY, target }) => {
+      const active = isTargetActive(target);
+      const diameter = active ? 10 : 7;
+      style.top = `${clientY}px`;
+      style.left = `${clientX}px`;
+      style.height = size(diameter);
+      style.width = size(diameter);
+    };
+    const onMouseLeave = () => {
+      style.height = 0;
+      style.width = 0;
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseleave', onMouseLeave);
+    return () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseleave', onMouseLeave);
+    };
+  }, []);
 
-Cursor.propTypes = {
-  isCursorActive: PropTypes.bool.isRequired,
-  mouseCoordinates: MouseCoordPropType.isRequired,
+  return <StyledCursor ref={cursorEl} isOnScreen />;
 };
 
 export default Cursor;

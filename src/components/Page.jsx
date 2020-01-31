@@ -89,6 +89,7 @@ const Page = ({
   Foreground,
   Subheader,
   fadeForeground,
+  onScroll,
 }) => (
   <>
     <ForegroundContainer>
@@ -97,7 +98,7 @@ const Page = ({
         {Subheader}
       </HeaderContainer>
       {Foreground && (
-        <ForegroundContentContainer>
+        <ForegroundContentContainer onScroll={onScroll}>
           {Foreground}
         </ForegroundContentContainer>
       )}
@@ -113,6 +114,7 @@ Page.propTypes = {
   Foreground: ChildrenPropType,
   Subheader: ChildrenPropType,
   fadeForeground: PropTypes.bool,
+  onScroll: PropTypes.func,
 };
 
 Page.defaultProps = {
@@ -120,6 +122,7 @@ Page.defaultProps = {
   Foreground: null,
   Subheader: null,
   fadeForeground: false,
+  onScroll() {},
 };
 
 export default Page;

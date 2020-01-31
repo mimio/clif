@@ -11,7 +11,7 @@ const globalCss = css`
   *:before,
   *:after {
     box-sizing: inherit;
-    /* cursor: none !important; */
+    cursor: none !important;
   }
   * {
     ::-webkit-scrollbar {
