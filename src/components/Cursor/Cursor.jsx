@@ -51,11 +51,23 @@ const Cursor = () => {
       style.height = 0;
       style.width = 0;
     };
+    const onMouseDown = () => {
+      style.height = `calc(${style.height} - 4px)`;
+      style.width = `calc(${style.width} - 4px)`;
+    };
+    const onMouseUp = () => {
+      style.height = `calc(${style.height} + 4px)`;
+      style.width = `calc(${style.width} + 4px)`;
+    };
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseleave', onMouseLeave);
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mouseup', onMouseUp);
     return () => {
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseleave', onMouseLeave);
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('mouseup', onMouseUp);
     };
   }, []);
   if (isTouch) return null;
