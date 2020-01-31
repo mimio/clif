@@ -2,7 +2,6 @@ import React, { useEffect, useRef } from 'react';
 import { get } from 'lodash-es';
 import styled from '@emotion/styled';
 import { getStyle, size } from 'styles';
-import { Centered } from '../layout';
 
 const isElementActive = element =>
   ['BUTTON', 'A'].includes(get(element, 'nodeName'));
@@ -12,7 +11,25 @@ const isTargetActive = target =>
   isElementActive(get(target, 'parentElement')) ||
   isElementActive(get(target, 'parentElement.parentElement'));
 
-const StyledCursor = styled(Centered)`
+const isTouchScreen = () => {
+
+  const prefixes = ' -webkit- -moz- -o- -ms- '.split(' ');
+
+  const mq = function (query) {
+      return window.matchMedia(query).matches;
+  };
+
+  if (('ontouchstart' in window) || window.DocumentTouch && document instanceof DocumentTouch) {
+      return true;
+  }
+
+  // include the 'heartz' as a way to have a non matching MQ to help terminate the join
+  // https://git.io/vznFH
+  const query = ['(', prefixes.join('touch-enabled),('), 'heartz', ')'].join('');
+  return mq(query);
+};
+
+const StyledCursor = styled.div`
   pointer-events: none;
   position: fixed;
   transform: translate(-50%, -50%);
@@ -23,9 +40,12 @@ const StyledCursor = styled(Centered)`
   border-radius: 50%;
 `;
 
+let isTouch = false;
 const Cursor = () => {
   const cursorEl = useRef(null);
   useEffect(() => {
+    isTouch = isTouchScreen();
+    if (isTouch) return () => {};
     const style = get(cursorEl, 'current.style', {});
     const onMouseMove = ({ clientX, clientY, target }) => {
       const active = isTargetActive(target);
@@ -46,6 +66,7 @@ const Cursor = () => {
       document.removeEventListener('mouseleave', onMouseLeave);
     };
   }, []);
+  if (isTouch) return null;
 
   return <StyledCursor ref={cursorEl} isOnScreen />;
 };
