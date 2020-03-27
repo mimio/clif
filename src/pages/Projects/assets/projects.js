@@ -4,10 +4,19 @@ import polygoggles from './polygoggles.png';
 import sage from './sage.png';
 import gopro from './gopro.png';
 import bop from './bop.png';
+import shair from './shair.png';
 
 export default [
   {
-    title: 'Gentrification Analysis Tool',
+    title: 'Air Quality Analysis Application',
+    subtitle:
+      'I worked with the Shair team to contruct a mapping tool that shows air polution data over time in the San Francisco bay.',
+    imgSrc: shair,
+    href: 'https://app.ramboll-shair.com/',
+    key: 'shair',
+  },
+  {
+    title: 'Gentrification Analysis Application',
     subtitle:
       'I worked alongside Harvard to construct this scientific mapping tool that displays social and economic changes across the Greater Boston area starting in 1990.',
     imgSrc: harvard,

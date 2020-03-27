@@ -7,7 +7,7 @@ import { getBool, getStyle } from 'styles';
 import { Full } from 'components';
 import { setMap } from 'utils/map';
 
-const MapContainer = styled(Full)`
+const StyledMap = styled(Full)`
   z-index: 1;
   .mapboxgl-map {
     height: 100%;
@@ -51,6 +51,10 @@ class Map extends Component {
 
   componentDidMount() {
     this.initialize();
+  }
+
+  shouldComponentUpdate({ isMapLoaded }) {
+    return isMapLoaded && !this.props.isMapLoaded;
   }
 
   componentWillUnmount() {
@@ -97,7 +101,6 @@ class Map extends Component {
   onMapLoaded = () => {
     const { clearSelection, setMapLoaded, mapLayers } = this.props;
     this.addLayers();
-    // this.addControls();
     this.map.on('idle', () => setMapLoaded(true));
     this.map.on('click', e => {
       if (
@@ -113,13 +116,12 @@ class Map extends Component {
     const { className, css, isMapLoaded } = this.props;
 
     return (
-      <MapContainer
+      <StyledMap
         isLoaded={isMapLoaded}
         className={className}
         css={css}
-      >
-        <div id="mapbox-map" ref={this.mapRef} />
-      </MapContainer>
+        ref={this.mapRef}
+      />
     );
   }
 }
