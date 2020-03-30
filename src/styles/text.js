@@ -17,7 +17,7 @@ export const heading = css`
 
 const base2 = css`
   ${base};
-  font-family: 'Andale Mono';
+  font-family: 'Roboto Mono';
   color: ${getStyle('text1')};
 `;
 
