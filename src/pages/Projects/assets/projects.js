@@ -10,7 +10,7 @@ export default [
   {
     title: 'Air Quality Analysis Application',
     subtitle:
-      'I worked with the Shair team to contruct a mapping tool that shows air polution data over time in the San Francisco bay.',
+      'I worked with the Shair team to contruct a mapping tool that shows air pollution data over time in the San Francisco bay.',
     imgSrc: shair,
     href: 'https://app.ramboll-shair.com/',
     key: 'shair',
