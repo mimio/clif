@@ -5,9 +5,9 @@ import PropTypes from 'prop-types';
 import moment from 'moment';
 import { getBool, getStyle, size } from 'styles';
 import { subheader2 } from 'styles/text';
-import { ItemColumn, Subheader, Detail, Detail2 } from 'components';
+import { Column, Subheader, Detail, Detail2 } from 'components';
 
-const Container = styled(ItemColumn)`
+const Container = styled(Column)`
   background: ${getStyle('background1')};
   align-items: flex-start;
   padding: ${size(4)};

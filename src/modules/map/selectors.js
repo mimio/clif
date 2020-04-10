@@ -5,7 +5,7 @@ import {
   WORK_LABEL_SOURCE,
   WORK_PATH_SOURCE,
 } from 'constants/source';
-import colors from 'styles/colors';
+import colors from 'styles/theme/colors';
 import {
   selectGeoJson,
   selectLookup,

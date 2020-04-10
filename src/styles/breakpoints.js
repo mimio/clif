@@ -1,14 +1,31 @@
-const createBreakpoint = bp => ttl => `
-  @media (max-width: ${bp}px) {
-    ${ttl}
+import facepaint from 'facepaint';
+
+export const MOBILE = 650;
+export const TABLET = 1000;
+
+export const isMobile = width => width < MOBILE;
+export const isTablet = width => width < TABLET;
+
+export const desktop = ttl => `
+  @media (min-width: ${TABLET}px) {
+    ${ttl};
   }
 `;
 
-export const MOBILE_BREAKPOINT = 650;
-export const TABLET_BREAKPOINT = 1000;
+export const tablet = ttl => `
+  @media (max-width: ${TABLET}px) {
+    ${ttl};
+  }
+`;
 
-export const isMobile = width => width < MOBILE_BREAKPOINT;
-export const isTablet = width => width < TABLET_BREAKPOINT;
+export const mobile = ttl => `
+  @media (max-width: ${MOBILE}px) {
+    ${ttl};
+  }
+`;
 
-export const mobile = createBreakpoint(MOBILE_BREAKPOINT);
-export const tablet = createBreakpoint(TABLET_BREAKPOINT);
+export const breakpoints = [TABLET, MOBILE];
+
+export const mq = facepaint(
+  breakpoints.map(bp => `@media (max-width: ${bp}px)`),
+);

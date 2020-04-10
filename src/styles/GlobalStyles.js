@@ -1,7 +1,7 @@
 import React from 'react';
 import { Global, css } from '@emotion/core';
-import colors from './colors';
-import transitions from './transitions';
+import colors from './theme/colors';
+import transitions from './theme/transitions';
 
 const globalCss = css`
   html {

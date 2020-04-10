@@ -2,13 +2,17 @@ import React from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { ChildrenPropType } from 'utils/prop-types';
-import { mobile, tablet, getBool, getStyle, size } from 'styles';
-import { centered, itemColumn } from 'styles/layout';
+import { mobile, tablet, getBool, getStyle, size, mq } from 'styles';
+import {
+  centered,
+  full,
+  foregroundContentVerticalPadding,
+} from 'styles/layout';
 import Header from './Header';
-import { Full } from './layout';
+import { Full, Column } from './layout';
 
-const HeaderContainer = styled(Full)`
-  ${itemColumn};
+const HeaderContainer = styled(Column)`
+  ${full};
   align-items: flex-start;
   height: min-content;
   width: calc(100% - ${size(15)});
@@ -29,21 +33,18 @@ const ForegroundContentContainer = styled(Full)`
   z-index: 1;
   overflow-y: auto;
   pointer-events: auto;
-  padding-top: ${size(52)};
-  padding-right: ${size(30)};
-  padding-bottom: ${size(20)};
+  ${foregroundContentVerticalPadding};
+  ${mq({
+    paddingRight: [
+      getStyle('foregroundContentRightPadding'),
+      getStyle('foregroundContentRightPaddingTablet'),
+      getStyle('foregroundContentRightPaddingMobile'),
+    ],
+  })};
   > *:not(:last-child) {
     margin-bottom: ${size(27)};
   }
-  ${tablet(`
-    padding-top: ${size(44)};
-    padding-right: ${size(23)};
-    padding-bottom: ${size(20)};
-  `)}
   ${mobile(`
-    padding-top: ${size(24)};
-    padding-right: ${size(13)};
-    padding-bottom: ${size(10)};
     > *:not(:last-child) {
       margin-bottom: ${size(13)};
     }
@@ -74,7 +75,7 @@ const ForegroundContainer = styled.div`
   pointer-events: none;
   ${pageSlideIn};
   ${tablet(`
-    left: ${getStyle('pageMinimumPadding')};
+    left: ${getStyle('foregroundLeftPaddingTablet')};
     width: calc(100% - ${getStyle('pageMinimumPadding')});
   `)}
 `;
@@ -88,6 +89,7 @@ const Page = ({
   Background,
   Foreground,
   Subheader,
+  backgroundCss,
   fadeForeground,
   onScroll,
 }) => (
@@ -104,7 +106,9 @@ const Page = ({
       )}
     </ForegroundContainer>
     {Background && (
-      <BackgroundContainer>{Background}</BackgroundContainer>
+      <BackgroundContainer css={backgroundCss}>
+        {Background}
+      </BackgroundContainer>
     )}
   </>
 );
@@ -113,6 +117,7 @@ Page.propTypes = {
   Background: ChildrenPropType,
   Foreground: ChildrenPropType,
   Subheader: ChildrenPropType,
+  backgroundCss: PropTypes.string,
   fadeForeground: PropTypes.bool,
   onScroll: PropTypes.func,
 };
@@ -121,6 +126,7 @@ Page.defaultProps = {
   Background: null,
   Foreground: null,
   Subheader: null,
+  backgroundCss: null,
   fadeForeground: false,
   onScroll() {},
 };

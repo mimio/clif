@@ -52,3 +52,16 @@ export const detail2 = css`
   ${detail};
   color: ${getStyle('text2')};
 `;
+
+export const detail3 = css`
+  ${detail};
+  font-size: 12px;
+  color: ${getStyle('text5')};
+`;
+
+export const detail4 = css`
+  ${base2};
+  color: ${getStyle('text2')};
+  font-size: 14px;
+  font-weight: light;
+`;
