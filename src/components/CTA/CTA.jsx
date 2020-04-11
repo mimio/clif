@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { Link as RouterLink } from 'react-router-dom';
 import { ChildrenPropType } from 'utils/prop-types';
 import { getBool, getStyle, size } from 'styles';
 import { detail2 } from 'styles/text';
@@ -11,6 +12,9 @@ const StyledLink = styled.a`
   border: ${getStyle('ctaBorder')};
   cursor: pointer;
   background: transparent;
+  svg {
+    fill: currentColor;
+  }
   ${getBool(
     'vertical',
     `
@@ -63,26 +67,33 @@ const StyledLink = styled.a`
   )}
 `;
 
+const StyledInternalLink = StyledLink.withComponent(RouterLink);
+
 const StyledButton = StyledLink.withComponent('button');
 
 const Link = ({
+  Icon,
   children,
   className,
   disabled,
   href,
-  Icon,
-  vertical,
+  internal,
   isLink,
   onClick,
+  vertical,
 }) => {
-  const Container = isLink ? StyledLink : StyledButton;
-  const props = isLink
-    ? {
-        href,
-        target: '_blank',
-        rel: 'noopener noreferrer',
-      }
-    : {};
+  let Container = StyledButton;
+  let props = {};
+  if (isLink) {
+    Container = internal ? StyledInternalLink : StyledLink;
+    props = internal
+      ? { to: href }
+      : {
+          href,
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        };
+  }
   return (
     <Container
       className={className}
@@ -104,16 +115,18 @@ Link.propTypes = {
   className: PropTypes.string,
   disabled: PropTypes.bool,
   href: PropTypes.string,
+  internal: PropTypes.bool,
   isLink: PropTypes.bool,
   onClick: PropTypes.func,
   vertical: PropTypes.bool,
 };
 
 Link.defaultProps = {
-  className: '',
   children: null,
+  className: '',
   disabled: false,
   href: '',
+  internal: false,
   isLink: false,
   onClick() {},
   vertical: false,

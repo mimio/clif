@@ -63,7 +63,7 @@ const Container = styled(Link)`
   }
 `;
 
-const Project = ({ imgSrc, index, id, Icon, product }) => (
+const ProjectPreview = ({ imgSrc, index, id, Icon, product }) => (
   <Container to={`/project/${id}`}>
     <Details sp={2}>
       <Icon />
@@ -75,10 +75,10 @@ const Project = ({ imgSrc, index, id, Icon, product }) => (
   </Container>
 );
 
-Project.propTypes = {
+ProjectPreview.propTypes = {
   id: PropTypes.string.isRequired,
   imgSrc: PropTypes.string.isRequired,
   index: PropTypes.number.isRequired,
 };
 
-export default Project;
+export default ProjectPreview;

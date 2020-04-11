@@ -1,15 +1,16 @@
 import React from 'react';
+import { render } from 'react-dom';
 import {
   BrowserRouter,
-  Route,
   Redirect,
   Switch,
+  Route,
 } from 'react-router-dom';
-import { render } from 'react-dom';
 import { Provider } from 'react-redux';
 import { ThemeProvider } from 'emotion-theming';
 import { hot } from 'react-hot-loader/root';
-import { HELLO } from 'constants/tabs';
+import { HELLO, LOST } from 'constants/pages';
+import Lost from 'components/Lost';
 
 import 'normalize.css';
 import '../fonts/fonts.css';
@@ -36,6 +37,7 @@ const Main = hot(() => (
               path="/"
               component={() => <Redirect to={`/${HELLO}`} />}
             />
+            <Route exact path={`/${LOST}`} component={Lost} />
             <Route path="/:tabId?" component={App} />
           </Switch>
         </BrowserRouter>

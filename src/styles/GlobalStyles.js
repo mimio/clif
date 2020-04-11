@@ -51,6 +51,9 @@ const globalCss = css`
     position: relative;
     overflow: hidden;
   }
+  body {
+    background: ${colors.background1};
+  }
   ul {
     padding: 0;
     margin-right: 0;

@@ -2,8 +2,8 @@ import React from 'react';
 import Page from 'components/Page';
 import styled from '@emotion/styled';
 import { Filmstrip } from 'components';
-import projects from './assets';
-import Project from './Project';
+import { projects } from 'assets';
+import Project from './ProjectPreview';
 
 const StyledFilmstrip = styled(Filmstrip)`
   height: 100%;
@@ -12,6 +12,7 @@ const StyledFilmstrip = styled(Filmstrip)`
 
 export default () => (
   <Page
+    title="PROJECTS"
     Background={
       <StyledFilmstrip>
         {projects.map((project, i) => (

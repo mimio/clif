@@ -8,7 +8,7 @@ import {
   full,
   foregroundContentVerticalPadding,
 } from 'styles/layout';
-import Header from './Header';
+import { Heading } from './Text';
 import { Full, Column } from './layout';
 
 const HeaderContainer = styled(Column)`
@@ -92,11 +92,12 @@ const Page = ({
   backgroundCss,
   fadeForeground,
   onScroll,
+  title,
 }) => (
   <>
     <ForegroundContainer>
       <HeaderContainer hasForeground={fadeForeground} sp={4}>
-        <Header />
+        <Heading>{title}</Heading>
         {Subheader}
       </HeaderContainer>
       {Foreground && (
@@ -120,6 +121,7 @@ Page.propTypes = {
   backgroundCss: PropTypes.string,
   fadeForeground: PropTypes.bool,
   onScroll: PropTypes.func,
+  title: PropTypes.string.isRequired,
 };
 
 Page.defaultProps = {

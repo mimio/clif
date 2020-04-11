@@ -42,10 +42,7 @@ export const subheader2 = css`
 
 export const detail = css`
   ${base2};
-  font-size: 12pt;
-  ${mobile(`
-    font-size: 11pt;
-  `)}
+  font-size: 12px;
 `;
 
 export const detail2 = css`
@@ -55,7 +52,6 @@ export const detail2 = css`
 
 export const detail3 = css`
   ${detail};
-  font-size: 12px;
   color: ${getStyle('text5')};
 `;
 

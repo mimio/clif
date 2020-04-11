@@ -23,6 +23,7 @@ const blurb =
 
 export default () => (
   <Page
+    title="HELLO"
     Background={<Globe />}
     Foreground={<IntroBlurb>{blurb}</IntroBlurb>}
   />

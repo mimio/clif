@@ -10,3 +10,4 @@ export { ReactComponent as HikingIcon } from './hiking.svg';
 export { ReactComponent as HomeIcon } from './home.svg';
 export { ReactComponent as MoleculeIcon } from './molecule.svg';
 export { ReactComponent as MountainIcon } from './mountain.svg';
+export { ReactComponent as UFOIcon } from './ufo.svg';
