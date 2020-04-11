@@ -21,6 +21,14 @@ const base2 = css`
   color: ${getStyle('text1')};
 `;
 
+export const heading2 = css`
+  ${base2};
+  color: ${getStyle('text1')};
+  font-size: 36px;
+  ${tablet(`font-size: 32px;`)};
+  ${mobile(`font-size: 28px;`)};
+`;
+
 export const subheader = css`
   ${base2};
   font-size: 22pt;
@@ -42,7 +50,7 @@ export const subheader2 = css`
 
 export const detail = css`
   ${base2};
-  font-size: 12px;
+  font-size: 14px;
 `;
 
 export const detail2 = css`
@@ -52,12 +60,11 @@ export const detail2 = css`
 
 export const detail3 = css`
   ${detail};
-  color: ${getStyle('text5')};
+  color: ${getStyle('text1d')};
 `;
 
-export const detail4 = css`
+export const body = css`
   ${base2};
-  color: ${getStyle('text2')};
-  font-size: 14px;
-  font-weight: light;
+  color: ${getStyle('text1b')};
+  font-size: 22px;
 `;

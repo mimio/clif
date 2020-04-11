@@ -6,7 +6,7 @@ import { EnvelopeIcon } from 'icons';
 import email from 'constants/email';
 import { LOST } from 'constants/pages';
 import useWatchScreenSize from 'hooks/useWatchScreenSize';
-import { Link, Column, Cursor, Navigation } from 'components';
+import { Link, Column, Navigation } from 'components';
 import pages from './pages';
 
 const Container = styled(Column)`
@@ -39,7 +39,6 @@ const App = () => {
 
   return (
     <Container>
-      <Cursor />
       <StyledNavigation />
       <ContactLink
         href={`mailto:${email}`}

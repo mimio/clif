@@ -2,7 +2,7 @@ import React from 'react';
 import styled from '@emotion/styled';
 import { HELLO } from 'constants/pages';
 import { UFOIcon } from 'icons';
-import { Column, Heading, Link, Detail3 } from 'components';
+import { Column, Heading, Link, Detail } from 'components';
 
 const Container = styled(Column)`
   width: 100%;
@@ -16,8 +16,8 @@ const Container = styled(Column)`
 const Lost = () => (
   <Container sp={6}>
     <Heading>404</Heading>
-    <Detail3>It Looks Like You Are Lost</Detail3>
-    <Link Icon={UFOIcon} href={`/${HELLO}`}>
+    <Detail>It Looks Like You Are Lost</Detail>
+    <Link internal Icon={UFOIcon} href={`/${HELLO}`}>
       Take Me Home
     </Link>
   </Container>

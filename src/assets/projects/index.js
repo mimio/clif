@@ -19,6 +19,7 @@ export default [
   {
     title: 'Air Quality Analysis Application',
     client: 'Ramboll Shair',
+    year: 2020,
     theme: 'Air Quality Analysis',
     product: 'Scientific Tool',
     subtitle:
@@ -31,6 +32,7 @@ export default [
   {
     title: 'Gentrification Analysis Application',
     client: 'Harvard',
+    year: 2018,
     theme: 'Gentrification Analysis',
     product: 'Scientific Tool',
     subtitle:
@@ -44,6 +46,7 @@ export default [
   {
     title: 'Sports Events Finder',
     client: 'Fuzz Interactive',
+    year: 2019,
     theme: 'Sports',
     product: 'Event Map',
     subtitle:
@@ -57,6 +60,7 @@ export default [
   {
     title: 'GoPro Mountain Games Event Map',
     client: '970 Design',
+    year: 2017,
     theme: 'Sports',
     product: 'Event Map',
     subtitle:
@@ -69,6 +73,7 @@ export default [
   {
     title: '3D Asset Searching and Viewing Tool (Augmented Reality)',
     client: 'Deadlock Interactive',
+    year: 2019,
     theme: '3D Models',
     product: 'Asset Viewer',
     subtitle:
@@ -81,6 +86,7 @@ export default [
   {
     title: 'Interactive Trailmap',
     client: '970 Design',
+    year: 2019,
     theme: 'Outdoors',
     product: 'Services Map',
     subtitle:
@@ -93,6 +99,7 @@ export default [
   {
     title: 'Birds of Prey Winter Sports Event Map',
     client: '970 Design',
+    year: 2018,
     theme: 'Winter Sports Event',
     product: 'Event Map',
     subtitle:

@@ -2,7 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
-import { Detail4, Detail, Detail3 } from 'components';
+import { PROJECTS } from 'constants/pages';
+import { Detail2, Detail, Detail3 } from 'components';
 import { column, getStyle, mq } from 'styles';
 
 const StyledImage = styled.div`
@@ -18,14 +19,14 @@ const Details = styled.div`
   > svg {
     grid-area: icon;
     height: 18px;
-    color: ${getStyle('text4')};
-    fill: ${getStyle('text4')};
+    color: ${getStyle('text1c')};
+    fill: ${getStyle('text1c')};
     justify-self: end;
   }
   display: grid;
   grid-template-rows: min-content auto min-content;
   align-items: center;
-  grid-template-areas: 'detail4 icon' 'detail detail' 'detail3 detail3';
+  grid-template-areas: 'detail2 icon' 'detail detail' 'detail3 detail3';
   padding: 16px;
   > * {
     transition: ${getStyle('linearHue')};
@@ -64,10 +65,10 @@ const Container = styled(Link)`
 `;
 
 const ProjectPreview = ({ imgSrc, index, id, Icon, product }) => (
-  <Container to={`/project/${id}`}>
+  <Container to={`/${PROJECTS}/${id}`}>
     <Details sp={2}>
       <Icon />
-      <Detail4>{index < 10 ? `0${index}` : index}</Detail4>
+      <Detail2>{index < 10 ? `0${index}` : index}</Detail2>
       <Detail>{id}</Detail>
       <Detail3>{product}</Detail3>
     </Details>

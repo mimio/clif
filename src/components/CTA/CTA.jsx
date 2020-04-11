@@ -13,26 +13,27 @@ const StyledLink = styled.a`
   cursor: pointer;
   background: transparent;
   svg {
+    color: inherit;
     fill: currentColor;
   }
   ${getBool(
     'vertical',
     `
-    writing-mode: vertical-lr;
-    width: ${size(8)};
-    padding: ${size(3)} 0;
-    svg {
-      transform: rotate(90deg);
-      margin-bottom: ${size(3)};
-    }
-  `,
+      writing-mode: vertical-lr;
+      width: ${size(8)};
+      padding: ${size(3)} 0;
+      svg {
+        transform: rotate(90deg);
+        margin-bottom: ${size(3)};
+      }
+    `,
     `
-    height: ${size(8)};
-    padding: 0 ${size(3)};
-    svg {
-      margin-right: ${size(3)};
-    }
-  `,
+      height: ${size(8)};
+      padding: 0 ${size(3)};
+      svg {
+        margin-right: ${size(3)};
+      }
+    `,
   )};
   border-radius: ${size(4)};
   ${detail2};

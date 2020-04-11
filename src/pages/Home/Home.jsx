@@ -22,9 +22,7 @@ const blurb =
   'my name is Clifton Campbell. I am a web developer with a passion for quality.';
 
 export default () => (
-  <Page
-    title="HELLO"
-    Background={<Globe />}
-    Foreground={<IntroBlurb>{blurb}</IntroBlurb>}
-  />
+  <Page title="HELLO" Background={<Globe />}>
+    <IntroBlurb>{blurb}</IntroBlurb>
+  </Page>
 );
