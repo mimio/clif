@@ -7,15 +7,16 @@ import { Detail2, Detail, Detail3 } from 'components';
 import { column, getStyle, mq } from 'styles';
 
 const StyledImage = styled.div`
-  height: 66%;
+  flex-grow: 1;
   background-image: url(${({ imgSrc }) => imgSrc});
   background-position: center center;
   background-size: cover;
   opacity: 0.8;
+  border-radius: 0 0 20px 20px;
 `;
 
 const Details = styled.div`
-  flex-grow: 1;
+  height: 160px;
   > svg {
     grid-area: icon;
     height: 18px;

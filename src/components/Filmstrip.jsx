@@ -2,11 +2,12 @@ import React, { useRef, useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { animated, useSpring } from 'react-spring';
-import { useDrag } from 'react-use-gesture';
+import { useDrag, useScroll } from 'react-use-gesture';
 import { isTouchScreen } from 'utils/device';
 import {
   getBool,
   foregroundContentVerticalPadding,
+  mobile,
   tablet,
   getStyle,
   mq,
@@ -33,7 +34,6 @@ const Container = styled(animated.div)`
 
 const Child = styled.div`
   height: 100%;
-  margin-left: 48px;
 `;
 
 const Inner = styled(Row)`
@@ -77,12 +77,15 @@ const Inner = styled(Row)`
   > *:first-child {
     margin-left: ${getStyle('foregroundLeftPadding')};
   }
+  > * {
+    margin-left: 48px;
+  }
   ${tablet(`
     > *:first-child {
       margin-left: ${getStyle('foregroundLeftPaddingTablet')};
     }
     > * {
-      margin-left: 12px;
+      margin-left: 24px;
     }
     > *:nth-child(odd) {
       margin-bottom: 12px;
@@ -91,23 +94,40 @@ const Inner = styled(Row)`
       margin-top: 12px;
     }
   `)};
+  ${mobile(`
+      > * {
+    margin-left: 12px;
+  }
+  `)};
 `;
 
 export default function Filmstrip({ className, children }) {
+  const outerRef = useRef(null);
+
   const [isDragging, setIsDragging] = useState(false);
   const [isTouch, setIsTouch] = useState(false);
+  const [isTouching, setIsTouching] = useState(false);
 
   useEffect(() => {
     setIsTouch(isTouchScreen());
     const listener = window.addEventListener('resize', () =>
       setIsTouch(isTouchScreen()),
     );
+    const touchStartListener = outerRef.current.addEventListener(
+      'touchstart',
+      () => setIsTouching(true),
+    );
+    const touchEndListener = outerRef.current.addEventListener(
+      'touchend',
+      () => setIsTouching(false),
+    );
     return () => {
       window.removeEventListener('resize', listener);
+      outerRef.current.removeEventListener(touchStartListener);
+      outerRef.current.removeEventListener(touchEndListener);
     };
   }, []);
 
-  const outerRef = useRef(null);
   const getRange = () =>
     outerRef.current.scrollWidth - outerRef.current.clientWidth;
 
@@ -116,6 +136,7 @@ export default function Filmstrip({ className, children }) {
   }));
 
   const bind = useDrag(drag => {
+    if (isTouch) return;
     const {
       movement: [mx],
       velocity,
@@ -134,7 +155,11 @@ export default function Filmstrip({ className, children }) {
 
     setIsDragging(dragging && mx !== 0);
 
-    if (!isTouch) setSpring({ scroll: normalized });
+    setSpring({ scroll: normalized });
+  });
+
+  const bindScroll = useScroll(({ scrolling }) => {
+    if (isTouch) setIsDragging(isTouching && scrolling);
   });
 
   return (
@@ -144,6 +169,7 @@ export default function Filmstrip({ className, children }) {
       ref={outerRef}
       scrollLeft={scroll}
       {...bind()}
+      {...bindScroll()}
     >
       <Inner isDragging={isDragging}>
         {children.map(child => (
