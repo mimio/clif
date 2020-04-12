@@ -31,28 +31,32 @@ const Container = styled(animated.div)`
   }
 `;
 
+const Child = styled.div`
+  height: 100%;
+  margin-left: 48px;
+`;
+
 const Inner = styled(Row)`
   height: 100%;
   width: min-content;
   cursor: ew-resize;
-  > * {
-    margin-left: 48px;
+  ${Child} {
     pointer-events: ${({ isDragging }) =>
       isDragging ? 'none' : 'auto'};
-    transition: transform ease-in-out 0.24s;
+    transition: transform ease-in-out 0.24s !important;
     ${getBool(
       'isDragging',
       `
-    transform: scale(0.96);
-  `,
+        transform: scale(0.96);
+      `,
       `
-    &:hover {
-      transform: scale(1.02);
-    }
-    &:active {
-      transform: scale(1.01);
-    }
-    `,
+        &:hover {
+          transform: scale(1.02);
+        }
+        &:active {
+          transform: scale(1.01);
+        }
+      `,
     )};
   }
   > *:nth-child(odd) {
@@ -143,7 +147,11 @@ export default function Filmstrip({ className, children }) {
       scrollLeft={scroll}
       {...bind()}
     >
-      <Inner isDragging={isDragging}>{children}</Inner>
+      <Inner isDragging={isDragging}>
+        {children.map(child => (
+          <Child>{child}</Child>
+        ))}
+      </Inner>
     </Container>
   );
 }

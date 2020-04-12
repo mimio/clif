@@ -10,9 +10,23 @@ export default [
   { id: HELLO, path: `/${HELLO}`, component: Home },
   { id: PROJECTS, path: `/${PROJECTS}`, component: Projects },
   { id: WORK, path: `/${WORK}`, component: Work },
-  ...projects.map((project, i) => ({
-    id: project.id,
-    path: `/${PROJECTS}/${project.id}`,
-    component: () => <Project index={i} {...project} />,
-  })),
+  ...projects.map((project, i) => {
+    const prevId =
+      i === 0 ? projects[projects.length - 1].id : projects[i - 1].id;
+    const nextId =
+      i === projects.length - 1 ? projects[0].id : projects[i + 1].id;
+
+    return {
+      id: project.id,
+      path: `/${PROJECTS}/${project.id}`,
+      component: () => (
+        <Project
+          prevId={prevId}
+          nextId={nextId}
+          index={i}
+          {...project}
+        />
+      ),
+    };
+  }),
 ];

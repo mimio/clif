@@ -3,7 +3,7 @@ import Page from 'components/Page';
 import styled from '@emotion/styled';
 import { Filmstrip } from 'components';
 import { projects } from 'assets';
-import Project from './ProjectPreview';
+import ProjectPreview from './ProjectPreview';
 
 const StyledFilmstrip = styled(Filmstrip)`
   height: 100%;
@@ -16,7 +16,7 @@ export default () => (
     Background={
       <StyledFilmstrip>
         {projects.map((project, i) => (
-          <Project {...project} key={project.id} index={i} />
+          <ProjectPreview {...project} key={project.id} index={i} />
         ))}
       </StyledFilmstrip>
     }

@@ -72,7 +72,7 @@ const pageSlideIn = `
 const ForegroundContainer = styled.div`
   z-index: 3;
   position: absolute;
-  height: calc(100% - ${getStyle('pageMinimumPadding')});
+  height: 100%;
   left: ${getStyle('foregroundLeftPadding')};
   width: calc(100% - ${size(28)});
   pointer-events: none;

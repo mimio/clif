@@ -63,7 +63,7 @@ export const detail2 = css`
 
 export const detail3 = css`
   ${detail};
-  color: ${getStyle('text1d')};
+  color: ${getStyle('text1c')};
 `;
 
 export const body = css`

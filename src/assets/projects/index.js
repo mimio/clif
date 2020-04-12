@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   HomeIcon,
   CubeIcon,
@@ -27,8 +28,20 @@ export default [
     year: 2020,
     theme: 'Air Quality Analysis',
     product: 'Scientific Tool',
-    subtitle:
-      'I worked with the Shair team to contruct a mapping tool that shows air polution data over time in the San Francisco bay.',
+    subtitle: (
+      <>
+        <p>
+          Ramboll Shair is an internal startup turning data from air
+          quality sensors into easily accessible and highly actionable
+          insights.
+        </p>
+        <p>
+          I worked with the Shair team to contruct an air quality
+          analysis application that shows air quality data over time
+          in the San Francisco Bay.
+        </p>
+      </>
+    ),
     imgSrc: shair,
     href: 'https://app.ramboll-shair.com/',
     Icon: MoleculeIcon,
@@ -41,8 +54,20 @@ export default [
     year: 2018,
     theme: 'Gentrification Analysis',
     product: 'Scientific Tool',
-    subtitle:
-      'I worked alongside Harvard to construct this scientific mapping tool that displays social and economic changes across the Greater Boston area starting in 1990.',
+    subtitle: (
+      <>
+        <p>
+          The Harvard Joint Center for Housing Studies is a research
+          group focused on advancing the study of housing issues and
+          policies.
+        </p>
+        <p>
+          I worked alongside Harvard to construct this scientific
+          mapping tool that displays social and economic changes
+          across the Greater Boston area starting in 1990.
+        </p>
+      </>
+    ),
     imgSrc: harvard,
     href:
       'https://www.jchs.harvard.edu/boston-map#/boston-map/create-map',

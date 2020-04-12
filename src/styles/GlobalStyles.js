@@ -61,6 +61,9 @@ const globalCss = css`
   a {
     text-decoration: none;
   }
+  svg {
+    fill: currentColor;
+  }
 `;
 
 export default function GlobalStyles() {

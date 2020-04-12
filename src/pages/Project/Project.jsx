@@ -2,13 +2,12 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Link as RouterLink } from 'react-router-dom';
 import styled from '@emotion/styled';
-import { CaretRightIcon, EyeIcon } from 'icons';
-// import { PROJECTS } from 'constants/pages';
-import { mobile, getBool, getStyle } from 'styles';
+import { ChildrenPropType } from 'utils/prop-types';
+import { CaretDownIcon, EyeIcon } from 'icons';
+import { PROJECTS } from 'constants/pages';
+import { mobile, getStyle, column } from 'styles';
 import {
   Body,
-  Body2,
-  Centered,
   Column,
   Row,
   Detail2,
@@ -17,6 +16,7 @@ import {
   Link,
   Page,
 } from 'components';
+import NavLink from './NavLink';
 
 const Details = styled(Column)`
   grid-area: details;
@@ -32,6 +32,9 @@ const Image = styled.div`
   background-image: url(${({ imgSrc }) => imgSrc});
   background-position: center center;
   background-size: cover;
+  ${mobile(`
+    height: 200px;
+  `)};
 `;
 
 const ProjectLink = styled(Link)`
@@ -43,7 +46,7 @@ const ProjectLink = styled(Link)`
 
 const Subcontainer = styled.div`
   display: grid;
-  grid-template-areas: 'heading2 heading2 icon' 'description description details' 'image image image' 'nav nav nav';
+  grid-template-areas: 'heading2 heading2 icon' 'description description details' 'image image image' 'nav nav nav' 'back back back';
   grid-template-rows: min-content;
   grid-template-columns: min-content auto max-content;
   grid-row-gap: 56px;
@@ -57,92 +60,58 @@ const Subcontainer = styled.div`
   }
   ${mobile(`
     grid-template-columns: auto min-content;
-    grid-template-areas: 'heading2 icon' 'details details' 'description description' 'link link' 'image image' 'nav nav';
+    grid-template-areas: 'heading2 icon' 'details details' 'description description' 'image image' 'nav nav' 'back back';
     grid-row-gap: 32px;
   `)}
 `;
 
-const NavLink = styled(RouterLink)`
-  display: grid;
-  grid-column-gap: 32px;
+const Navigation = styled(Row)`
+  margin-top: 48px;
+  ${mobile(`
+    height: 24px;
+  `)};
+`;
+
+const BackNavLink = styled(RouterLink)`
+  ${column};
+  border-top: ${getStyle('ctaBorder3')};
+  grid-area: back;
+  padding: 0 28px;
+  height: 84px;
+  justify-content: center;
+  border-radius: 8px;
+  transition: ${getStyle('linearHue')};
   ${Detail3} {
-    align-self: end;
-    justify-self: end;
+    font-size: 12px;
+    margin-bottom: 4px;
   }
-  ${Body2}, ${Detail3} {
-    opacity: 0.82;
-  }
-  ${getBool(
-    'reverse',
-    `
-      svg {
-        transform: scaleX(-1);
-      }
-      ${Detail3} {
-        justify-self: start;
-      }
-      grid-template-areas: 'icon detail3' 'icon body2';
-    `,
-    `
-    grid-template-areas: 'detail3 icon' 'body2 icon';
-  `,
-  )};
-  ${Centered} {
-    position: relative;
-    height: 64px;
-    width: 64px;
-    border-radius: 50%;
-    border: ${getStyle('ctaBorder2')};
-    transition: ${getStyle('linearHue')};
-    > svg {
-      width: 8px;
-      color: ${getStyle('text2')};
-    }
-    ${mobile(`
-      height: 36px;
-      width: 36px;
-    `)};
-    ::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      height: 0;
-      width: 0;
-      margin-left: 0;
-      margin-top: 0;
-      border-radius: 50%;
-      transition: ${getStyle('easeOutSize')};
-      background: ${getStyle('ctaBackground3')};
-    }
+  svg {
+    width: 8px;
+    color: ${getStyle('text1d')};
+    transition: ${getStyle('easeOutSize')};
   }
   &:hover {
-    ${Body2}, ${Detail3} {
-      opacity: 1;
+    background: #1b1b1b;
+    ${Detail3} {
+      color: ${getStyle('text1b')};
     }
-    ${Centered} {
-      ::after {
-        height: 80%;
-        width: 80%;
-        margin-left: -40%;
-        margin-top: -40%;
-      }
+    svg {
+      color: ${getStyle('text1c')};
+      transform: translateY(4px);
     }
   }
   &:active {
-    ${Centered} {
-      ::after {
-        height: 90%;
-        width: 90%;
-        margin-left: -45%;
-        margin-top: -45%;
-      }
+    background: #202020;
+    ${Detail3} {
+      color: ${getStyle('text1b')};
+    }
+    svg {
+      transform: translateY(8px);
     }
   }
-`;
-
-const Navigation = styled(Row)`
-  margin-top: 48px;
+  ${mobile(`
+    height: 64px;
+  `)};
 `;
 
 const Pairing = ({ children, title, ...props }) => (
@@ -159,6 +128,8 @@ const Project = ({
   id,
   imgSrc,
   index,
+  nextId,
+  prevId,
   roles,
   subtitle,
   title,
@@ -190,33 +161,34 @@ const Project = ({
       </Pairing>
       <Image imgSrc={imgSrc} />
       <Navigation ga="nav" j="space-between">
-        <NavLink reverse>
-          <Centered ga="icon">
-            <CaretRightIcon />
-          </Centered>
-          <Detail3>PREV</Detail3>
-          <Body2>Project</Body2>
-        </NavLink>
-        <NavLink>
-          <Centered ga="icon">
-            <CaretRightIcon />
-          </Centered>
-          <Detail3>NEXT</Detail3>
-          <Body2>Project</Body2>
-        </NavLink>
+        <NavLink
+          reverse
+          title={prevId}
+          to={`/${PROJECTS}/${prevId}`}
+        />
+        <NavLink title={nextId} to={`/${PROJECTS}/${nextId}`} />
       </Navigation>
+      <BackNavLink sp={1} to={`/${PROJECTS}`}>
+        <Detail3>BACK TO ALL PROJECTS</Detail3>
+        <CaretDownIcon />
+      </BackNavLink>
     </Subcontainer>
   </Page>
 );
 
-// <Link internal href={`/${PROJECTS}`} Icon={CaretUpIcon}>all projects</Link>
-
 Project.propTypes = {
+  Icon: ChildrenPropType.isRequired,
+  client: PropTypes.string.isRequired,
+  href: PropTypes.string.isRequired,
+  id: PropTypes.string.isRequired,
   imgSrc: PropTypes.string.isRequired,
   index: PropTypes.number.isRequired,
+  nextId: PropTypes.string.isRequired,
+  prevId: PropTypes.string.isRequired,
+  roles: PropTypes.arrayOf(PropTypes.string).isRequired,
   subtitle: PropTypes.string.isRequired,
   title: PropTypes.string.isRequired,
-  href: PropTypes.string.isRequired,
+  year: PropTypes.number.isRequired,
 };
 
 export default Project;

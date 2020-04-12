@@ -14,7 +14,6 @@ const StyledLink = styled.a`
   background: transparent;
   svg {
     color: inherit;
-    fill: currentColor;
   }
   ${getBool(
     'vertical',
