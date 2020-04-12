@@ -82,7 +82,7 @@ const Inner = styled(Row)`
       margin-left: ${getStyle('foregroundLeftPaddingTablet')};
     }
     > * {
-      margin-left: 24px;
+      margin-left: 12px;
     }
     > *:nth-child(odd) {
       margin-bottom: 12px;
@@ -116,8 +116,6 @@ export default function Filmstrip({ className, children }) {
   }));
 
   const bind = useDrag(drag => {
-    if (isTouch) return;
-
     const {
       movement: [mx],
       velocity,
@@ -136,7 +134,7 @@ export default function Filmstrip({ className, children }) {
 
     setIsDragging(dragging && mx !== 0);
 
-    setSpring({ scroll: normalized });
+    if (!isTouch) setSpring({ scroll: normalized });
   });
 
   return (

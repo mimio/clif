@@ -49,6 +49,9 @@ const Container = styled(RouterLink)`
     ${mobile(`
       height: 48px;
       width: 48px;
+      > svg {
+      width: 6px;
+    }
     `)};
     ::after {
       content: '';

@@ -26,7 +26,7 @@ export const heading2 = css`
   color: ${getStyle('text1')};
   font-size: 36px;
   ${tablet(`font-size: 32px;`)};
-  ${mobile(`font-size: 28px;`)};
+  ${mobile(`font-size: 22px;`)};
 `;
 
 export const subheader = css`
