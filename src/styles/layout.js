@@ -1,12 +1,21 @@
 import { size } from './size';
 import { mobile, mq } from './breakpoints';
 
-const createBase = ({ a = 'center', j = 'flex-start', p, m }) => `
+const createBase = ({
+  a = 'center',
+  j = 'flex-start',
+  p,
+  m,
+  as = 'stretch',
+  ga,
+}) => `
   display: flex;
   justify-content: flex-start;
   align-items: center;
   align-items: ${a};
   justify-content: ${j};
+  align-self: ${as};
+  grid-area: ${ga};
   ${typeof p === 'number' ? `padding: ${size(p)};` : ''};
   ${typeof m === 'number' ? `margin: ${size(m)};` : ''};
 `;

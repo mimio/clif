@@ -1,3 +1,5 @@
+import rgba from 'hex-to-rgba';
+
 const yellow = '#FFE520';
 const black = '#161616';
 
@@ -12,8 +14,10 @@ export default {
   text2: yellow,
   text3: black,
   border1: yellow,
+  border2: rgba(yellow, 0.3),
   ctaBackground1: yellow,
-  ctaBackground2: 'rgba(255, 229, 32, 0.32)',
+  ctaBackground2: rgba(yellow, 0.3),
+  ctaBackground3: rgba(yellow, 0.12),
   scroll1: 'rgba(255, 229, 32, 0.6)',
   scroll2: 'rgba(255, 229, 32, 0.8)',
   scroll3: 'rgba(255, 229, 32, 1)',

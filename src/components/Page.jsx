@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { ChildrenPropType } from 'utils/prop-types';
@@ -15,8 +15,12 @@ const HeaderContainer = styled(Column)`
   ${full};
   align-items: flex-start;
   height: min-content;
+  top: ${getStyle('pageMinimumPadding')};
   width: calc(100% - ${size(15)});
-  z-index: 2;
+  z-index: 1;
+  ${Heading} {
+    transition: none;
+  }
   ${getBool(
     'hasForeground',
     `
@@ -30,7 +34,7 @@ const HeaderContainer = styled(Column)`
 
 const ForegroundContentContainer = styled(Full)`
   align-items: flex-start;
-  z-index: 1;
+  z-index: 2;
   overflow-y: auto;
   pointer-events: auto;
   ${foregroundContentVerticalPadding};
@@ -68,7 +72,6 @@ const pageSlideIn = `
 const ForegroundContainer = styled.div`
   z-index: 3;
   position: absolute;
-  top: ${getStyle('pageMinimumPadding')};
   height: calc(100% - ${getStyle('pageMinimumPadding')});
   left: ${getStyle('foregroundLeftPadding')};
   width: calc(100% - ${size(28)});
@@ -91,28 +94,44 @@ const Page = ({
   backgroundCss,
   children,
   fadeForeground,
-  onScroll,
   title,
-}) => (
-  <>
-    <ForegroundContainer>
-      <HeaderContainer hasForeground={fadeForeground} sp={4}>
-        <Heading>{title}</Heading>
-        {Subheader}
-      </HeaderContainer>
-      {children && (
-        <ForegroundContentContainer onScroll={onScroll}>
-          {children}
-        </ForegroundContentContainer>
+}) => {
+  const headerContainer = useRef(null);
+  const foregroundContent = useRef(null);
+  const header = useRef(null);
+  const onScroll = () => {
+    const threshold = headerContainer.current.clientHeight;
+    const { scrollTop } = foregroundContent.current;
+    header.current.style.opacity = 1 - (scrollTop / threshold) * 0.5;
+  };
+  return (
+    <>
+      <ForegroundContainer>
+        <HeaderContainer
+          ref={headerContainer}
+          hasForeground={fadeForeground}
+          sp={4}
+        >
+          <Heading ref={header}>{title}</Heading>
+          {Subheader}
+        </HeaderContainer>
+        {children && (
+          <ForegroundContentContainer
+            ref={foregroundContent}
+            onScroll={onScroll}
+          >
+            {children}
+          </ForegroundContentContainer>
+        )}
+      </ForegroundContainer>
+      {Background && (
+        <BackgroundContainer css={backgroundCss}>
+          {Background}
+        </BackgroundContainer>
       )}
-    </ForegroundContainer>
-    {Background && (
-      <BackgroundContainer css={backgroundCss}>
-        {Background}
-      </BackgroundContainer>
-    )}
-  </>
-);
+    </>
+  );
+};
 
 Page.propTypes = {
   Background: ChildrenPropType,
@@ -120,7 +139,6 @@ Page.propTypes = {
   backgroundCss: PropTypes.string,
   children: ChildrenPropType,
   fadeForeground: PropTypes.bool,
-  onScroll: PropTypes.func,
   title: PropTypes.string.isRequired,
 };
 
@@ -130,7 +148,6 @@ Page.defaultProps = {
   backgroundCss: null,
   children: null,
   fadeForeground: false,
-  onScroll() {},
 };
 
 export default Page;

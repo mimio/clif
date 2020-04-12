@@ -15,6 +15,11 @@ import gopro from './gopro.png';
 import bop from './bop.png';
 import shair from './shair.png';
 
+const DEV = 'Development';
+const UIUX = 'UI/UX Design';
+const UX = 'UX Design';
+const CARTO = 'Cartography';
+
 export default [
   {
     title: 'Air Quality Analysis Application',
@@ -28,6 +33,7 @@ export default [
     href: 'https://app.ramboll-shair.com/',
     Icon: MoleculeIcon,
     id: 'shair',
+    roles: [DEV, UIUX],
   },
   {
     title: 'Gentrification Analysis Application',
@@ -42,6 +48,7 @@ export default [
       'https://www.jchs.harvard.edu/boston-map#/boston-map/create-map',
     Icon: HomeIcon,
     id: 'harvard',
+    roles: [DEV, UX],
   },
   {
     title: 'Sports Events Finder',
@@ -56,6 +63,7 @@ export default [
       'https://www.womenssportsfoundation.org/get-involved/ngwsd/',
     Icon: FutbolIcon,
     id: 'ngwsd',
+    roles: [DEV, UIUX],
   },
   {
     title: 'GoPro Mountain Games Event Map',
@@ -69,6 +77,7 @@ export default [
     href: 'https://mountaingames.com/map.php',
     Icon: MountainIcon,
     id: 'gopro',
+    roles: [DEV, CARTO],
   },
   {
     title: '3D Asset Searching and Viewing Tool (Augmented Reality)',
@@ -82,6 +91,7 @@ export default [
     href: 'http://poly-goggles.herokuapp.com/',
     Icon: CubeIcon,
     id: 'poly',
+    roles: [DEV, UIUX],
   },
   {
     title: 'Interactive Trailmap',
@@ -95,6 +105,7 @@ export default [
     href: 'https://sageoutdooradventures.com/map/',
     Icon: HikingIcon,
     id: '970',
+    roles: [DEV, UIUX],
   },
   {
     title: 'Birds of Prey Winter Sports Event Map',
@@ -108,5 +119,6 @@ export default [
     href: 'https://bcworldcup.com/map.php',
     Icon: FeatherIcon,
     id: 'winter',
+    roles: [DEV, CARTO],
   },
 ];

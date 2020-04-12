@@ -1,6 +1,7 @@
 import styled from '@emotion/styled';
 import {
   body,
+  body2,
   detail,
   detail2,
   detail3,
@@ -13,6 +14,11 @@ import {
 export const Body = styled.span`
   grid-area: body;
   ${body};
+`;
+
+export const Body2 = styled.span`
+  grid-area: body2;
+  ${body2};
 `;
 
 export const Heading = styled.span`

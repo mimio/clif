@@ -36,11 +36,11 @@ export const subheader = css`
   ${tablet(`
     font-size: 20pt;
     line-height: 22pt;
-  `)}
+  `)};
   ${mobile(`
     font-size: 18pt;
     line-height: 20pt;
-  `)}
+  `)};
 `;
 
 export const subheader2 = css`
@@ -51,6 +51,9 @@ export const subheader2 = css`
 export const detail = css`
   ${base2};
   font-size: 14px;
+  ${mobile(`
+    font-size: 12px;
+  `)};
 `;
 
 export const detail2 = css`
@@ -66,5 +69,13 @@ export const detail3 = css`
 export const body = css`
   ${base2};
   color: ${getStyle('text1b')};
-  font-size: 22px;
+  font-size: 18px;
+  ${mobile(`
+    font-size: 14px;
+  `)};
+`;
+
+export const body2 = css`
+  ${body};
+  color: ${getStyle('text2')};
 `;
