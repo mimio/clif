@@ -123,8 +123,14 @@ export default function Filmstrip({ className, children }) {
     );
     return () => {
       window.removeEventListener('resize', listener);
-      outerRef.current.removeEventListener(touchStartListener);
-      outerRef.current.removeEventListener(touchEndListener);
+      outerRef.current.removeEventListener(
+        'touchstart',
+        touchStartListener,
+      );
+      outerRef.current.removeEventListener(
+        'touchend',
+        touchEndListener,
+      );
     };
   }, []);
 
