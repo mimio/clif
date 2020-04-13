@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { Link as RouterLink } from 'react-router-dom';
 import { ChildrenPropType } from 'utils/prop-types';
 import { getBool, getStyle, size } from 'styles';
 import { detail2 } from 'styles/text';
@@ -11,24 +12,27 @@ const StyledLink = styled.a`
   border: ${getStyle('ctaBorder')};
   cursor: pointer;
   background: transparent;
+  svg {
+    color: inherit;
+  }
   ${getBool(
     'vertical',
     `
-    writing-mode: vertical-lr;
-    width: ${size(8)};
-    padding: ${size(3)} 0;
-    svg {
-      transform: rotate(90deg);
-      margin-bottom: ${size(3)};
-    }
-  `,
+      writing-mode: vertical-lr;
+      width: ${size(8)};
+      padding: ${size(3)} 0;
+      svg {
+        transform: rotate(90deg);
+        margin-bottom: ${size(3)};
+      }
+    `,
     `
-    height: ${size(8)};
-    padding: 0 ${size(3)};
-    svg {
-      margin-right: ${size(3)};
-    }
-  `,
+      height: ${size(8)};
+      padding: 0 ${size(3)};
+      svg {
+        margin-right: ${size(3)};
+      }
+    `,
   )};
   border-radius: ${size(4)};
   ${detail2};
@@ -63,26 +67,33 @@ const StyledLink = styled.a`
   )}
 `;
 
+const StyledInternalLink = StyledLink.withComponent(RouterLink);
+
 const StyledButton = StyledLink.withComponent('button');
 
 const Link = ({
+  Icon,
   children,
   className,
   disabled,
   href,
-  Icon,
-  vertical,
+  internal,
   isLink,
   onClick,
+  vertical,
 }) => {
-  const Container = isLink ? StyledLink : StyledButton;
-  const props = isLink
-    ? {
-        href,
-        target: '_blank',
-        rel: 'noopener noreferrer',
-      }
-    : {};
+  let Container = StyledButton;
+  let props = {};
+  if (isLink) {
+    Container = internal ? StyledInternalLink : StyledLink;
+    props = internal
+      ? { to: href }
+      : {
+          href,
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        };
+  }
   return (
     <Container
       className={className}
@@ -104,16 +115,18 @@ Link.propTypes = {
   className: PropTypes.string,
   disabled: PropTypes.bool,
   href: PropTypes.string,
+  internal: PropTypes.bool,
   isLink: PropTypes.bool,
   onClick: PropTypes.func,
   vertical: PropTypes.bool,
 };
 
 Link.defaultProps = {
-  className: '',
   children: null,
+  className: '',
   disabled: false,
   href: '',
+  internal: false,
   isLink: false,
   onClick() {},
   vertical: false,

@@ -17,8 +17,16 @@ export const heading = css`
 
 const base2 = css`
   ${base};
-  font-family: 'Andale Mono';
+  font-family: 'Roboto Mono';
   color: ${getStyle('text1')};
+`;
+
+export const heading2 = css`
+  ${base2};
+  color: ${getStyle('text1')};
+  font-size: 36px;
+  ${tablet(`font-size: 32px;`)};
+  ${mobile(`font-size: 22px;`)};
 `;
 
 export const subheader = css`
@@ -28,11 +36,11 @@ export const subheader = css`
   ${tablet(`
     font-size: 20pt;
     line-height: 22pt;
-  `)}
+  `)};
   ${mobile(`
     font-size: 18pt;
     line-height: 20pt;
-  `)}
+  `)};
 `;
 
 export const subheader2 = css`
@@ -42,13 +50,40 @@ export const subheader2 = css`
 
 export const detail = css`
   ${base2};
-  font-size: 12pt;
+  font-size: 14px;
   ${mobile(`
-    font-size: 11pt;
-  `)}
+    font-size: 12px;
+  `)};
 `;
 
 export const detail2 = css`
   ${detail};
+  color: ${getStyle('text2')};
+`;
+
+export const detail3 = css`
+  ${detail};
+  color: ${getStyle('text1c')};
+`;
+
+export const body = css`
+  ${base2};
+  color: ${getStyle('text1b')};
+  font-size: 18px;
+  line-height: 24px;
+  p {
+    margin: 0;
+  }
+  > p:not(:last-child) {
+    margin-bottom: 1rem;
+  }
+  ${mobile(`
+    font-size: 14px;
+    line-height: 20px;
+  `)};
+`;
+
+export const body2 = css`
+  ${body};
   color: ${getStyle('text2')};
 `;

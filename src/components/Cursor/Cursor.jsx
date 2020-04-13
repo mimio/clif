@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { get } from 'lodash-es';
 import styled from '@emotion/styled';
 import { getStyle, size } from 'styles';
+import { isTouchScreen } from 'utils/device';
 
 const isElementActive = element =>
   ['BUTTON', 'A'].includes(get(element, 'nodeName'));
@@ -10,16 +11,6 @@ const isTargetActive = target =>
   isElementActive(target) ||
   isElementActive(get(target, 'parentElement')) ||
   isElementActive(get(target, 'parentElement.parentElement'));
-
-const isTouchScreen = () => {
-  const prefixes = ' -webkit- -moz- -o- -ms- '.split(' ');
-  const mq = query => window.matchMedia(query).matches;
-  if (('ontouchstart' in window) || window.DocumentTouch && document instanceof DocumentTouch) {
-      return true;
-  }
-  const query = ['(', prefixes.join('touch-enabled),('), 'heartz', ')'].join('');
-  return mq(query);
-};
 
 const StyledCursor = styled.div`
   pointer-events: none;

@@ -5,9 +5,9 @@ import PropTypes from 'prop-types';
 import { getBool, getStyle, size } from 'styles';
 import { detail } from 'styles/text';
 import { centered } from 'styles/layout';
-import { HELLO, WORK, PROJECTS, orderedTabs } from 'constants/tabs';
+import { HELLO, WORK, PROJECTS, orderedTabs } from 'constants/pages';
 import { HomeIcon } from 'icons';
-import { ItemColumn } from '../layout';
+import { Column } from '../layout';
 
 const StyledHomeIcon = styled(HomeIcon)`
   height: 20px;
@@ -61,7 +61,7 @@ const StyledLink = styled(Link)`
   }
 `;
 
-const Container = styled(ItemColumn)`
+const Container = styled(Column)`
   position: relative;
 `;
 

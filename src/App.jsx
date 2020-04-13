@@ -1,22 +1,19 @@
 import React from 'react';
 import styled from '@emotion/styled';
-import { useHistory, useParams } from 'react-router-dom';
-import { mobile, getStyle, size } from 'styles';
-import { Link, Column } from 'components';
-import Cursor from 'components/Cursor';
+import { Route, Switch, Redirect } from 'react-router-dom';
+import { mobile, size } from 'styles';
 import { EnvelopeIcon } from 'icons';
 import email from 'constants/email';
-import { orderedTabs, HELLO } from 'constants/tabs';
+import { LOST } from 'constants/pages';
 import useWatchScreenSize from 'hooks/useWatchScreenSize';
-import Navigation from './components/Navigation';
-import Pages from './pages';
+import { Link, Column, Navigation } from 'components';
+import pages from './pages';
 
 const Container = styled(Column)`
   height: 100%;
   width: 100%;
   overflow: hidden;
   align-items: flex-start;
-  background: ${getStyle('background1')};
 `;
 
 const StyledNavigation = styled(Navigation)`
@@ -39,15 +36,9 @@ const ContactLink = styled(Link)`
 
 const App = () => {
   useWatchScreenSize();
-  const { tabId } = useParams();
-  if (!orderedTabs.includes(tabId)) {
-    useHistory().push(`/${HELLO}`);
-    return null;
-  }
 
   return (
     <Container>
-      <Cursor />
       <StyledNavigation />
       <ContactLink
         href={`mailto:${email}`}
@@ -56,7 +47,12 @@ const App = () => {
       >
         {email}
       </ContactLink>
-      <Pages />
+      <Switch>
+        {pages.map(({ id, path, component }) => (
+          <Route key={id} exact path={path} component={component} />
+        ))}
+        <Route component={() => <Redirect to={`/${LOST}`} />} />
+      </Switch>
     </Container>
   );
 };

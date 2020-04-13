@@ -1,7 +1,7 @@
 import React from 'react';
 import { Global, css } from '@emotion/core';
-import colors from './colors';
-import transitions from './transitions';
+import colors from './theme/colors';
+import transitions from './theme/transitions';
 
 const globalCss = css`
   html {
@@ -51,12 +51,18 @@ const globalCss = css`
     position: relative;
     overflow: hidden;
   }
+  body {
+    background: ${colors.background1};
+  }
   ul {
     padding: 0;
     margin-right: 0;
   }
   a {
     text-decoration: none;
+  }
+  svg {
+    fill: currentColor;
   }
 `;
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 // import styled from '@emotion/styled';
-import { Button, ItemRow } from 'components';
+import { Button, Row } from 'components';
 import { ArrowLeftIcon, ArrowRightIcon, ExpandIcon } from 'icons';
 
 const Controls = ({
@@ -13,7 +13,7 @@ const Controls = ({
   selectNextFeature,
   selectPrevFeature,
 }) => (
-  <ItemRow className={className}>
+  <Row className={className} sp={4}>
     <Button onClick={fitBounds} Icon={ExpandIcon} />
     {isFeatureSelected && (
       <>
@@ -29,7 +29,7 @@ const Controls = ({
         />
       </>
     )}
-  </ItemRow>
+  </Row>
 );
 
 Controls.propTypes = {

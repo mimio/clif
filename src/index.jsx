@@ -1,15 +1,17 @@
 import React from 'react';
+import { render } from 'react-dom';
 import {
   BrowserRouter,
-  Route,
   Redirect,
   Switch,
+  Route,
 } from 'react-router-dom';
-import { render } from 'react-dom';
 import { Provider } from 'react-redux';
 import { ThemeProvider } from 'emotion-theming';
 import { hot } from 'react-hot-loader/root';
-import { HELLO } from 'constants/tabs';
+import { HELLO, LOST } from 'constants/pages';
+import Cursor from 'components/Cursor';
+import Lost from './pages/Lost';
 
 import 'normalize.css';
 import '../fonts/fonts.css';
@@ -30,14 +32,18 @@ const Main = hot(() => (
     <ThemeProvider theme={theme}>
       <Provider store={store}>
         <BrowserRouter basename="/">
-          <Switch>
-            <Route
-              exact
-              path="/"
-              component={() => <Redirect to={`/${HELLO}`} />}
-            />
-            <Route path="/:tabId?" component={App} />
-          </Switch>
+          <>
+            <Cursor />
+            <Switch>
+              <Route
+                exact
+                path="/"
+                component={() => <Redirect to={`/${HELLO}`} />}
+              />
+              <Route exact path={`/${LOST}`} component={Lost} />
+              <Route path="/:tabId?" component={App} />
+            </Switch>
+          </>
         </BrowserRouter>
       </Provider>
     </ThemeProvider>

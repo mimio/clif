@@ -1,7 +1,7 @@
 import { get } from 'lodash-es';
 import uuid from 'uuid/v4';
 import { Popup } from 'mapbox-gl';
-import sizes from 'styles/sizes';
+import sizes from 'styles/theme/sizes';
 import { WORK_SOURCE } from 'constants/source';
 import { BOUNDS_PADDING, BOUNDS_PADDING_MOBILE } from 'constants/map';
 import { selectIsMobile } from '../app/selectors';

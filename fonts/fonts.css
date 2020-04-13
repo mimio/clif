@@ -7,9 +7,9 @@
 }
 
 @font-face {
-  font-family: 'Andale Mono';
+  font-family: 'Roboto Mono';
   font-style: normal;
   font-weight: 200;
-  src: local('Andale Mono'),
-    url('./AndaleMono.woff2') format('woff2');
+  src: local('Roboto Mono'),
+    url('./RobotoMono-Regular.ttf') format('ttf');
 }

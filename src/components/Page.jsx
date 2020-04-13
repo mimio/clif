@@ -1,18 +1,26 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { ChildrenPropType } from 'utils/prop-types';
-import { mobile, tablet, getBool, getStyle, size } from 'styles';
-import { centered, itemColumn } from 'styles/layout';
-import Header from './Header';
-import { Full } from './layout';
+import { mobile, tablet, getBool, getStyle, size, mq } from 'styles';
+import {
+  centered,
+  full,
+  foregroundContentTopPadding,
+} from 'styles/layout';
+import { Heading } from './text';
+import { Full, Column } from './layout';
 
-const HeaderContainer = styled(Full)`
-  ${itemColumn};
+const HeaderContainer = styled(Column)`
+  ${full};
   align-items: flex-start;
   height: min-content;
+  top: ${getStyle('pageMinimumPadding')};
   width: calc(100% - ${size(15)});
-  z-index: 2;
+  z-index: 1;
+  ${Heading} {
+    transition: none;
+  }
   ${getBool(
     'hasForeground',
     `
@@ -26,24 +34,21 @@ const HeaderContainer = styled(Full)`
 
 const ForegroundContentContainer = styled(Full)`
   align-items: flex-start;
-  z-index: 1;
+  z-index: 2;
   overflow-y: auto;
   pointer-events: auto;
-  padding-top: ${size(52)};
-  padding-right: ${size(30)};
-  padding-bottom: ${size(20)};
+  ${foregroundContentTopPadding};
+  ${mq({
+    paddingRight: [
+      getStyle('foregroundContentRightPadding'),
+      getStyle('foregroundContentRightPaddingTablet'),
+      getStyle('foregroundContentRightPaddingMobile'),
+    ],
+  })};
   > *:not(:last-child) {
     margin-bottom: ${size(27)};
   }
-  ${tablet(`
-    padding-top: ${size(44)};
-    padding-right: ${size(23)};
-    padding-bottom: ${size(20)};
-  `)}
   ${mobile(`
-    padding-top: ${size(24)};
-    padding-right: ${size(13)};
-    padding-bottom: ${size(10)};
     > *:not(:last-child) {
       margin-bottom: ${size(13)};
     }
@@ -67,14 +72,13 @@ const pageSlideIn = `
 const ForegroundContainer = styled.div`
   z-index: 3;
   position: absolute;
-  top: ${getStyle('pageMinimumPadding')};
-  height: calc(100% - ${getStyle('pageMinimumPadding')});
+  height: 100%;
   left: ${getStyle('foregroundLeftPadding')};
   width: calc(100% - ${size(28)});
   pointer-events: none;
   ${pageSlideIn};
   ${tablet(`
-    left: ${getStyle('pageMinimumPadding')};
+    left: ${getStyle('foregroundLeftPaddingTablet')};
     width: calc(100% - ${getStyle('pageMinimumPadding')});
   `)}
 `;
@@ -86,43 +90,64 @@ const BackgroundContainer = styled(Full)`
 
 const Page = ({
   Background,
-  Foreground,
   Subheader,
+  backgroundCss,
+  children,
   fadeForeground,
-  onScroll,
-}) => (
-  <>
-    <ForegroundContainer>
-      <HeaderContainer hasForeground={fadeForeground} sp={4}>
-        <Header />
-        {Subheader}
-      </HeaderContainer>
-      {Foreground && (
-        <ForegroundContentContainer onScroll={onScroll}>
-          {Foreground}
-        </ForegroundContentContainer>
+  title,
+}) => {
+  const headerContainer = useRef(null);
+  const foregroundContent = useRef(null);
+  const header = useRef(null);
+  const onScroll = () => {
+    const threshold = headerContainer.current.clientHeight;
+    const { scrollTop } = foregroundContent.current;
+    header.current.style.opacity = 1 - (scrollTop / threshold) * 0.5;
+  };
+  return (
+    <>
+      <ForegroundContainer>
+        <HeaderContainer
+          ref={headerContainer}
+          hasForeground={fadeForeground}
+          sp={4}
+        >
+          <Heading ref={header}>{title}</Heading>
+          {Subheader}
+        </HeaderContainer>
+        {children && (
+          <ForegroundContentContainer
+            ref={foregroundContent}
+            onScroll={onScroll}
+          >
+            {children}
+          </ForegroundContentContainer>
+        )}
+      </ForegroundContainer>
+      {Background && (
+        <BackgroundContainer css={backgroundCss}>
+          {Background}
+        </BackgroundContainer>
       )}
-    </ForegroundContainer>
-    {Background && (
-      <BackgroundContainer>{Background}</BackgroundContainer>
-    )}
-  </>
-);
+    </>
+  );
+};
 
 Page.propTypes = {
   Background: ChildrenPropType,
-  Foreground: ChildrenPropType,
   Subheader: ChildrenPropType,
+  backgroundCss: PropTypes.string,
+  children: ChildrenPropType,
   fadeForeground: PropTypes.bool,
-  onScroll: PropTypes.func,
+  title: PropTypes.string.isRequired,
 };
 
 Page.defaultProps = {
   Background: null,
-  Foreground: null,
   Subheader: null,
+  backgroundCss: null,
+  children: null,
   fadeForeground: false,
-  onScroll() {},
 };
 
 export default Page;
