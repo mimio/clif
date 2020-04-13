@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { PROJECTS } from 'constants/pages';
-import { Detail2, Detail, Detail3 } from 'components';
+import { Detail2, Body, Detail3 } from 'components';
 import { column, getStyle, mq } from 'styles';
 
 const StyledImage = styled.div`
@@ -27,7 +27,7 @@ const Details = styled.div`
   display: grid;
   grid-template-rows: min-content auto min-content;
   align-items: center;
-  grid-template-areas: 'detail2 icon' 'detail detail' 'detail3 detail3';
+  grid-template-areas: 'detail2 icon' 'body body' 'detail3 detail3';
   padding: 16px;
   > * {
     transition: ${getStyle('linearHue')};
@@ -55,7 +55,7 @@ const Container = styled(Link)`
     ${StyledImage} {
       opacity: 1;
     }
-    ${Detail} {
+    ${Body} {
       text-decoration: underline;
     }
     svg {
@@ -85,7 +85,7 @@ const ProjectPreview = ({ imgSrc, index, id, Icon, product }) => (
     <Details sp={2}>
       <Icon />
       <Detail2>{index < 10 ? `0${index}` : index}</Detail2>
-      <Detail>{id}</Detail>
+      <Body>{id}</Body>
       <Detail3>{product}</Detail3>
     </Details>
     <StyledImage imgSrc={imgSrc} />

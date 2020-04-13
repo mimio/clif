@@ -27,14 +27,6 @@ export default [
     coordinates: [-122.8303353, 45.5077801],
     id: 3,
   },
-  // {
-  //   company: 'Mimio',
-  //   role: 'Software Engineer',
-  //   description: 'i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff i did stuff',
-  //   dateStart: 1503378652,
-  //   dateEnd: 1545455452,
-  //   id: 'mimio',
-  // },
   {
     company: 'Ubiquiti',
     role: 'Software Engineer',
@@ -43,5 +35,14 @@ export default [
     date: { start: 1545455452000, end: 1579480362000 },
     coordinates: [-122.6854872, 45.5121414],
     id: 4,
+  },
+  {
+    company: 'Freelancing',
+    role: 'Software Engineer & Designer',
+    description:
+      'I am currently working on projects for variety of clients including Ramboll Shair and Human Recreational Services.',
+    coordinates: [-122.6997509, 45.5784006],
+    date: { start: 1579480362000, end: Date.now() },
+    id: 5,
   },
 ];
