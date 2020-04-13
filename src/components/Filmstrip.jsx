@@ -4,14 +4,7 @@ import PropTypes from 'prop-types';
 import { animated, useSpring } from 'react-spring';
 import { useDrag, useScroll } from 'react-use-gesture';
 import { isTouchScreen } from 'utils/device';
-import {
-  getBool,
-  foregroundContentTopPadding,
-  mobile,
-  tablet,
-  getStyle,
-  mq,
-} from 'styles';
+import { getBool, mobile, tablet, getStyle, mq } from 'styles';
 import { Row } from './layout';
 
 const Container = styled(animated.div)`
@@ -19,7 +12,6 @@ const Container = styled(animated.div)`
   width: 100%;
   overflow-y: visible;
   overflow-x: ${({ isTouch }) => (isTouch ? 'auto' : 'hidden')};
-  ${foregroundContentTopPadding};
   ::-webkit-scrollbar {
     height: 0;
     width: 0;

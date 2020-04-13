@@ -5,7 +5,7 @@ export const config = {
   maxZoom: 18,
   bearing: 0,
   pitch: 34,
-  style: 'mapbox://styles/chiefkleef/cihdnr5x000hm6vm5mcjpv36m',
+  style: 'mapbox://styles/chiefkleef/ck8yx5uws03fh1ir30w1qkprd',
   attributionControl: false,
   fitBoundsOptions: {
     padding: BOUNDS_PADDING,

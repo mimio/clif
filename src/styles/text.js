@@ -51,21 +51,23 @@ export const subheader2 = css`
 export const detail = css`
   ${base2};
   font-size: 14px;
+  line-height: 18px;
+  font-weight: lighter;
+  color: ${getStyle('text1b')};
   ${mobile(`
     font-size: 12px;
+    line-height: 16px;
   `)};
 `;
 
 export const detail2 = css`
   ${detail};
   color: ${getStyle('text2')};
-  font-weight: lighter;
 `;
 
 export const detail3 = css`
   ${detail};
   color: ${getStyle('text1c')};
-  font-weight: lighter;
 `;
 
 export const body = css`
