@@ -6,7 +6,7 @@ const createBase = ({
   j = 'flex-start',
   p,
   m,
-  as = 'stretch',
+  as,
   ga,
 }) => `
   display: flex;
@@ -14,10 +14,10 @@ const createBase = ({
   align-items: center;
   align-items: ${a};
   justify-content: ${j};
-  align-self: ${as};
   grid-area: ${ga};
   ${typeof p === 'number' ? `padding: ${size(p)};` : ''};
   ${typeof m === 'number' ? `margin: ${size(m)};` : ''};
+  ${as ? 'align-self: stretch;' : ''};
 `;
 
 export const centered = props => `

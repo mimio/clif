@@ -9,7 +9,8 @@ const Container = styled(Column)`
   height: 100%;
   justify-content: center;
   > a {
-    margin-top: 76px;
+    margin-top: 40px;
+    max-width: 200px;
   }
 `;
 
