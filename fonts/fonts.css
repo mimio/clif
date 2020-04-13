@@ -5,11 +5,3 @@
   src: local('Fat'),
     url('./FREEFATFONT-Slanted.woff2') format('woff2');
 }
-
-@font-face {
-  font-family: 'Roboto Mono';
-  font-style: normal;
-  font-weight: 200;
-  src: local('Roboto Mono'),
-    url('./RobotoMono-Regular.ttf') format('ttf');
-}

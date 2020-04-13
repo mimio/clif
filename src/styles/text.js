@@ -59,11 +59,13 @@ export const detail = css`
 export const detail2 = css`
   ${detail};
   color: ${getStyle('text2')};
+  font-weight: lighter;
 `;
 
 export const detail3 = css`
   ${detail};
   color: ${getStyle('text1c')};
+  font-weight: lighter;
 `;
 
 export const body = css`

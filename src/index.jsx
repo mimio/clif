@@ -28,6 +28,10 @@ const root = document.getElementById('root');
 
 const Main = hot(() => (
   <>
+    <link
+      href="https://fonts.googleapis.com/css?family=Roboto+Mono:300,400&display=swap"
+      rel="stylesheet"
+    />
     <GlobalStyles />
     <ThemeProvider theme={theme}>
       <Provider store={store}>
