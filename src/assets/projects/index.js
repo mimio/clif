@@ -57,14 +57,16 @@ export default [
     subtitle: (
       <>
         <p>
-          The Harvard Joint Center for Housing Studies is a research
-          group focused on advancing the study of housing issues and
-          policies.
+          The Harvard Joint Center for Housing Studies (JCHS) is a
+          research group focused on advancing the study of housing
+          issues and policies.
         </p>
         <p>
-          I worked alongside Harvard to construct this scientific
-          mapping tool that displays social and economic changes
-          across the Greater Boston area starting in 1990.
+          Harvard needed a geographic tool allowing users to visualize
+          social and economic changes across the Greater Boston area
+          starting in 1990. What we constructed takes curated
+          socioeconomic data from the JCHS and bundles it into custom
+          mapping framework.
         </p>
       </>
     ),

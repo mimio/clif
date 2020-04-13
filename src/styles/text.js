@@ -70,8 +70,16 @@ export const body = css`
   ${base2};
   color: ${getStyle('text1b')};
   font-size: 18px;
+  line-height: 24px;
+  p {
+    margin: 0;
+  }
+  > p:not(:last-child) {
+    margin-bottom: 1rem;
+  }
   ${mobile(`
     font-size: 14px;
+    line-height: 20px;
   `)};
 `;
 

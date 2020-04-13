@@ -27,7 +27,6 @@ export const centered = props => `
 
 export const foregroundContentTopPadding = mq({
   paddingTop: [size(52), size(44), size(24)],
-  // paddingBottom: [size(20), size(20), size(10)],
 });
 
 export const foregroundContentBottomPadding = mq({
