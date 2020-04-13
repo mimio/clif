@@ -6,7 +6,7 @@ import { mobile, tablet, getBool, getStyle, size, mq } from 'styles';
 import {
   centered,
   full,
-  foregroundContentVerticalPadding,
+  foregroundContentTopPadding,
 } from 'styles/layout';
 import { Heading } from './text';
 import { Full, Column } from './layout';
@@ -37,7 +37,7 @@ const ForegroundContentContainer = styled(Full)`
   z-index: 2;
   overflow-y: auto;
   pointer-events: auto;
-  ${foregroundContentVerticalPadding};
+  ${foregroundContentTopPadding};
   ${mq({
     paddingRight: [
       getStyle('foregroundContentRightPadding'),

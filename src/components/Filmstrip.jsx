@@ -6,7 +6,7 @@ import { useDrag, useScroll } from 'react-use-gesture';
 import { isTouchScreen } from 'utils/device';
 import {
   getBool,
-  foregroundContentVerticalPadding,
+  foregroundContentTopPadding,
   mobile,
   tablet,
   getStyle,
@@ -19,7 +19,7 @@ const Container = styled(animated.div)`
   width: 100%;
   overflow-y: visible;
   overflow-x: ${({ isTouch }) => (isTouch ? 'auto' : 'hidden')};
-  ${foregroundContentVerticalPadding};
+  ${foregroundContentTopPadding};
   ::-webkit-scrollbar {
     height: 0;
     width: 0;

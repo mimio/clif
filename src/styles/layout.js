@@ -25,8 +25,12 @@ export const centered = props => `
   justify-content: center;
 `;
 
-export const foregroundContentVerticalPadding = mq({
+export const foregroundContentTopPadding = mq({
   paddingTop: [size(52), size(44), size(24)],
+  // paddingBottom: [size(20), size(20), size(10)],
+});
+
+export const foregroundContentBottomPadding = mq({
   paddingBottom: [size(20), size(20), size(10)],
 });
 
