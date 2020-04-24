@@ -9,7 +9,7 @@ import styled from '@emotion/styled';
 
 const StyledLink = styled.a`
   ${centered};
-  border: ${getStyle('ctaBorder')};
+  border: ${getStyle('ctaBorder2')};
   cursor: pointer;
   background: transparent;
   svg {

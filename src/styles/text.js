@@ -74,16 +74,38 @@ export const body = css`
   ${base2};
   color: ${getStyle('text1b')};
   font-size: 18px;
-  line-height: 24px;
+  line-height: 28px;
+  font-weight: lighter;
   p {
     margin: 0;
+    a {
+      background-image: linear-gradient(
+        120deg,
+        ${getStyle('ctaBackground4')} 0%,
+        ${getStyle('ctaBackground4')} 100%
+      );
+      background-repeat: no-repeat;
+      background-size: 100% 1px;
+      background-position: 0 100%;
+      transition: background-size 0.15s linear;
+      color: ${getStyle('text1b')};
+      text-decoration: none;
+      &:hover {
+        background-size: 100% 50%;
+        color: ${getStyle('text1')};
+      }
+      &:active {
+        background-size: 100% 30%;
+        color: ${getStyle('text1')};
+      }
+    }
   }
   > p:not(:last-child) {
     margin-bottom: 1rem;
   }
   ${mobile(`
     font-size: 14px;
-    line-height: 20px;
+    line-height: 22px;
   `)};
 `;
 

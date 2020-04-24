@@ -31,14 +31,37 @@ export default [
     subtitle: (
       <>
         <p>
-          Ramboll Shair is an internal startup turning data from air
-          quality sensors into easily accessible and highly actionable
-          insights.
+          <a
+            href="https://ramboll-shair.com/"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Shair
+          </a>{' '}
+          is an internal startup within the environmental consulting &
+          engineering agency{' '}
+          <a
+            href="https://ramboll.com/"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Ramboll
+          </a>
+          , turning data from air quality sensors into easily
+          accessible and highly actionable insights.
         </p>
         <p>
           I worked with the Shair team to contruct an air quality
-          analysis application that shows air quality data over time
-          in the San Francisco Bay.
+          analysis web application that shows both historical and
+          real-time air quality data across multiple cities. I also
+          helped craft an administrative tool that allows Shair
+          scientists to easily manage geographic data, users, and
+          settings of the main application.
+        </p>
+        <p>
+          We aimed to provide users with a highly performant and
+          intuitive experience while learning about the health of
+          their local environment.
         </p>
       </>
     ),
@@ -57,16 +80,27 @@ export default [
     subtitle: (
       <>
         <p>
-          The Harvard Joint Center for Housing Studies (JCHS) is a
-          research group focused on advancing the study of housing
-          issues and policies.
+          <a
+            href="https://www.jchs.harvard.edu/"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            The Harvard Joint Center for Housing Studies
+          </a>{' '}
+          (JCHS) is a research group focused on advancing the study of
+          housing issues and policies.
         </p>
         <p>
-          Harvard needed a geographic tool allowing users to visualize
-          social and economic changes across the Greater Boston area
-          starting in 1990. What we constructed takes curated
-          socioeconomic data from the JCHS and bundles it into custom
-          mapping framework.
+          I worked with the JCHS to create a geographic tool for
+          visualizing social and economic changes across the Greater
+          Boston area starting in 1990. What we constructed takes
+          JCHS&apos;s curated socioeconomic and bundles it into a
+          made-to-order geographic analysis application complete with
+          user-driven filtration, data coloring, and session saving.
+        </p>
+        <p>
+          We aimed to provide our users with a powerful tool for
+          understanding key socioeconomic data in their city.
         </p>
       </>
     ),
@@ -83,13 +117,37 @@ export default [
     year: 2019,
     theme: 'Sports',
     product: 'Event Map',
-    subtitle:
-      "The The Women's Sports Foundation asked me to create a tool for users to find and research events in their area for the National Girls & Women in Sports Day.",
     imgSrc: ngwsd,
     href:
       'https://www.womenssportsfoundation.org/get-involved/ngwsd/',
     Icon: FutbolIcon,
     id: 'ngwsd',
+    subtitle: (
+      <>
+        <p>
+          <a
+            href="https://www.womenssportsfoundation.org/"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            The Women&apos;s Sports Foundation
+          </a>{' '}
+          (WSF) is an advocacy group working to advance the lives of
+          women through sports.
+        </p>
+        <p>
+          We worked with the WSF to create a simple locator tool to
+          help users find and connect to nearby WSF-approved events.
+          The UX goal was straight-forward: users should able to enter
+          their zipcode and see a list of all the events they can
+          attend.
+        </p>
+        <p>
+          Thus, we chose to design the tool in a minimal near-black &
+          white style with simple, clean animations.
+        </p>
+      </>
+    ),
     roles: [DEV, UIUX],
   },
   {
@@ -98,8 +156,50 @@ export default [
     year: 2017,
     theme: 'Sports',
     product: 'Event Map',
-    subtitle:
-      'I worked with 970 Design to create an annual event map for users to navigate the GoPro Mountain Games.',
+    subtitle: (
+      <>
+        <p>
+          <a
+            href="https://vvf.org/"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            The Vail Valley Foundation
+          </a>{' '}
+          (VVF) is a Colorado-based nonprofit working to enhance the
+          Vail Valley through arts, athletics, and education. Every
+          year, the VVF hosts the{' '}
+          <a
+            href="https://mountaingames.com/"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            GoPro Vail Mountain Games
+          </a>{' '}
+          which gathered over{' '}
+          <a
+            href="https://mountaingames.com/2019-a-spectacular-year-for-gopro-mountain-games/"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {' '}
+            80,000 attendees
+          </a>{' '}
+          in 2019.
+        </p>
+        <p>
+          We worked with the VVF to create an interactive event map to
+          help users find their way during the games that could be
+          reused every year. This map is complete with searching,
+          filtration by event category, and colorful cartography to
+          help drive users in the right direction.
+        </p>
+        <p>
+          Our goal was to give attendees a fun but useful and
+          performant experience.
+        </p>
+      </>
+    ),
     imgSrc: gopro,
     href: 'https://mountaingames.com/map.php',
     Icon: MountainIcon,

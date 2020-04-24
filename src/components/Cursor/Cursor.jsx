@@ -16,8 +16,9 @@ const StyledCursor = styled.div`
   pointer-events: none;
   position: fixed;
   transform: translate(-50%, -50%);
-  transition: ${getStyle('easeOutSize')};
+  transition: ${getStyle('easeOutSize')}, ${getStyle('linearHue')};
   background: ${getStyle('ctaBackground1')};
+  border: 1px solid ${getStyle('ctaBackground4')};
   mix-blend-mode: exclusion;
   z-index: 10000;
   border-radius: 50%;
@@ -28,7 +29,7 @@ const Cursor = () => {
   const cursorEl = useRef(null);
   useEffect(() => {
     isTouch = isTouchScreen();
-    if (isTouch) return () => {};
+    if (isTouchScreen()) return () => {};
     const style = get(cursorEl, 'current.style', {});
     const onMouseMove = ({ clientX, clientY, target }) => {
       const active = isTargetActive(target);
@@ -37,6 +38,9 @@ const Cursor = () => {
       style.left = `${clientX}px`;
       style.height = size(diameter);
       style.width = size(diameter);
+      style.background = active
+        ? 'transparent'
+        : getStyle('ctaBackground1');
     };
     const onMouseLeave = () => {
       style.height = 0;
