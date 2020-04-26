@@ -1,22 +1,10 @@
 import React from 'react';
 import styled from '@emotion/styled';
 import Page from 'components/Page';
-import { Subheader } from 'components';
-import { tablet, mobile } from 'styles';
+import { Heading2 } from 'components';
 import Globe from './Globe';
 
-const IntroBlurb = styled(Subheader)`
-  font-size: 36pt;
-  line-height: 46pt;
-  ${tablet(`
-    font-size: 30pt;
-    line-height: 40pt;
-  `)};
-  ${mobile(`
-    font-size: 22pt;
-    line-height: 34pt;
-  `)};
-`;
+const IntroBlurb = styled(Heading2)``;
 
 const blurb =
   'my name is Clifton Campbell. I am a web developer with a passion for quality.';

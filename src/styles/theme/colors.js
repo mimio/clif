@@ -21,7 +21,7 @@ export default {
   ctaBackground2: rgba(yellow, 0.3),
   ctaBackground3: rgba(yellow, 0.12),
   ctaBackground4: rgba(yellow, 0.6),
-  scroll1: 'rgba(255, 229, 32, 0.6)',
-  scroll2: 'rgba(255, 229, 32, 0.8)',
-  scroll3: 'rgba(255, 229, 32, 1)',
+  scroll1: 'rgba(255, 229, 32, 0.3)',
+  scroll2: 'rgba(255, 229, 32, 0.5)',
+  scroll3: 'rgba(255, 229, 32, 0.8)',
 };
