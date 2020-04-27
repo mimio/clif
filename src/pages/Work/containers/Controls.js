@@ -10,7 +10,7 @@ import {
 import Controls from '../Controls';
 
 export default connect(
-  state => ({
+  (state) => ({
     isFeatureSelected: selectIsFeatureSelected(state),
     isFirstFeatureSelected: selectIsFirstFeatureSelected(state),
     isLastFeatureSelected: selectIsLastFeatureSelected(state),

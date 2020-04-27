@@ -4,28 +4,28 @@ import { get } from 'lodash-es';
 import { createSelector } from 'reselect';
 import { arrayToFeatureCollection } from 'utils/geojson';
 
-export const selectState = state => state.geojson;
+export const selectState = (state) => state.geojson;
 
-export const selectData = createSelector(selectState, state =>
+export const selectData = createSelector(selectState, (state) =>
   get(state, 'data', []),
 );
 
-export const selectFeatureList = createSelector(selectData, data =>
+export const selectFeatureList = createSelector(selectData, (data) =>
   Object.values(data),
 );
 
-export const selectLookup = createSelector(selectData, data =>
+export const selectLookup = createSelector(selectData, (data) =>
   data.reduce((acc, ft) => ({ ...acc, [ft.id]: ft }), {}),
 );
 
 export const selectGeoJson = createSelector(
   selectFeatureList,
-  features => arrayToFeatureCollection(features),
+  (features) => arrayToFeatureCollection(features),
 );
 
 export const selectGeoJsonWithoutOutliers = createSelector(
   selectFeatureList,
-  features =>
+  (features) =>
     arrayToFeatureCollection(
       features.filter(({ outlier }) => !outlier),
     ),
@@ -33,27 +33,27 @@ export const selectGeoJsonWithoutOutliers = createSelector(
 
 export const selectAreFeaturesEmpty = createSelector(
   selectFeatureList,
-  list => list.length === 0,
+  (list) => list.length === 0,
 );
 
 export const selectIsInitialized = createSelector(
   selectState,
-  state => state.updateCount > 0,
+  (state) => state.updateCount > 0,
 );
 
 export const selectChronologicalFeatures = createSelector(
   selectFeatureList,
-  features => features.sort((a, b) => a.date.end > b.date.end),
+  (features) => features.sort((a, b) => a.date.end > b.date.end),
 );
 
 export const selectChronologicalFeatureIds = createSelector(
   selectChronologicalFeatures,
-  features => features.map(({ id }) => id),
+  (features) => features.map(({ id }) => id),
 );
 
 export const selectWorkPathGeoJson = createSelector(
   selectChronologicalFeatures,
-  features => {
+  (features) => {
     const orderedCoords = features.map(
       ({ coordinates }) => coordinates,
     );

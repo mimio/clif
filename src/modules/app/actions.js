@@ -2,7 +2,7 @@ const base = 'app';
 export const SET_SCREEN_SIZE = `${base}-setScreenSize`;
 export const SET_CURSOR = `${base}-setCursor`;
 
-export const setCursor = payload => ({
+export const setCursor = (payload) => ({
   type: SET_CURSOR,
   payload,
 });

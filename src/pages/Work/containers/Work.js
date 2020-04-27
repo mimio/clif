@@ -3,7 +3,7 @@ import { selectIsMobile } from 'modules/app';
 import Work from '../Work';
 
 export default connect(
-  state => ({
+  (state) => ({
     isMobile: selectIsMobile(state),
   }),
   null,

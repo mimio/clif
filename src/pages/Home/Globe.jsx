@@ -72,7 +72,7 @@ export default class Globe extends Component {
     }));
   };
 
-  onTouchMove = e => {
+  onTouchMove = (e) => {
     const { clientX, clientY } = get(e, 'touches[0]');
     if (!clientX || !clientY) return;
     this.coords = normalizeCursorLocation([clientX, clientY]);

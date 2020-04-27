@@ -4,10 +4,10 @@ import styled from '@emotion/styled';
 import { getStyle, size } from 'styles';
 import { isTouchScreen } from 'utils/device';
 
-const isElementActive = element =>
+const isElementActive = (element) =>
   ['BUTTON', 'A'].includes(get(element, 'nodeName'));
 
-const isTargetActive = target =>
+const isTargetActive = (target) =>
   isElementActive(target) ||
   isElementActive(get(target, 'parentElement')) ||
   isElementActive(get(target, 'parentElement.parentElement'));

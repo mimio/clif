@@ -8,7 +8,7 @@ import {
 import Popup from '../Popup';
 
 export default connect(
-  state => ({
+  (state) => ({
     feature: selectSelectedFeature(state),
     isMobile: selectIsMobile(state),
     popupId: selectPopupId(state),

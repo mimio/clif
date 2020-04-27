@@ -13,7 +13,7 @@ import {
 import Map from '../Map';
 
 export default connect(
-  state => ({
+  (state) => ({
     isMapLoaded: selectMapLoaded(state),
     mapConfig: selectMapConfig(state),
     mapLayers: selectMapLayers(state),

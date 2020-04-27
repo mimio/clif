@@ -3,7 +3,7 @@ export const emptyGeoJson = {
   features: [],
 };
 
-export const createGeoJsonFeature = properties => {
+export const createGeoJsonFeature = (properties) => {
   const { coordinates, id } = properties;
   return {
     type: 'Feature',
@@ -13,7 +13,7 @@ export const createGeoJsonFeature = properties => {
   };
 };
 
-export const arrayToFeatureCollection = data => ({
+export const arrayToFeatureCollection = (data) => ({
   type: 'FeatureCollection',
   features: data.map(createGeoJsonFeature),
 });

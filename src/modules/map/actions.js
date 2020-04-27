@@ -28,7 +28,7 @@ import {
   RESET_MAP,
 } from './types';
 
-export const setMapLoaded = isLoaded => ({
+export const setMapLoaded = (isLoaded) => ({
   type: SET_MAP_LOADED,
   payload: isLoaded,
 });
@@ -103,12 +103,12 @@ const getId = (map, e) => {
   }
 };
 
-export const setPopupId = id => ({
+export const setPopupId = (id) => ({
   type: SET_POPUP_ID,
   payload: id,
 });
 
-export const selectFeature = e => (dispatch, getState, getMap) => {
+export const selectFeature = (e) => (dispatch, getState, getMap) => {
   const state = getState();
   if (!selectMapLoaded(state)) return null;
   const map = getMap();
@@ -173,7 +173,7 @@ export const selectPrevFeature = () => (dispatch, getState) => {
   return dispatch(selectFeature(prevFeatureId));
 };
 
-export const hoverFeature = e => (dispatch, getState, getMap) => {
+export const hoverFeature = (e) => (dispatch, getState, getMap) => {
   const state = getState();
   if (!selectMapLoaded(state)) return null;
   const map = getMap();

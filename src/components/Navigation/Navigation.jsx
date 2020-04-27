@@ -75,7 +75,7 @@ const Navigation = ({ className }) => {
   const { tabId } = useParams();
   return (
     <Container className={className} sp={4}>
-      {orderedTabs.map(tab => (
+      {orderedTabs.map((tab) => (
         <StyledLink
           className={tab}
           isActive={tab === tabId}

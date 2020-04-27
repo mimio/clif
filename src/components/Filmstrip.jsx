@@ -133,7 +133,7 @@ export default function Filmstrip({ className, children }) {
     scroll: 0,
   }));
 
-  const bind = useDrag(drag => {
+  const bind = useDrag((drag) => {
     if (isTouch) return;
     const {
       movement: [mx],
@@ -170,7 +170,7 @@ export default function Filmstrip({ className, children }) {
       {...bindScroll()}
     >
       <Inner isDragging={isDragging}>
-        {children.map(child => (
+        {children.map((child) => (
           <Child>{child}</Child>
         ))}
       </Inner>

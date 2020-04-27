@@ -7,7 +7,7 @@ export default function useWatchScreenSize() {
 
   return useEffect(() => {
     setScreenSize(window.innerWidth, window.innerHeight);
-    const mouseListener = window.addEventListener('resize', e =>
+    const mouseListener = window.addEventListener('resize', (e) =>
       setScreenSize(e.target.innerWidth, e.target.innerHeight),
     );
     return () => {

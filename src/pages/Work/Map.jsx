@@ -80,7 +80,7 @@ class Map extends Component {
       unhoverFeature,
       selectFeature,
     } = this.props;
-    mapLayers.forEach(layer => {
+    mapLayers.forEach((layer) => {
       this.map.addLayer(layer);
       this.map.on('mousemove', layer.id, hoverFeature);
       this.map.on('mouseleave', layer.id, unhoverFeature);
@@ -88,8 +88,8 @@ class Map extends Component {
     });
   };
 
-  getLayer = id =>
-    new Promise(resolve => {
+  getLayer = (id) =>
+    new Promise((resolve) => {
       const resolver = () => {
         const layer = this.map.getLayer(id);
         resolve(layer);
@@ -102,10 +102,10 @@ class Map extends Component {
     const { clearSelection, setMapLoaded, mapLayers } = this.props;
     this.addLayers();
     this.map.on('idle', () => setMapLoaded(true));
-    this.map.on('click', e => {
+    this.map.on('click', (e) => {
       if (
         this.map.queryRenderedFeatures(e.point, {
-          layers: mapLayers.map(layer => layer.id),
+          layers: mapLayers.map((layer) => layer.id),
         }).length === 0
       )
         clearSelection();

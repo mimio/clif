@@ -14,9 +14,9 @@ import {
   selectChronologicalFeatureIds,
 } from '../geojson/selectors';
 
-export const selectMapState = state => state.map;
+export const selectMapState = (state) => state.map;
 
-export const selectMapLoaded = createSelector(selectMapState, map =>
+export const selectMapLoaded = createSelector(selectMapState, (map) =>
   get(map, 'mapLoaded', false),
 );
 
@@ -101,17 +101,17 @@ export const selectMapLayers = createSelector(
 
 export const selectHoveredFeatureId = createSelector(
   selectMapState,
-  map => get(map, 'hoveredFeatureId'),
+  (map) => get(map, 'hoveredFeatureId'),
 );
 
 export const selectSelectedFeatureId = createSelector(
   selectMapState,
-  map => get(map, 'selectedFeatureId'),
+  (map) => get(map, 'selectedFeatureId'),
 );
 
 export const selectIsFeatureSelected = createSelector(
   selectSelectedFeatureId,
-  id => !!id,
+  (id) => !!id,
 );
 
 export const selectSelectedFeature = createSelector(
@@ -154,5 +154,5 @@ export const selectNextFeatureId = createSelector(
 
 export const selectPopupId = createSelector(
   selectMapState,
-  map => map.popupId,
+  (map) => map.popupId,
 );

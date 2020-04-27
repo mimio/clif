@@ -20,7 +20,7 @@ const createBase = ({
   ${as ? 'align-self: stretch;' : ''};
 `;
 
-export const centered = props => `
+export const centered = (props) => `
   ${createBase(props)};
   justify-content: center;
 `;
