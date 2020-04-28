@@ -40,6 +40,7 @@ const Container = styled(Link)`
   height: 100%;
   border-radius: 20px;
   background: ${getStyle('background')};
+  transition: ${getStyle('linearHue')};
   border: 1px solid #2a2a2a;
   overflow: hidden;
   ${mq({
