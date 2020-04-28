@@ -89,6 +89,7 @@ const BackgroundContainer = styled(Full)`
 `;
 
 const Page = ({
+  className,
   Background,
   Subheader,
   backgroundCss,
@@ -117,6 +118,7 @@ const Page = ({
         </HeaderContainer>
         {children && (
           <ForegroundContentContainer
+            className={className}
             ref={foregroundContent}
             onScroll={onScroll}
           >
@@ -134,6 +136,7 @@ const Page = ({
 };
 
 Page.propTypes = {
+  className: PropTypes.string,
   Background: ChildrenPropType,
   Subheader: ChildrenPropType,
   backgroundCss: PropTypes.string,
@@ -143,6 +146,7 @@ Page.propTypes = {
 };
 
 Page.defaultProps = {
+  className: '',
   Background: null,
   Subheader: null,
   backgroundCss: null,

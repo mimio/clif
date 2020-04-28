@@ -2,7 +2,6 @@ import React, { Component } from 'react';
 import { get } from 'lodash-es';
 import styled from '@emotion/styled';
 import { getStyle } from 'styles';
-import { geoOrthographic, geoPath } from 'd3';
 import { feature } from 'topojson';
 import lands from './ne110m_land.json';
 
@@ -29,7 +28,7 @@ const bufferChange = (val, oldVal) => {
 
 const Svg = styled.svg`
   fill: transparent;
-  stroke: ${getStyle('text2')};
+  stroke: ${getStyle('ctaBackground2')};
   stroke-width: 0.2;
 `;
 
@@ -42,19 +41,23 @@ export default class Globe extends Component {
 
   translateY = 200;
 
+  // svg = null;
+
   state = {
     rotationX: 1000,
   };
 
   componentDidMount() {
     this.interval = setInterval(this.rotate, 20);
+    // this.svg = d3.select('#globe');
+
     this.mouseListener = window.addEventListener(
       'mousemove',
-      this.onMouseMove,
+      this.onGlobalMouseMove,
     );
     this.touchListener = window.addEventListener(
       'touchmove',
-      this.onTouchMove,
+      this.onGlobalTouchMove,
     );
   }
 
@@ -64,7 +67,9 @@ export default class Globe extends Component {
     window.removeEventListener('mousemove', this.mouseListener);
   }
 
-  // rotation drives this animation -- putting mouse movement on component state froze animation so opted to set cursor related state on a non-state object
+  // rotation drives this animation
+  // putting mouse movement on component state froze animation
+  // opted to set cursor related state on a non-state object
   rotate = () => {
     const change = this.coords[0] >= 0 ? 0.1 : -0.1;
     this.setState(({ rotationX }) => ({
@@ -72,13 +77,13 @@ export default class Globe extends Component {
     }));
   };
 
-  onTouchMove = (e) => {
+  onGlobalTouchMove = (e) => {
     const { clientX, clientY } = get(e, 'touches[0]');
     if (!clientX || !clientY) return;
     this.coords = normalizeCursorLocation([clientX, clientY]);
   };
 
-  onMouseMove = ({ clientX, clientY }) => {
+  onGlobalMouseMove = ({ clientX, clientY }) => {
     this.coords = normalizeCursorLocation([clientX, clientY]);
   };
 
@@ -96,18 +101,25 @@ export default class Globe extends Component {
       this.translateY,
     );
 
-    const projection = geoOrthographic()
+    const projection = d3
+      .geoOrthographic()
       .fitSize([globeSize, globeSize], geojson)
       .rotate([rotationX, this.rotationY])
+      .clipAngle(180)
       .translate([this.translateX, this.translateY]);
 
-    const geoGenerator = geoPath().projection(projection);
+    const geoGenerator = d3.geoPath().projection(projection);
     return geoGenerator(geojson);
   };
 
   render() {
     return (
-      <Svg width="100%" height="100%" viewBox="0 0 400 400">
+      <Svg
+        id="globe"
+        width="100%"
+        height="100%"
+        viewBox="0 0 400 400"
+      >
         <path d={this.getPathString()} />
       </Svg>
     );

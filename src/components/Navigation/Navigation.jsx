@@ -17,6 +17,7 @@ const StyledHomeIcon = styled(HomeIcon)`
 const StyledLink = styled(Link)`
   ${centered};
   ${detail};
+  font-weight: 300;
   position: relative;
   writing-mode: vertical-lr;
   z-index: 1;
@@ -68,7 +69,7 @@ const Container = styled(Column)`
 const copy = {
   [HELLO]: <StyledHomeIcon />,
   [PROJECTS]: 'Projects',
-  [WORK]: 'Work',
+  [WORK]: 'History',
 };
 
 const Navigation = ({ className }) => {

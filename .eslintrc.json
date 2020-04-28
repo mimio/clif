@@ -21,8 +21,11 @@
     "react/forbid-prop-types": 0,
     "react/jsx-wrap-multilines": 0,
     "import/prefer-default-export": 0,
+    "no-nested-ternary": 0,
     "no-underscore-dangle": 0,
     "camelcase": 0,
+    "react/jsx-props-no-spreading": 1,
+    "react/state-in-constructor": 0,
     "react/prefer-stateless-function": 0,
     "import/no-extraneous-dependencies": [
       "error",
@@ -38,6 +41,7 @@
     "__DEV__": true,
     "__config__": true,
     "__MAPBOX_KEY__": true,
-    "__CLOUD__": true
+    "__CLOUD__": true,
+    "d3": true
   }
 }

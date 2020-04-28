@@ -13,6 +13,7 @@ import { HELLO, LOST } from 'constants/pages';
 import Cursor from 'components/Cursor';
 import Lost from './pages/Lost';
 
+import './d3';
 import 'normalize.css';
 import '../fonts/fonts.css';
 
@@ -29,7 +30,7 @@ const root = document.getElementById('root');
 const Main = hot(() => (
   <>
     <link
-      href="https://fonts.googleapis.com/css?family=Roboto+Mono:300,400&display=swap"
+      href="https://fonts.googleapis.com/css?family=Roboto+Mono:100,200,300,400&display=swap"
       rel="stylesheet"
     />
     <GlobalStyles />

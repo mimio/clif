@@ -28,7 +28,7 @@ const Work = ({ isMobile }) => (
       </>
     }
     Subheader={isMobile ? <Controls /> : null}
-    title="WORK HISTORY"
+    title="HISTORY"
   />
 );
 

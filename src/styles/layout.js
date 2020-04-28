@@ -15,8 +15,20 @@ const createBase = ({
   align-items: ${a};
   justify-content: ${j};
   grid-area: ${ga};
-  ${typeof p === 'number' ? `padding: ${size(p)};` : ''};
-  ${typeof m === 'number' ? `margin: ${size(m)};` : ''};
+  ${
+    typeof p === 'number'
+      ? `padding: ${size(p)};`
+      : typeof p === 'string'
+      ? `padding: ${p};`
+      : ''
+  };
+  ${
+    typeof m === 'number'
+      ? `margin: ${size(m)};`
+      : typeof m === 'string'
+      ? `margin: ${m};`
+      : ''
+  };
   ${as ? 'align-self: stretch;' : ''};
 `;
 

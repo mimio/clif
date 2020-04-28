@@ -17,6 +17,9 @@ const StyledImage = styled.div`
 
 const Details = styled.div`
   height: 160px;
+  ${Body} {
+    font-weight: 300;
+  }
   > svg {
     grid-area: icon;
     height: 18px;
