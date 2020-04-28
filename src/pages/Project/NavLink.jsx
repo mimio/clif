@@ -96,11 +96,6 @@ const NavLink = ({ title, reverse, ...props }) => (
   <Container reverse={reverse} {...props}>
     <Centered ga="icon">
       <CaretRightIcon />
-
-      
-      
-
-
     </Centered>
     <Detail3>{reverse ? 'PREV' : 'NEXT'}</Detail3>
     <Body2>{title}</Body2>

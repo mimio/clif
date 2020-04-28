@@ -39,7 +39,8 @@ const Container = styled(Link)`
   position: relative;
   height: 100%;
   border-radius: 20px;
-  background: ${getStyle('background2')};
+  background: ${getStyle('background')};
+  border: 1px solid #2a2a2a;
   overflow: hidden;
   ${mq({
     width: ['200px', '180px', '160px'],
@@ -52,6 +53,7 @@ const Container = styled(Link)`
     transition: ${getStyle('linearHue')};
   }
   &:hover {
+    border: ${getStyle('ctaBorder2')};
     ${StyledImage} {
       opacity: 1;
     }
