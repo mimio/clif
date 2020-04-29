@@ -62,7 +62,7 @@ const Container = styled(Link)`
       opacity: 1;
     }
     ${Body} {
-      text-decoration: underline;
+      color: ${getStyle('text2')};
     }
     svg {
       color: #5d5d5d;

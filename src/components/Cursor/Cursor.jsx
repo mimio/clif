@@ -10,7 +10,10 @@ const isElementActive = (element) =>
 const isTargetActive = (target) =>
   isElementActive(target) ||
   isElementActive(get(target, 'parentElement')) ||
-  isElementActive(get(target, 'parentElement.parentElement'));
+  isElementActive(get(target, 'parentElement.parentElement')) ||
+  isElementActive(
+    get(target, 'parentElement.parentElement.parentElement'),
+  );
 
 const StyledCursor = styled.div`
   pointer-events: none;
@@ -33,7 +36,7 @@ const Cursor = () => {
     const style = get(cursorEl, 'current.style', {});
     const onMouseMove = ({ clientX, clientY, target }) => {
       const active = isTargetActive(target);
-      const diameter = active ? 10 : 7;
+      const diameter = active ? 10 : 4;
       style.top = `${clientY}px`;
       style.left = `${clientX}px`;
       style.height = size(diameter);

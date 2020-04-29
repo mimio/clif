@@ -50,9 +50,14 @@ export const heading2 = css`
   ${base2};
   color: ${getStyle('text1')};
   font-size: 36px;
-  font-weight: 100;
+  font-weight: 300;
   ${tablet(`font-size: 32px;`)};
   ${mobile(`font-size: 22px;`)};
+`;
+
+export const heading3 = css`
+  ${heading2};
+  font-weight: 200;
 `;
 
 export const subheader = css`

@@ -9,7 +9,7 @@ export default {
   background2: '#202020',
   controlBackdrop: 'rgba(22,22,22,0.69)',
   text1: '#FFF',
-  text1b: '#D3D3D3',
+  text1b: '#ebebeb',
   text1c: '#858585',
   text1d: '#474747',
   text1e: offBlack,

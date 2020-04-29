@@ -3,7 +3,7 @@ import styled from '@emotion/styled';
 import { Link } from 'react-router-dom';
 import Page from 'components/Page';
 import { getStyle, mobile, mq } from 'styles';
-import { Column, Subheader, Heading2 } from 'components';
+import { Column, Body, Heading3 } from 'components';
 import { WORK, PROJECTS } from 'constants/pages';
 import Globe from './Globe';
 
@@ -21,13 +21,13 @@ const CallToAction = styled.div`
     height: 100%;
     width: 10px;
     border-radius: 10px;
-    background: ${getStyle('ctaBackground2')};
+    background: ${getStyle('ctaBackground4')};
   }
-  ${Subheader} {
-    font-weight: 200;
-    line-height: 50px;
+  ${Body} {
+    font-weight: 300;
+    line-height: 40px;
     b {
-      font-weight: 300;
+      font-weight: 400;
     }
     ${mobile(`
       line-height: 30px;
@@ -38,7 +38,7 @@ const CallToAction = styled.div`
 export default () => (
   <Page title="HELLO." Background={<Globe />}>
     <Column a="flex-start" m="24px 0 0 0">
-      <Heading2>
+      <Heading3>
         My name is Clifton Campbell.
         <br />
         <br />I &#10084;&#65039;
@@ -46,9 +46,9 @@ export default () => (
         {' and '}
         <b>developing</b>
         {' websites.'}
-      </Heading2>
+      </Heading3>
       <CallToAction>
-        <Subheader>
+        <Body>
           Check out my{' '}
           <Link to={`/${PROJECTS}`}>
             <b>projects</b>
@@ -58,7 +58,7 @@ export default () => (
             <b>history</b>
           </Link>
           .
-        </Subheader>
+        </Body>
       </CallToAction>
     </Column>
   </Page>

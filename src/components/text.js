@@ -7,6 +7,7 @@ import {
   detail3,
   heading,
   heading2,
+  heading3,
   subheader,
   subheader2,
 } from 'styles/text';
@@ -29,6 +30,11 @@ export const Heading = styled.span`
 export const Heading2 = styled.span`
   grid-area: heading2;
   ${heading2};
+`;
+
+export const Heading3 = styled.span`
+  grid-area: heading3;
+  ${heading3};
 `;
 
 export const Subheader = styled.span`
