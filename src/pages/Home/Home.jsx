@@ -19,8 +19,8 @@ const CallToAction = styled.div`
     left: 0;
     top: 0;
     height: 100%;
-    width: 10px;
-    border-radius: 10px;
+    width: 6px;
+    border-radius: 3px;
     background: ${getStyle('ctaBackground4')};
   }
   ${Body} {
