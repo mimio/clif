@@ -7,6 +7,7 @@ const offBlack = '#232323';
 export default {
   background1: black,
   background2: '#202020',
+  controlBackdrop: 'rgba(22,22,22,0.69)',
   text1: '#FFF',
   text1b: '#D3D3D3',
   text1c: '#858585',

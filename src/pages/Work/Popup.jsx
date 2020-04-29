@@ -4,17 +4,17 @@ import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import moment from 'moment';
 import { getBool, getStyle, size } from 'styles';
-import { subheader2 } from 'styles/text';
-import { Column, Subheader, Detail, Detail2 } from 'components';
+import { Column, Body, Body2, Detail, Detail2 } from 'components';
 
 const Container = styled(Column)`
   background: ${getStyle('background1')};
   align-items: flex-start;
-  padding: ${size(4)};
+  padding: ${size(7)};
   overflow-y: auto;
   width: 100%;
   height: 100%;
-  box-shadow: 0 2px 4px rgba(180, 180, 180, 0.3);
+  border-radius: 20px;
+  border: ${getStyle('contentBorder')};
   @keyframes slidein {
     from {
       opacity: 0;
@@ -30,17 +30,15 @@ const Container = styled(Column)`
     'isMobile',
     `
     position: absolute;
-    bottom: 0;
-    left: 0;
+    bottom: 4px;
+    left: 4px;
     z-index: 3;
-    padding-right: ${size(16)};
-    height: ${size(60)};
+    padding-right: ${size(14)};
+    width: calc(100% - 8px);
+    height: unset;
+    max-height: ${size(60)};
   `,
   )};
-`;
-
-const Company = styled.strong`
-  ${subheader2};
 `;
 
 const dateFormat = 'MMM YYYY';
@@ -55,16 +53,19 @@ const Popup = ({ popupId, feature, isMobile, isFeatureSelected }) => {
     description,
   } = feature;
   const Content = (
-    <Container sp={7} isMobile={isMobile}>
-      <Subheader>
-        {`${role} @ `}
-        <Company>{company}</Company>
-      </Subheader>
+    <Container sp={4} isMobile={isMobile}>
+      <Body>
+        <b>{role}</b>
+        <br />
+        <Body2>
+          <b>{` @ ${company}`}</b>
+        </Body2>
+      </Body>
       <Detail>{description}</Detail>
       <Detail2>
         {`
       ${moment(start).format(dateFormat)}
-      ${' '}->${' '}
+      ${' '}-${' '}
       ${moment(end).format(dateFormat)}
     `}
       </Detail2>

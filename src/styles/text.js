@@ -95,7 +95,7 @@ export const detail2 = css`
 
 export const detail3 = css`
   ${detail};
-  font-weight: 200;
+  font-weight: 300;
   color: ${getStyle('text1c')};
 `;
 

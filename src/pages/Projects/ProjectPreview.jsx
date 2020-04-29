@@ -44,7 +44,7 @@ const Container = styled(Link)`
   border-radius: 20px;
   background: ${getStyle('background')};
   transition: ${getStyle('linearHue')};
-  border: 1px solid #2a2a2a;
+  border: ${getStyle('contentBorder')};
   overflow: hidden;
   ${mq({
     width: ['200px', '180px', '160px'],

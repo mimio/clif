@@ -43,7 +43,10 @@ const StyledLink = styled.a`
     'hasChildren',
     '',
     `
+    padding: 0;
+    width: ${size(8)};
     svg {
+      height: 12px;
       margin-right: 0;
       margin-bottom: 0;
     }
