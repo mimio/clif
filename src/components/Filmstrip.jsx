@@ -171,7 +171,7 @@ export default function Filmstrip({ className, children }) {
     >
       <Inner isDragging={isDragging}>
         {children.map((child) => (
-          <Child>{child}</Child>
+          <Child key={child?.props?.id}>{child}</Child>
         ))}
       </Inner>
     </Container>
