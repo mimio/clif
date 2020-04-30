@@ -6,7 +6,7 @@ import { isTouchScreen } from 'utils/device';
 
 let lastElement;
 let lastPayload;
-const evalElementDeep = (element, depth = 8) => {
+const getElementMetadata = (element, depth = 8) => {
   const payload = {
     hasXOverflow: false,
     hasYOverflow: false,
@@ -123,7 +123,7 @@ const Cursor = () => {
     isTouch = isTouchScreen();
     if (isTouchScreen()) return () => {};
     const processMouseTarget = (target) => {
-      const { isExternalLink, isActive } = evalElementDeep(target);
+      const { isExternalLink, isActive } = getElementMetadata(target);
       cursorEl.current.classList.remove('offScreen');
       cursorEl.current.classList.toggle('overLink', isExternalLink);
       cursorEl.current.classList.toggle('overActiveEl', isActive);
