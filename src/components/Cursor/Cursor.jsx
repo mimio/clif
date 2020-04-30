@@ -98,12 +98,11 @@ const Cursor = () => {
       const {
         isExternalLink,
         isActive,
-        hasXOverflow,
+        // hasXOverflow,
       } = evalElementDeep(target);
       cursorEl.current.classList.remove('offScreen');
       cursorEl.current.classList.toggle('overLink', isExternalLink);
       cursorEl.current.classList.toggle('overActiveEl', isActive);
-      console.log(hasXOverflow);
       return evalElementDeep(target);
     };
     const onMouseMove = ({ clientX, clientY, target }) => {
