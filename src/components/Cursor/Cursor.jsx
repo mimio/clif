@@ -4,8 +4,9 @@ import styled from '@emotion/styled';
 import { getStyle } from 'styles';
 import { isTouchScreen } from 'utils/device';
 
+let lastElement;
+let lastPayload;
 const evalElementDeep = (element, depth = 8) => {
-  let _element = element;
   const payload = {
     hasXOverflow: false,
     hasYOverflow: false,
@@ -14,6 +15,10 @@ const evalElementDeep = (element, depth = 8) => {
     isLink: false,
     isExternalLink: false,
   };
+  if (!element || element.isEqualNode(lastElement)) {
+    return lastPayload || payload;
+  }
+  let _element = element;
   for (let i = 0; i < depth; i++) {
     if (!_element) return payload;
     const nodeName = _element?.nodeName;
@@ -37,6 +42,8 @@ const evalElementDeep = (element, depth = 8) => {
 
     _element = get(_element, 'parentElement');
   }
+  lastElement = element;
+  lastPayload = payload;
   return payload;
 };
 
@@ -88,27 +95,18 @@ const StyledCursor = styled.div`
 `;
 
 let isTouch = false;
+let _clientX = -100;
+let _clientY = -100;
+let _target = null;
 const Cursor = () => {
   const cursorEl = useRef(null);
   useEffect(() => {
     isTouch = isTouchScreen();
     if (isTouchScreen()) return () => {};
-    const style = get(cursorEl, 'current.style', {});
-    const processCursorStyles = (target) => {
-      const {
-        isExternalLink,
-        isActive,
-        // hasXOverflow,
-      } = evalElementDeep(target);
-      cursorEl.current.classList.remove('offScreen');
-      cursorEl.current.classList.toggle('overLink', isExternalLink);
-      cursorEl.current.classList.toggle('overActiveEl', isActive);
-      return evalElementDeep(target);
-    };
     const onMouseMove = ({ clientX, clientY, target }) => {
-      style.top = `${clientY}px`;
-      style.left = `${clientX}px`;
-      processCursorStyles(target);
+      _clientX = clientX;
+      _clientY = clientY;
+      _target = target;
     };
     const onMouseLeave = () => {
       cursorEl.current.classList.add('offScreen');
@@ -118,18 +116,31 @@ const Cursor = () => {
     };
     const onMouseUp = ({ clientX, clientY }) => {
       cursorEl.current.classList.remove('pressed');
-      setTimeout(
-        () =>
-          processCursorStyles(
-            document.elementFromPoint(clientX, clientY),
-          ),
-        5,
-      );
+      setTimeout(() => {
+        _target = document.elementFromPoint(clientX, clientY);
+      }, 5);
     };
+
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseleave', onMouseLeave);
     document.addEventListener('mousedown', onMouseDown);
     document.addEventListener('mouseup', onMouseUp);
+
+    const style = get(cursorEl, 'current.style', {});
+    const renderCursorStyles = () => {
+      style.left = `${_clientX}px`;
+      style.top = `${_clientY}px`;
+
+      const { isExternalLink, isActive } = evalElementDeep(_target);
+      cursorEl.current.classList.remove('offScreen');
+      cursorEl.current.classList.toggle('overLink', isExternalLink);
+      cursorEl.current.classList.toggle('overActiveEl', isActive);
+
+      requestAnimationFrame(renderCursorStyles);
+    };
+
+    requestAnimationFrame(renderCursorStyles);
+
     return () => {
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseleave', onMouseLeave);
