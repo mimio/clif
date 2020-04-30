@@ -47,49 +47,69 @@ const evalElementDeep = (element, depth = 8) => {
   return payload;
 };
 
+const DIAMETER = 16;
+const RADIUS = DIAMETER / 2;
+
 const StyledCursor = styled.div`
   pointer-events: none;
   position: fixed;
-  transform: translate(-50%, -50%);
-  height: 16px;
-  width: 16px;
-  transition: ${getStyle('easeOutSize')}, ${getStyle('linearHue')};
-  background: ${getStyle('ctaBackground1')};
-  border: 1px solid ${getStyle('ctaBackground4')};
+  height: ${DIAMETER}px;
+  width: ${DIAMETER}px;
   mix-blend-mode: exclusion;
   z-index: 10000;
-  border-radius: 50%;
-  ::after {
-    content: '';
-    position: absolute;
-    top: -6px;
-    right: -6px;
-    opacity: 0;
+  > div {
+    height: 200%;
+    width: 200%;
+    transform: translate(-25%, -25%) scale(0.5);
     transition: ${getStyle('easeOutSize')}, ${getStyle('linearHue')};
-    width: 0;
-    height: 0;
-    border-left: 0px solid transparent;
-    border-right: 0px solid transparent;
-    border-bottom: 0px solid ${getStyle('ctaBackground4')};
-    transform: rotate(45deg);
+    background: ${getStyle('ctaBackground1')};
+    border: 1px solid ${getStyle('ctaBackground4')};
+    border-radius: 50%;
+    ::after {
+      content: '';
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      opacity: 0;
+      transition: ${getStyle('easeOutSize')}, ${getStyle('linearHue')};
+      transform: scale(1);
+      width: 0;
+      height: 0;
+      border-left: 0px solid transparent;
+      border-right: 0px solid transparent;
+      border-bottom: 0px solid ${getStyle('ctaBackground4')};
+      transform: rotate(45deg);
+    }
   }
   &.offScreen {
-    transform: translate(-50%, -50%) scale(0);
+    > div {
+      transform: translate(-25%, -25%) scale(0);
+    }
   }
   &.pressed {
-    transform: translate(-50%, -50%) scale(0.9);
+    > div {
+      transform: translate(-25%, -25%) scale(0.4);
+    }
   }
   &.overActiveEl {
-    height: 40px;
-    width: 40px;
-    background: transparent;
+    > div {
+      transform: translate(-25%, -25%) scale(1);
+      background: transparent;
+    }
+  }
+  &.overActiveEl.pressed {
+    > div {
+      transform: translate(-25%, -25%) scale(0.8);
+    }
   }
   &.overLink {
-    ::after {
-      opacity: 1;
-      border-left: 5px solid transparent;
-      border-right: 5px solid transparent;
-      border-bottom: 5px solid ${getStyle('ctaBackground1')};
+    > div {
+      ::after {
+        opacity: 1;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-bottom: 5px solid ${getStyle('ctaBackground1')};
+      }
     }
   }
 `;
@@ -97,16 +117,21 @@ const StyledCursor = styled.div`
 let isTouch = false;
 let _clientX = -100;
 let _clientY = -100;
-let _target = null;
 const Cursor = () => {
   const cursorEl = useRef(null);
   useEffect(() => {
     isTouch = isTouchScreen();
     if (isTouchScreen()) return () => {};
+    const processMouseTarget = (target) => {
+      const { isExternalLink, isActive } = evalElementDeep(target);
+      cursorEl.current.classList.remove('offScreen');
+      cursorEl.current.classList.toggle('overLink', isExternalLink);
+      cursorEl.current.classList.toggle('overActiveEl', isActive);
+    };
     const onMouseMove = ({ clientX, clientY, target }) => {
       _clientX = clientX;
       _clientY = clientY;
-      _target = target;
+      processMouseTarget(target);
     };
     const onMouseLeave = () => {
       cursorEl.current.classList.add('offScreen');
@@ -117,7 +142,9 @@ const Cursor = () => {
     const onMouseUp = ({ clientX, clientY }) => {
       cursorEl.current.classList.remove('pressed');
       setTimeout(() => {
-        _target = document.elementFromPoint(clientX, clientY);
+        processMouseTarget(
+          document.elementFromPoint(clientX, clientY),
+        );
       }, 5);
     };
 
@@ -127,15 +154,11 @@ const Cursor = () => {
     document.addEventListener('mouseup', onMouseUp);
 
     const style = get(cursorEl, 'current.style', {});
+
     const renderCursorStyles = () => {
-      style.left = `${_clientX}px`;
-      style.top = `${_clientY}px`;
-
-      const { isExternalLink, isActive } = evalElementDeep(_target);
-      cursorEl.current.classList.remove('offScreen');
-      cursorEl.current.classList.toggle('overLink', isExternalLink);
-      cursorEl.current.classList.toggle('overActiveEl', isActive);
-
+      style.transform = `translate(${_clientX - RADIUS}px, ${
+        _clientY - RADIUS
+      }px)`;
       requestAnimationFrame(renderCursorStyles);
     };
 
@@ -150,7 +173,11 @@ const Cursor = () => {
   }, []);
   if (isTouch) return null;
 
-  return <StyledCursor ref={cursorEl} isOnScreen />;
+  return (
+    <StyledCursor ref={cursorEl}>
+      <div />
+    </StyledCursor>
+  );
 };
 
 export default Cursor;
