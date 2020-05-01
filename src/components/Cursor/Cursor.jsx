@@ -47,12 +47,12 @@ const getElementMetadata = (element, depth = 8) => {
   return payload;
 };
 
-const DIAMETER = 16;
+const DIAMETER = 20;
 const RADIUS = DIAMETER / 2;
 
 const CursorSymbol = styled.div`
-  height: 240%;
-  width: 240%;
+  height: 200%;
+  width: 200%;
   transform: translate(-25%, -25%) scale(0.5);
   transition: ${getStyle('easeOutSize')}, ${getStyle('linearHue')};
   background: ${getStyle('ctaBackground1')};
