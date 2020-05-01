@@ -51,8 +51,8 @@ const DIAMETER = 16;
 const RADIUS = DIAMETER / 2;
 
 const CursorSymbol = styled.div`
-  height: 200%;
-  width: 200%;
+  height: 240%;
+  width: 240%;
   transform: translate(-25%, -25%) scale(0.5);
   transition: ${getStyle('easeOutSize')}, ${getStyle('linearHue')};
   background: ${getStyle('ctaBackground1')};
