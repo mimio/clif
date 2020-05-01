@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { get } from 'lodash-es';
 import styled from '@emotion/styled';
 import { getStyle } from 'styles';
-import { isTouchScreen } from 'utils/device';
+import isTouchDevice from 'is-touch-device';
 
 let lastElement;
 let lastPayload;
@@ -50,78 +50,64 @@ const getElementMetadata = (element, depth = 8) => {
 const DIAMETER = 16;
 const RADIUS = DIAMETER / 2;
 
-const StyledCursor = styled.div`
+const CursorSymbol = styled.div`
+  height: 200%;
+  width: 200%;
+  transform: translate(-25%, -25%) scale(0.5);
+  transition: ${getStyle('easeOutSize')}, ${getStyle('linearHue')};
+  background: ${getStyle('ctaBackground1')};
+  border: 1px solid ${getStyle('ctaBackground4')};
+  border-radius: 50%;
+  ::after {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 0;
+    height: 0;
+    transform: rotate(45deg);
+    opacity: 0;
+    transition: ${getStyle('easeOutSize')}, ${getStyle('linearHue')};
+    border-left: 0px solid transparent;
+    border-right: 0px solid transparent;
+    border-bottom: 0px solid ${getStyle('ctaBackground4')};
+  }
+`;
+
+const CursorShell = styled.div`
   pointer-events: none;
   position: fixed;
   height: ${DIAMETER}px;
   width: ${DIAMETER}px;
   mix-blend-mode: exclusion;
   z-index: 10000;
-  > div {
-    height: 200%;
-    width: 200%;
-    transform: translate(-25%, -25%) scale(0.5);
-    transition: ${getStyle('easeOutSize')}, ${getStyle('linearHue')};
-    background: ${getStyle('ctaBackground1')};
-    border: 1px solid ${getStyle('ctaBackground4')};
-    border-radius: 50%;
-    ::after {
-      content: '';
-      position: absolute;
-      top: -6px;
-      right: -6px;
-      opacity: 0;
-      transition: ${getStyle('easeOutSize')}, ${getStyle('linearHue')};
-      transform: scale(1);
-      width: 0;
-      height: 0;
-      border-left: 0px solid transparent;
-      border-right: 0px solid transparent;
-      border-bottom: 0px solid ${getStyle('ctaBackground4')};
-      transform: rotate(45deg);
-    }
+  &.offScreen ${CursorSymbol} {
+    transform: translate(-25%, -25%) scale(0);
   }
-  &.offScreen {
-    > div {
-      transform: translate(-25%, -25%) scale(0);
-    }
+  &.pressed ${CursorSymbol} {
+    transform: translate(-25%, -25%) scale(0.4);
   }
-  &.pressed {
-    > div {
-      transform: translate(-25%, -25%) scale(0.4);
-    }
+  &.overActiveEl ${CursorSymbol} {
+    transform: translate(-25%, -25%) scale(1);
+    background: transparent;
   }
-  &.overActiveEl {
-    > div {
-      transform: translate(-25%, -25%) scale(1);
-      background: transparent;
-    }
+  &.overActiveEl.pressed ${CursorSymbol} {
+    transform: translate(-25%, -25%) scale(0.8);
   }
-  &.overActiveEl.pressed {
-    > div {
-      transform: translate(-25%, -25%) scale(0.8);
-    }
-  }
-  &.overLink {
-    > div {
-      ::after {
-        opacity: 1;
-        border-left: 5px solid transparent;
-        border-right: 5px solid transparent;
-        border-bottom: 5px solid ${getStyle('ctaBackground1')};
-      }
-    }
+  &.overLink ${CursorSymbol} ::after {
+    opacity: 1;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 5px solid ${getStyle('ctaBackground1')};
   }
 `;
 
-let isTouch = false;
 let _clientX = -100;
 let _clientY = -100;
 const Cursor = () => {
   const cursorEl = useRef(null);
   useEffect(() => {
-    isTouch = isTouchScreen();
-    if (isTouchScreen()) return () => {};
+    if (isTouchDevice()) return () => {};
     const processMouseTarget = (target) => {
       const { isExternalLink, isActive } = getElementMetadata(target);
       cursorEl.current.classList.remove('offScreen');
@@ -171,12 +157,12 @@ const Cursor = () => {
       document.removeEventListener('mouseup', onMouseUp);
     };
   }, []);
-  if (isTouch) return null;
+  if (isTouchDevice()) return null;
 
   return (
-    <StyledCursor ref={cursorEl}>
-      <div />
-    </StyledCursor>
+    <CursorShell ref={cursorEl}>
+      <CursorSymbol />
+    </CursorShell>
   );
 };
 

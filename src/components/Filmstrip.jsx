@@ -3,7 +3,7 @@ import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { animated, useSpring } from 'react-spring';
 import { useDrag, useScroll } from 'react-use-gesture';
-import { isTouchScreen } from 'utils/device';
+import isTouchDevice from 'is-touch-device';
 import { getBool, mobile, tablet, getStyle, mq } from 'styles';
 import { Row } from './layout';
 
@@ -101,9 +101,9 @@ export default function Filmstrip({ className, children }) {
   const [isTouching, setIsTouching] = useState(false);
 
   useEffect(() => {
-    setIsTouch(isTouchScreen());
+    setIsTouch(isTouchDevice());
     const listener = window.addEventListener('resize', () =>
-      setIsTouch(isTouchScreen()),
+      setIsTouch(isTouchDevice()),
     );
     const touchStartListener = outerRef.current.addEventListener(
       'touchstart',
