@@ -53,7 +53,7 @@ export default class Globe extends Component {
       .clipAngle(180)
       .translate([this.translateX, this.translateY]);
     const path = d3.geoPath().projection(projection).context(context);
-    d3.timer(() => {
+    this.timer = d3.timer(() => {
       const change = this.coords[0] >= 0 ? -0.02 : 0.02;
       this.rotationX += change;
       this.rotationY = bufferChange(this.coords[1], this.rotationY);
@@ -89,6 +89,7 @@ export default class Globe extends Component {
   componentWillUnmount() {
     window.removeEventListener('touchmove', this.touchListener);
     window.removeEventListener('mousemove', this.mouseListener);
+    this.timer.stop();
   }
 
   onGlobalTouchMove = (e) => {
