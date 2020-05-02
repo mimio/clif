@@ -7,7 +7,7 @@ import email from 'constants/email';
 import { LOST } from 'constants/pages';
 import useWatchScreenSize from 'hooks/useWatchScreenSize';
 import { Link, Column, Navigation } from 'components';
-import pages from './pages';
+import { mainPages, subPages } from './pages';
 
 const Container = styled(Column)`
   height: 100%;
@@ -34,9 +34,8 @@ const ContactLink = styled(Link)`
   `)};
 `;
 
-const App = () => {
+const App = ({ match }) => {
   useWatchScreenSize();
-
   return (
     <Container>
       <StyledNavigation />
@@ -47,11 +46,22 @@ const App = () => {
       >
         {email}
       </ContactLink>
+      {mainPages.map(({ id, component: Component }) => (
+        <Component key={id} />
+      ))}
       <Switch>
-        {pages.map(({ id, path, component }) => (
+        {subPages.map(({ id, path, component }) => (
           <Route key={id} exact path={path} component={component} />
         ))}
-        <Route component={() => <Redirect to={`/${LOST}`} />} />
+        <Route
+          component={() => {
+            return mainPages.find(
+              ({ path }) => path === match?.url,
+            ) ? null : (
+              <Redirect to={`/${LOST}`} />
+            );
+          }}
+        />
       </Switch>
     </Container>
   );
