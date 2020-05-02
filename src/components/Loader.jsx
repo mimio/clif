@@ -3,27 +3,6 @@ import styled from '@emotion/styled';
 import { getBool, getStyle } from 'styles';
 import { Column, Detail2 } from 'components';
 
-const Container = styled(Column)`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  z-index: 10000;
-  justify-content: center;
-  background: ${getStyle('background1')};
-  transition: ${getStyle('linearHue')};
-  ${getBool(
-    'isDone',
-    `
-    opacity: 0;
-    pointer-events: none;
-    transition-delay: 0.3s;
-  `,
-  )}
-`;
-
 const Bar = styled.div`
   position: absolute;
   top: 0;
@@ -35,7 +14,7 @@ const Bar = styled.div`
   background: ${getStyle('ctaBackground1')};
 `;
 
-const Indicator = styled.div`
+const Progress = styled.div`
   width: 100%;
   max-width: 180px;
   height: 8px;
@@ -44,6 +23,35 @@ const Indicator = styled.div`
   background: none;
   position: relative;
   overflow: hidden;
+`;
+
+const Container = styled(Column)`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 10000;
+  justify-content: center;
+  background: ${getStyle('background1')};
+  transition: opacity 0.4s ease-in-out;
+  ${getBool(
+    'isDone',
+    `
+    opacity: 0;
+    pointer-events: none;
+    transition-delay: 0.3s;
+    > * {
+      transition: transform 0.15s ease-in-out, ${getStyle(
+        'linearHue',
+      )};
+      transform: translateY(-8px);
+      opacity: 0;
+      transition-delay: 0.15s;
+    }
+  `,
+  )}
 `;
 
 let progress = 0;
@@ -71,9 +79,9 @@ const Loader = () => {
       <Detail2>
         {isDone ? 'Stuff loaded!' : 'Loading stuff...'}
       </Detail2>
-      <Indicator>
+      <Progress>
         <Bar ref={barEl} />
-      </Indicator>
+      </Progress>
     </Container>
   );
 };
