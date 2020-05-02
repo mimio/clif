@@ -69,21 +69,6 @@ const Container = styled(Link)`
       fill: #5d5d5d;
     }
   }
-  opacity: 0;
-  @keyframes slidein {
-    from {
-      opacity: 0;
-      transform: translateY(-16px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  animation: 0.3s ease-in forwards slidein;
-  ${({ index }) => `
-    animation-delay: ${index * 80}ms;
-  `};
 `;
 
 const ProjectPreview = ({ imgSrc, index, id, Icon, product }) => (

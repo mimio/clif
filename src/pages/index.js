@@ -21,8 +21,9 @@ export const subPages = projects.map((project, i) => {
   return {
     id: project.id,
     path: `/${PROJECTS}/${project.id}`,
-    component: () => (
+    component: (props) => (
       <Project
+        {...props}
         prevId={prevId}
         nextId={nextId}
         index={i}

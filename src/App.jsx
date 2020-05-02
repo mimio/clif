@@ -7,6 +7,7 @@ import email from 'constants/email';
 import { LOST } from 'constants/pages';
 import useWatchScreenSize from 'hooks/useWatchScreenSize';
 import { Link, Column, Navigation } from 'components';
+import Loader from 'components/Loader';
 import { mainPages, subPages } from './pages';
 
 const Container = styled(Column)`
@@ -34,10 +35,12 @@ const ContactLink = styled(Link)`
   `)};
 `;
 
-const App = ({ match }) => {
+const App = ({ match, history }) => {
   useWatchScreenSize();
+  const isPathActive = (path) => path === history?.location?.pathname;
   return (
     <Container>
+      <Loader isLoading />
       <StyledNavigation />
       <ContactLink
         href={`mailto:${email}`}
@@ -46,12 +49,23 @@ const App = ({ match }) => {
       >
         {email}
       </ContactLink>
-      {mainPages.map(({ id, component: Component }) => (
-        <Component key={id} />
+      {mainPages.map(({ id, component: Component, path }) => (
+        <Component
+          key={id}
+          path={path}
+          isActive={isPathActive(path)}
+        />
       ))}
       <Switch>
-        {subPages.map(({ id, path, component }) => (
-          <Route key={id} exact path={path} component={component} />
+        {subPages.map(({ id, path, component: Component }) => (
+          <Route
+            key={id}
+            exact
+            path={path}
+            component={() => (
+              <Component isActive={isPathActive(path)} />
+            )}
+          />
         ))}
         <Route
           component={() => {

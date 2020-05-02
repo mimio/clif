@@ -18,7 +18,7 @@ const DesktopControls = styled(Controls)`
   `)}
 `;
 
-const Work = ({ isMobile }) => (
+const Work = ({ isMobile, isActive }) => (
   <Page
     Background={
       <>
@@ -29,6 +29,7 @@ const Work = ({ isMobile }) => (
     }
     Subheader={isMobile ? <Controls /> : null}
     title="HISTORY"
+    reveal={isActive}
   />
 );
 

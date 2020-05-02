@@ -35,8 +35,8 @@ const CallToAction = styled.div`
   }
 `;
 
-export default () => (
-  <Page title="HELLO." Background={<Globe />}>
+export default ({ isActive }) => (
+  <Page reveal={isActive} title="HELLO." Background={<Globe />}>
     <Column a="flex-start" m="24px 0 0 0">
       <Heading3>
         My name is Clifton Campbell.
