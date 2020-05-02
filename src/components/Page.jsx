@@ -18,9 +18,6 @@ const HeaderContainer = styled(Column)`
   top: ${getStyle('pageMinimumPadding')};
   width: calc(100% - ${size(15)});
   z-index: 1;
-  ${Heading} {
-    transition: none;
-  }
   ${getBool(
     'hasForeground',
     `
@@ -76,7 +73,6 @@ const ForegroundContainer = styled.div`
   left: ${getStyle('foregroundLeftPadding')};
   width: calc(100% - ${size(28)});
   pointer-events: none;
-  ${pageSlideIn};
   ${tablet(`
     left: ${getStyle('foregroundLeftPaddingTablet')};
     width: calc(100% - ${getStyle('pageMinimumPadding')});
@@ -88,6 +84,27 @@ const BackgroundContainer = styled(Full)`
   ${centered};
 `;
 
+const Container = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  ${getBool(
+    'reveal',
+    `
+    ${ForegroundContainer} {
+      ${pageSlideIn};
+    }
+    `,
+    `
+    z-index: -1000000;
+    opacity: 0;
+    pointer-events: none;
+  `,
+  )}
+`;
+
 const Page = ({
   className,
   Background,
@@ -96,6 +113,7 @@ const Page = ({
   children,
   fadeForeground,
   title,
+  reveal,
 }) => {
   const headerContainer = useRef(null);
   const foregroundContent = useRef(null);
@@ -105,8 +123,9 @@ const Page = ({
     const { scrollTop } = foregroundContent.current;
     header.current.style.opacity = 1 - (scrollTop / threshold) * 0.5;
   };
+
   return (
-    <>
+    <Container reveal={reveal}>
       <ForegroundContainer>
         <HeaderContainer
           ref={headerContainer}
@@ -131,7 +150,7 @@ const Page = ({
           {Background}
         </BackgroundContainer>
       )}
-    </>
+    </Container>
   );
 };
 

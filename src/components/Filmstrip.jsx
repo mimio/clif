@@ -26,6 +26,28 @@ const Container = styled(animated.div)`
 
 const Child = styled.div`
   height: 100%;
+  > * {
+    ${getBool(
+      'reveal',
+      `
+      @keyframes slidein {
+          from {
+            opacity: 0;
+            transform: translateY(-16px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        animation: 0.3s ease-in forwards slidein;
+    `,
+    )};
+    ${({ index }) => `
+      animation-delay: ${index * 80}ms;
+    `};
+    opacity: 0;
+  }
 `;
 
 const Inner = styled(Row)`
@@ -93,7 +115,7 @@ const Inner = styled(Row)`
   `)};
 `;
 
-export default function Filmstrip({ className, children }) {
+export default function Filmstrip({ className, children, reveal }) {
   const outerRef = useRef(null);
 
   const [isDragging, setIsDragging] = useState(false);
@@ -133,7 +155,7 @@ export default function Filmstrip({ className, children }) {
     scroll: 0,
   }));
 
-  const bind = useDrag((drag) => {
+  const bindDrag = useDrag((drag) => {
     if (isTouch) return;
     const {
       movement: [mx],
@@ -166,12 +188,14 @@ export default function Filmstrip({ className, children }) {
       isTouch={isTouch}
       ref={outerRef}
       scrollLeft={scroll}
-      {...bind()}
+      {...bindDrag()}
       {...bindScroll()}
     >
       <Inner isDragging={isDragging}>
-        {children.map((child) => (
-          <Child key={child?.props?.id}>{child}</Child>
+        {children.map((child, i) => (
+          <Child key={child?.props?.id} index={i} reveal={reveal}>
+            {child}
+          </Child>
         ))}
       </Inner>
     </Container>
@@ -181,8 +205,10 @@ export default function Filmstrip({ className, children }) {
 Filmstrip.propTypes = {
   className: PropTypes.string,
   children: PropTypes.arrayOf(PropTypes.node).isRequired,
+  reveal: PropTypes.bool,
 };
 
 Filmstrip.defaultProps = {
   className: '',
+  reveal: true,
 };

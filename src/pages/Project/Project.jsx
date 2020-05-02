@@ -130,12 +130,13 @@ const Project = ({
   index,
   nextId,
   prevId,
+  isActive,
   roles,
   subtitle,
   title,
   year,
 }) => (
-  <Page title={id}>
+  <Page reveal={isActive} title={id}>
     <Subcontainer>
       <Heading2>
         {title}

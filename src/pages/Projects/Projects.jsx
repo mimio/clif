@@ -21,11 +21,12 @@ const StyledFilmstrip = styled(Filmstrip)`
   `)};
 `;
 
-export default () => (
+export default ({ isActive }) => (
   <Page
     title="PROJECTS"
+    reveal={isActive}
     Background={
-      <StyledFilmstrip>
+      <StyledFilmstrip reveal={isActive}>
         {projects.map((project, i) => (
           <ProjectPreview {...project} key={project.id} index={i} />
         ))}
