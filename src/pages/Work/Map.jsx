@@ -26,6 +26,24 @@ const StyledMap = styled(Full)`
   .mapboxgl-ctrl-logo {
     display: none;
   }
+  opacity: 0.3;
+  transform: scale(1.1);
+  ${getBool(
+    'reveal',
+    `
+    @keyframes zoomin {
+      from {
+        opacity: 0.3;
+        transform: scale(1.05);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+    animation: 0.4s ease-out forwards zoomin;
+  `,
+  )};
 `;
 
 class Map extends Component {
@@ -42,6 +60,7 @@ class Map extends Component {
     setMapLoaded: PropTypes.func.isRequired,
     selectFeature: PropTypes.func.isRequired,
     unhoverFeature: PropTypes.func.isRequired,
+    reveal: PropTypes.bool.isRequired,
     resetMap: PropTypes.func.isRequired,
   };
 
@@ -53,8 +72,11 @@ class Map extends Component {
     this.initialize();
   }
 
-  shouldComponentUpdate({ isMapLoaded }) {
-    return isMapLoaded && !this.props.isMapLoaded;
+  shouldComponentUpdate({ isMapLoaded, reveal }) {
+    return (
+      (isMapLoaded && !this.props.isMapLoaded) ||
+      reveal !== this.props.reveal
+    );
   }
 
   componentWillUnmount() {
@@ -113,7 +135,7 @@ class Map extends Component {
   };
 
   render() {
-    const { className, css, isMapLoaded } = this.props;
+    const { className, css, isMapLoaded, reveal } = this.props;
 
     return (
       <StyledMap
@@ -121,6 +143,7 @@ class Map extends Component {
         className={className}
         css={css}
         ref={this.mapRef}
+        reveal={reveal}
       />
     );
   }
