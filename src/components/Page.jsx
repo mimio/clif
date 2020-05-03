@@ -63,7 +63,7 @@ const pageSlideIn = `
       transform: translateY(0);
     }
   }
-  animation: 0.3s ease-in forwards slidein;
+  animation: 0.6s ease-out forwards slidein;
 `;
 
 const ForegroundContainer = styled.div`

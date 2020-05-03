@@ -24,7 +24,7 @@ const Work = ({ isMobile, isActive }) => (
       <>
         {!isMobile && <DesktopControls />}
         <Popup />
-        <Map />
+        <Map reveal={isActive} />
       </>
     }
     Subheader={isMobile ? <Controls /> : null}
