@@ -4,7 +4,7 @@ import styled from '@emotion/styled';
 import { feature } from 'topojson';
 import lands from './ne110m_land.json';
 
-const countries = feature(lands, lands.objects.countries);
+const countries = feature(lands, lands.objects.land);
 const geojson = {
   ...countries,
   features: countries.features,
@@ -71,9 +71,11 @@ export default class Globe extends Component {
       context.clearRect(0, 0, this.globeSize, this.globeSize);
       context.beginPath();
       path(countries);
-      context.lineWidth = 0.5;
       context.fillStyle = '#111';
       context.fill();
+      context.lineWidth = 0.5;
+      context.strokeColor = '#000';
+      context.stroke();
     });
 
     this.mouseListener = window.addEventListener(
