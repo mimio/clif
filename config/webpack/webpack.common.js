@@ -118,6 +118,7 @@ module.exports = {
           <!DOCTYPE html>
           <html lang="en">
             <head>
+              <title>hello</title>
               <meta charset="utf-8">
               <link
                 href="https://fonts.googleapis.com/css?family=Roboto+Mono:100,200,300,400&display=swap"
