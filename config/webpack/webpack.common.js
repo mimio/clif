@@ -119,6 +119,10 @@ module.exports = {
           <html lang="en">
             <head>
               <meta charset="utf-8">
+              <link
+                href="https://fonts.googleapis.com/css?family=Roboto+Mono:100,200,300,400&display=swap"
+                rel="stylesheet"
+              />
             </head>
             <body>
               <div id="root"></div>
@@ -131,6 +135,7 @@ module.exports = {
       },
       title: '',
       filename: 'index.html',
+      favicon: './favicon.png',
       minify: {
         useShortDoctype: true,
         keepClosingSlash: true,
