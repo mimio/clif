@@ -12,6 +12,7 @@ import {
   Row,
   Detail2,
   Detail3,
+  GlitchImage,
   Heading2,
   Link,
   Page,
@@ -22,19 +23,6 @@ const Details = styled(Column)`
   grid-area: details;
   align-self: start;
   align-items: flex-start;
-`;
-
-const Image = styled.div`
-  grid-area: image;
-  height: 360px;
-  width: 100%;
-  border-radius: 20px;
-  background-image: url(${({ imgSrc }) => imgSrc});
-  background-position: center center;
-  background-size: cover;
-  ${mobile(`
-    height: 200px;
-  `)};
 `;
 
 const ProjectLink = styled(Link)`
@@ -160,7 +148,7 @@ const Project = ({
       <Pairing as="start" ga="description" title="DESCRIPTION">
         <Body>{subtitle}</Body>
       </Pairing>
-      <Image imgSrc={imgSrc} />
+      <GlitchImage ga="image" src={imgSrc} />
       <Navigation ga="nav" j="space-between">
         <NavLink
           reverse

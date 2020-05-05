@@ -36,6 +36,11 @@ module.exports = {
   module: {
     rules: [
       {
+        test: /\.(glsl|vs|fs|vert|frag)$/,
+        exclude: /node_modules/,
+        use: ['raw-loader', 'glslify-loader'],
+      },
+      {
         test: /\.(js|mjs|jsx|ts|tsx)$/,
         include: path.resolve(rootDir, 'src'),
         use: {
