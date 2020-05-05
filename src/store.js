@@ -1,6 +1,5 @@
 import { middleware as reduxPackMiddleware } from 'redux-pack';
 import thunk from 'redux-thunk';
-// import { createLogger } from 'redux-logger';
 import { composeWithDevTools } from 'redux-devtools-extension/developmentOnly';
 import { createStore, applyMiddleware, compose } from 'redux';
 import { getMap } from 'utils/map';
@@ -18,10 +17,6 @@ function configureStore() {
   let composeFn = compose;
 
   if (__DEV__) {
-    // const logger = createLogger({
-    //   collapsed: true,
-    // });
-    // middlewares.push(logger);
     composeFn = composeWithDevTools;
   }
 
@@ -30,7 +25,7 @@ function configureStore() {
     composeFn(applyMiddleware(...middlewares)),
   );
 
-  return { store };
+  return store;
 }
 
 export default configureStore();

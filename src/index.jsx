@@ -9,6 +9,7 @@ import {
 import { Provider } from 'react-redux';
 import { ThemeProvider } from 'emotion-theming';
 import { hot } from 'react-hot-loader/root';
+import * as analytics from 'utils/analytics';
 import { HELLO, LOST } from 'constants/pages';
 import Cursor from 'components/Cursor';
 import Lost from './pages/Lost';
@@ -20,10 +21,11 @@ import '../fonts/fonts.css';
 import theme from './styles/theme';
 import GlobalStyles from './styles/GlobalStyles';
 import App from './App';
+import store from './store';
 
-import storeConfigs from './store';
-
-const { store } = storeConfigs;
+if (global.window) {
+  analytics.init('UA-91745405-6');
+}
 
 const root = document.getElementById('root');
 

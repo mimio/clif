@@ -1,8 +1,9 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { ChildrenPropType } from 'utils/prop-types';
 import { mobile, tablet, getBool, getStyle, size, mq } from 'styles';
+import * as analytics from 'utils/analytics';
 import {
   centered,
   full,
@@ -123,6 +124,12 @@ const Page = ({
     const { scrollTop } = foregroundContent.current;
     header.current.style.opacity = 1 - (scrollTop / threshold) * 0.5;
   };
+
+  useEffect(() => {
+    analytics.pageview({
+      dt: title,
+    });
+  }, []);
 
   return (
     <Container reveal={reveal}>

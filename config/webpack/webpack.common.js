@@ -156,5 +156,6 @@ module.exports = {
     fs: 'empty',
     module: 'empty',
     tls: 'empty',
+    net: 'empty',
   },
 };
