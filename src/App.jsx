@@ -43,7 +43,7 @@ const App = ({ match, history }) => {
 
   useEffect(() => {
     analytics.pageview();
-  }, [history?.location?.pathname]);
+  }, [pathname]);
 
   return (
     <Container>
