@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import styled from '@emotion/styled';
 import { Route, Switch, Redirect } from 'react-router-dom';
 import { mobile, size } from 'styles';
@@ -8,6 +8,7 @@ import { LOST } from 'constants/pages';
 import useWatchScreenSize from 'hooks/useWatchScreenSize';
 import { Link, Column, Navigation } from 'components';
 import Loader from 'components/Loader';
+import * as analytics from 'utils/analytics';
 import { mainPages, subPages } from './pages';
 
 const Container = styled(Column)`
@@ -37,7 +38,13 @@ const ContactLink = styled(Link)`
 
 const App = ({ match, history }) => {
   useWatchScreenSize();
-  const isPathActive = (path) => path === history?.location?.pathname;
+  const pathname = history?.location?.pathname;
+  const isPathActive = (path) => path === pathname;
+
+  useEffect(() => {
+    analytics.pageview();
+  }, [history?.location?.pathname]);
+
   return (
     <Container>
       <Loader isLoading />
