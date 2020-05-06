@@ -12,6 +12,12 @@ const Container = styled(animated.div)`
   width: 100%;
   overflow-y: visible;
   overflow-x: ${({ isTouch }) => (isTouch ? 'auto' : 'hidden')};
+  ${getBool(
+    'isTouch',
+    `
+    background: red;
+  `,
+  )}
   ::-webkit-scrollbar {
     height: 0;
     width: 0;
