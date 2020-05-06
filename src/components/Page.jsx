@@ -18,7 +18,6 @@ const HeaderContainer = styled(Column)`
   top: ${getStyle('pageMinimumPadding')};
   width: calc(100% - ${size(15)});
   z-index: 1;
-  opacity: 1;
   ${getBool(
     'hasForeground',
     `
@@ -26,6 +25,7 @@ const HeaderContainer = styled(Column)`
   `,
   )};
   ${Heading} {
+    opacity: 1;
     width: 100%;
     will-change: opacity;
   }

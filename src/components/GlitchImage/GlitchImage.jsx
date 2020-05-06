@@ -79,7 +79,7 @@ class GlitchImage extends Component {
   };
 
   addEvents = () => {
-    window.requestAnimationFrame(this.run);
+    requestAnimationFrame(this.run);
     window.addEventListener('resize', this.onResize, false);
   };
 
