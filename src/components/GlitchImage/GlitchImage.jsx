@@ -86,25 +86,25 @@ class GlitchImage extends Component {
   createMesh = () => {
     const { src } = this.props;
     this.geometry = new THREE.PlaneGeometry(1, 1, 16, 16);
-    const texture = new THREE.TextureLoader().load(src);
+    // const texture = new THREE.TextureLoader().load(src);
     // texture.minFilter = THREE.LinearFilter;
     this.material = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader,
       uniforms: {
         uTime: { value: 0.0 },
-        uTexture: {
-          value: texture,
-        },
+        // uTexture: {
+        //   value: texture,
+        // },
         cameraNear: {
           value: this.camera.near,
         },
         cameraFar: {
           value: this.camera.far,
         },
+        wireframe: true,
       },
     });
-    console.log(this.material);
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.scene.add(this.mesh);
   };
