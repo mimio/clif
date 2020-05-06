@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { ChildrenPropType } from 'utils/prop-types';
@@ -119,14 +119,17 @@ const Page = ({
   const foregroundContent = useRef(null);
   const header = useRef(null);
 
-  const renderHeaderStyles = () => {
-    const threshold = headerContainer.current.clientHeight;
-    const { scrollTop } = foregroundContent.current;
-    header.current.style.opacity = 1 - (scrollTop / threshold) * 0.5;
-    requestAnimationFrame(renderHeaderStyles);
-  };
+  useEffect(() => {
+    const renderHeaderStyles = () => {
+      const threshold = headerContainer.current.clientHeight;
+      const { scrollTop } = foregroundContent.current;
+      header.current.style.opacity =
+        1 - (scrollTop / threshold) * 0.5;
+      requestAnimationFrame(renderHeaderStyles);
+    };
 
-  requestAnimationFrame(renderHeaderStyles);
+    requestAnimationFrame(renderHeaderStyles);
+  }, []);
 
   return (
     <Container reveal={reveal}>
