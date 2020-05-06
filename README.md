@@ -8,5 +8,7 @@ https://bl.ocks.org/mbostock/4206810
 
 todo:
 
-- update the map popup to look like the project previews
 - projects page: finish adding wheel on projects page
+
+* flowyimage: https://codesandbox.io/s/06-final-displacement-trg1k?from-embed=&file=/src/gl/index.js:671-712
+  https://tympanus.net/codrops/2020/03/17/create-a-wave-motion-effect-on-an-image-with-three-js/

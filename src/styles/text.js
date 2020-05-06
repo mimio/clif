@@ -36,8 +36,8 @@ export const heading = css`
   font-family: 'Fat';
   color: ${getStyle('text2')};
   font-size: 84pt;
-  ${tablet(`font-size: 64pt;`)}
-  ${mobile(`font-size: 40pt;`)}
+  ${tablet(`font-size: 64pt;`)};
+  ${mobile(`font-size: 40pt;`)};
   overflow: visible;
 `;
 
