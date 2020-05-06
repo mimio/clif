@@ -106,6 +106,11 @@ class GlitchImage extends Component {
     });
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.scene.add(this.mesh);
+
+    const geometry = new THREE.BoxGeometry(0.2, 0.2);
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const cube = new THREE.Mesh(geometry, material);
+    this.scene.add(cube);
   };
 
   run = () => {
