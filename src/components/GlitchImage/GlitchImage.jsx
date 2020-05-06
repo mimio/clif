@@ -16,6 +16,7 @@ const Container = styled.div`
     position: absolute;
     top: 0;
     left: 0;
+    background: transparent;
   }
 `;
 
@@ -46,11 +47,10 @@ class GlitchImage extends Component {
 
     this.camera.position.z = 1;
     this.renderer = new THREE.WebGLRenderer({
-      alpha: true,
       antialias: true,
     });
     this.renderer.setSize(this.width, this.height);
-    this.renderer.setClearColor(0xffffff, 1);
+    this.renderer.setClearColor(0x161616, 1);
     this.containerRef.appendChild(this.renderer.domElement);
 
     this.clock = new THREE.Clock();
@@ -109,7 +109,6 @@ class GlitchImage extends Component {
 
   renderScene = () => {
     this.material.uniforms.uTime.value = this.clock.getElapsedTime();
-    this.renderer.setClearColor(0xffffff, 0);
     this.renderer.render(this.scene, this.camera);
   };
 
