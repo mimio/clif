@@ -13,7 +13,7 @@ const Container = styled.div`
   position: relative;
   width: 100%;
   canvas {
-    /* position: absolute; */
+    position: absolute;
     top: 0;
     left: 0;
     background: transparent;
