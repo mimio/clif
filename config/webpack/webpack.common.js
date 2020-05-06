@@ -124,6 +124,9 @@ module.exports = {
           <html lang="en">
             <head>
               <title>hello</title>
+              <meta name="description" content="Clifton Campbell's Web Development Portlfolio">
+              <meta name="keywords" content="Web Development, Mapbox, Software, Clifton Campbell, Websites">
+              <meta name="author" content="Clifton Campbell">
               <meta charset="utf-8">
               <link
                 href="https://fonts.googleapis.com/css?family=Roboto+Mono:100,200,300,400&display=swap"
