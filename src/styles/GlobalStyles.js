@@ -61,6 +61,12 @@ const globalCss = css`
   a {
     text-decoration: none;
   }
+  button,
+  a {
+    * {
+      user-select: none;
+    }
+  }
   svg {
     fill: currentColor;
   }
