@@ -38,6 +38,7 @@ export const heading = css`
   font-size: 84pt;
   ${tablet(`font-size: 64pt;`)}
   ${mobile(`font-size: 40pt;`)}
+  overflow: visible;
 `;
 
 const base2 = css`
