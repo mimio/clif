@@ -48,9 +48,10 @@ class GlitchImage extends Component {
     this.camera.position.z = 1;
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
+      alpha: true,
     });
     this.renderer.setSize(this.width, this.height);
-    this.renderer.setClearColor(0x161616, 1);
+    this.renderer.setClearColor(0x161616, 0);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.containerRef.appendChild(this.renderer.domElement);
 
