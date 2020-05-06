@@ -96,9 +96,15 @@ class GlitchImage extends Component {
         uTexture: {
           value: texture,
         },
+        cameraNear: {
+          value: this.camera.near,
+        },
+        cameraFar: {
+          value: this.camera.far,
+        },
       },
     });
-    // console.log(this.material);
+    console.log(this.material);
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.scene.add(this.mesh);
   };
