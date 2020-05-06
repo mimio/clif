@@ -12,6 +12,7 @@ const globalCss = css`
   *:after {
     box-sizing: inherit;
     cursor: none !important;
+    -webkit-overflow-scrolling: touch;
   }
   * {
     ::-webkit-scrollbar {
