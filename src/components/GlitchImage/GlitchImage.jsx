@@ -92,7 +92,6 @@ class GlitchImage extends Component {
       (err) => console.alert(err),
     );
     texture.minFilter = THREE.LinearFilter;
-    // texture.anisotropy = this.renderer.getMaxAnisotropy();
     this.material = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader,

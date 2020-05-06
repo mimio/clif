@@ -24,6 +24,9 @@ const HeaderContainer = styled(Column)`
     background-image: ${getStyle('fadeIntoBackground')};
   `,
   )};
+  ${Heading} {
+    width: 100%;
+  }
   > * {
     pointer-events: auto;
   }
@@ -122,11 +125,16 @@ const Page = ({
 
   useEffect(() => {
     const renderHeaderStyles = () => {
-      if (!foregroundContent.current) return;
-      const threshold = headerContainer.current.clientHeight;
-      const { scrollTop } = foregroundContent.current;
-      header.current.style.opacity =
-        1 - (scrollTop / threshold) * 0.5;
+      if (
+        foregroundContent.current &&
+        header.current &&
+        foregroundContent.current
+      ) {
+        const threshold = headerContainer.current.clientHeight;
+        const { scrollTop } = foregroundContent.current;
+        header.current.style.opacity =
+          1 - (scrollTop / threshold) * 0.5;
+      }
       requestAnimationFrame(renderHeaderStyles);
     };
 
