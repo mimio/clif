@@ -97,9 +97,8 @@ class GlitchImage extends Component {
           value: texture,
         },
       },
-      wireframe: true,
     });
-    console.log(this.material);
+    // console.log(this.material);
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.scene.add(this.mesh);
   };
