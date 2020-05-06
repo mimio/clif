@@ -33,6 +33,7 @@ const ForegroundContentContainer = styled(Full)`
   align-items: flex-start;
   z-index: 2;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   pointer-events: auto;
   ${foregroundContentTopPadding};
   ${mq({
