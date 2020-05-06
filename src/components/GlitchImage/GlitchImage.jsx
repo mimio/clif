@@ -13,7 +13,7 @@ const Container = styled.div`
   position: relative;
   width: 100%;
   canvas {
-    position: absolute;
+    /* position: absolute; */
     top: 0;
     left: 0;
     background: transparent;
@@ -51,6 +51,7 @@ class GlitchImage extends Component {
     });
     this.renderer.setSize(this.width, this.height);
     this.renderer.setClearColor(0x161616, 1);
+    this.renderer.setPixelRatio(window.devicePixelRatio);
     this.containerRef.appendChild(this.renderer.domElement);
 
     this.clock = new THREE.Clock();
