@@ -87,7 +87,7 @@ class GlitchImage extends Component {
     const { src } = this.props;
     this.geometry = new THREE.PlaneGeometry(1, 1, 16, 16);
     const texture = new THREE.TextureLoader().load(src);
-    texture.minFilter = THREE.LinearFilter;
+    // texture.minFilter = THREE.LinearFilter;
     this.material = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader,
