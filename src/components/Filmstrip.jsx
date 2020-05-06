@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { animated, useSpring } from 'react-spring';
-import { useDrag, useScroll } from 'react-use-gesture';
+import { useDrag } from 'react-use-gesture'; // useScroll
 import isTouchDevice from 'is-touch-device';
 import { getBool, mobile, tablet, getStyle, mq } from 'styles';
 import { Row } from './layout';
@@ -131,31 +131,31 @@ export default function Filmstrip({ className, children, reveal }) {
 
   const [isDragging, setIsDragging] = useState(false);
   const [isTouch, setIsTouch] = useState(false);
-  const [isTouching, setIsTouching] = useState(false);
+  // const [isTouching, setIsTouching] = useState(false);
 
   useEffect(() => {
     setIsTouch(isTouchDevice());
     const listener = window.addEventListener('resize', () =>
       setIsTouch(isTouchDevice()),
     );
-    const touchStartListener = outerRef.current.addEventListener(
-      'touchstart',
-      () => setIsTouching(true),
-    );
-    const touchEndListener = outerRef.current.addEventListener(
-      'touchend',
-      () => setIsTouching(false),
-    );
+    // const touchStartListener = outerRef.current.addEventListener(
+    //   'touchstart',
+    //   () => setIsTouching(true),
+    // );
+    // const touchEndListener = outerRef.current.addEventListener(
+    //   'touchend',
+    //   () => setIsTouching(false),
+    // );
     return () => {
       window.removeEventListener('resize', listener);
-      outerRef.current.removeEventListener(
-        'touchstart',
-        touchStartListener,
-      );
-      outerRef.current.removeEventListener(
-        'touchend',
-        touchEndListener,
-      );
+      // outerRef.current.removeEventListener(
+      //   'touchstart',
+      //   touchStartListener,
+      // );
+      // outerRef.current.removeEventListener(
+      //   'touchend',
+      //   touchEndListener,
+      // );
     };
   }, []);
 
@@ -189,9 +189,9 @@ export default function Filmstrip({ className, children, reveal }) {
     setSpring({ scroll: normalized });
   });
 
-  const bindScroll = useScroll(({ scrolling }) => {
-    if (isTouch) setIsDragging(isTouching && scrolling);
-  });
+  // const bindScroll = useScroll(({ scrolling }) => {
+  //   if (isTouch) setIsDragging(isTouching && scrolling);
+  // });
 
   return (
     <Container
@@ -200,7 +200,7 @@ export default function Filmstrip({ className, children, reveal }) {
       ref={outerRef}
       scrollLeft={scroll}
       {...bindDrag()}
-      {...bindScroll()}
+      // {...bindScroll()}
     >
       <Inner isDragging={isDragging}>
         {children.map((child, i) => (
