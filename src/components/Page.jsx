@@ -118,11 +118,15 @@ const Page = ({
   const headerContainer = useRef(null);
   const foregroundContent = useRef(null);
   const header = useRef(null);
-  const onScroll = () => {
+
+  const renderHeaderStyles = () => {
     const threshold = headerContainer.current.clientHeight;
     const { scrollTop } = foregroundContent.current;
     header.current.style.opacity = 1 - (scrollTop / threshold) * 0.5;
+    requestAnimationFrame(renderHeaderStyles);
   };
+
+  requestAnimationFrame(renderHeaderStyles);
 
   return (
     <Container reveal={reveal}>
@@ -139,7 +143,6 @@ const Page = ({
           <ForegroundContentContainer
             className={className}
             ref={foregroundContent}
-            onScroll={onScroll}
           >
             {children}
           </ForegroundContentContainer>
