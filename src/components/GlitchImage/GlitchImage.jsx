@@ -86,12 +86,7 @@ class GlitchImage extends Component {
   createMesh = () => {
     const { src } = this.props;
     this.geometry = new THREE.PlaneGeometry(1, 1, 16, 16);
-    const texture = new THREE.TextureLoader().load(
-      src,
-      () => {},
-      () => {},
-      (err) => console.alert(err),
-    );
+    const texture = new THREE.TextureLoader().load(src);
     texture.minFilter = THREE.LinearFilter;
     this.material = new THREE.ShaderMaterial({
       vertexShader,

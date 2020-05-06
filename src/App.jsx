@@ -6,17 +6,10 @@ import { EnvelopeIcon } from 'icons';
 import email from 'constants/email';
 import { LOST } from 'constants/pages';
 import useWatchScreenSize from 'hooks/useWatchScreenSize';
-import { Link, Column, Navigation } from 'components';
+import { Link, Navigation } from 'components';
 import Loader from 'components/Loader';
 import * as analytics from 'utils/analytics';
 import { mainPages, subPages } from './pages';
-
-const Container = styled(Column)`
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-  align-items: flex-start;
-`;
 
 const StyledNavigation = styled(Navigation)`
   position: absolute;
@@ -46,7 +39,7 @@ const App = ({ match, history }) => {
   }, [pathname]);
 
   return (
-    <Container>
+    <>
       <Loader isLoading />
       <StyledNavigation />
       <ContactLink
@@ -84,7 +77,7 @@ const App = ({ match, history }) => {
           }}
         />
       </Switch>
-    </Container>
+    </>
   );
 };
 
