@@ -122,6 +122,7 @@ const Page = ({
 
   useEffect(() => {
     const renderHeaderStyles = () => {
+      if (!foregroundContent.current) return;
       const threshold = headerContainer.current.clientHeight;
       const { scrollTop } = foregroundContent.current;
       header.current.style.opacity =
