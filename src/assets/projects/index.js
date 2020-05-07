@@ -8,13 +8,20 @@ import {
   HikingIcon,
   MountainIcon,
 } from 'icons';
-import harvard from './harvard.png';
-import ngwsd from './ngwsd.png';
-import polygoggles from './polygoggles.png';
-import sage from './sage.png';
-import gopro from './gopro.png';
-import bop from './bop.png';
-import shair from './shair.png';
+import harvard from './harvard.webp';
+import ngwsd from './ngwsd.webp';
+import polygoggles from './polygoggles.webp';
+import sage from './sage.webp';
+import gopro from './gopro.webp';
+import bop from './bop.webp';
+import shair from './shair.webp';
+import harvardSkinny from './harvard_skinny.webp';
+import ngwsdSkinny from './ngwsd_skinny.webp';
+import polygogglesSkinny from './polygoggles_skinny.webp';
+import sageSkinny from './sage_skinny.webp';
+import goproSkinny from './gopro_skinny.webp';
+import bopSkinny from './bop_skinny.webp';
+import shairSkinny from './shair_skinny.webp';
 
 const DEV = 'Development';
 const UIUX = 'UI/UX Design';
@@ -66,6 +73,7 @@ export default [
       </>
     ),
     imgSrc: shair,
+    imgSrcSkinny: shairSkinny,
     href: 'https://app.ramboll-shair.com/',
     Icon: MoleculeIcon,
     id: 'shair',
@@ -105,6 +113,7 @@ export default [
       </>
     ),
     imgSrc: harvard,
+    imgSrcSkinny: harvardSkinny,
     href:
       'https://www.jchs.harvard.edu/boston-map#/boston-map/create-map',
     Icon: HomeIcon,
@@ -118,6 +127,7 @@ export default [
     theme: 'Sports',
     product: 'Event Map',
     imgSrc: ngwsd,
+    imgSrcSkinny: ngwsdSkinny,
     href:
       'https://www.womenssportsfoundation.org/get-involved/ngwsd/',
     Icon: FutbolIcon,
@@ -201,6 +211,7 @@ export default [
       </>
     ),
     imgSrc: gopro,
+    imgSrcSkinny: goproSkinny,
     href: 'https://mountaingames.com/map.php',
     Icon: MountainIcon,
     id: 'gopro',
@@ -215,6 +226,7 @@ export default [
     subtitle:
       'I worked with Deadlock Interactive to create a 3D asset browsing and viewing platform, with augmented reality capabilities on mobile browsers.',
     imgSrc: polygoggles,
+    imgSrcSkinny: polygogglesSkinny,
     href: 'http://poly-goggles.herokuapp.com/',
     Icon: CubeIcon,
     id: 'poly',
@@ -229,6 +241,7 @@ export default [
     subtitle:
       "I worked with 970 Design and Sage Outdoor Adventures to construct a trailmap with interactive areas, lines, and points to help users navigate the client's terrain as well as show off the large amount of land and activites offered.",
     imgSrc: sage,
+    imgSrcSkinny: sageSkinny,
     href: 'https://sageoutdooradventures.com/map/',
     Icon: HikingIcon,
     id: '970',
@@ -243,6 +256,7 @@ export default [
     subtitle:
       '970 Design and I iterated on our work for the GoPro Mountain Games to create an annual event map for the BoP World Cup.',
     imgSrc: bop,
+    imgSrcSkinny: bopSkinny,
     href: 'https://bcworldcup.com/map.php',
     Icon: FeatherIcon,
     id: 'winter',

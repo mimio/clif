@@ -13,7 +13,7 @@ import ProjectPreview from './ProjectPreview';
 const StyledFilmstrip = styled(Filmstrip)`
   height: 100%;
   width: 100%;
-  max-height: 1000px;
+  max-height: 760px;
   ${foregroundContentTopPadding};
   ${foregroundContentBottomPadding};
   ${mobile(`

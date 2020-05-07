@@ -10,7 +10,7 @@ const StyledImage = styled.div`
   flex-grow: 1;
   background-image: url(${({ imgSrc }) => imgSrc});
   background-position: center center;
-  background-size: cover;
+  background-size: 100%;
   opacity: 0.8;
   border-radius: 0 0 20px 20px;
 `;
@@ -71,7 +71,13 @@ const Container = styled(Link)`
   }
 `;
 
-const ProjectPreview = ({ imgSrc, index, id, Icon, product }) => (
+const ProjectPreview = ({
+  imgSrcSkinny,
+  index,
+  id,
+  Icon,
+  product,
+}) => (
   <Container to={`/${PROJECTS}/${id}`} index={index}>
     <Details sp={2}>
       <Icon />
@@ -79,13 +85,13 @@ const ProjectPreview = ({ imgSrc, index, id, Icon, product }) => (
       <Body>{id}</Body>
       <Detail3>{product}</Detail3>
     </Details>
-    <StyledImage imgSrc={imgSrc} />
+    <StyledImage imgSrc={imgSrcSkinny} />
   </Container>
 );
 
 ProjectPreview.propTypes = {
   id: PropTypes.string.isRequired,
-  imgSrc: PropTypes.string.isRequired,
+  imgSrcSkinny: PropTypes.string.isRequired,
   index: PropTypes.number.isRequired,
 };
 

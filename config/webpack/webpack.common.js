@@ -65,7 +65,7 @@ module.exports = {
         ],
       },
       {
-        test: /\.(gif|jpg|jpeg|png)$/,
+        test: /\.(webp)$/,
         include: [resolve(rootDir, 'src')],
         use: {
           loader: 'file-loader',
