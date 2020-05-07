@@ -75,6 +75,7 @@ const StyledInternalLink = StyledLink.withComponent(RouterLink);
 const StyledButton = StyledLink.withComponent('button');
 
 const Link = ({
+  ariaLabel,
   Icon,
   children,
   className,
@@ -86,7 +87,9 @@ const Link = ({
   vertical,
 }) => {
   let Container = StyledButton;
-  let props = {};
+  let props = {
+    'aria-label': ariaLabel,
+  };
   if (isLink) {
     Container = internal ? StyledInternalLink : StyledLink;
     props = internal
@@ -113,6 +116,7 @@ const Link = ({
 };
 
 Link.propTypes = {
+  ariaLabel: PropTypes.string.isRequired,
   Icon: ChildrenPropType.isRequired,
   children: PropTypes.string,
   className: PropTypes.string,

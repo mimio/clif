@@ -22,14 +22,20 @@ const Controls = ({
   selectPrevFeature,
 }) => (
   <Container className={className} sp={3}>
-    <Button onClick={fitBounds} Icon={ExpandIcon} />
+    <Button
+      ariaLabel="Reset Map Extent"
+      onClick={fitBounds}
+      Icon={ExpandIcon}
+    />
 
     <Button
+      ariaLabel="Go To Previous Feature"
       disabled={isFirstFeatureSelected || !isFeatureSelected}
       onClick={selectPrevFeature}
       Icon={ArrowLeftIcon}
     />
     <Button
+      ariaLabel="Go To Next Feature"
       disabled={isLastFeatureSelected || !isFeatureSelected}
       onClick={selectNextFeature}
       Icon={ArrowRightIcon}
