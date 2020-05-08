@@ -2,14 +2,14 @@
   "extends": ["airbnb", "prettier"],
   "parser": "babel-eslint",
   "plugins": ["prettier"],
-  "settings": {
-    "import/resolver": {
-      "node": {},
-      "webpack": {
-        "config": "config/webpack/webpack.common.js"
-      }
-    }
-  },
+  // "settings": {
+  //   "import/resolver": {
+  //     "node": {},
+  //     "webpack": {
+  //       "config": "webpack.config.js"
+  //     }
+  //   }
+  // },
   "env": {
     "browser": true
   },
@@ -38,12 +38,5 @@
       }
     ],
     "no-param-reassign": 1
-  },
-  "globals": {
-    "__DEV__": true,
-    "__config__": true,
-    "__MAPBOX_KEY__": true,
-    "__CLOUD__": true,
-    "d3": true
   }
 }
