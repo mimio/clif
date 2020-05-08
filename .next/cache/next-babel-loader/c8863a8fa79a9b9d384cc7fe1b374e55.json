@@ -1,1 +1,0 @@
-{"ast":null,"code":"export var GET_EVENTS = 'geojson/getEvents';","map":{"version":3,"sources":["/Users/cliftoncampbell/Development/clif.world/modules/geojson/types.js"],"names":["GET_EVENTS"],"mappings":"AAAA,OAAO,IAAMA,UAAU,GAAG,mBAAnB","sourcesContent":["export const GET_EVENTS = 'geojson/getEvents';\n"]},"metadata":{},"sourceType":"module"}

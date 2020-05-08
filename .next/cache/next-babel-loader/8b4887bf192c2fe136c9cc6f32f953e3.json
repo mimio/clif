@@ -1,1 +1,0 @@
-{"ast":null,"code":"export { default as Globe } from './Globe';","map":{"version":3,"sources":["/Users/cliftoncampbell/Development/clif.world/_pages/home/index.js"],"names":["default","Globe"],"mappings":"AAAA,SAASA,OAAO,IAAIC,KAApB,QAAiC,SAAjC","sourcesContent":["export { default as Globe } from './Globe';\n"]},"metadata":{},"sourceType":"module"}
