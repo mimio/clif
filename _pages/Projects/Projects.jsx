@@ -2,7 +2,7 @@ import React from 'react';
 import Page from 'components/Page';
 import styled from '@emotion/styled';
 import { Filmstrip } from 'components';
-import { projects } from 'assets';
+import projects from 'constants/projects';
 import {
   mobile,
   foregroundContentTopPadding,
