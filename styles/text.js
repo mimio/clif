@@ -39,6 +39,7 @@ export const heading = css`
   ${tablet(`font-size: 64pt;`)};
   ${mobile(`font-size: 40pt;`)};
   overflow: visible;
+  margin: 0;
 `;
 
 const base2 = css`
@@ -54,11 +55,13 @@ export const heading2 = css`
   font-weight: 300;
   ${tablet(`font-size: 32px;`)};
   ${mobile(`font-size: 22px;`)};
+  margin: 0;
 `;
 
 export const heading3 = css`
   ${heading2};
   font-weight: 200;
+  margin: 0;
 `;
 
 export const subheader = css`

@@ -1,14 +1,14 @@
 import React from 'react';
-import Page from 'components/Page';
 import styled from '@emotion/styled';
 import { Filmstrip } from 'components';
-import projects from 'constants/projects';
+import Page from 'components/Page';
+import { orderedProjects } from 'constants/projects';
 import {
   mobile,
   foregroundContentTopPadding,
   foregroundContentBottomPadding,
 } from 'styles';
-import ProjectPreview from './ProjectPreview';
+import { ProjectPreview } from '_pages/projects';
 
 const StyledFilmstrip = styled(Filmstrip)`
   height: 100%;
@@ -21,13 +21,13 @@ const StyledFilmstrip = styled(Filmstrip)`
   `)};
 `;
 
-export default ({ isActive }) => (
+export default () => (
   <Page
     title="PROJECTS"
-    reveal={isActive}
+    reveal
     Background={
-      <StyledFilmstrip reveal={isActive}>
-        {projects.map((project, i) => (
+      <StyledFilmstrip reveal>
+        {orderedProjects.map((project, i) => (
           <ProjectPreview {...project} key={project.id} index={i} />
         ))}
       </StyledFilmstrip>

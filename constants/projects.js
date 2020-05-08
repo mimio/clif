@@ -14,7 +14,7 @@ const UIUX = 'UI/UX Design';
 const UX = 'UX Design';
 const CARTO = 'Cartography';
 
-export default [
+const _projects = [
   {
     title: 'Air Quality Analysis Application',
     client: 'Ramboll Shair',
@@ -30,11 +30,9 @@ export default [
             target="_blank"
           >
             Shair
-          </a>
-          {' '}
+          </a>{' '}
           is an internal startup within the environmental consulting &
-          engineering agency
-          {' '}
+          engineering agency{' '}
           <a
             href="https://ramboll.com/"
             rel="noopener noreferrer"
@@ -60,8 +58,8 @@ export default [
         </p>
       </>
     ),
-    imgSrc: '/shair',
-    imgSrcSkinny: '/shair_skinny',
+    imgSrc: '/shair.webp',
+    imgSrcSkinny: '/shair_skinny.webp',
     href: 'https://app.ramboll-shair.com/',
     Icon: MoleculeIcon,
     id: 'shair',
@@ -82,8 +80,7 @@ export default [
             target="_blank"
           >
             The Harvard Joint Center for Housing Studies
-          </a>
-          {' '}
+          </a>{' '}
           (JCHS) is a research group focused on advancing the study of
           housing issues and policies.
         </p>
@@ -101,8 +98,8 @@ export default [
         </p>
       </>
     ),
-    imgSrc: '/harvard',
-    imgSrcSkinny: '/harvard_skinny',
+    imgSrc: '/harvard.webp',
+    imgSrcSkinny: '/harvard_skinny.webp',
     href:
       'https://www.jchs.harvard.edu/boston-map#/boston-map/create-map',
     Icon: HomeIcon,
@@ -115,8 +112,8 @@ export default [
     year: 2019,
     theme: 'Sports',
     product: 'Event Map',
-    imgSrc: '/ngwsd',
-    imgSrcSkinny: '/ngwsd_skinny',
+    imgSrc: '/ngwsd.webp',
+    imgSrcSkinny: '/ngwsd_skinny.webp',
     href:
       'https://www.womenssportsfoundation.org/get-involved/ngwsd/',
     Icon: FutbolIcon,
@@ -130,8 +127,7 @@ export default [
             target="_blank"
           >
             The Women&apos;s Sports Foundation
-          </a>
-          {' '}
+          </a>{' '}
           (WSF) is an advocacy group working to advance the lives of
           women through sports.
         </p>
@@ -165,22 +161,18 @@ export default [
             target="_blank"
           >
             The Vail Valley Foundation
-          </a>
-          {' '}
+          </a>{' '}
           (VVF) is a Colorado-based nonprofit working to enhance the
           Vail Valley through arts, athletics, and education. Every
-          year, the VVF hosts the
-          {' '}
+          year, the VVF hosts the{' '}
           <a
             href="https://mountaingames.com/"
             rel="noopener noreferrer"
             target="_blank"
           >
             GoPro Vail Mountain Games
-          </a>
-          {' '}
-          which gathered over
-          {' '}
+          </a>{' '}
+          which gathered over{' '}
           <a
             href="https://mountaingames.com/2019-a-spectacular-year-for-gopro-mountain-games/"
             rel="noopener noreferrer"
@@ -188,8 +180,7 @@ export default [
           >
             {' '}
             80,000 attendees
-          </a>
-          {' '}
+          </a>{' '}
           in 2019.
         </p>
         <p>
@@ -205,8 +196,8 @@ export default [
         </p>
       </>
     ),
-    imgSrc: '/gopro',
-    imgSrcSkinny: '/gopro_skinny',
+    imgSrc: '/gopro.webp',
+    imgSrcSkinny: '/gopro_skinny.webp',
     href: 'https://mountaingames.com/map.php',
     Icon: MountainIcon,
     id: 'gopro',
@@ -220,8 +211,8 @@ export default [
     product: 'Asset Viewer',
     subtitle:
       'I worked with Deadlock Interactive to create a 3D asset browsing and viewing platform, with augmented reality capabilities on mobile browsers.',
-    imgSrc: '/polygoggles',
-    imgSrcSkinny: '/polygoggles_skinny',
+    imgSrc: '/polygoggles.webp',
+    imgSrcSkinny: '/polygoggles_skinny.webp',
     href: 'http://poly-goggles.herokuapp.com/',
     Icon: CubeIcon,
     id: 'poly',
@@ -235,8 +226,8 @@ export default [
     product: 'Services Map',
     subtitle:
       "I worked with 970 Design and Sage Outdoor Adventures to construct a trailmap with interactive areas, lines, and points to help users navigate the client's terrain as well as show off the large amount of land and activites offered.",
-    imgSrc: '/sage',
-    imgSrcSkinny: '/sage_skinny',
+    imgSrc: '/sage.webp',
+    imgSrcSkinny: '/sage_skinny.webp',
     href: 'https://sageoutdooradventures.com/map/',
     Icon: HikingIcon,
     id: '970',
@@ -250,11 +241,33 @@ export default [
     product: 'Event Map',
     subtitle:
       '970 Design and I iterated on our work for the GoPro Mountain Games to create an annual event map for the BoP World Cup.',
-    imgSrc: '/bop',
-    imgSrcSkinny: '/bop_skinny',
+    imgSrc: '/bop.webp',
+    imgSrcSkinny: '/bop_skinny.webp',
     href: 'https://bcworldcup.com/map.php',
     Icon: FeatherIcon,
     id: 'winter',
     roles: [DEV, CARTO],
   },
 ];
+
+export const orderedProjects = _projects.map((project, i) => {
+  const prevId =
+    i === 0
+      ? _projects[_projects.length - 1].id
+      : _projects[i - 1].id;
+  const nextId =
+    i === _projects.length - 1
+      ? _projects[0].id
+      : _projects[i + 1].id;
+
+  return {
+    ...project,
+    prevId,
+    nextId,
+  };
+});
+
+export default orderedProjects.reduce(
+  (acc, val) => ({ ...acc, [val.id]: val }),
+  {},
+);

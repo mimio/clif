@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { PROJECTS } from 'constants/pages';
@@ -37,7 +37,7 @@ const Details = styled.div`
   }
 `;
 
-const Container = styled(Link)`
+const Container = styled.a`
   ${column};
   position: relative;
   height: 100%;
@@ -78,15 +78,21 @@ const ProjectPreview = ({
   Icon,
   product,
 }) => (
-  <Container to={`/${PROJECTS}/${id}`} index={index}>
-    <Details sp={2}>
-      <Icon />
-      <Detail2>{index < 10 ? `0${index}` : index}</Detail2>
-      <Body>{id}</Body>
-      <Detail3>{product}</Detail3>
-    </Details>
-    <StyledImage imgSrc={imgSrcSkinny} />
-  </Container>
+  <Link
+    as={`/${PROJECTS}/${id}`}
+    href={`/${PROJECTS}/[projectId]`}
+    passHref
+  >
+    <Container index={index}>
+      <Details sp={2}>
+        <Icon />
+        <Detail2>{index < 10 ? `0${index}` : index}</Detail2>
+        <Body>{id}</Body>
+        <Detail3>{product}</Detail3>
+      </Details>
+      <StyledImage imgSrc={imgSrcSkinny} />
+    </Container>
+  </Link>
 );
 
 ProjectPreview.propTypes = {

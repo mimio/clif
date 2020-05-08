@@ -1,5 +1,6 @@
 import React from 'react';
-import { Link, useParams } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { getBool, getStyle, size } from 'styles';
@@ -14,7 +15,8 @@ const StyledHomeIcon = styled(HomeIcon)`
   width: 20px;
 `;
 
-const StyledLink = styled(Link)`
+
+const StyledLink = styled.a`
   ${centered};
   ${detail};
   font-weight: 300;
@@ -73,19 +75,22 @@ const copy = {
 };
 
 const Navigation = ({ className }) => {
-  const { tabId } = useParams();
+  const { pathname } = useRouter();
   return (
     <Container className={className} sp={4}>
-      {orderedTabs.map((tab) => (
-        <StyledLink
-          className={tab}
-          isActive={tab === tabId}
-          to={`/${tab}`}
-          key={tab}
-        >
-          {copy[tab]}
-        </StyledLink>
-      ))}
+      {orderedTabs.map(({ id, path }) => {
+        return (
+          <Link href={path} passHref key={id}>
+            <StyledLink
+              ariaLabel={`Link To Page ${path}`}
+              className={id}
+              isActive={pathname === path}
+            >
+              {copy[id]}
+            </StyledLink>
+          </Link>
+        );
+      })}
     </Container>
   );
 };

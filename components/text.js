@@ -22,17 +22,17 @@ export const Body2 = styled.span`
   ${body2};
 `;
 
-export const Heading = styled.span`
+export const Heading = styled.h1`
   grid-area: heading;
   ${heading};
 `;
 
-export const Heading2 = styled.span`
+export const Heading2 = styled.h2`
   grid-area: heading2;
   ${heading2};
 `;
 
-export const Heading3 = styled.span`
+export const Heading3 = styled.h2`
   grid-area: heading3;
   ${heading3};
 `;

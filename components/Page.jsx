@@ -2,14 +2,36 @@ import React, { useEffect, useRef } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { ChildrenPropType } from 'utils/prop-types';
+import email from 'constants/email';
 import { mobile, tablet, getBool, getStyle, size, mq } from 'styles';
+import { EnvelopeIcon } from 'icons';
 import {
   centered,
   full,
   foregroundContentTopPadding,
 } from 'styles/layout';
+import { Link } from './CTA';
+import Navigation from './Navigation';
 import { Heading } from './text';
 import { Full, Column } from './layout';
+
+const StyledNavigation = styled(Navigation)`
+  position: absolute;
+  top: ${size(4)};
+  right: ${size(4)};
+  z-index: 5;
+`;
+
+const ContactLink = styled(Link)`
+  position: absolute;
+  bottom: ${size(4)};
+  right: ${size(4)};
+  z-index: 4;
+  border-radius: 5px;
+  ${mobile(`
+    width: ${size(7)};
+  `)};
+`;
 
 const HeaderContainer = styled(Column)`
   ${full};
@@ -144,31 +166,42 @@ const Page = ({
   }, []);
 
   return (
-    <Container reveal={reveal}>
-      <ForegroundContainer>
-        <HeaderContainer
-          ref={headerContainer}
-          hasForeground={fadeForeground}
-          sp={4}
-        >
-          <Heading ref={header}>{title}</Heading>
-          {Subheader}
-        </HeaderContainer>
-        {children && (
-          <ForegroundContentContainer
-            className={className}
-            ref={foregroundContent}
+    <>
+      <StyledNavigation />
+      <ContactLink
+        ariaLabel="Contact Email"
+        href={`mailto:${email}`}
+        Icon={EnvelopeIcon}
+        vertical
+      >
+        {email}
+      </ContactLink>
+      <Container reveal={reveal}>
+        <ForegroundContainer>
+          <HeaderContainer
+            ref={headerContainer}
+            hasForeground={fadeForeground}
+            sp={4}
           >
-            {children}
-          </ForegroundContentContainer>
+            <Heading ref={header}>{title}</Heading>
+            {Subheader}
+          </HeaderContainer>
+          {children && (
+            <ForegroundContentContainer
+              className={className}
+              ref={foregroundContent}
+            >
+              {children}
+            </ForegroundContentContainer>
+          )}
+        </ForegroundContainer>
+        {Background && (
+          <BackgroundContainer css={backgroundCss}>
+            {Background}
+          </BackgroundContainer>
         )}
-      </ForegroundContainer>
-      {Background && (
-        <BackgroundContainer css={backgroundCss}>
-          {Background}
-        </BackgroundContainer>
-      )}
-    </Container>
+      </Container>
+    </>
   );
 };
 

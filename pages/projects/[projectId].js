@@ -1,11 +1,12 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Link as RouterLink } from 'react-router-dom';
 import styled from '@emotion/styled';
-import { ChildrenPropType } from 'utils/prop-types';
+import NextLink from 'next/link';
+import projects, { orderedProjects } from 'constants/projects';
 import { CaretDownIcon, EyeIcon } from 'icons';
-import { PROJECTS } from 'constants/pages';
+import { PROJECTS, PROJECTS_PATH } from 'constants/pages';
 import { mobile, getStyle, column } from 'styles';
+import { NavLink } from '_pages/projects';
 import {
   Body,
   Column,
@@ -17,7 +18,6 @@ import {
   Link,
   Page,
 } from 'components';
-import NavLink from './NavLink';
 
 const Details = styled(Column)`
   grid-area: details;
@@ -60,7 +60,7 @@ const Navigation = styled(Row)`
   `)};
 `;
 
-const BackNavLink = styled(RouterLink)`
+const BackNavLink = styled.a`
   ${column};
   border-top: ${getStyle('ctaBorder3')};
   grid-area: back;
@@ -109,75 +109,83 @@ const Pairing = ({ children, title, ...props }) => (
   </Column>
 );
 
-const Project = ({
-  Icon,
-  client,
-  href,
-  id,
-  imgSrc,
-  index,
-  nextId,
-  prevId,
-  isActive,
-  roles,
-  subtitle,
-  title,
-  year,
-}) => (
-  <Page reveal={isActive} title={id}>
-    <Subcontainer>
-      <Heading2>
-        {title}
-        <Detail2 style={{ marginLeft: '8px' }}>{index}</Detail2>
-      </Heading2>
-      <Icon />
-      <Details sp={8}>
-        <Pairing title="YEAR">
-          <Detail2>{year}</Detail2>
+const Project = ({ projectId }) => {
+  const {
+    Icon,
+    client,
+    href,
+    id,
+    imgSrc,
+    index,
+    nextId,
+    prevId,
+    roles,
+    subtitle,
+    title,
+    year,
+  } = projects[projectId];
+  return (
+    <Page reveal title={id}>
+      <Subcontainer>
+        <Heading2>
+          {title}
+          <Detail2 style={{ marginLeft: '8px' }}>{index}</Detail2>
+        </Heading2>
+        <Icon />
+        <Details sp={8}>
+          <Pairing title="YEAR">
+            <Detail2>{year}</Detail2>
+          </Pairing>
+          <Pairing title="CLIENT">
+            <Detail2>{client}</Detail2>
+          </Pairing>
+          <Pairing title="ROLE">
+            <Detail2>{roles.join(', ')}</Detail2>
+          </Pairing>
+          <ProjectLink
+            ariaLabel="View Project"
+            href={href}
+            Icon={EyeIcon}
+          >
+            View
+          </ProjectLink>
+        </Details>
+        <Pairing as="start" ga="description" title="DESCRIPTION">
+          <Body>{subtitle}</Body>
         </Pairing>
-        <Pairing title="CLIENT">
-          <Detail2>{client}</Detail2>
-        </Pairing>
-        <Pairing title="ROLE">
-          <Detail2>{roles.join(', ')}</Detail2>
-        </Pairing>
-        <ProjectLink href={href} Icon={EyeIcon}>
-          View
-        </ProjectLink>
-      </Details>
-      <Pairing as="start" ga="description" title="DESCRIPTION">
-        <Body>{subtitle}</Body>
-      </Pairing>
-      <GlitchImage ga="image" src={imgSrc} />
-      <Navigation ga="nav" j="space-between">
-        <NavLink
-          reverse
-          title={prevId}
-          to={`/${PROJECTS}/${prevId}`}
-        />
-        <NavLink title={nextId} to={`/${PROJECTS}/${nextId}`} />
-      </Navigation>
-      <BackNavLink sp={1} to={`/${PROJECTS}`}>
-        <Detail3>BACK TO ALL PROJECTS</Detail3>
-        <CaretDownIcon />
-      </BackNavLink>
-    </Subcontainer>
-  </Page>
-);
+        <GlitchImage ga="image" src={imgSrc} />
+        <Navigation ga="nav" j="space-between">
+          <NavLink
+            reverse
+            title={prevId}
+            href={`/${PROJECTS}/${prevId}`}
+          />
+          <NavLink title={nextId} href={`/${PROJECTS}/${nextId}`} />
+        </Navigation>
+        <NextLink href={`/${PROJECTS}`} passHref>
+          <BackNavLink sp={1}>
+            <Detail3>BACK TO ALL PROJECTS</Detail3>
+            <CaretDownIcon />
+          </BackNavLink>
+        </NextLink>
+      </Subcontainer>
+    </Page>
+  );
+};
 
 Project.propTypes = {
-  Icon: ChildrenPropType.isRequired,
-  client: PropTypes.string.isRequired,
-  href: PropTypes.string.isRequired,
-  id: PropTypes.string.isRequired,
-  imgSrc: PropTypes.string.isRequired,
-  index: PropTypes.number.isRequired,
-  nextId: PropTypes.string.isRequired,
-  prevId: PropTypes.string.isRequired,
-  roles: PropTypes.arrayOf(PropTypes.string).isRequired,
-  subtitle: PropTypes.string.isRequired,
-  title: PropTypes.string.isRequired,
-  year: PropTypes.number.isRequired,
+  projectId: PropTypes.string.isRequired,
 };
 
 export default Project;
+
+export function getStaticProps({ params: { projectId } }) {
+  return { props: { projectId } };
+}
+
+export function getStaticPaths() {
+  const paths = orderedProjects.map(
+    (project) => `${PROJECTS_PATH}/${project.id}`,
+  );
+  return { paths, fallback: false };
+}

@@ -1,12 +1,12 @@
 import React from 'react';
 import styled from '@emotion/styled';
-import { Link as RouterLink } from 'react-router-dom';
+import Link from 'next/link';
 import PropTypes from 'prop-types';
 import { CaretRightIcon } from 'icons';
 import { mobile, getBool, getStyle } from 'styles';
 import { Body2, Centered, Detail3 } from 'components';
 
-const Container = styled(RouterLink)`
+const Container = styled.a`
   display: grid;
   grid-column-gap: 32px;
   ${mobile(`
@@ -92,19 +92,22 @@ const Container = styled(RouterLink)`
   }
 `;
 
-const NavLink = ({ title, reverse, ...props }) => (
-  <Container reverse={reverse} {...props}>
-    <Centered ga="icon">
-      <CaretRightIcon />
-    </Centered>
-    <Detail3>{reverse ? 'PREV' : 'NEXT'}</Detail3>
-    <Body2>{title}</Body2>
-  </Container>
+const NavLink = ({ title, reverse, href, ...props }) => (
+  <Link href={href} passHref>
+    <Container reverse={reverse} {...props}>
+      <Centered ga="icon">
+        <CaretRightIcon />
+      </Centered>
+      <Detail3>{reverse ? 'PREV' : 'NEXT'}</Detail3>
+      <Body2>{title}</Body2>
+    </Container>
+  </Link>
 );
 
 NavLink.propTypes = {
   reverse: PropTypes.bool,
   title: PropTypes.string.isRequired,
+  href: PropTypes.string.isRequired,
 };
 
 NavLink.defaultProps = {
