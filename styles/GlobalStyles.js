@@ -71,6 +71,15 @@ const globalCss = css`
   svg {
     fill: currentColor;
   }
+
+  @font-face {
+    font-family: 'Fat';
+    font-style: bold;
+    font-weight: 700;
+    font-display: swap; /* Read next point */
+    unicode-range: U+000-5FF; /* Download only latin glyphs */
+    src: url('/FatFontSlanted.woff2') format('woff2');
+  }
 `;
 
 export default function GlobalStyles() {

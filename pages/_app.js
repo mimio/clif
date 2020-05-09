@@ -13,7 +13,6 @@ import store from 'modules/store';
 
 import 'normalize.css';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import '../fonts/fonts.css';
 
 if (global.window) {
   analytics.init('UA-91745405-6');
@@ -44,8 +43,18 @@ const App = ({ Component, pageProps }) => {
         <meta name="author" content="Clifton Campbell" />
         <meta charset="utf-8" />
         <link
-          href="https://fonts.googleapis.com/css?family=Roboto+Mono:100,200,300,400&display=swap"
-          rel="stylesheet"
+          as="font"
+          crossOrigin="anonymous"
+          href="/FatFontSlanted.woff2"
+          rel="preload"
+          type="font/woff2"
+        />
+        <link
+          as="font"
+          crossOrigin="anonymous"
+          href="https://fonts.googleapis.com/css?family=Roboto+Mono:200,300,400&display=swap"
+          rel="preload"
+          type="font/woff2"
         />
         <link rel="icon" href="/favicon.png" sizes="16x16" />
       </Head>
