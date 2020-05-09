@@ -1,11 +1,14 @@
 import React from 'react';
 import styled from '@emotion/styled';
 import Link from 'next/link';
+import fetch from 'isomorphic-unfetch';
 import { Column, Body, Heading3 } from 'components';
 import Page from 'components/Page';
+import { apiUrl } from 'utils/api';
 import { getStyle, mobile, mq } from 'styles';
 import { WORK, PROJECTS } from 'constants/pages';
 import { Globe } from '_pages/home';
+import { feature } from 'topojson';
 
 const CallToAction = styled.div`
   position: relative;
@@ -35,8 +38,12 @@ const CallToAction = styled.div`
   }
 `;
 
-export default () => (
-  <Page reveal title="HELLO." Background={<Globe />}>
+export default ({ countries }) => (
+  <Page
+    reveal
+    title="HELLO."
+    Background={<Globe countries={countries} />}
+  >
     <Column a="flex-start" m="24px 0 0 0">
       <Heading3>
         My name is Clifton Campbell.
@@ -71,3 +78,12 @@ export default () => (
     </Column>
   </Page>
 );
+
+export async function getServerSideProps({ req }) {
+  const url = apiUrl('/ne110m_land.json', req);
+  const landsRes = await fetch(url);
+  const lands = await landsRes.json();
+  const countries = feature(lands, lands.objects.land);
+
+  return { props: { countries } };
+}

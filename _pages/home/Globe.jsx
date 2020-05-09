@@ -2,14 +2,6 @@ import React, { Component } from 'react';
 import get from 'lodash.get';
 import * as d3 from 'd3';
 import styled from '@emotion/styled';
-import { feature } from 'topojson';
-import lands from './ne110m_land.json';
-
-const countries = feature(lands, lands.objects.land);
-const geojson = {
-  ...countries,
-  features: countries.features,
-};
 
 const normalizeCursorLocation = ([x, y]) => {
   const { innerWidth, innerHeight } = window;
@@ -39,6 +31,8 @@ export default class Globe extends Component {
   };
 
   componentDidMount() {
+    const { countries } = this.props;
+
     const size =
       Math.max(window.innerHeight, window.innerWidth) + 200;
     this.setState({ size });
@@ -50,7 +44,7 @@ export default class Globe extends Component {
     const context = svg.node().getContext('2d');
     const projection = d3
       .geoOrthographic()
-      .fitSize([size, size], geojson)
+      .fitSize([size, size], countries)
       .rotate([this.rotationX, this.rotationY])
       .clipAngle(180)
       .translate([this.translateX, this.translateY]);
