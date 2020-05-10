@@ -73,6 +73,11 @@ const App = ({ Component, pageProps }) => {
         />
         <link
           href="https://fonts.googleapis.com/css?family=Roboto+Mono:200,300,400&display=swap"
+          rel="preload"
+          as="style"
+        />
+        <link
+          href="https://fonts.googleapis.com/css?family=Roboto+Mono:200,300,400&display=swap"
           rel="stylesheet"
           type="text/css"
         />
