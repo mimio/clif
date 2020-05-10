@@ -7,7 +7,7 @@ import Page from 'components/Page';
 import { apiUrl } from 'utils/api';
 import { getStyle, mobile, mq } from 'styles';
 import { WORK, PROJECTS } from 'constants/pages';
-import { Globe } from '_pages/home';
+import { Globe } from 'pagesComponents/home';
 import { feature } from 'topojson';
 
 const CallToAction = styled.div`
@@ -48,8 +48,7 @@ export default ({ countries }) => (
       <Heading3>
         My name is Clifton Campbell.
         <br />
-        <br />
-        I &#10084;&#65039;
+        <br />I &#10084;&#65039;
         <b> designing</b>
         {' and '}
         <b>developing</b>
@@ -57,16 +56,13 @@ export default ({ countries }) => (
       </Heading3>
       <CallToAction>
         <Body>
-          Check out my
-          {' '}
+          Check out my{' '}
           <Link href={`/${PROJECTS}`} passHref>
             <a>
               <b>projects</b>
             </a>
           </Link>
-          <br />
-          & my work
-          {' '}
+          <br />& my work{' '}
           <Link href={`/${WORK}`} passHref>
             <a>
               <b>history</b>

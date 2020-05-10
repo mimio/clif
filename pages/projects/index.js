@@ -8,7 +8,7 @@ import {
   foregroundContentTopPadding,
   foregroundContentBottomPadding,
 } from 'styles';
-import { ProjectPreview } from '_pages/projects';
+import { ProjectPreview } from 'pagesComponents/projects';
 
 const StyledFilmstrip = styled(Filmstrip)`
   height: 100%;

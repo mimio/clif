@@ -6,7 +6,7 @@ import projects, { orderedProjects } from 'constants/projects';
 import { CaretDownIcon, EyeIcon } from 'icons';
 import { PROJECTS, PROJECTS_PATH } from 'constants/pages';
 import { mobile, getStyle, column } from 'styles';
-import { NavLink } from '_pages/projects';
+import { NavLink } from 'pagesComponents/projects';
 import {
   Body,
   Column,
