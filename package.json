@@ -7,8 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "./node_modules/.bin/eslint --fix \"src/**/*.{js,jsx}\"",
-    "format": "npx prettier --write \"*/**/*.{js,jsx}\" \"!public/**\" \"!node_modules/**\" \"!dist/**\"  \"!.next/**\"",
+    "lint": "./node_modules/.bin/eslint --fix \"{_pages,components,constants,hooks,modules,pages,styles,utils}/**/*.{js,jsx}\"",
+    "format": "npx prettier --write \"*/**/*.{js,jsx}\" \"!public/**\" \"!node_modules/**\" \"!dist/**\"  \"!.next/**\" \"!.vercel/**\" \"!.vscode/**\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": "git+https://github.com/mimio/clif2.git",

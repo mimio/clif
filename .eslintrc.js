@@ -19,6 +19,8 @@ module.exports = {
   },
   rules: {
     semi: 2,
+    // warning bc nextjs paradigm tends to create lots of these errors
+    'jsx-a11y/anchor-is-valid': 1,
     'react/prop-types': 0,
     'react/jsx-filename-extension': 0,
     'react/destructuring-assignment': 0,
