@@ -63,10 +63,6 @@ const StyledLink = styled.a`
   }
 `;
 
-const Container = styled(Column)`
-  position: relative;
-`;
-
 const copy = {
   [HELLO]: <StyledHomeIcon />,
   [PROJECTS]: 'Projects',
@@ -76,7 +72,7 @@ const copy = {
 const Navigation = ({ className }) => {
   const { pathname } = useRouter();
   return (
-    <Container className={className} sp={4}>
+    <Column className={className} sp={4}>
       {orderedTabs.map(({ id, path }) => {
         return (
           <Link href={path} as={path} passHref key={id}>
@@ -94,7 +90,7 @@ const Navigation = ({ className }) => {
           </Link>
         );
       })}
-    </Container>
+    </Column>
   );
 };
 
