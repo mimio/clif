@@ -50,10 +50,10 @@ const App = ({ Component, pageProps }) => {
           type="font/woff2"
         />
         <link
-          as="font"
+          crossOrigin="anonymous"
           href="https://fonts.googleapis.com/css?family=Roboto+Mono:200,300,400&display=swap"
           rel="preload"
-          type="font/woff2"
+          type="text/css"
         />
         <link rel="icon" href="/favicon.png" sizes="16x16" />
       </Head>
