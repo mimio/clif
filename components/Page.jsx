@@ -19,7 +19,7 @@ const StyledNavigation = styled(Navigation)`
   position: fixed;
   top: ${size(4)};
   right: ${size(4)};
-  z-index: 5;
+  z-index: 4;
 `;
 
 const ContactLink = styled(Link)`
@@ -170,7 +170,6 @@ const Page = ({
 
   return (
     <>
-      <StyledNavigation />
       <ContactLink
         ariaLabel="Contact Email"
         href={`mailto:${email}`}
@@ -179,6 +178,7 @@ const Page = ({
       >
         {email}
       </ContactLink>
+      <StyledNavigation />
       <Container reveal={reveal}>
         <ForegroundContainer>
           <HeaderContainer

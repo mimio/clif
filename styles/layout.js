@@ -10,8 +10,6 @@ const createBase = ({
   ga,
 }) => `
   display: flex;
-  justify-content: flex-start;
-  align-items: center;
   align-items: ${a};
   justify-content: ${j};
   grid-area: ${ga};

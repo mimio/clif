@@ -8,7 +8,7 @@ import { detail } from 'styles/text';
 import { centered } from 'styles/layout';
 import { HELLO, WORK, PROJECTS, orderedTabs } from 'constants/pages';
 import { HomeIcon } from 'icons';
-import { Column } from '../layout';
+import { Column } from './layout';
 
 const StyledHomeIcon = styled(HomeIcon)`
   height: 20px;
