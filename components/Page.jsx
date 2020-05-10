@@ -16,14 +16,14 @@ import { Heading } from './text';
 import { Full, Column } from './layout';
 
 const StyledNavigation = styled(Navigation)`
-  position: absolute;
+  position: fixed;
   top: ${size(4)};
   right: ${size(4)};
   z-index: 5;
 `;
 
 const ContactLink = styled(Link)`
-  position: absolute;
+  position: fixed;
   bottom: ${size(4)};
   right: ${size(4)};
   z-index: 4;
