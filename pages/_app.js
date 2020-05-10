@@ -51,7 +51,7 @@ const App = ({ Component, pageProps }) => {
         />
         <link
           href="https://fonts.googleapis.com/css?family=Roboto+Mono:200,300,400&display=swap"
-          rel="preload"
+          rel="stylesheet"
           type="text/css"
         />
         <link rel="icon" href="/favicon.png" sizes="16x16" />
