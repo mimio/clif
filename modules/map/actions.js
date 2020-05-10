@@ -46,6 +46,7 @@ export const fitBounds = () => (_, getState, getMap) => {
         isMobile && isFeatureSelected
           ? BOUNDS_PADDING_MOBILE
           : BOUNDS_PADDING,
+      essential: true,
     });
   }
 };
@@ -125,6 +126,7 @@ export const selectFeature = (e) => (dispatch, getState, getMap) => {
     center: feature.coordinates,
     offset: [0, isMobile ? -60 : 180],
     zoom: 12,
+    essential: true,
   });
 
   if (id !== prevSelectedId) {
