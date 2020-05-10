@@ -3,11 +3,15 @@ import PropTypes from 'prop-types';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { Provider } from 'react-redux';
+import styled from '@emotion/styled';
 import { ThemeProvider } from 'emotion-theming';
-import Cursor from 'components/Cursor';
+import { Cursor, Navigation, Link } from 'components';
 import * as analytics from 'utils/analytics';
+import email from 'constants/email';
+import { EnvelopeIcon } from 'icons';
 import AppHooks from 'hooks/AppHooks';
 import theme from 'styles/theme';
+import { mobile, size } from 'styles';
 import GlobalStyles from 'styles/GlobalStyles';
 import store from 'modules/store';
 
@@ -17,6 +21,24 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 if (global.window) {
   analytics.init('UA-91745405-6');
 }
+
+const StyledNavigation = styled(Navigation)`
+  position: fixed;
+  top: ${size(4)};
+  right: ${size(4)};
+  z-index: 4;
+`;
+
+const ContactLink = styled(Link)`
+  position: fixed;
+  bottom: ${size(4)};
+  right: ${size(4)};
+  z-index: 4;
+  border-radius: 5px;
+  ${mobile(`
+    width: ${size(7)};
+  `)};
+`;
 
 const App = ({ Component, pageProps }) => {
   const { pathname } = useRouter();
@@ -61,6 +83,19 @@ const App = ({ Component, pageProps }) => {
         <Provider store={store}>
           <AppHooks />
           <Cursor />
+          {pathname !== '/404' && (
+            <>
+              <ContactLink
+                ariaLabel="Contact Email"
+                href={`mailto:${email}`}
+                Icon={EnvelopeIcon}
+                vertical
+              >
+                {email}
+              </ContactLink>
+              <StyledNavigation />
+            </>
+          )}
           <Component {...pageProps} />
         </Provider>
       </ThemeProvider>

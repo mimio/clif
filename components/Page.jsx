@@ -2,36 +2,14 @@ import React, { useEffect, useRef } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { ChildrenPropType } from 'utils/prop-types';
-import email from 'constants/email';
 import { mobile, tablet, getBool, getStyle, size, mq } from 'styles';
-import { EnvelopeIcon } from 'icons';
 import {
   centered,
   full,
   foregroundContentTopPadding,
 } from 'styles/layout';
-import { Link } from './CTA';
-import Navigation from './Navigation';
 import { Heading } from './text';
 import { Full, Column } from './layout';
-
-const StyledNavigation = styled(Navigation)`
-  position: fixed;
-  top: ${size(4)};
-  right: ${size(4)};
-  z-index: 4;
-`;
-
-const ContactLink = styled(Link)`
-  position: fixed;
-  bottom: ${size(4)};
-  right: ${size(4)};
-  z-index: 4;
-  border-radius: 5px;
-  ${mobile(`
-    width: ${size(7)};
-  `)};
-`;
 
 const HeaderContainer = styled(Column)`
   ${full};
@@ -170,15 +148,6 @@ const Page = ({
 
   return (
     <>
-      <ContactLink
-        ariaLabel="Contact Email"
-        href={`mailto:${email}`}
-        Icon={EnvelopeIcon}
-        vertical
-      >
-        {email}
-      </ContactLink>
-      <StyledNavigation />
       <Container reveal={reveal}>
         <ForegroundContainer>
           <HeaderContainer
