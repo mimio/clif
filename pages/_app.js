@@ -51,7 +51,6 @@ const App = ({ Component, pageProps }) => {
         />
         <link
           as="font"
-          crossOrigin="anonymous"
           href="https://fonts.googleapis.com/css?family=Roboto+Mono:200,300,400&display=swap"
           rel="preload"
           type="font/woff2"
