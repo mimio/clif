@@ -141,20 +141,23 @@ const Cursor = () => {
 
     const style = get(cursorEl, 'current.style', {});
 
+    let request;
+
     const renderCursorStyles = () => {
       style.transform = `translate(${_clientX - RADIUS}px, ${
         _clientY - RADIUS
       }px)`;
-      requestAnimationFrame(renderCursorStyles);
+      request = requestAnimationFrame(renderCursorStyles);
     };
 
-    requestAnimationFrame(renderCursorStyles);
+    request = requestAnimationFrame(renderCursorStyles);
 
     return () => {
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseleave', onMouseLeave);
       document.removeEventListener('mousedown', onMouseDown);
       document.removeEventListener('mouseup', onMouseUp);
+      cancelAnimationFrame(request);
     };
   }, []);
   if (isTouchDevice()) return null;

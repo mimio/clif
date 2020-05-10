@@ -36,6 +36,15 @@ class GlitchImage extends Component {
     this.onResize();
   }
 
+  componentWillUnmount() {
+    window.removeEventListener('resize', this.onResize);
+    cancelAnimationFrame(this.animationRequest);
+    this.geometry.dispose();
+    this.material.dispose();
+    this.renderer.dispose();
+    this.scene.dispose();
+  }
+
   init = () => {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(
@@ -79,8 +88,18 @@ class GlitchImage extends Component {
   };
 
   addEvents = () => {
-    requestAnimationFrame(this.run);
+    this.animationRequest = requestAnimationFrame(this.animate);
     window.addEventListener('resize', this.onResize, false);
+  };
+
+  animate = () => {
+    this.renderScene();
+    this.animationRequest = requestAnimationFrame(this.animate);
+  };
+
+  renderScene = () => {
+    this.material.uniforms.uTime.value = this.clock.getElapsedTime();
+    this.renderer.render(this.scene, this.camera);
   };
 
   createMesh = () => {
@@ -105,16 +124,6 @@ class GlitchImage extends Component {
     } catch (e) {
       alert(e);
     }
-  };
-
-  run = () => {
-    requestAnimationFrame(this.run);
-    this.renderScene();
-  };
-
-  renderScene = () => {
-    this.material.uniforms.uTime.value = this.clock.getElapsedTime();
-    this.renderer.render(this.scene, this.camera);
   };
 
   render() {

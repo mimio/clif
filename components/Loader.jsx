@@ -60,6 +60,7 @@ const Loader = () => {
   const barEl = useRef(null);
 
   useEffect(() => {
+    let request;
     const moveLoader = () => {
       progress = Math.min(
         (progress += 0.5 + (progress * 2) / 100),
@@ -68,10 +69,18 @@ const Loader = () => {
       barEl.current.style.transform = `translateX(-${
         100 - progress
       }%)`;
-      if (progress === 100) setDone(true);
-      if (progress < 100) requestAnimationFrame(moveLoader);
+      if (progress === 100) {
+        setDone(true);
+        cancelAnimationFrame(request);
+      }
+      if (progress < 100) {
+        request = requestAnimationFrame(moveLoader);
+      }
     };
-    requestAnimationFrame(moveLoader);
+    request = requestAnimationFrame(moveLoader);
+    return () => {
+      if (request) cancelAnimationFrame(request);
+    };
   }, []);
 
   return (

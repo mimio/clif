@@ -148,6 +148,7 @@ const Page = ({
   const header = useRef(null);
 
   useEffect(() => {
+    let request;
     const renderHeaderStyles = () => {
       if (
         foregroundContent.current &&
@@ -159,10 +160,12 @@ const Page = ({
         header.current.style.opacity =
           1 - (scrollTop / threshold) * 0.5;
       }
-      requestAnimationFrame(renderHeaderStyles);
+      request = requestAnimationFrame(renderHeaderStyles);
     };
-
-    requestAnimationFrame(renderHeaderStyles);
+    request = requestAnimationFrame(renderHeaderStyles);
+    return () => {
+      if (request) cancelAnimationFrame(request);
+    };
   }, []);
 
   return (

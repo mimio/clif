@@ -48,7 +48,9 @@ export default class Globe extends Component {
       .rotate([this.rotationX, this.rotationY])
       .clipAngle(180)
       .translate([this.translateX, this.translateY]);
+
     const path = d3.geoPath().projection(projection).context(context);
+
     this.timer = d3.timer(() => {
       const change = this.coords[0] >= 0 ? -0.02 : 0.02;
       this.rotationX += change;

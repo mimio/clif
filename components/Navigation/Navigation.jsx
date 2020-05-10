@@ -15,7 +15,6 @@ const StyledHomeIcon = styled(HomeIcon)`
   width: 20px;
 `;
 
-
 const StyledLink = styled.a`
   ${centered};
   ${detail};
@@ -84,7 +83,11 @@ const Navigation = ({ className }) => {
             <StyledLink
               ariaLabel={`Link To Page ${path}`}
               className={id}
-              isActive={pathname === path}
+              isActive={
+                path === '/'
+                  ? pathname === path
+                  : pathname.includes(path)
+              }
             >
               {copy[id]}
             </StyledLink>

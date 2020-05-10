@@ -18,7 +18,7 @@ const DesktopControls = styled(Controls)`
   `)}
 `;
 
-const History = ({ isMobile, isActive }) => (
+const History = ({ isMobile }) => (
   <Page
     Background={
       <>
