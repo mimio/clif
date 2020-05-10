@@ -1,0 +1,15 @@
+export { default as ArrowLeftIcon } from './arrow-left.svg';
+export { default as ArrowRightIcon } from './arrow-right.svg';
+export { default as CaretDownIcon } from './caret-down.svg';
+export { default as CaretRightIcon } from './caret-right.svg';
+export { default as CubeIcon } from './cube.svg';
+export { default as EnvelopeIcon } from './envelope.svg';
+export { default as ExpandIcon } from './expand.svg';
+export { default as EyeIcon } from './eye.svg';
+export { default as FeatherIcon } from './feather.svg';
+export { default as FutbolIcon } from './futbol.svg';
+export { default as HikingIcon } from './hiking.svg';
+export { default as HomeIcon } from './home.svg';
+export { default as MoleculeIcon } from './molecule.svg';
+export { default as MountainIcon } from './mountain.svg';
+export { default as UFOIcon } from './ufo.svg';
