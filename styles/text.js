@@ -52,7 +52,7 @@ export const heading2 = css`
   ${base2};
   color: ${getStyle('text1')};
   font-size: 36px;
-  font-weight: 300;
+  font-weight: regular;
   ${tablet(`font-size: 32px;`)};
   ${mobile(`font-size: 22px;`)};
   margin: 0;

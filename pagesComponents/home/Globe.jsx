@@ -31,6 +31,28 @@ export default class Globe extends Component {
   };
 
   componentDidMount() {
+    window.addEventListener('mousemove', this.onMouseMove);
+    window.addEventListener('touchmove', this.onTouchMove);
+    this.initGlobe();
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('touchmove', this.onTouchMove);
+    window.removeEventListener('mousemove', this.onMouseMove);
+    this.timer.stop();
+  }
+
+  onTouchMove = (e) => {
+    const { clientX, clientY } = get(e, 'touches[0]');
+    if (!clientX || !clientY) return;
+    this.coords = normalizeCursorLocation([clientX, clientY]);
+  };
+
+  onMouseMove = ({ clientX, clientY }) => {
+    this.coords = normalizeCursorLocation([clientX, clientY]);
+  };
+
+  initGlobe() {
     const { countries } = this.props;
 
     const size =
@@ -75,34 +97,7 @@ export default class Globe extends Component {
       context.strokeColor = '#000';
       context.stroke();
     });
-
-    this.mouseListener = window.addEventListener(
-      'mousemove',
-      this.onGlobalMouseMove,
-    );
-    this.touchListener = window.addEventListener(
-      'touchmove',
-      this.onGlobalTouchMove,
-    );
   }
-
-  componentWillUnmount() {
-    window.removeEventListener('touchmove', this.touchListener);
-    window.removeEventListener('mousemove', this.mouseListener);
-    this.timer.stop();
-  }
-
-  onGlobalTouchMove = (e) => {
-    const { clientX, clientY } = get(e, 'touches[0]');
-    if (!clientX || !clientY) return;
-    this.coords = normalizeCursorLocation([clientX, clientY]);
-  };
-
-  onGlobalMouseMove = ({ clientX, clientY }) => {
-    this.coords = normalizeCursorLocation([clientX, clientY]);
-  };
-
-  getPathString = () => {};
 
   render() {
     const { size } = this.state;

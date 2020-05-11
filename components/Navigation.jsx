@@ -75,7 +75,7 @@ const Navigation = ({ className }) => {
     <Column className={className} sp={4}>
       {orderedTabs.map(({ id, path }) => {
         return (
-          <Link href={path} as={path} passHref key={id}>
+          <Link href={path} passHref key={id}>
             <StyledLink
               ariaLabel={`Link To Page ${path}`}
               className={id}

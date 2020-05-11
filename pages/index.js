@@ -1,10 +1,8 @@
 import React from 'react';
 import styled from '@emotion/styled';
 import Link from 'next/link';
-import fetch from 'isomorphic-unfetch';
 import { Column, Body, Heading3 } from 'components';
 import Page from 'components/Page';
-import { apiUrl } from 'utils/api';
 import { getStyle, mobile, mq } from 'styles';
 import { WORK, PROJECTS } from 'constants/pages';
 import { Globe } from 'pagesComponents/home';
@@ -75,10 +73,8 @@ export default ({ countries }) => (
   </Page>
 );
 
-export async function getServerSideProps({ req }) {
-  const url = apiUrl('/ne110m_land.json', req);
-  const landsRes = await fetch(url);
-  const lands = await landsRes.json();
+export async function getStaticProps() {
+  const lands = require('public/ne110m_land.json');
   const countries = feature(lands, lands.objects.land);
 
   return { props: { countries } };

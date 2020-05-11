@@ -3,6 +3,20 @@ import { Global, css } from '@emotion/core';
 import colors from './theme/colors';
 import transitions from './theme/transitions';
 
+const fontOptimizations = `
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC,
+    U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122,
+    U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+`;
+
+const robotoMono = `
+  font-family: 'Roboto Mono';
+  src: local('Roboto Mono Light'), local('RobotoMono-Light'),
+      url(https://fonts.gstatic.com/s/robotomono/v7/L0xkDF4xlVMF-BfR8bXMIjDgiWqxf7-pAVU_.woff2)
+        format('woff2');
+`;
+
 const globalCss = css`
   html {
     box-sizing: border-box;
@@ -71,14 +85,30 @@ const globalCss = css`
   svg {
     fill: currentColor;
   }
-
+  @font-face {
+    ${robotoMono};
+    font-style: light;
+    font-weight: 200;
+    ${fontOptimizations}
+  }
+  @font-face {
+    ${robotoMono};
+    font-style: normal;
+    font-weight: 300;
+    ${fontOptimizations}
+  }
+  @font-face {
+    ${robotoMono};
+    font-style: bold;
+    font-weight: 400;
+    ${fontOptimizations}
+  }
   @font-face {
     font-family: 'Fat';
     font-style: bold;
     font-weight: 700;
-    font-display: swap; /* Read next point */
-    unicode-range: U+000-5FF; /* Download only latin glyphs */
     src: url('/FatFontSlanted.woff2') format('woff2');
+    ${fontOptimizations};
   }
 `;
 

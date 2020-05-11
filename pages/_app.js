@@ -72,14 +72,15 @@ const App = ({ Component, pageProps }) => {
           type="font/woff2"
         />
         <link
-          href="https://fonts.googleapis.com/css?family=Roboto+Mono:200,300,400&display=swap"
-          rel="preload"
-          as="style"
+          rel="preconnect"
+          href="https://fonts.gstatic.com/"
+          crossOrigin="true"
         />
         <link
-          href="https://fonts.googleapis.com/css?family=Roboto+Mono:200,300,400&display=swap"
-          rel="stylesheet"
-          type="text/css"
+          rel="preload"
+          href="https://fonts.gstatic.com/s/robotomono/v7/L0xkDF4xlVMF-BfR8bXMIjDgiWqxf7-pAVU_.woff2"
+          as="font"
+          crossOrigin="true"
         />
         <link rel="icon" href="/favicon.png" sizes="16x16" />
       </Head>
