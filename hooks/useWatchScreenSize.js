@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { setScreenSize as setScreenSizeAction } from 'modules/app';
+import { setScreenSize as setScreenSizeAction } from 'modules/app/actions';
 import useActions from './useActions';
 
 export default function useWatchScreenSize() {

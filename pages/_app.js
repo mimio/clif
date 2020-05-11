@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { Provider } from 'react-redux';
+import withRedux from 'next-redux-wrapper';
 import styled from '@emotion/styled';
 import { ThemeProvider } from 'emotion-theming';
 import { Cursor, Navigation, Link } from 'components';
@@ -13,7 +14,7 @@ import AppHooks from 'hooks/AppHooks';
 import theme from 'styles/theme';
 import { mobile, size } from 'styles';
 import GlobalStyles from 'styles/GlobalStyles';
-import store from 'modules/store';
+import configureStore from 'modules/store';
 
 import 'normalize.css';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -40,7 +41,7 @@ const ContactLink = styled(Link)`
   `)};
 `;
 
-const App = ({ Component, pageProps }) => {
+const App = ({ Component, pageProps, store }) => {
   const { pathname } = useRouter();
   useEffect(() => {
     analytics.pageview();
@@ -114,4 +115,4 @@ App.propTypes = {
   pageProps: PropTypes.object.isRequired,
 };
 
-export default App;
+export default withRedux(configureStore)(App);

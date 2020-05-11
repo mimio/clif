@@ -1,8 +1,8 @@
 import { combineReducers } from 'redux';
 
-import { appReducer } from './app';
-import { geojsonReducer } from './geojson';
-import { mapReducer } from './map';
+import { appReducer } from './app/reducer';
+import { geojsonReducer } from './geojson/reducer';
+import { mapReducer } from './map/reducer';
 
 export default combineReducers({
   app: appReducer,

@@ -1,10 +1,10 @@
 import { connect } from 'react-redux';
-import { selectIsMobile } from 'modules/app';
+import { selectIsMobile } from 'modules/app/selectors';
 import {
   selectSelectedFeature,
   selectPopupId,
   selectIsFeatureSelected,
-} from 'modules/map';
+} from 'modules/map/selectors';
 import Popup from '../Popup';
 
 export default connect(

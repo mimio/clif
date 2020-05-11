@@ -1,12 +1,14 @@
 import { connect } from 'react-redux';
 import {
-  fitBounds,
   selectIsFeatureSelected,
   selectIsFirstFeatureSelected,
   selectIsLastFeatureSelected,
+} from 'modules/map/selectors';
+import {
+  fitBounds,
   selectNextFeature,
   selectPrevFeature,
-} from 'modules/map';
+} from 'modules/map/actions';
 import Controls from '../Controls';
 
 export default connect(

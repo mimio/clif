@@ -24,4 +24,4 @@ function configureStore() {
   return store;
 }
 
-export default configureStore();
+export default configureStore;

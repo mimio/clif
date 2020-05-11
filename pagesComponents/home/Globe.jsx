@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import get from 'lodash.get';
-import * as d3 from 'd3';
+import { geoPath, geoOrthographic, select, timer } from 'd3';
 import styled from '@emotion/styled';
 
 const normalizeCursorLocation = ([x, y]) => {
@@ -53,49 +53,51 @@ export default class Globe extends Component {
   };
 
   initGlobe() {
-    const { countries } = this.props;
+    return new Promise((res) => {
+      const { countries } = this.props;
 
-    const size =
-      Math.max(window.innerHeight, window.innerWidth) + 200;
-    this.setState({ size });
-    this.translateX = size / 2;
-    this.translateY = size / 2;
-    this.rotationX = size;
+      const size =
+        Math.max(window.innerHeight, window.innerWidth) + 200;
+      this.setState({ size });
+      this.translateX = size / 2;
+      this.translateY = size / 2;
+      this.rotationX = size;
 
-    const svg = d3.select('#globe');
-    const context = svg.node().getContext('2d');
-    const projection = d3
-      .geoOrthographic()
-      .fitSize([size, size], countries)
-      .rotate([this.rotationX, this.rotationY])
-      .clipAngle(180)
-      .translate([this.translateX, this.translateY]);
-
-    const path = d3.geoPath().projection(projection).context(context);
-
-    this.timer = d3.timer(() => {
-      const change = this.coords[0] >= 0 ? -0.02 : 0.02;
-      this.rotationX += change;
-      this.rotationY = bufferChange(this.coords[1], this.rotationY);
-      this.translateX = bufferChange(
-        size / 2 + this.coords[0],
-        this.translateX,
-      );
-      this.translateY = bufferChange(
-        size / 2 + this.coords[1],
-        this.translateY,
-      );
-      projection
+      const svg = select('#globe');
+      const context = svg.node().getContext('2d');
+      const projection = geoOrthographic()
+        .fitSize([size, size], countries)
         .rotate([this.rotationX, this.rotationY])
+        .clipAngle(180)
         .translate([this.translateX, this.translateY]);
-      context.clearRect(0, 0, size, size);
-      context.beginPath();
-      path(countries);
-      context.fillStyle = '#111';
-      context.fill();
-      context.lineWidth = 0.5;
-      context.strokeColor = '#000';
-      context.stroke();
+
+      const path = geoPath().projection(projection).context(context);
+
+      this.timer = timer(async () => {
+        const change = this.coords[0] >= 0 ? -0.02 : 0.02;
+        this.rotationX += change;
+        this.rotationY = bufferChange(this.coords[1], this.rotationY);
+        this.translateX = bufferChange(
+          size / 2 + this.coords[0],
+          this.translateX,
+        );
+        this.translateY = bufferChange(
+          size / 2 + this.coords[1],
+          this.translateY,
+        );
+        projection
+          .rotate([this.rotationX, this.rotationY])
+          .translate([this.translateX, this.translateY]);
+        context.clearRect(0, 0, size, size);
+        context.beginPath();
+        path(countries);
+        context.fillStyle = '#111';
+        context.fill();
+        context.lineWidth = 0.5;
+        context.strokeColor = '#000';
+        context.stroke();
+      });
+      res();
     });
   }
 

@@ -31,16 +31,6 @@ export const selectGeoJsonWithoutOutliers = createSelector(
     ),
 );
 
-export const selectAreFeaturesEmpty = createSelector(
-  selectFeatureList,
-  (list) => list.length === 0,
-);
-
-export const selectIsInitialized = createSelector(
-  selectState,
-  (state) => state.updateCount > 0,
-);
-
 export const selectChronologicalFeatures = createSelector(
   selectFeatureList,
   (features) => features.sort((a, b) => a.date.end > b.date.end),
@@ -63,9 +53,5 @@ export const selectWorkPathGeoJson = createSelector(
 
 export const selectGeoJsonBounds = createSelector(
   selectGeoJsonWithoutOutliers,
-  selectAreFeaturesEmpty,
-  (geojson, isEmpty) => {
-    if (isEmpty) return null;
-    return bbox(geojson);
-  },
+  (geojson) => bbox(geojson),
 );

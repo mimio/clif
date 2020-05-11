@@ -1,15 +1,17 @@
 import { connect } from 'react-redux';
 import {
+  selectMapConfig,
+  selectMapLayers,
+  selectMapLoaded,
+} from 'modules/map/selectors';
+import {
   clearSelection,
   hoverFeature,
   setMapLoaded,
   selectFeature,
-  selectMapConfig,
-  selectMapLayers,
-  selectMapLoaded,
   unhoverFeature,
   resetMap,
-} from 'modules/map';
+} from 'modules/map/actions';
 import Map from '../Map';
 
 export default connect(

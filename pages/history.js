@@ -2,7 +2,7 @@ import React from 'react';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 import styled from '@emotion/styled';
-import { selectIsMobile } from 'modules/app';
+import { selectIsMobile } from 'modules/app/selectors';
 import Page from 'components/Page';
 import { Popup, Map, Controls } from 'pagesComponents/history';
 import { getStyle, tablet } from 'styles';
