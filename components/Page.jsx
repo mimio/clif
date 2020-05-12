@@ -2,7 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { ChildrenPropType } from 'utils/prop-types';
-import { mobile, tablet, getBool, getStyle, size, mq } from 'styles';
+import { getBool, getStyle } from 'styles/utils';
+import { size } from 'styles/size';
+import { mobile, tablet, mq } from 'styles/breakpoints';
 import {
   centered,
   full,

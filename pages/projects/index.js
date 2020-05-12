@@ -3,11 +3,11 @@ import styled from '@emotion/styled';
 import Filmstrip from 'components/Filmstrip';
 import Page from 'components/Page';
 import { orderedProjects } from 'constants/projects';
+import { mobile } from 'styles/breakpoints';
 import {
-  mobile,
   foregroundContentTopPadding,
   foregroundContentBottomPadding,
-} from 'styles';
+} from 'styles/layout';
 import ProjectPreview from 'pagesComponents/projects/ProjectPreview';
 
 const StyledFilmstrip = styled(Filmstrip)`

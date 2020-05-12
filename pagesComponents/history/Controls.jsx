@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import styled from '@emotion/styled';
 import Button from 'components/CTA/Button';
 import { Row } from 'components/layout';
-import { getStyle } from 'styles';
+import { getStyle } from 'styles/utils';
 import ArrowLeftIcon from 'icons/arrow-left.svg';
 import ArrowRightIcon from 'icons/arrow-right.svg';
 import ExpandIcon from 'icons/expand.svg';

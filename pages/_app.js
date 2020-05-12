@@ -13,7 +13,8 @@ import email from 'constants/email';
 import EnvelopeIcon from 'icons/envelope.svg';
 import AppHooks from 'hooks/AppHooks';
 import theme from 'styles/theme';
-import { mobile, size } from 'styles';
+import { mobile } from 'styles/breakpoints';
+import { size } from 'styles/size';
 import GlobalStyles from 'styles/GlobalStyles';
 import configureStore from 'modules/store';
 

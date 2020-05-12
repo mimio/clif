@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled from '@emotion/styled';
-import { getBool, getStyle } from 'styles';
+import { getBool, getStyle } from 'styles/utils';
 import { Column } from './layout';
 import { Detail2 } from './text';
 

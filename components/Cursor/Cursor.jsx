@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import get from 'lodash.get';
 import styled from '@emotion/styled';
-import { getStyle } from 'styles';
+import { getStyle } from 'styles/utils';
 import isTouchDevice from 'is-touch-device';
 
 let lastElement;

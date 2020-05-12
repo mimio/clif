@@ -4,7 +4,9 @@ import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { PROJECTS } from 'constants/pages';
 import { Detail2, Body, Detail3 } from 'components/text';
-import { column, getStyle, mq } from 'styles';
+import { column } from 'styles/layout';
+import { getStyle } from 'styles/utils';
+import { mq } from 'styles/breakpoints';
 
 const StyledImage = styled.div`
   flex-grow: 1;

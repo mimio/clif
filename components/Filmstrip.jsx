@@ -4,7 +4,8 @@ import PropTypes from 'prop-types';
 import { animated, useSpring } from 'react-spring';
 import { useDrag } from 'react-use-gesture'; // useScroll
 import isTouchDevice from 'is-touch-device';
-import { getBool, mobile, tablet, getStyle, mq } from 'styles';
+import { getBool, getStyle } from 'styles/utils';
+import { mobile, tablet, mq } from 'styles/breakpoints';
 import { Row } from './layout';
 
 const Container = styled(animated.div)`

@@ -3,7 +3,8 @@ import ReactDOM from 'react-dom';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import moment from 'moment';
-import { getBool, getStyle, size } from 'styles';
+import { getBool, getStyle } from 'styles/utils';
+import { size } from 'styles/size';
 import { Column } from 'components/layout';
 import { Body, Body2, Detail, Detail2 } from 'components/text';
 

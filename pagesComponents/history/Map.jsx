@@ -2,7 +2,7 @@ import React, { Component, createRef } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import mapboxgl from 'mapbox-gl-ssr';
-import { getBool, getStyle } from 'styles';
+import { getBool, getStyle } from 'styles/utils';
 import { Full } from 'components/layout';
 import { setMap } from 'utils/map';
 

@@ -7,7 +7,8 @@ import Page from 'components/Page';
 import Popup from 'pagesComponents/history/containers/Popup';
 import Map from 'pagesComponents/history/containers/Map';
 import Controls from 'pagesComponents/history/containers/Controls';
-import { getStyle, tablet } from 'styles';
+import { getStyle } from 'styles/utils';
+import { tablet } from 'styles/breakpoints';
 
 const DesktopControls = styled(Controls)`
   position: absolute;

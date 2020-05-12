@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { Column } from 'components/layout';
 import { Body, Heading3 } from 'components/text';
 import Page from 'components/Page';
-import { getStyle, mobile, mq } from 'styles';
+import { getStyle } from 'styles/utils';
+import { mobile, mq } from 'styles/breakpoints';
 import { WORK, PROJECTS } from 'constants/pages';
 import Globe from 'pagesComponents/home/Globe';
 
