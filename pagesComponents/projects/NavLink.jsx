@@ -2,9 +2,10 @@ import React from 'react';
 import styled from '@emotion/styled';
 import Link from 'next/link';
 import PropTypes from 'prop-types';
-import { CaretRightIcon } from 'icons';
+import CaretRightIcon from 'icons/caret-right.svg';
 import { mobile, getBool, getStyle } from 'styles';
-import { Body2, Centered, Detail3 } from 'components';
+import { Body2, Detail3 } from 'components/text';
+import { Centered } from 'components/layout';
 
 const Container = styled.a`
   display: grid;

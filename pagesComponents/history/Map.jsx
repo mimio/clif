@@ -3,7 +3,7 @@ import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import mapboxgl from 'mapbox-gl-ssr';
 import { getBool, getStyle } from 'styles';
-import { Full } from 'components';
+import { Full } from 'components/layout';
 import { setMap } from 'utils/map';
 
 const StyledMap = styled(Full)`

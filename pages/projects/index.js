@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from '@emotion/styled';
-import { Filmstrip } from 'components';
+import Filmstrip from 'components/Filmstrip';
 import Page from 'components/Page';
 import { orderedProjects } from 'constants/projects';
 import {
@@ -8,7 +8,7 @@ import {
   foregroundContentTopPadding,
   foregroundContentBottomPadding,
 } from 'styles';
-import { ProjectPreview } from 'pagesComponents/projects';
+import ProjectPreview from 'pagesComponents/projects/ProjectPreview';
 
 const StyledFilmstrip = styled(Filmstrip)`
   height: 100%;

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { PROJECTS } from 'constants/pages';
-import { Detail2, Body, Detail3 } from 'components';
+import { Detail2, Body, Detail3 } from 'components/text';
 import { column, getStyle, mq } from 'styles';
 
 const StyledImage = styled.div`

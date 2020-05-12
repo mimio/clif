@@ -1,13 +1,11 @@
 import React from 'react';
-import {
-  HomeIcon,
-  CubeIcon,
-  MoleculeIcon,
-  FeatherIcon,
-  FutbolIcon,
-  HikingIcon,
-  MountainIcon,
-} from 'icons';
+import HomeIcon from 'icons/home.svg';
+import CubeIcon from 'icons/cube.svg';
+import MoleculeIcon from 'icons/molecule.svg';
+import FeatherIcon from 'icons/feather.svg';
+import FutbolIcon from 'icons/futbol.svg';
+import HikingIcon from 'icons/hiking.svg';
+import MountainIcon from 'icons/mountain.svg';
 
 const DEV = 'Development';
 const UIUX = 'UI/UX Design';

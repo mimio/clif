@@ -1,7 +1,9 @@
 import React from 'react';
 import styled from '@emotion/styled';
-import { UFOIcon } from 'icons';
-import { Column, Heading, Link, Detail } from 'components';
+import UFOIcon from 'icons/ufo.svg';
+import { Column } from 'components/layout';
+import { Heading, Detail } from 'components/text';
+import Link from 'components/CTA/Link';
 
 const Container = styled(Column)`
   width: 100%;

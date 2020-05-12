@@ -1,12 +1,12 @@
 import React from 'react';
 import styled from '@emotion/styled';
 import Link from 'next/link';
-import { Column, Body, Heading3 } from 'components';
+import { Column } from 'components/layout';
+import { Body, Heading3 } from 'components/text';
 import Page from 'components/Page';
 import { getStyle, mobile, mq } from 'styles';
 import { WORK, PROJECTS } from 'constants/pages';
-import { Globe } from 'pagesComponents/home';
-import { feature } from 'topojson';
+import Globe from 'pagesComponents/home/Globe';
 
 const CallToAction = styled.div`
   position: relative;
@@ -75,7 +75,8 @@ export default ({ countries }) => (
 
 export async function getStaticProps() {
   const lands = require('public/ne110m_land.json');
-  const countries = feature(lands, lands.objects.land);
+  const topo = require('topojson');
+  const countries = topo.feature(lands, lands.objects.land);
 
   return { props: { countries } };
 }

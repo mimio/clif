@@ -4,7 +4,8 @@ import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import moment from 'moment';
 import { getBool, getStyle, size } from 'styles';
-import { Column, Body, Body2, Detail, Detail2 } from 'components';
+import { Column } from 'components/layout';
+import { Body, Body2, Detail, Detail2 } from 'components/text';
 
 const Container = styled(Column)`
   background: ${getStyle('background1')};

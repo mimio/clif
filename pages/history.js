@@ -4,7 +4,9 @@ import PropTypes from 'prop-types';
 import styled from '@emotion/styled';
 import { selectIsMobile } from 'modules/app/selectors';
 import Page from 'components/Page';
-import { Popup, Map, Controls } from 'pagesComponents/history';
+import Popup from 'pagesComponents/history/containers/Popup';
+import Map from 'pagesComponents/history/containers/Map';
+import Controls from 'pagesComponents/history/containers/Controls';
 import { getStyle, tablet } from 'styles';
 
 const DesktopControls = styled(Controls)`

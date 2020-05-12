@@ -1,9 +1,12 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import styled from '@emotion/styled';
-import { Button, Row } from 'components';
+import Button from 'components/CTA/Button';
+import { Row } from 'components/layout';
 import { getStyle } from 'styles';
-import { ArrowLeftIcon, ArrowRightIcon, ExpandIcon } from 'icons';
+import ArrowLeftIcon from 'icons/arrow-left.svg';
+import ArrowRightIcon from 'icons/arrow-right.svg';
+import ExpandIcon from 'icons/expand.svg';
 
 const Container = styled(Row)`
   height: 56px;

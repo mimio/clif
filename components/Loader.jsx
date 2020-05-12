@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled from '@emotion/styled';
 import { getBool, getStyle } from 'styles';
-import { Column, Detail2 } from 'components';
+import { Column } from './layout';
+import { Detail2 } from './text';
 
 const Bar = styled.div`
   position: absolute;

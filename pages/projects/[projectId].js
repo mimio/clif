@@ -3,21 +3,16 @@ import PropTypes from 'prop-types';
 import styled from '@emotion/styled';
 import NextLink from 'next/link';
 import projects, { orderedProjects } from 'constants/projects';
-import { CaretDownIcon, EyeIcon } from 'icons';
+import CaretDownIcon from 'icons/caret-down.svg';
+import EyeIcon from 'icons/eye.svg';
 import { PROJECTS, PROJECTS_PATH } from 'constants/pages';
 import { mobile, getStyle, column } from 'styles';
-import { NavLink } from 'pagesComponents/projects';
-import {
-  Body,
-  Column,
-  Row,
-  Detail2,
-  Detail3,
-  GlitchImage,
-  Heading2,
-  Link,
-  Page,
-} from 'components';
+import NavLink from 'pagesComponents/projects/NavLink';
+import { Body, Detail2, Detail3, Heading2 } from 'components/text';
+import GlitchImage from 'components/GlitchImage';
+import { Column, Row } from 'components/layout';
+import Link from 'components/CTA/Link';
+import Page from 'components/Page';
 
 const Details = styled(Column)`
   grid-area: details;
