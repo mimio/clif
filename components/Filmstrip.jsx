@@ -39,22 +39,17 @@ const Container = styled(animated.div)`
 const Child = styled.div`
   height: 100%;
   > * {
-    ${getBool(
-      'reveal',
-      `
-      @keyframes slidein {
-          from {
-            opacity: 0;
-            transform: translateY(-16px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        animation: 0.3s ease-in forwards slidein;
-    `,
-    )};
+    @keyframes slidein {
+      from {
+        opacity: 0;
+        transform: translateY(-16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    animation: 0.3s ease-in forwards slidein;
     ${({ index }) => `
       animation-delay: ${index * 80}ms;
     `};
@@ -127,7 +122,7 @@ const Inner = styled(Row)`
   `)};
 `;
 
-export default function Filmstrip({ className, children, reveal }) {
+export default function Filmstrip({ className, children }) {
   const outerRef = useRef(null);
 
   const [isDragging, setIsDragging] = useState(false);
@@ -205,7 +200,7 @@ export default function Filmstrip({ className, children, reveal }) {
     >
       <Inner isDragging={isDragging}>
         {children.map((child, i) => (
-          <Child key={child?.props?.id} index={i} reveal={reveal}>
+          <Child key={child?.props?.id} index={i}>
             {child}
           </Child>
         ))}
@@ -217,10 +212,8 @@ export default function Filmstrip({ className, children, reveal }) {
 Filmstrip.propTypes = {
   className: PropTypes.string,
   children: PropTypes.arrayOf(PropTypes.node).isRequired,
-  reveal: PropTypes.bool,
 };
 
 Filmstrip.defaultProps = {
   className: '',
-  reveal: true,
 };

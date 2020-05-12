@@ -24,9 +24,8 @@ const StyledFilmstrip = styled(Filmstrip)`
 export default () => (
   <Page
     title="PROJECTS"
-    reveal
     Background={
-      <StyledFilmstrip reveal>
+      <StyledFilmstrip>
         {orderedProjects.map((project, i) => (
           <ProjectPreview {...project} key={project.id} index={i} />
         ))}

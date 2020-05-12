@@ -122,7 +122,7 @@ const Project = ({ projectId }) => {
     year,
   } = projects[projectId];
   return (
-    <Page reveal title={id}>
+    <Page title={id} key={id}>
       <Subcontainer>
         <Heading2>
           {title}
@@ -155,9 +155,14 @@ const Project = ({ projectId }) => {
           <NavLink
             reverse
             title={prevId}
-            href={`/${PROJECTS}/${prevId}`}
+            as={`/${PROJECTS}/${prevId}`}
+            href={`/${PROJECTS}/[projectId]`}
           />
-          <NavLink title={nextId} href={`/${PROJECTS}/${nextId}`} />
+          <NavLink
+            title={nextId}
+            as={`/${PROJECTS}/${nextId}`}
+            href={`/${PROJECTS}/[projectId]`}
+          />
         </Navigation>
         <NextLink href={`/${PROJECTS}`} passHref>
           <BackNavLink sp={1}>

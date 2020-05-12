@@ -94,8 +94,8 @@ const Container = styled.a`
   }
 `;
 
-const NavLink = ({ title, reverse, href, ...props }) => (
-  <Link href={href} passHref>
+const NavLink = ({ as, title, reverse, href, ...props }) => (
+  <Link as={as} href={href} passHref>
     <Container reverse={reverse} {...props}>
       <Centered ga="icon">
         <CaretRightIcon />
@@ -107,9 +107,10 @@ const NavLink = ({ title, reverse, href, ...props }) => (
 );
 
 NavLink.propTypes = {
+  as: PropTypes.string.isRequired,
+  href: PropTypes.string.isRequired,
   reverse: PropTypes.bool,
   title: PropTypes.string.isRequired,
-  href: PropTypes.string.isRequired,
 };
 
 NavLink.defaultProps = {

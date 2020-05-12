@@ -61,7 +61,7 @@ const App = ({ Component, pageProps }) => {
         />
         <meta
           name="description"
-          content="Clifton Campbell's Web Development Portlfolio"
+          content="Clifton Campbell's Web Development Portfolio"
         />
         <meta
           name="keywords"

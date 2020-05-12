@@ -77,6 +77,7 @@ const pageSlideIn = `
 const ForegroundContainer = styled.div`
   z-index: 3;
   position: absolute;
+  ${pageSlideIn};
   height: 100%;
   left: ${getStyle('foregroundLeftPadding')};
   width: calc(100% - ${size(28)});
@@ -98,19 +99,6 @@ const Container = styled.div`
   left: 0;
   height: 100%;
   width: 100%;
-  ${getBool(
-    'reveal',
-    `
-    ${ForegroundContainer} {
-      ${pageSlideIn};
-    }
-    `,
-    `
-    z-index: -1000000;
-    opacity: 0;
-    pointer-events: none;
-  `,
-  )}
 `;
 
 const Page = ({
@@ -121,7 +109,6 @@ const Page = ({
   children,
   fadeForeground,
   title,
-  reveal,
 }) => {
   const headerContainer = useRef(null);
   const foregroundContent = useRef(null);
@@ -150,7 +137,7 @@ const Page = ({
 
   return (
     <>
-      <Container reveal={reveal}>
+      <Container>
         <ForegroundContainer>
           <HeaderContainer
             ref={headerContainer}

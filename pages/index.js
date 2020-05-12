@@ -38,11 +38,7 @@ const CallToAction = styled.div`
 `;
 
 export default ({ countries }) => (
-  <Page
-    reveal
-    title="HELLO."
-    Background={<Globe countries={countries} />}
-  >
+  <Page title="HELLO." Background={<Globe countries={countries} />}>
     <Column a="flex-start" m="24px 0 0 0">
       <Heading3>
         My name is Clifton Campbell.
