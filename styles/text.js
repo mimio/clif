@@ -89,7 +89,7 @@ export const detail = css`
   font-size: 14px;
   line-height: 18px;
   font-weight: 200;
-  color: ${getStyle('text1b')};
+  color: ${getStyle('text1f')};
   ${mobile(`
     font-size: 12px;
     line-height: 16px;

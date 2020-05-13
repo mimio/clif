@@ -13,6 +13,7 @@ const colors = {
   text1c: '#858585',
   text1d: '#474747',
   text1e: offBlack,
+  text1f: 'rgb(180, 180, 180)',
   text2: yellow,
   text3: black,
   border1: yellow,
