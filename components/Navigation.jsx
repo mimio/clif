@@ -8,7 +8,7 @@ import { size } from 'styles/size';
 import { detail } from 'styles/text';
 import { centered } from 'styles/layout';
 import { HELLO, WORK, PROJECTS, orderedTabs } from 'constants/pages';
-import HomeIcon from 'icons/home.svg';
+import HomeIcon from 'public/icons/home.svg';
 import { Column } from './layout';
 
 const StyledHomeIcon = styled(HomeIcon)`

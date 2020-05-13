@@ -4,11 +4,9 @@ import mapboxGl from 'mapbox-gl-ssr';
 import sizes from 'styles/theme/sizes';
 import { WORK_SOURCE } from 'constants/source';
 import { BOUNDS_PADDING, BOUNDS_PADDING_MOBILE } from 'constants/map';
+import featureLookup from 'public/history/featureLookup';
+import bounds from 'public/history/bounds';
 import { selectIsMobile } from '../app/selectors';
-import {
-  selectLookup,
-  selectGeoJsonBounds,
-} from '../geojson/selectors';
 import {
   selectHoveredFeatureId,
   selectMapLoaded,
@@ -36,19 +34,16 @@ export const setMapLoaded = (isLoaded) => ({
 export const fitBounds = () => (_, getState, getMap) => {
   const state = getState();
   const map = getMap();
-  const bounds = selectGeoJsonBounds(state);
   const isMobile = selectIsMobile(state);
   const isFeatureSelected = selectIsFeatureSelected(state);
 
-  if (bounds) {
-    map.fitBounds(bounds, {
-      padding:
-        isMobile && isFeatureSelected
-          ? BOUNDS_PADDING_MOBILE
-          : BOUNDS_PADDING,
-      essential: true,
-    });
-  }
+  map.fitBounds(bounds, {
+    padding:
+      isMobile && isFeatureSelected
+        ? BOUNDS_PADDING_MOBILE
+        : BOUNDS_PADDING,
+    essential: true,
+  });
 };
 
 export const unhoverFeature = () => (dispatch, getState, getMap) => {
@@ -120,7 +115,7 @@ export const selectFeature = (e) => (dispatch, getState, getMap) => {
 
   const id = getId(map, e);
   if (!id) return null;
-  const feature = selectLookup(state)[id];
+  const feature = featureLookup[id];
 
   map.flyTo({
     center: feature.coordinates,

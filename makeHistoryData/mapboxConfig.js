@@ -1,6 +1,6 @@
-import { BOUNDS_PADDING } from 'constants/map';
+const mapConstants = require('../constants/map');
 
-export const config = {
+module.exports = {
   accessToken:
     'pk.eyJ1IjoiY2hpZWZrbGVlZiIsImEiOiJjaWhkbnE5cGEwYnltdnFrbHBwaHd0NXhuIn0.SXxGsE9D61dU7gWmWEV71Q',
   minZoom: 7,
@@ -11,6 +11,6 @@ export const config = {
     'mapbox://styles/chiefkleef/ck8yx5uws03fh1ir30w1qkprd?optimize=true',
   attributionControl: false,
   fitBoundsOptions: {
-    padding: BOUNDS_PADDING,
+    padding: mapConstants.BOUNDS_PADDING,
   },
 };

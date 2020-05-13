@@ -7,10 +7,8 @@ import {
   SET_POPUP_ID,
   RESET_MAP,
 } from './types';
-import { config } from './config';
 
 const initialState = {
-  config,
   selectedFeatureId: null,
   hoveredFeatureId: null,
   mapLoaded: false,

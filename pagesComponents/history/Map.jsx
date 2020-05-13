@@ -2,6 +2,9 @@ import React, { Component, createRef } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import mapboxgl from 'mapbox-gl-ssr';
+import mapLayers from 'public/history/mapLayers';
+import mapLayerIds from 'public/history/mapLayerIds';
+import mapConfig from 'public/history/mapConfig';
 import { getBool, getStyle } from 'styles/utils';
 import { Full } from 'components/layout';
 import { setMap } from 'utils/map';
@@ -54,17 +57,11 @@ class Map extends Component {
     clearSelection: PropTypes.func.isRequired,
     hoverFeature: PropTypes.func.isRequired,
     isMapLoaded: PropTypes.bool.isRequired,
-    mapConfig: PropTypes.object,
-    mapLayers: PropTypes.array.isRequired,
     setMapLoaded: PropTypes.func.isRequired,
     selectFeature: PropTypes.func.isRequired,
     unhoverFeature: PropTypes.func.isRequired,
     reveal: PropTypes.bool.isRequired,
     resetMap: PropTypes.func.isRequired,
-  };
-
-  static defaultProps = {
-    mapConfig: {},
   };
 
   componentDidMount() {
@@ -83,7 +80,6 @@ class Map extends Component {
   }
 
   initialize = () => {
-    const { mapConfig } = this.props;
     this.map = setMap(
       new mapboxgl.Map({
         ...mapConfig,
@@ -96,7 +92,6 @@ class Map extends Component {
 
   addLayers = () => {
     const {
-      mapLayers,
       hoverFeature,
       unhoverFeature,
       selectFeature,
@@ -120,13 +115,13 @@ class Map extends Component {
     });
 
   onMapLoaded = () => {
-    const { clearSelection, setMapLoaded, mapLayers } = this.props;
+    const { clearSelection, setMapLoaded } = this.props;
     this.addLayers();
     this.map.on('idle', () => setMapLoaded(true));
     this.map.on('click', (e) => {
       if (
         this.map.queryRenderedFeatures(e.point, {
-          layers: mapLayers.map((layer) => layer.id),
+          layers: mapLayerIds,
         }).length === 0
       )
         clearSelection();
@@ -138,9 +133,9 @@ class Map extends Component {
 
     return (
       <StyledMap
-        isLoaded={isMapLoaded}
         className={className}
         css={css}
+        isLoaded={isMapLoaded}
         ref={this.mapRef}
         reveal={reveal}
       />

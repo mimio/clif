@@ -1,9 +1,4 @@
-export const emptyGeoJson = {
-  type: 'FeatureCollection',
-  features: [],
-};
-
-export const createGeoJsonFeature = (properties) => {
+const createGeoJsonFeature = (properties) => {
   const { coordinates, id } = properties;
   return {
     type: 'Feature',
@@ -13,7 +8,27 @@ export const createGeoJsonFeature = (properties) => {
   };
 };
 
-export const arrayToFeatureCollection = (data) => ({
+const arrayToFeatureCollection = (data) => ({
   type: 'FeatureCollection',
   features: data.map(createGeoJsonFeature),
 });
+
+const makeHoverCase = (hoverValue, defaultValue) => [
+  'case',
+  ['boolean', ['feature-state', 'hover'], false],
+  hoverValue,
+  defaultValue,
+];
+
+const makeSelectedCase = (selectedValue, defaultValue) => [
+  'case',
+  ['boolean', ['feature-state', 'selected'], false],
+  selectedValue,
+  defaultValue,
+];
+
+module.exports = {
+  arrayToFeatureCollection,
+  makeHoverCase,
+  makeSelectedCase,
+};

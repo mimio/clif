@@ -1,9 +1,5 @@
 import { connect } from 'react-redux';
-import {
-  selectMapConfig,
-  selectMapLayers,
-  selectMapLoaded,
-} from 'modules/map/selectors';
+import { selectMapLoaded } from 'modules/map/selectors';
 import {
   clearSelection,
   hoverFeature,
@@ -17,8 +13,6 @@ import Map from '../Map';
 export default connect(
   (state) => ({
     isMapLoaded: selectMapLoaded(state),
-    mapConfig: selectMapConfig(state),
-    mapLayers: selectMapLayers(state),
   }),
   {
     clearSelection,

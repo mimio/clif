@@ -1,4 +1,4 @@
-export default [
+module.exports = [
   {
     company: 'New York State Parks',
     role: 'Geospatial Technician I',

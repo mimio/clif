@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from '@emotion/styled';
-import UFOIcon from 'icons/ufo.svg';
+import UFOIcon from 'public/icons/ufo.svg';
 import { Column } from 'components/layout';
 import { Heading, Detail } from 'components/text';
 import Link from 'components/CTA/Link';

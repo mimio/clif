@@ -10,7 +10,7 @@ import Navigation from 'components/Navigation';
 import Link from 'components/CTA/Link';
 import * as analytics from 'utils/analytics';
 import email from 'constants/email';
-import EnvelopeIcon from 'icons/envelope.svg';
+import EnvelopeIcon from 'public/icons/envelope.svg';
 import AppHooks from 'hooks/AppHooks';
 import theme from 'styles/theme';
 import { mobile } from 'styles/breakpoints';

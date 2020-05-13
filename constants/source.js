@@ -1,3 +1,5 @@
-export const WORK_SOURCE = 'work-source';
-export const WORK_PATH_SOURCE = 'work-path-source';
-export const WORK_LABEL_SOURCE = 'work-label-source';
+module.exports = {
+  WORK_SOURCE: 'work-source',
+  WORK_PATH_SOURCE: 'work-path-source',
+  WORK_LABEL_SOURCE: 'work-label-source',
+};

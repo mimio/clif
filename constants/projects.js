@@ -1,11 +1,11 @@
 import React from 'react';
-import HomeIcon from 'icons/home.svg';
-import CubeIcon from 'icons/cube.svg';
-import MoleculeIcon from 'icons/molecule.svg';
-import FeatherIcon from 'icons/feather.svg';
-import FutbolIcon from 'icons/futbol.svg';
-import HikingIcon from 'icons/hiking.svg';
-import MountainIcon from 'icons/mountain.svg';
+import HomeIcon from 'public/icons/home.svg';
+import CubeIcon from 'public/icons/cube.svg';
+import MoleculeIcon from 'public/icons/molecule.svg';
+import FeatherIcon from 'public/icons/feather.svg';
+import FutbolIcon from 'public/icons/futbol.svg';
+import HikingIcon from 'public/icons/hiking.svg';
+import MountainIcon from 'public/icons/mountain.svg';
 
 const DEV = 'Development';
 const UIUX = 'UI/UX Design';

@@ -4,9 +4,9 @@ import styled from '@emotion/styled';
 import Button from 'components/CTA/Button';
 import { Row } from 'components/layout';
 import { getStyle } from 'styles/utils';
-import ArrowLeftIcon from 'icons/arrow-left.svg';
-import ArrowRightIcon from 'icons/arrow-right.svg';
-import ExpandIcon from 'icons/expand.svg';
+import ArrowLeftIcon from 'public/icons/arrow-left.svg';
+import ArrowRightIcon from 'public/icons/arrow-right.svg';
+import ExpandIcon from 'public/icons/expand.svg';
 
 const Container = styled(Row)`
   height: 56px;

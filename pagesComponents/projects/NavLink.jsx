@@ -2,7 +2,7 @@ import React from 'react';
 import styled from '@emotion/styled';
 import Link from 'next/link';
 import PropTypes from 'prop-types';
-import CaretRightIcon from 'icons/caret-right.svg';
+import CaretRightIcon from 'public/icons/caret-right.svg';
 import { getBool, getStyle } from 'styles/utils';
 import { mobile } from 'styles/breakpoints';
 import { Body2, Detail3 } from 'components/text';

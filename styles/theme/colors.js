@@ -1,10 +1,10 @@
-import rgba from 'hex-to-rgba';
+const rgba = require('hex-to-rgba');
 
 const yellow = '#FFE520';
 const black = '#161616';
 const offBlack = '#232323';
 
-export default {
+const colors = {
   background1: black,
   background2: '#202020',
   controlBackdrop: 'rgba(22,22,22,0.69)',
@@ -26,3 +26,5 @@ export default {
   scroll2: 'rgba(255, 229, 32, 0.5)',
   scroll3: 'rgba(255, 229, 32, 0.8)',
 };
+
+module.exports = colors;
