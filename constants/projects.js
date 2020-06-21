@@ -86,7 +86,7 @@ const _projects = [
           I worked with the JCHS to create a geographic tool for
           visualizing social and economic changes across the Greater
           Boston area starting in 1990. What we constructed takes
-          JCHS&apos;s curated socioeconomic and bundles it into a
+          JCHS&apos;s curated socioeconomic data and bundles it into a
           made-to-order geographic analysis application complete with
           user-driven filtration, data coloring, and session saving.
         </p>
