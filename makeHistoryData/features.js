@@ -40,7 +40,7 @@ module.exports = [
     company: 'Freelancing',
     role: 'Software Engineer & Designer',
     description:
-      'I am currently working on projects for variety of clients including Ramboll Shair and Human Recreational Services.',
+      'I am currently working on projects for variety of clients including Heroku, &yet, and Ramboll Shair',
     coordinates: [-122.6997509, 45.5784006],
     date: { start: 1579480362000, end: Date.now() },
     id: 5,
