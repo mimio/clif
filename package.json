@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "make-history": "node ./makeHistoryData",
+    "preprocess": "node ./makeHistoryData",
     "lint": "./node_modules/.bin/eslint --fix \"{pagesComponents,components,constants,hooks,modules,pages,styles,utils,makeHistoryData}/**/*.{js,jsx}\"",
     "format": "npx prettier --write \"*/**/*.{js,jsx}\" \"!public/**\" \"!node_modules/**\" \"!dist/**\"  \"!.next/**\" \"!.vercel/**\" \"!.vscode/**\"",
     "test": "echo \"Error: no test specified\" && exit 1"
