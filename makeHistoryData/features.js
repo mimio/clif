@@ -40,9 +40,18 @@ module.exports = [
     company: 'Freelancing',
     role: 'Software Engineer & Designer',
     description:
-      'I am currently working on projects for variety of clients including Heroku, &yet, and Ramboll Shair',
+      'I worked with a variety of clients including Heroku, &yet, and Ramboll Shair',
     coordinates: [-122.6997509, 45.5784006],
-    date: { start: 1579480362000, end: Date.now() },
+    date: { start: 1579480362000, end: 1595228400000 },
     id: 5,
+  },
+  {
+    company: 'Salesforce',
+    role: 'Software Engineer',
+    description:
+      'I am working with Salesforce and the Heroku team to create next generation applications.',
+    coordinates: [-122.7944, 45.5424562],
+    date: { start: 1595228400000, end: Date.now() },
+    id: 6,
   },
 ];
