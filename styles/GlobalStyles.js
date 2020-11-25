@@ -104,10 +104,10 @@ const globalCss = css`
     ${fontOptimizations}
   }
   @font-face {
-    font-family: 'Fat';
+    font-family: 'Adder';
     font-style: bold;
     font-weight: 700;
-    src: url('/FatFontSlanted.woff2') format('woff2');
+    src: url('/adder-superextended.woff2') format('woff2');
     ${fontOptimizations};
   }
 `;

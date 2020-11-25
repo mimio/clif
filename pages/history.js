@@ -31,7 +31,7 @@ const History = ({ isMobile }) => (
       </>
     }
     Subheader={isMobile ? <Controls /> : null}
-    title="HISTORY"
+    title="history"
     reveal
   />
 );

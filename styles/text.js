@@ -33,11 +33,13 @@ const inlineLink = css`
 
 export const heading = css`
   ${base};
-  font-family: 'Fat';
+  font-family: 'Adder';
   color: ${getStyle('text2')};
-  font-size: 84pt;
-  ${tablet(`font-size: 64pt;`)};
-  ${mobile(`font-size: 40pt;`)};
+  font-size: 52pt;
+  ${tablet(`font-size: 40pt;`)};
+  ${mobile(`font-size: 28pt;`)};
+  word-break: break-word;
+  font-feature-settings: 'aalt';
   overflow: visible;
   margin: 0;
 `;
