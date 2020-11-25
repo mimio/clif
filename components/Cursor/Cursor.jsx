@@ -109,7 +109,6 @@ const Cursor = () => {
   useEffect(() => {
     if (isTouchDevice()) return () => {};
     const processMouseTarget = (target) => {
-      if (!cursorEl.classList) return;
       const { isExternalLink, isActive } = getElementMetadata(target);
       cursorEl.current.classList.remove('offScreen');
       cursorEl.current.classList.toggle('overLink', isExternalLink);
@@ -121,15 +120,12 @@ const Cursor = () => {
       processMouseTarget(target);
     };
     const onMouseLeave = () => {
-      if (!cursorEl.classList) return;
       cursorEl.current.classList.add('offScreen');
     };
     const onMouseDown = () => {
-      if (!cursorEl.classList) return;
       cursorEl.current.classList.add('pressed');
     };
     const onMouseUp = ({ clientX, clientY }) => {
-      if (!cursorEl.classList) return;
       cursorEl.current.classList.remove('pressed');
       setTimeout(() => {
         processMouseTarget(
