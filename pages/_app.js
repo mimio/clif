@@ -72,7 +72,7 @@ const App = ({ Component, pageProps }) => {
         <link
           as="font"
           crossOrigin="anonymous"
-          href="/FatFontSlanted.woff2"
+          href="/adder-superextended.woff2"
           rel="preload"
           type="font/woff2"
         />
