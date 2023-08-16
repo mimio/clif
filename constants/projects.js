@@ -67,7 +67,7 @@ const _projects = [
       <>
         <p>
           I worked with Heroku to construct a pricing comparison tool
-          for Heroku prducts and plans.
+          for Heroku products and plans.
         </p>
       </>
     ),
@@ -126,8 +126,7 @@ const _projects = [
     ),
     imgSrc: '/ubiquiti_setup.png',
     imgSrcSkinny: '/ubiquiti_setup_skinny.png',
-    href:
-      'https://store.ui.com/us/en?category=all-cloud-keys-gateways',
+    href: 'https://store.ui.com/us/en?category=all-cloud-keys-gateways',
     Icon: MoleculeIcon,
     id: 'ubiquiti-setup',
     roles: [DEV],
@@ -245,8 +244,7 @@ const _projects = [
     ),
     imgSrc: '/harvard.webp',
     imgSrcSkinny: '/harvard_skinny.webp',
-    href:
-      'https://www.jchs.harvard.edu/boston-map#/boston-map/create-map',
+    href: 'https://www.jchs.harvard.edu/boston-map#/boston-map/create-map',
     Icon: HomeIcon,
     id: 'harvard',
     roles: [DEV, UX],
@@ -259,8 +257,7 @@ const _projects = [
     product: 'Event Map',
     imgSrc: '/ngwsd.webp',
     imgSrcSkinny: '/ngwsd_skinny.webp',
-    href:
-      'https://www.womenssportsfoundation.org/get-involved/ngwsd/',
+    href: 'https://www.womenssportsfoundation.org/get-involved/ngwsd/',
     Icon: FutbolIcon,
     id: 'ngwsd',
     subtitle: (
