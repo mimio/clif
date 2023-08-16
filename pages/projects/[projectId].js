@@ -109,6 +109,7 @@ const Pairing = ({ children, title, ...props }) => (
 const Project = ({ projectId }) => {
   const {
     Icon,
+    appDeactivated,
     client,
     employer,
     href,
@@ -140,13 +141,15 @@ const Project = ({ projectId }) => {
           <Pairing title="ROLE">
             <Detail2>{roles.join(', ')}</Detail2>
           </Pairing>
-          <ProjectLink
-            ariaLabel="View Project"
-            href={href}
-            Icon={EyeIcon}
-          >
-            View
-          </ProjectLink>
+          {!appDeactivated && (
+            <ProjectLink
+              ariaLabel="View Project"
+              href={href}
+              Icon={EyeIcon}
+            >
+              View
+            </ProjectLink>
+          )}
         </Details>
         <Pairing as="start" ga="description" title="DESCRIPTION">
           <Body>{subtitle}</Body>
