@@ -47,11 +47,11 @@ module.exports = [
   },
   {
     company: 'Salesforce',
-    role: 'Software Engineer',
+    role: 'Senior Software Engineer',
     description:
-      'I am working with Salesforce and the Heroku team to create next generation applications.',
+      'I worked with design and management to rebuild developer.salesforce.com using LWC and LWR. I had a large role in the construction of components and creating the page building flow the website uses today.',
     coordinates: [-122.7944, 45.5424562],
-    date: { start: 1595228400000, end: Date.now() },
+    date: { start: 1595228400000, end: null },
     id: 6,
   },
 ];

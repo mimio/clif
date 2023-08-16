@@ -14,6 +14,153 @@ const CARTO = 'Cartography';
 
 const _projects = [
   {
+    title: 'developer.salesforce.com',
+    client: 'Salesforce',
+    year: 2020,
+    theme: 'Software',
+    product: 'Developer Marketing Website',
+    subtitle: (
+      <>
+        <p>
+          I worked with my team to rebuild the
+          developer.salesforce.com website (which serves millions of
+          users per month). My duties involved working closely with
+          design, creating a component library, and page construction.
+        </p>
+        <p>
+          We leveraged and worked alongside Salesforce front-end
+          technologies{' '}
+          <a
+            href="https://developer.salesforce.com/docs/platform/lwc/guide"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Lightning Web Components
+          </a>{' '}
+          and{' '}
+          <a
+            href="https://developer.salesforce.com/docs/platform/lwr/guide/lwr-intro.html"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Lightning Web Runtime
+          </a>
+          .
+        </p>
+      </>
+    ),
+    imgSrc: '/salesforce_developers.png',
+    imgSrcSkinny: '/salesforce_developers_skinny.png',
+    href: 'https://developer.salesforce.com/',
+    Icon: MoleculeIcon,
+    id: 'salesforce-developers',
+    roles: [DEV],
+    employer: true,
+  },
+  {
+    title: 'Heroku Pricing Page',
+    client: 'Salesforce',
+    year: 2020,
+    theme: 'Pricing',
+    product: 'Marketing Tool',
+    subtitle: (
+      <>
+        <p>
+          I worked with Heroku to construct a pricing comparison tool
+          for Heroku prducts and plans.
+        </p>
+      </>
+    ),
+    imgSrc: '/heroku_pricing.png',
+    imgSrcSkinny: '/heroku_pricing_skinny.png',
+    href: 'https://www.heroku.com/pricing',
+    Icon: MoleculeIcon,
+    id: 'heroku-pricing',
+    roles: [DEV],
+    employer: true,
+  },
+  {
+    title: 'Ubiquiti Local Device Settings',
+    client: 'Ubiquiti',
+    year: 2020,
+    theme: 'Software',
+    product: 'Hardware Settings UI',
+    subtitle: (
+      <>
+        <p>
+          While working at Ubiquiti I implemented a local settings UI
+          for networking hardware.
+        </p>
+        <p>
+          My software was installed into devices so customers could
+          easily manage the settings of their Ubiquiti network
+          computing products from home.
+        </p>
+      </>
+    ),
+    imgSrc: '/ubiquiti_settings.png',
+    imgSrcSkinny: '/ubiquiti_settings_skinny.png',
+    href: 'https://unifi.ui.com/',
+    Icon: MoleculeIcon,
+    id: 'ubiquiti-settings',
+    roles: [DEV],
+    employer: true,
+  },
+  {
+    title: 'Ubiquiti Device Setup Flow',
+    client: 'Ubiquiti',
+    year: 2020,
+    theme: 'Software',
+    product: 'Hardware Setup Flow',
+    subtitle: (
+      <>
+        <p>
+          While working at Ubiquiti I implemented a setup flow UI for
+          cutting edge hardware.
+        </p>
+        <p>
+          My software was installed into devices so customers could
+          easily setup their Ubiquiti products from home.
+        </p>
+      </>
+    ),
+    imgSrc: '/ubiquiti_setup.png',
+    imgSrcSkinny: '/ubiquiti_setup_skinny.png',
+    href:
+      'https://store.ui.com/us/en?category=all-cloud-keys-gateways',
+    Icon: MoleculeIcon,
+    id: 'ubiquiti-setup',
+    roles: [DEV],
+    employer: true,
+  },
+  {
+    title: 'Ubiquiti Device Portal',
+    client: 'Ubiquiti',
+    year: 2020,
+    theme: 'Software',
+    product: 'Hardware Management Software',
+    subtitle: (
+      <>
+        <p>
+          While working at Ubiquiti I implemented a dashboard for
+          viewing and managing user devices.
+        </p>
+        <p>
+          This involved coordinating across many different teams,
+          including the teams responsible for security cameras,
+          internet hardware, security hardware, and more.
+        </p>
+      </>
+    ),
+    imgSrc: '/ubiquiti_portal.png',
+    imgSrcSkinny: '/ubiquiti_portal_skinny.png',
+    href: 'https://unifi.ui.com/',
+    Icon: MoleculeIcon,
+    id: 'ubiquiti-portal',
+    roles: [DEV],
+    employer: true,
+  },
+  {
     title: 'Air Quality Analysis Application',
     client: 'Ramboll Shair',
     year: 2020,

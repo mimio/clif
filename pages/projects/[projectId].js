@@ -110,6 +110,7 @@ const Project = ({ projectId }) => {
   const {
     Icon,
     client,
+    employer,
     href,
     id,
     imgSrc,
@@ -133,7 +134,7 @@ const Project = ({ projectId }) => {
           <Pairing title="YEAR">
             <Detail2>{year}</Detail2>
           </Pairing>
-          <Pairing title="CLIENT">
+          <Pairing title={employer ? 'EMPLOYER' : 'CLIENT'}>
             <Detail2>{client}</Detail2>
           </Pairing>
           <Pairing title="ROLE">
