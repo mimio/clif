@@ -93,17 +93,7 @@ const _projects = [
           emotion with other attendees and the presenter in real time.
           It is a higher fidelity, virtual-only version of clapping.
         </p>
-        <p>
-          My role on the project was animation, for which I used{' '}
-          <a
-            href="https://ramboll-shair.com/"
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            anime js
-          </a>
-          .
-        </p>
+        <p>My role on the project was animation.</p>
       </>
     ),
     imgSrc: '/emote_widget.png',
