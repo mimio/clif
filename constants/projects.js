@@ -80,6 +80,42 @@ const _projects = [
     employer: true,
   },
   {
+    title: 'Emote Widget',
+    client: 'Salesforce',
+    year: 2021,
+    theme: 'Widget',
+    product: 'Live Event Widget',
+    subtitle: (
+      <>
+        <p>
+          The emote widget (and its associated server) allows virtual
+          event attendees watching the event stream to share their
+          emotion with other attendees and the presenter in real time.
+          It&aposs a higher fidelity, virtual-only version of
+          clapping.
+        </p>
+        <p>
+          My role on the project was animation, for which I used{' '}
+          <a
+            href="https://ramboll-shair.com/"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            anime js
+          </a>
+          .
+        </p>
+      </>
+    ),
+    imgSrc: '/emote_widget.png',
+    imgSrcSkinny: '/emote_widget_skinny.png',
+    href: 'https://github.com/developerforce/emote-widget',
+    Icon: MoleculeIcon,
+    id: 'emote-widget',
+    roles: [DEV],
+    employer: true,
+  },
+  {
     title: 'Ubiquiti Local Device Settings',
     client: 'Ubiquiti',
     year: 2020,
