@@ -91,8 +91,7 @@ const _projects = [
           The emote widget (and its associated server) allows virtual
           event attendees watching the event stream to share their
           emotion with other attendees and the presenter in real time.
-          It&aposs a higher fidelity, virtual-only version of
-          clapping.
+          It is a higher fidelity, virtual-only version of clapping.
         </p>
         <p>
           My role on the project was animation, for which I used{' '}
