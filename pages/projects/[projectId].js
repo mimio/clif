@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import styled from '@emotion/styled';
 import NextLink from 'next/link';
-import projects, { orderedProjects } from 'constants/projects';
+import projects, { projectsList } from 'constants/projects';
 import CaretDownIcon from 'public/icons/caret-down.svg';
 import EyeIcon from 'public/icons/eye.svg';
 import { PROJECTS, PROJECTS_PATH } from 'constants/pages';
@@ -190,7 +190,7 @@ export function getStaticProps({ params: { projectId } }) {
 }
 
 export function getStaticPaths() {
-  const paths = orderedProjects.map(
+  const paths = projectsList.map(
     (project) => `${PROJECTS_PATH}/${project.id}`,
   );
   return { paths, fallback: false };

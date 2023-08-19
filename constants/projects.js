@@ -63,6 +63,7 @@ const _projects = [
     year: 2020,
     theme: 'Pricing',
     product: 'Marketing Tool',
+    users: 1300000,
     subtitle: (
       <>
         <p>
@@ -419,7 +420,7 @@ const _projects = [
   },
 ];
 
-export const orderedProjects = _projects.map((project, i) => {
+export const projectsList = _projects.map((project, i) => {
   const prevId =
     i === 0
       ? _projects[_projects.length - 1].id
@@ -429,14 +430,21 @@ export const orderedProjects = _projects.map((project, i) => {
       ? _projects[0].id
       : _projects[i + 1].id;
 
+  const usersData = project.users
+    ? {
+        usersFormatted: project.users.toLocaleString(),
+      }
+    : {};
+
   return {
     ...project,
+    ...usersData,
     prevId,
     nextId,
   };
 });
 
-export default orderedProjects.reduce(
+export default projectsList.reduce(
   (acc, val) => ({ ...acc, [val.id]: val }),
   {},
 );

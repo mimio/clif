@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
+import UserIcon from 'public/icons/user.svg';
 import { PROJECTS } from 'constants/pages';
 import { Detail2, Body, Detail3 } from 'components/text';
 import { column } from 'styles/layout';
@@ -37,6 +38,23 @@ const Details = styled.div`
   > * {
     transition: ${getStyle('linearHue')};
   }
+`;
+
+const UserRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: ${getStyle('border1')};
+  padding: 6px 16px;
+  ${Detail3} {
+    color: ${getStyle('text3')};
+    font-weight: 700;
+  }
+`;
+
+const StyledUserIcon = styled(UserIcon)`
+  color: black;
+  width: 12px;
 `;
 
 const Container = styled.a`
@@ -79,6 +97,7 @@ const ProjectPreview = ({
   id,
   Icon,
   product,
+  usersFormatted,
 }) => (
   <Link
     as={`/${PROJECTS}/${id}`}
@@ -92,6 +111,12 @@ const ProjectPreview = ({
         <Body>{id}</Body>
         <Detail3>{product}</Detail3>
       </Details>
+      {usersFormatted && (
+        <UserRow>
+          <Detail3>{usersFormatted} users</Detail3>
+          <StyledUserIcon />
+        </UserRow>
+      )}
       <StyledImage imgSrc={imgSrcSkinny} />
     </Container>
   </Link>

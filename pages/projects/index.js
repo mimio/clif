@@ -2,7 +2,7 @@ import React from 'react';
 import styled from '@emotion/styled';
 import Filmstrip from 'components/Filmstrip';
 import Page from 'components/Page';
-import { orderedProjects } from 'constants/projects';
+import { projectsList } from 'constants/projects';
 import { mobile } from 'styles/breakpoints';
 import {
   foregroundContentTopPadding,
@@ -26,7 +26,7 @@ export default () => (
     title="projects"
     Background={
       <StyledFilmstrip>
-        {orderedProjects.map((project, i) => (
+        {projectsList.map((project, i) => (
           <ProjectPreview {...project} key={project.id} index={i} />
         ))}
       </StyledFilmstrip>
