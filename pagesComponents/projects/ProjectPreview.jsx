@@ -97,7 +97,7 @@ const ProjectPreview = ({
   id,
   Icon,
   product,
-  usersFormatted,
+  usersApproximate,
 }) => (
   <Link
     as={`/${PROJECTS}/${id}`}
@@ -111,9 +111,9 @@ const ProjectPreview = ({
         <Body>{id}</Body>
         <Detail3>{product}</Detail3>
       </Details>
-      {usersFormatted && (
+      {usersApproximate && (
         <UserRow>
-          <Detail3>{usersFormatted} users</Detail3>
+          <Detail3>{usersApproximate} users</Detail3>
           <StyledUserIcon />
         </UserRow>
       )}

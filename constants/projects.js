@@ -25,6 +25,7 @@ const _projects = [
     year: 2020,
     theme: 'Software',
     product: 'Developer Marketing Website',
+    users: 1000000,
     subtitle: (
       <>
         <p>
@@ -117,6 +118,7 @@ const _projects = [
     year: 2020,
     theme: 'Software',
     product: 'Hardware Settings UI',
+    users: 100000,
     subtitle: (
       <>
         <p>
@@ -144,6 +146,7 @@ const _projects = [
     year: 2020,
     theme: 'Software',
     product: 'Hardware Setup Flow',
+    users: 100000,
     subtitle: (
       <>
         <p>
@@ -170,6 +173,7 @@ const _projects = [
     year: 2020,
     theme: 'Software',
     product: 'Hardware Management Software',
+    users: 100000,
     subtitle: (
       <>
         <p>
@@ -426,6 +430,24 @@ const _projects = [
   },
 ];
 
+const approximateUserCount = (users) => {
+  if (users >= 1000000) {
+    return `${Number(1000000).toLocaleString()}+`;
+  }
+  if (users >= 100000) {
+    return `${Number(100000).toLocaleString()}+`;
+  }
+  return null;
+};
+
+const makeUserData = (users) => {
+  if (!users) return {};
+  return {
+    usersFormatted: users.toLocaleString(),
+    usersApproximate: approximateUserCount(users),
+  };
+};
+
 export const projectsList = _projects.map((project, i) => {
   const prevId =
     i === 0
@@ -436,11 +458,7 @@ export const projectsList = _projects.map((project, i) => {
       ? _projects[0].id
       : _projects[i + 1].id;
 
-  const usersData = project.users
-    ? {
-        usersFormatted: project.users.toLocaleString(),
-      }
-    : {};
+  const usersData = makeUserData(project.users);
 
   return {
     ...project,

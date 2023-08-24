@@ -5,6 +5,7 @@ import NextLink from 'next/link';
 import projects, { projectsList } from 'constants/projects';
 import CaretDownIcon from 'public/icons/caret-down.svg';
 import EyeIcon from 'public/icons/eye.svg';
+import UserIcon from 'public/icons/user.svg';
 import { PROJECTS, PROJECTS_PATH } from 'constants/pages';
 import { getStyle } from 'styles/utils';
 import { mobile } from 'styles/breakpoints';
@@ -16,8 +17,20 @@ import { Column, Row } from 'components/layout';
 import Link from 'components/CTA/Link';
 import Page from 'components/Page';
 
-const Details = styled(Column)`
-  grid-area: details;
+const StyledUserIcon = styled(UserIcon)`
+  color: ${getStyle('border1')};
+  margin-left: 12px;
+  width: 12px;
+`;
+
+const DetailsColOne = styled(Column)`
+  grid-area: details1;
+  align-self: start;
+  align-items: flex-start;
+`;
+
+const DetailsColTwo = styled(Column)`
+  grid-area: details2;
   align-self: start;
   align-items: flex-start;
 `;
@@ -31,7 +44,7 @@ const ProjectLink = styled(Link)`
 
 const Subcontainer = styled.div`
   display: grid;
-  grid-template-areas: 'heading2 heading2 icon' 'description description details' 'image image image' 'nav nav nav' 'back back back';
+  grid-template-areas: 'heading2 heading2 icon' 'details1 details1 details2' 'image image image' 'nav nav nav' 'back back back';
   grid-template-rows: min-content;
   grid-template-columns: min-content auto max-content;
   grid-row-gap: 56px;
@@ -45,7 +58,7 @@ const Subcontainer = styled.div`
   }
   ${mobile(`
     grid-template-columns: auto min-content;
-    grid-template-areas: 'heading2 icon' 'details details' 'description description' 'image image' 'nav nav' 'back back';
+    grid-template-areas: 'heading2 icon' 'details1 details1' 'details2 details2' 'image image' 'nav nav' 'back back';
     grid-row-gap: 32px;
   `)}
 `;
@@ -122,6 +135,7 @@ const Project = ({ projectId }) => {
     subtitle,
     title,
     year,
+    usersApproximate,
   } = projects[projectId];
   return (
     <Page title={id} key={id}>
@@ -131,7 +145,21 @@ const Project = ({ projectId }) => {
           <Detail2 style={{ marginLeft: '8px' }}>{index}</Detail2>
         </Heading2>
         <Icon />
-        <Details sp={8}>
+
+        <DetailsColOne sp={8}>
+          <Pairing as="start" title="DESCRIPTION">
+            <Body>{subtitle}</Body>
+          </Pairing>
+          {usersApproximate && (
+            <Pairing title="USER COUNT">
+              <Detail2>
+                {usersApproximate}
+                <StyledUserIcon />
+              </Detail2>
+            </Pairing>
+          )}
+        </DetailsColOne>
+        <DetailsColTwo sp={8}>
           <Pairing title="YEAR">
             <Detail2>{year}</Detail2>
           </Pairing>
@@ -150,10 +178,7 @@ const Project = ({ projectId }) => {
               View
             </ProjectLink>
           )}
-        </Details>
-        <Pairing as="start" ga="description" title="DESCRIPTION">
-          <Body>{subtitle}</Body>
-        </Pairing>
+        </DetailsColTwo>
         <GlitchImage ga="image" src={imgSrc} />
         <Navigation ga="nav" j="space-between">
           <NavLink
