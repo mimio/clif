@@ -6,6 +6,12 @@ import FeatherIcon from 'public/icons/feather.svg';
 import FutbolIcon from 'public/icons/futbol.svg';
 import HikingIcon from 'public/icons/hiking.svg';
 import MountainIcon from 'public/icons/mountain.svg';
+import CloudIcon from 'public/icons/cloud.svg';
+import CodeIcon from 'public/icons/code.svg';
+import LaughtHahaIcon from 'public/icons/face-grin-squint-tears.svg';
+import GearsIcon from 'public/icons/gears.svg';
+import ListIcon from 'public/icons/list.svg';
+import MoneyIcon from 'public/icons/money-bill-wave.svg';
 
 const DEV = 'Development';
 const UIUX = 'UI/UX Design';
@@ -52,7 +58,7 @@ const _projects = [
     imgSrc: '/salesforce_developers.png',
     imgSrcSkinny: '/salesforce_developers_skinny.png',
     href: 'https://developer.salesforce.com/',
-    Icon: MoleculeIcon,
+    Icon: CodeIcon,
     id: 'developers',
     roles: [DEV],
     employer: true,
@@ -75,7 +81,7 @@ const _projects = [
     imgSrc: '/heroku_pricing.png',
     imgSrcSkinny: '/heroku_pricing_skinny.png',
     href: 'https://www.heroku.com/pricing',
-    Icon: MoleculeIcon,
+    Icon: MoneyIcon,
     id: 'pricing',
     roles: [DEV],
     employer: true,
@@ -100,7 +106,7 @@ const _projects = [
     imgSrc: '/emote_widget.png',
     imgSrcSkinny: '/emote_widget_skinny.png',
     href: 'https://github.com/developerforce/emote-widget',
-    Icon: MoleculeIcon,
+    Icon: LaughtHahaIcon,
     id: 'emote',
     roles: [DEV, UIUX],
     employer: true,
@@ -127,7 +133,7 @@ const _projects = [
     imgSrc: '/ubiquiti_settings.png',
     imgSrcSkinny: '/ubiquiti_settings_skinny.png',
     href: 'https://unifi.ui.com/',
-    Icon: MoleculeIcon,
+    Icon: GearsIcon,
     id: 'settings',
     roles: [DEV],
     employer: true,
@@ -153,7 +159,7 @@ const _projects = [
     imgSrc: '/ubiquiti_setup.png',
     imgSrcSkinny: '/ubiquiti_setup_skinny.png',
     href: 'https://store.ui.com/us/en?category=all-cloud-keys-gateways',
-    Icon: MoleculeIcon,
+    Icon: ListIcon,
     id: 'setup',
     roles: [DEV],
     employer: true,
@@ -180,7 +186,7 @@ const _projects = [
     imgSrc: '/ubiquiti_portal.png',
     imgSrcSkinny: '/ubiquiti_portal_skinny.png',
     href: 'https://unifi.ui.com/',
-    Icon: MoleculeIcon,
+    Icon: CloudIcon,
     id: 'portal',
     roles: [DEV],
     employer: true,
