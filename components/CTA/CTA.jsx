@@ -1,12 +1,12 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import NextLink from 'next/link';
+import styled from '@emotion/styled';
 import { ChildrenPropType } from 'utils/prop-types';
 import { getBool, getStyle } from 'styles/utils';
 import { size } from 'styles/size';
 import { detail2 } from 'styles/text';
 import { centered } from 'styles/layout';
-import styled from '@emotion/styled';
 
 const StyledLink = styled.a`
   ${centered};

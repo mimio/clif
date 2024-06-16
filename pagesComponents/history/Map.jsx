@@ -2,9 +2,9 @@ import React, { Component, createRef } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import mapboxgl from 'mapbox-gl-ssr';
-import mapLayers from 'public/history/mapLayers';
-import mapLayerIds from 'public/history/mapLayerIds';
-import mapConfig from 'public/history/mapConfig';
+import mapLayers from 'public/history/mapLayers.json';
+import mapLayerIds from 'public/history/mapLayerIds.json';
+import mapConfig from 'public/history/mapConfig.json';
 import { getBool, getStyle } from 'styles/utils';
 import { Full } from 'components/layout';
 import { setMap } from 'utils/map';
@@ -91,11 +91,8 @@ class Map extends Component {
   };
 
   addLayers = () => {
-    const {
-      hoverFeature,
-      unhoverFeature,
-      selectFeature,
-    } = this.props;
+    const { hoverFeature, unhoverFeature, selectFeature } =
+      this.props;
     mapLayers.forEach((layer) => {
       this.map.addLayer(layer);
       this.map.on('mousemove', layer.id, hoverFeature);

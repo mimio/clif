@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import get from 'lodash.get';
 import styled from '@emotion/styled';
-import { getStyle } from 'styles/utils';
 import isTouchDevice from 'is-touch-device';
+import { getStyle } from 'styles/utils';
 
 let lastElement;
 let lastPayload;
@@ -110,9 +110,12 @@ const Cursor = () => {
     if (isTouchDevice()) return () => {};
     const processMouseTarget = (target) => {
       const { isExternalLink, isActive } = getElementMetadata(target);
-      cursorEl.current.classList.remove('offScreen');
-      cursorEl.current.classList.toggle('overLink', isExternalLink);
-      cursorEl.current.classList.toggle('overActiveEl', isActive);
+      const classList = cursorEl?.current?.classList;
+      if (classList) {
+        classList.remove('offScreen');
+        classList.toggle('overLink', isExternalLink);
+        classList.toggle('overActiveEl', isActive);
+      }
     };
     const onMouseMove = ({ clientX, clientY, target }) => {
       _clientX = clientX;
@@ -120,13 +123,19 @@ const Cursor = () => {
       processMouseTarget(target);
     };
     const onMouseLeave = () => {
-      cursorEl.current.classList.add('offScreen');
+      if (cursorEl?.current?.classList) {
+        cursorEl.current.classList.add('offScreen');
+      }
     };
     const onMouseDown = () => {
-      cursorEl.current.classList.add('pressed');
+      if (cursorEl?.current?.classList) {
+        cursorEl.current.classList.add('pressed');
+      }
     };
     const onMouseUp = ({ clientX, clientY }) => {
-      cursorEl.current.classList.remove('pressed');
+      if (cursorEl?.current?.classList) {
+        cursorEl.current.classList.remove('pressed');
+      }
       setTimeout(() => {
         processMouseTarget(
           document.elementFromPoint(clientX, clientY),
