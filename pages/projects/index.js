@@ -21,7 +21,7 @@ const StyledFilmstrip = styled(Filmstrip)`
   `)};
 `;
 
-export default () => (
+const Index = () => (
   <Page
     title="projects"
     Background={
@@ -33,3 +33,5 @@ export default () => (
     }
   />
 );
+
+export default Index;

@@ -4,8 +4,8 @@ import mapboxGl from 'mapbox-gl-ssr';
 import sizes from 'styles/theme/sizes';
 import { WORK_SOURCE } from 'constants/source';
 import { BOUNDS_PADDING, BOUNDS_PADDING_MOBILE } from 'constants/map';
-import featureLookup from 'public/history/featureLookup';
-import bounds from 'public/history/bounds';
+import featureLookup from 'public/history/featureLookup.json';
+import bounds from 'public/history/bounds.json';
 import { selectIsMobile } from '../app/selectors';
 import {
   selectHoveredFeatureId,

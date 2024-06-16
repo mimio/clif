@@ -8,7 +8,7 @@ import EyeIcon from 'public/icons/eye.svg';
 import UserIcon from 'public/icons/user.svg';
 import { PROJECTS, PROJECTS_PATH } from 'constants/pages';
 import { getStyle } from 'styles/utils';
-import { mobile } from 'styles/breakpoints';
+import { mobile, tablet } from 'styles/breakpoints';
 import { column } from 'styles/layout';
 import NavLink from 'pagesComponents/projects/NavLink';
 import { Body, Detail2, Detail3, Heading2 } from 'components/text';
@@ -59,7 +59,7 @@ const Subcontainer = styled.div`
   ${mobile(`
     grid-template-columns: auto min-content;
     grid-template-areas: 'heading2 icon' 'details1 details1' 'details2 details2' 'image image' 'nav nav' 'back back';
-    grid-row-gap: 32px;
+    grid-row-gap: 24px;
   `)}
 `;
 
@@ -67,6 +67,15 @@ const Navigation = styled(Row)`
   margin-top: 48px;
   ${mobile(`
     height: 24px;
+  `)};
+`;
+
+const SmallerHeading2 = styled(Heading2)`
+  ${tablet(`
+    font-size: 16px;
+  `)};
+  ${mobile(`
+    font-size: 14px;
   `)};
 `;
 
@@ -128,7 +137,6 @@ const Project = ({ projectId }) => {
     href,
     id,
     imgSrc,
-    index,
     nextId,
     prevId,
     roles,
@@ -137,13 +145,11 @@ const Project = ({ projectId }) => {
     year,
     usersApproximate,
   } = projects[projectId];
+
   return (
     <Page title={id} key={id}>
       <Subcontainer>
-        <Heading2>
-          {title}
-          <Detail2 style={{ marginLeft: '8px' }}>{index}</Detail2>
-        </Heading2>
+        <SmallerHeading2>{title}</SmallerHeading2>
         <Icon />
 
         <DetailsColOne sp={8}>

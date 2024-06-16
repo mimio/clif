@@ -1,7 +1,7 @@
 import { createSelector } from 'reselect';
 import get from 'lodash.get';
-import featureLookup from 'public/history/featureLookup';
-import featureIds from 'public/history/featureIds';
+import featureLookup from 'public/history/featureLookup.json';
+import featureIds from 'public/history/featureIds.json';
 
 export const selectMapState = (state) => state.map;
 

@@ -37,7 +37,7 @@ const CallToAction = styled.div`
   }
 `;
 
-export default ({ countries }) => (
+const Index = ({ countries }) => (
   <Page title="hello." Background={<Globe countries={countries} />}>
     <Column a="flex-start" m="24px 0 0 0">
       <Heading3>
@@ -69,6 +69,8 @@ export default ({ countries }) => (
     </Column>
   </Page>
 );
+
+export default Index;
 
 export async function getStaticProps() {
   const lands = require('public/ne110m_land.json');
