@@ -68,7 +68,7 @@ const App = ({ Component, pageProps }) => {
           content="Web Development, Mapbox, Software, Clifton Campbell, Websites"
         />
         <meta name="author" content="Clifton Campbell" />
-        <meta charset="utf-8" />
+        <meta charSet="utf-8" />
         <link
           as="font"
           crossOrigin="anonymous"

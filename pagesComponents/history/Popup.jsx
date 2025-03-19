@@ -66,9 +66,9 @@ const Popup = ({ popupId, feature, isMobile, isFeatureSelected }) => {
       <Detail>{description}</Detail>
       <Detail2>
         {`
-      ${moment(start || Date.now()).format(dateFormat)}
+      ${moment(start).format(dateFormat)}
       ${' '}-${' '}
-      ${moment(end || Date.now()).format(dateFormat)}
+      ${end ? moment(end).format(dateFormat) : 'Current'}
     `}
       </Detail2>
     </Container>

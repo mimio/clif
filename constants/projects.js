@@ -20,6 +20,41 @@ const CARTO = 'Cartography';
 
 const _projects = [
   {
+    title: 'appexchange.salesforce.com',
+    client: 'Salesforce',
+    year: 2024,
+    theme: 'Software',
+    product: 'Application Marketing Website',
+    // users: 1000000,
+    subtitle: (
+      <>
+        <p>
+          I worked on lead and application offer generation UI. I also
+          led the revitalization of a multi-site design system.
+        </p>
+        <p>
+          We leveraged and worked alongside Salesforce front-end
+          technology{' '}
+          <a
+            href="https://developer.salesforce.com/docs/platform/lwc/guide"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Lightning Web Components
+          </a>
+          .
+        </p>
+      </>
+    ),
+    imgSrc: '/appexchange.png',
+    imgSrcSkinny: '/appexchange_skinny.png',
+    href: 'https://appexchange.salesforce.com/',
+    Icon: CodeIcon,
+    id: 'appexchange',
+    roles: [DEV],
+    employer: true,
+  },
+  {
     title: 'developer.salesforce.com',
     client: 'Salesforce',
     year: 2020,

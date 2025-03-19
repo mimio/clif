@@ -49,7 +49,7 @@ module.exports = [
     company: 'Salesforce',
     role: 'Senior Software Engineer',
     description:
-      'I worked with design and management to rebuild developer.salesforce.com using LWC and LWR. I had a large role in the construction of components and creating the page building flow the website uses today.',
+      'Led construction of design systems and front end builds for developers.salesforce.com and appexchange.salesforce.com',
     coordinates: [-122.7944, 45.5424562],
     date: { start: 1595228400000, end: null },
     id: 6,
