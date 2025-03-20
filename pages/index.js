@@ -47,7 +47,7 @@ export default ({ countries }) => (
         <b> designing</b>
         {' and '}
         <b>developing</b>
-        {' websites.'}
+        {' software.'}
       </Heading3>
       <CallToAction>
         <Body>
