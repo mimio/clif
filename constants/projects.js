@@ -50,7 +50,7 @@ const _projects = [
     imgSrcSkinny: '/appexchange_skinny.png',
     href: 'https://appexchange.salesforce.com/',
     Icon: CodeIcon,
-    id: 'app exchange',
+    id: 'appexchange',
     roles: [DEV],
     employer: true,
   },
