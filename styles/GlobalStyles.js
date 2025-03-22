@@ -25,7 +25,6 @@ const globalCss = css`
   *:before,
   *:after {
     box-sizing: inherit;
-    cursor: none !important;
     -webkit-overflow-scrolling: touch;
   }
   * {
@@ -72,6 +71,7 @@ const globalCss = css`
   ul {
     padding: 0;
     margin-right: 0;
+    list-style-type: none;
   }
   a {
     text-decoration: none;

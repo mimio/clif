@@ -16,7 +16,9 @@ const StyledHomeIcon = styled(HomeIcon)`
   width: 20px;
 `;
 
-const StyledLink = styled.a`
+const UL = Column.withComponent('ul');
+
+const StyledLink = styled(Link)`
   ${centered};
   ${detail};
   font-weight: 300;
@@ -29,7 +31,7 @@ const StyledLink = styled.a`
     color: ${getStyle('text1')};
   }
   ${getBool(
-    'isActive',
+    'aria-selected',
     `
       color: ${getStyle('text3')};
       ${StyledHomeIcon} {
@@ -57,7 +59,7 @@ const StyledLink = styled.a`
     top: 0;
     left: 0;
     height: 100%;
-    width: ${({ isActive }) => (isActive ? '100%' : 0)};
+    width: ${(props) => (props['aria-selected'] ? '100%' : 0)};
     transition: ${getStyle('easeOutSize')};
     background: ${getStyle('ctaBackground1')};
     z-index: -1;
@@ -70,37 +72,38 @@ const copy = {
   [WORK]: 'History',
 };
 
-const Navigation = ({ className }) => {
+const Navigation = ({ className = '' }) => {
   const { pathname } = useRouter();
   return (
-    <Column className={className} sp={4}>
-      {orderedTabs.map(({ id, path }) => {
-        return (
-          <Link href={path} passHref key={id}>
-            <StyledLink
-              ariaLabel={`Link To Page ${path}`}
-              className={id}
-              isActive={
-                path === '/'
-                  ? pathname === path
-                  : pathname.includes(path)
-              }
-            >
-              {copy[id]}
-            </StyledLink>
-          </Link>
-        );
-      })}
-    </Column>
+    <nav className={className}>
+      <UL aria-label="navigation" role="menubar" sp={4}>
+        {orderedTabs.map(({ id, path }) => {
+          const isTabActive =
+            path === '/'
+              ? pathname === path
+              : pathname.includes(path);
+          return (
+            <li key={id}>
+              <StyledLink
+                href={path}
+                passHref
+                aria-label={`Link To Page ${path}`}
+                className={id}
+                aria-selected={isTabActive}
+                role="menuitem"
+              >
+                {copy[id]}
+              </StyledLink>
+            </li>
+          );
+        })}
+      </UL>
+    </nav>
   );
 };
 
 Navigation.propTypes = {
   className: PropTypes.string,
-};
-
-Navigation.defaultProps = {
-  className: '',
 };
 
 export default Navigation;

@@ -57,7 +57,7 @@ const StyledUserIcon = styled(UserIcon)`
   width: 12px;
 `;
 
-const Container = styled.a`
+const StyledLink = styled(Link)`
   ${column};
   position: relative;
   height: 100%;
@@ -99,27 +99,25 @@ const ProjectPreview = ({
   product,
   usersApproximate,
 }) => (
-  <Link
+  <StyledLink
     as={`/${PROJECTS}/${id}`}
     href={`/${PROJECTS}/[projectId]`}
     passHref
   >
-    <Container index={index}>
-      <Details sp={2}>
-        <Icon />
-        <Detail2>{index < 10 ? `0${index}` : index}</Detail2>
-        <Body>{id}</Body>
-        <Detail3>{product}</Detail3>
-      </Details>
-      {usersApproximate && (
-        <UserRow>
-          <Detail3>{usersApproximate} users</Detail3>
-          <StyledUserIcon />
-        </UserRow>
-      )}
-      <StyledImage imgSrc={imgSrcSkinny} />
-    </Container>
-  </Link>
+    <Details sp={2}>
+      <Icon />
+      <Detail2>{index < 10 ? `0${index}` : index}</Detail2>
+      <Body>{id}</Body>
+      <Detail3>{product}</Detail3>
+    </Details>
+    {usersApproximate && (
+      <UserRow>
+        <Detail3>{usersApproximate} users</Detail3>
+        <StyledUserIcon />
+      </UserRow>
+    )}
+    <StyledImage imgSrc={imgSrcSkinny} />
+  </StyledLink>
 );
 
 ProjectPreview.propTypes = {

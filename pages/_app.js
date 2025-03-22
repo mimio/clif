@@ -5,7 +5,6 @@ import { useRouter } from 'next/router';
 import { Provider } from 'react-redux';
 import styled from '@emotion/styled';
 import { ThemeProvider } from 'emotion-theming';
-import Cursor from 'components/Cursor';
 import Navigation from 'components/Navigation';
 import Link from 'components/CTA/Link';
 import * as analytics from 'utils/analytics';
@@ -93,7 +92,6 @@ const App = ({ Component, pageProps }) => {
       <ThemeProvider theme={theme}>
         <Provider store={store}>
           <AppHooks />
-          <Cursor />
           {pathname !== '/404' && (
             <>
               <ContactLink

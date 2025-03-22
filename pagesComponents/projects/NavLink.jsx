@@ -8,7 +8,7 @@ import { mobile } from 'styles/breakpoints';
 import { Body2, Detail3 } from 'components/text';
 import { Centered } from 'components/layout';
 
-const Container = styled.a`
+const Container = styled.div`
   display: grid;
   grid-column-gap: 32px;
   ${mobile(`
@@ -94,7 +94,7 @@ const Container = styled.a`
   }
 `;
 
-const NavLink = ({ as, title, reverse, href, ...props }) => (
+const NavLink = ({ as, title, reverse = false, href, ...props }) => (
   <Link as={as} href={href} passHref>
     <Container reverse={reverse} {...props}>
       <Centered ga="icon">
@@ -111,10 +111,6 @@ NavLink.propTypes = {
   href: PropTypes.string.isRequired,
   reverse: PropTypes.bool,
   title: PropTypes.string.isRequired,
-};
-
-NavLink.defaultProps = {
-  reverse: false,
 };
 
 export default NavLink;

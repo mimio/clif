@@ -127,7 +127,7 @@ class GlitchImage extends Component {
   };
 
   render() {
-    const { ga } = this.props;
+    const { ga = '' } = this.props;
     return (
       <Container
         style={{
@@ -144,10 +144,6 @@ class GlitchImage extends Component {
 GlitchImage.propTypes = {
   src: PropTypes.string.isRequired,
   ga: PropTypes.string,
-};
-
-GlitchImage.defaultProps = {
-  ga: '',
 };
 
 export default GlitchImage;
