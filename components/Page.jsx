@@ -102,12 +102,12 @@ const Container = styled.div`
 `;
 
 const Page = ({
-  className,
-  Background,
-  Subheader,
-  backgroundCss,
-  children,
-  fadeForeground,
+  className = '',
+  Background = null,
+  Subheader = null,
+  backgroundCss = null,
+  children = null,
+  fadeForeground = false,
   title,
 }) => {
   const headerContainer = useRef(null);
@@ -174,15 +174,6 @@ Page.propTypes = {
   children: ChildrenPropType,
   fadeForeground: PropTypes.bool,
   title: PropTypes.string.isRequired,
-};
-
-Page.defaultProps = {
-  className: '',
-  Background: null,
-  Subheader: null,
-  backgroundCss: null,
-  children: null,
-  fadeForeground: false,
 };
 
 export default Page;

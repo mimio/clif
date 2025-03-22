@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import { animated, useSpring } from 'react-spring';
-import { useDrag } from 'react-use-gesture'; // useScroll
+import { useDrag } from 'react-use-gesture';
 import isTouchDevice from 'is-touch-device';
 import { getBool, getStyle } from 'styles/utils';
 import { mobile, tablet, mq } from 'styles/breakpoints';
@@ -122,7 +122,7 @@ const Inner = styled(Row)`
   `)};
 `;
 
-export default function Filmstrip({ className, children }) {
+export default function Filmstrip({ className = '', children }) {
   const outerRef = useRef(null);
 
   const [isDragging, setIsDragging] = useState(false);
@@ -212,8 +212,4 @@ export default function Filmstrip({ className, children }) {
 Filmstrip.propTypes = {
   className: PropTypes.string,
   children: PropTypes.arrayOf(PropTypes.node).isRequired,
-};
-
-Filmstrip.defaultProps = {
-  className: '',
 };

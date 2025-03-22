@@ -70,7 +70,7 @@ const Navigation = styled(Row)`
   `)};
 `;
 
-const BackNavLink = styled.a`
+const BackNavLink = styled(NextLink)`
   ${column};
   border-top: ${getStyle('ctaBorder3')};
   grid-area: back;
@@ -193,12 +193,10 @@ const Project = ({ projectId }) => {
             href={`/${PROJECTS}/[projectId]`}
           />
         </Navigation>
-        <NextLink href={`/${PROJECTS}`} passHref>
-          <BackNavLink sp={1}>
-            <Detail3>BACK TO ALL PROJECTS</Detail3>
-            <CaretDownIcon />
-          </BackNavLink>
-        </NextLink>
+        <BackNavLink href={`/${PROJECTS}`} passHref sp={1}>
+          <Detail3>BACK TO ALL PROJECTS</Detail3>
+          <CaretDownIcon />
+        </BackNavLink>
       </Subcontainer>
     </Page>
   );

@@ -8,7 +8,7 @@ import { detail2 } from 'styles/text';
 import { centered } from 'styles/layout';
 import styled from '@emotion/styled';
 
-const StyledLink = styled.a`
+const StyledNextLink = styled(NextLink)`
   ${centered};
   border: ${getStyle('ctaBorder2')};
   cursor: pointer;
@@ -71,54 +71,56 @@ const StyledLink = styled.a`
   )}
 `;
 
-const StyledButton = StyledLink.withComponent('button');
+const StyledLink = StyledNextLink.withComponent('a');
+
+const StyledButton = StyledNextLink.withComponent('button');
 
 const Link = ({
-  ariaLabel,
+  ariaLabel = '',
   Icon,
-  children,
-  className,
-  disabled,
-  href,
-  internal,
-  isLink,
-  onClick,
-  vertical,
+  children = null,
+  className = '',
+  disabled = false,
+  href = '',
+  internal = false,
+  isLink = false,
+  onClick = () => {},
+  vertical = false,
 }) => {
-  let Meat = StyledButton;
-  let meatProps = {
+  const props = {
+    className,
+    vertical,
+    onClick,
+    disabled,
+    hasChildren: !!children,
     'aria-label': ariaLabel,
   };
-  if (isLink) {
-    Meat = StyledLink;
-    meatProps = internal
-      ? {}
-      : {
-          href,
-          target: '_blank',
-          rel: 'noopener noreferrer',
-        };
-  }
   const meat = (
-    <Meat
-      className={className}
-      vertical={vertical}
-      onClick={onClick}
-      disabled={disabled}
-      hasChildren={!!children}
-      {...meatProps}
-    >
+    <>
       <Icon />
       {children}
-    </Meat>
+    </>
   );
-  if (isLink && internal)
+  if (isLink && internal) {
     return (
-      <NextLink href={href} passHref>
+      <StyledNextLink href={href} passHref {...props}>
         {meat}
-      </NextLink>
+      </StyledNextLink>
     );
-  return meat;
+  }
+  if (isLink) {
+    return (
+      <StyledLink
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        {...props}
+      >
+        {meat}
+      </StyledLink>
+    );
+  }
+  return <StyledButton {...props}>{meat}</StyledButton>;
 };
 
 Link.propTypes = {
@@ -132,17 +134,6 @@ Link.propTypes = {
   isLink: PropTypes.bool,
   onClick: PropTypes.func,
   vertical: PropTypes.bool,
-};
-
-Link.defaultProps = {
-  children: null,
-  className: '',
-  disabled: false,
-  href: '',
-  internal: false,
-  isLink: false,
-  onClick() {},
-  vertical: false,
 };
 
 export default Link;

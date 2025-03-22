@@ -53,15 +53,11 @@ export default ({ countries }) => (
         <Body>
           Check out my{' '}
           <Link href={`/${PROJECTS}`} passHref>
-            <a>
-              <b>projects</b>
-            </a>
+            <b>projects</b>
           </Link>
           <br />& my work{' '}
           <Link href={`/${WORK}`} passHref>
-            <a>
-              <b>history</b>
-            </a>
+            <b>history</b>
           </Link>
           .
         </Body>

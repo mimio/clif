@@ -45,7 +45,12 @@ const Container = styled(Column)`
 
 const dateFormat = 'MMM YYYY';
 
-const Popup = ({ popupId, feature, isMobile, isFeatureSelected }) => {
+const Popup = ({
+  popupId = '',
+  feature = '',
+  isMobile,
+  isFeatureSelected,
+}) => {
   if (!isFeatureSelected) return null;
 
   const {
@@ -88,11 +93,6 @@ Popup.propTypes = {
   isFeatureSelected: PropTypes.bool.isRequired,
   isMobile: PropTypes.bool.isRequired,
   popupId: PropTypes.string,
-};
-
-Popup.defaultProps = {
-  feature: null,
-  popupId: null,
 };
 
 export default Popup;

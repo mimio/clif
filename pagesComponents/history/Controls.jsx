@@ -16,7 +16,7 @@ const Container = styled(Row)`
 `;
 
 const Controls = ({
-  className,
+  className = '',
   fitBounds,
   isFeatureSelected,
   isFirstFeatureSelected,
@@ -54,10 +54,6 @@ Controls.propTypes = {
   isLastFeatureSelected: PropTypes.bool.isRequired,
   selectNextFeature: PropTypes.func.isRequired,
   selectPrevFeature: PropTypes.func.isRequired,
-};
-
-Controls.defaultProps = {
-  className: '',
 };
 
 export default Controls;
