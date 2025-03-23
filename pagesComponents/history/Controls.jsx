@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import styled from '@emotion/styled';
-import Button from 'components/CTA/Button';
+import Button from 'components/Button';
 import { Row } from 'components/layout';
 import { getStyle } from 'styles/utils';
 import ArrowLeftIcon from 'public/icons/arrow-left.svg';

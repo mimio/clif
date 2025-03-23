@@ -14,7 +14,7 @@ import NavLink from 'pagesComponents/projects/NavLink';
 import { Body, Detail2, Detail3, Heading2 } from 'components/text';
 import GlitchImage from 'components/GlitchImage';
 import { Column, Row } from 'components/layout';
-import Link from 'components/CTA/Link';
+import Button from 'components/Button';
 import Page from 'components/Page';
 
 const StyledUserIcon = styled(UserIcon)`
@@ -35,7 +35,7 @@ const DetailsColTwo = styled(Column)`
   align-items: flex-start;
 `;
 
-const ProjectLink = styled(Link)`
+const ProjectLink = styled(Button)`
   grid-area: link;
   ${mobile(`
     max-width: 120px;
