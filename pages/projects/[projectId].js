@@ -8,7 +8,7 @@ import EyeIcon from 'public/icons/eye.svg';
 import UserIcon from 'public/icons/user.svg';
 import { PROJECTS, PROJECTS_PATH } from 'constants/pages';
 import { getStyle } from 'styles/utils';
-import { mobile } from 'styles/breakpoints';
+import { mobile, tablet } from 'styles/breakpoints';
 import { column } from 'styles/layout';
 import NavLink from 'pagesComponents/projects/NavLink';
 import { Body, Detail2, Detail3, Heading2 } from 'components/text';
@@ -56,6 +56,9 @@ const Subcontainer = styled.div`
     height: 40px;
     color: ${getStyle('text1e')};
   }
+  ${tablet(`
+    padding-top: 24px;
+  `)}
   ${mobile(`
     grid-template-columns: auto min-content;
     grid-template-areas: 'heading2 icon' 'details1 details1' 'details2 details2' 'image image' 'nav nav' 'back back';

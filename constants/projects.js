@@ -20,7 +20,7 @@ const CARTO = 'Cartography';
 
 const _projects = [
   {
-    title: 'appexchange.salesforce.com',
+    title: 'salesforce appexchange',
     client: 'Salesforce',
     year: 2024,
     theme: 'Software',
@@ -55,7 +55,7 @@ const _projects = [
     employer: true,
   },
   {
-    title: 'developer.salesforce.com',
+    title: 'salesforce developers',
     client: 'Salesforce',
     year: 2020,
     theme: 'Software',
