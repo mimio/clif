@@ -29,20 +29,19 @@ const _projects = [
     subtitle: (
       <>
         <p>
-          I worked on lead and application offer generation UI. I also
-          led the revitalization of a multi-site design system.
+          I am leading the revitalization of appx design system and
+          constructing customer buying experiences for Salesforce
+          plugins.
         </p>
         <p>
-          We leveraged and worked alongside Salesforce front-end
-          technology{' '}
+          I also helped launch the marketing for{' '}
           <a
-            href="https://developer.salesforce.com/docs/platform/lwc/guide"
+            href="https://agentexchange.salesforce.com/"
             rel="noopener noreferrer"
             target="_blank"
           >
-            Lightning Web Components
+            AgentExchange AI Plugins
           </a>
-          .
         </p>
       </>
     ),
@@ -64,14 +63,16 @@ const _projects = [
     subtitle: (
       <>
         <p>
-          I worked with my team to rebuild the
-          developer.salesforce.com website (which serves millions of
-          users per month). My duties involved working closely with
-          design, creating a component library, and page construction.
+          Rewrote developer.salesforce.com in less than a year,
+          seamlessly transitioning millions of customers per month to
+          a modern application stack. My duties included establishing
+          a design system + component library, managing contracted
+          engineers, and implementing experiences for blogs, developer
+          documentation, news, podcasts, & events.
         </p>
         <p>
-          We leveraged and worked alongside Salesforce front-end
-          technologies{' '}
+          We leveraged and provided feedback for some of the earliest
+          versions of Salesforce front-end technologies{' '}
           <a
             href="https://developer.salesforce.com/docs/platform/lwc/guide"
             rel="noopener noreferrer"
@@ -87,7 +88,8 @@ const _projects = [
           >
             Lightning Web Runtime
           </a>
-          .
+          . At the time of v1 launch we were the largest application
+          using LWR.
         </p>
       </>
     ),

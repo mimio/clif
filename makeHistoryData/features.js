@@ -49,7 +49,7 @@ module.exports = [
     company: 'Salesforce',
     role: 'Senior Software Engineer',
     description:
-      'Led construction of design systems and front end builds for developers.salesforce.com and appexchange.salesforce.com',
+      'Rewrote developer.salesforce.com in less than a year, seamlessly transitioning millions of customers per month to a modern application stack.\n\n Afterwards, I moved to appexchange.salesforce.com where I am leading the revitalization of their design system and constructing customer buying experiences for Salesforce plugins.',
     coordinates: [-122.7944, 45.5424562],
     date: { start: 1595228400000, end: null },
     id: 6,

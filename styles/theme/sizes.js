@@ -3,7 +3,7 @@ import { size } from '../size';
 const pageMinimumPadding = size(4);
 
 export default {
-  popupWidth: size(80),
+  popupWidth: size(96),
   popupMaxHeight: size(65),
   foregroundContentRightPadding: size(30),
   foregroundContentRightPaddingTablet: size(23),
