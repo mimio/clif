@@ -6,7 +6,7 @@ import { Provider } from 'react-redux';
 import styled from '@emotion/styled';
 import { ThemeProvider } from 'emotion-theming';
 import Navigation from 'components/Navigation';
-import Link from 'components/CTA/Link';
+import Button from 'components/Button';
 import * as analytics from 'utils/analytics';
 import email from 'constants/email';
 import EnvelopeIcon from 'public/icons/envelope.svg';
@@ -33,7 +33,7 @@ const StyledNavigation = styled(Navigation)`
   z-index: 4;
 `;
 
-const ContactLink = styled(Link)`
+const ContactLink = styled(Button)`
   position: fixed;
   bottom: ${size(4)};
   right: ${size(4)};
@@ -113,7 +113,8 @@ const App = ({ Component, pageProps }) => {
 };
 
 App.propTypes = {
-  Component: PropTypes.func.isRequired,
+  Component: PropTypes.oneOfType([PropTypes.object, PropTypes.func])
+    .isRequired,
   pageProps: PropTypes.object.isRequired,
 };
 

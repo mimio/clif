@@ -17,7 +17,7 @@ const StyledNextLink = styled(NextLink)`
     color: inherit;
   }
   ${getBool(
-    'vertical',
+    'data-vertical',
     `
       writing-mode: vertical-lr;
       width: ${size(8)};
@@ -41,7 +41,7 @@ const StyledNextLink = styled(NextLink)`
     width: ${size(4)};
   }
   ${getBool(
-    'hasChildren',
+    'data-has-children',
     '',
     `
     padding: 0;
@@ -75,24 +75,24 @@ const StyledLink = StyledNextLink.withComponent('a');
 
 const StyledButton = StyledNextLink.withComponent('button');
 
-const Link = ({
+const Button = ({
   ariaLabel = '',
   Icon,
   children = null,
   className = '',
   disabled = false,
-  href = '',
+  href,
   internal = false,
-  isLink = false,
   onClick = () => {},
   vertical = false,
 }) => {
+  const isLink = !!href;
   const props = {
     className,
-    vertical,
     onClick,
     disabled,
-    hasChildren: !!children,
+    'data-vertical': vertical,
+    'data-has-children': !!children,
     'aria-label': ariaLabel,
   };
   const meat = (
@@ -123,7 +123,7 @@ const Link = ({
   return <StyledButton {...props}>{meat}</StyledButton>;
 };
 
-Link.propTypes = {
+Button.propTypes = {
   ariaLabel: PropTypes.string.isRequired,
   Icon: ChildrenPropType.isRequired,
   children: PropTypes.string,
@@ -136,4 +136,4 @@ Link.propTypes = {
   vertical: PropTypes.bool,
 };
 
-export default Link;
+export default Button;
