@@ -66,6 +66,8 @@ const StyledLink = styled(Link)`
   transition: ${getStyle('linearHue')};
   border: ${getStyle('contentBorder')};
   overflow: hidden;
+  user-select: none;
+  user-drag: none;
   ${mq({
     width: ['200px', '180px', '160px'],
   })};
