@@ -8,6 +8,7 @@ import HikingIcon from 'public/icons/hiking.svg';
 import MountainIcon from 'public/icons/mountain.svg';
 import CloudIcon from 'public/icons/cloud.svg';
 import CodeIcon from 'public/icons/code.svg';
+import PenIcon from 'public/icons/pen.svg';
 import LaughtHahaIcon from 'public/icons/face-grin-squint-tears.svg';
 import GearsIcon from 'public/icons/gears.svg';
 import ListIcon from 'public/icons/list.svg';
@@ -20,38 +21,38 @@ const CARTO = 'Cartography';
 
 const _projects = [
   {
-    title: 'salesforce appexchange',
-    client: 'Salesforce',
-    year: 2024,
-    theme: 'Software',
-    product: 'Application Marketing Website',
-    // users: 1000000,
+    title: 'Haikumi: Mobile Messaging With Care',
+    client: 'Wieden+Kennedy',
+    year: 2023,
+    theme: 'Mobile',
+    product: 'Mobile Messaging Application',
     subtitle: (
       <>
         <p>
-          I am leading the revitalization of appx design system and
-          constructing customer buying experiences for Salesforce
-          plugins.
-        </p>
-        <p>
-          I also helped launch the marketing for{' '}
+          I was brought into this project mid way through to quickly
+          bring design and development back on track for a tight
+          release schedule. I constructed UX/UI blueprints for the
+          entirety of the application and worked with a{' '}
           <a
-            href="https://agentexchange.salesforce.com/"
+            href="https://www.wk.com/"
             rel="noopener noreferrer"
             target="_blank"
           >
-            AgentExchange AI Plugins
-          </a>
+            Wieden + Kennedy
+          </a>{' '}
+          team to iterate and refine the application's design from
+          start to finish. Once designs were stable, I was also
+          responsible for constructing the app in flutter and
+          releasing it to users on android and iOS.
         </p>
       </>
     ),
-    imgSrc: '/appexchange.png',
-    imgSrcSkinny: '/appexchange_skinny.png',
-    href: 'https://appexchange.salesforce.com/',
-    Icon: CodeIcon,
-    id: 'appexchange',
-    roles: [DEV],
-    employer: true,
+    imgSrc: '/haikumi.png',
+    imgSrcSkinny: '/haikumi_skinny.webp',
+    href: 'https://haikumi.app/',
+    Icon: PenIcon,
+    id: 'haikumi',
+    roles: [DEV, UIUX],
   },
   {
     title: 'salesforce developers',
