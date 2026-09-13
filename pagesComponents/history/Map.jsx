@@ -2,6 +2,7 @@ import React, { Component, createRef } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import mapboxgl from 'mapbox-gl-ssr';
+import { MAP_PITCH } from 'constants/map';
 import mapLayers from 'public/history/mapLayers';
 import mapLayerIds from 'public/history/mapLayerIds';
 import mapConfig from 'public/history/mapConfig';
@@ -83,6 +84,13 @@ class Map extends Component {
     this.map = setMap(
       new mapboxgl.Map({
         ...mapConfig,
+        // mapbox-gl >= 2.7 resets pitch to 0 in fitBounds(), which the
+        // `bounds` option runs on construction, unless a pitch is given.
+        pitch: MAP_PITCH,
+        fitBoundsOptions: {
+          ...mapConfig.fitBoundsOptions,
+          pitch: MAP_PITCH,
+        },
         container: this.mapRef.current,
       }),
     );
