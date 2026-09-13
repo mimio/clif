@@ -70,7 +70,7 @@ export default Home;
 
 export async function getStaticProps() {
   const lands = require('public/ne110m_land.json');
-  const topo = require('topojson');
+  const topo = require('topojson-client');
   const countries = topo.feature(lands, lands.objects.land);
 
   return { props: { countries } };

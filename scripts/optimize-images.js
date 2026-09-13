@@ -4,7 +4,7 @@
  * WebP at display-appropriate sizes. Run it again whenever a new project
  * image is added:
  *
- *   yarn images            (or: node scripts/optimize-images.js [--dry-run])
+ *   pnpm images            (or: node scripts/optimize-images.js [--dry-run])
  *
  * - imgSrc (full image, used as a three.js texture on the project page):
  *   resized to at most FULL_MAX_WIDTH wide. The alpha channel is dropped
