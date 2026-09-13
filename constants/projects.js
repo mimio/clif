@@ -40,8 +40,8 @@ const _projects = [
           >
             Wieden + Kennedy
           </a>{' '}
-          team to iterate and refine the application's design from
-          start to finish. Once designs were stable, I was also
+          team to iterate and refine the application&apos;s design
+          from start to finish. Once designs were stable, I was also
           responsible for constructing the app in flutter and
           releasing it to users on android and iOS.
         </p>

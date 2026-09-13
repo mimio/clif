@@ -1,47 +1,46 @@
-import { defineConfig } from 'eslint/config';
-import prettierPlugin from 'eslint-plugin-prettier';
-import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
-import reactPlugin from 'eslint-plugin-react';
-import importPlugin from 'eslint-plugin-import';
-import globals from 'globals';
-import babelParser from '@babel/eslint-parser';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { defineConfig, globalIgnores } from 'eslint/config';
 import js from '@eslint/js';
-import { FlatCompat } from '@eslint/eslintrc';
+import nextVitals from 'eslint-config-next/core-web-vitals';
+import prettierRecommended from 'eslint-plugin-prettier/recommended';
+import globals from 'globals';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-  recommendedConfig: js.configs.recommended,
-  allConfig: js.configs.all,
-});
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig([
+  globalIgnores([
+    '.next/**',
+    '.vercel/**',
+    'node_modules/**',
+    'public/**',
+  ]),
+  js.configs.recommended,
+  ...nextVitals,
+  prettierRecommended,
   {
-    extends: compat.extends('prettier'),
-
-    plugins: {
-      prettier: prettierPlugin,
-      'jsx-a11y': jsxA11yPlugin,
-      react: reactPlugin,
-      import: importPlugin,
-    },
+    files: ['**/*.{js,jsx,mjs,cjs}'],
 
     languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+      },
       globals: {
         ...globals.browser,
+        ...globals.node,
       },
-      parser: babelParser,
     },
 
     settings: {
+      // Bare imports such as 'components/Button' resolve from the repo root,
+      // matching baseUrl in jsconfig.json.
       'import/resolver': {
         node: {
           moduleDirectory: [
-            '/Users/cliftoncampbell/Development/clif/node_modules',
-            '/Users/cliftoncampbell/Development/clif',
+            path.join(rootDir, 'node_modules'),
+            rootDir,
           ],
         },
       },
@@ -50,7 +49,6 @@ export default defineConfig([
     rules: {
       semi: 2,
       'jsx-a11y/anchor-is-valid': 1,
-      'global-require': 1,
       'react/prop-types': 0,
       'react/jsx-filename-extension': 0,
       'react/destructuring-assignment': 0,
