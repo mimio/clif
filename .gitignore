@@ -25,3 +25,7 @@ npm-debug.log*
 pnpm-debug.log*
 
 .now
+
+# browser smoke test output
+.smoke-output/
+smoke-output/
