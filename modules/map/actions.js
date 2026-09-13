@@ -3,7 +3,11 @@ import uuid from 'uuid/v4';
 import mapboxGl from 'mapbox-gl-ssr';
 import sizes from 'styles/theme/sizes';
 import { WORK_SOURCE } from 'constants/source';
-import { BOUNDS_PADDING, BOUNDS_PADDING_MOBILE } from 'constants/map';
+import {
+  BOUNDS_PADDING,
+  BOUNDS_PADDING_MOBILE,
+  MAP_PITCH,
+} from 'constants/map';
 import featureLookup from 'public/history/featureLookup';
 import bounds from 'public/history/bounds';
 import { selectIsMobile } from '../app/selectors';
@@ -42,6 +46,7 @@ export const fitBounds = () => (_, getState, getMap) => {
       isMobile && isFeatureSelected
         ? BOUNDS_PADDING_MOBILE
         : BOUNDS_PADDING,
+    pitch: MAP_PITCH,
     essential: true,
   });
 };

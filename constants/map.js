@@ -1,3 +1,8 @@
+// Camera tilt for the history map, in degrees. Kept in one place because it
+// must be passed both to the Map constructor and to every fitBounds() call:
+// since mapbox-gl v2.7, fitBounds resets pitch to 0 unless told otherwise.
+const MAP_PITCH = 60;
+
 const BOUNDS_PADDING = {
   top: 200,
   left: 100,
@@ -13,6 +18,7 @@ const BOUNDS_PADDING_MOBILE = {
 };
 
 module.exports = {
+  MAP_PITCH,
   BOUNDS_PADDING,
   BOUNDS_PADDING_MOBILE,
 };
