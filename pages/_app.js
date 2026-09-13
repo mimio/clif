@@ -67,24 +67,6 @@ const App = ({ Component, pageProps }) => {
         />
         <meta name="author" content="Clifton Campbell" />
         <meta charSet="utf-8" />
-        <link
-          as="font"
-          crossOrigin="anonymous"
-          href="/adder-superextended.woff2"
-          rel="preload"
-          type="font/woff2"
-        />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com/"
-          crossOrigin="true"
-        />
-        <link
-          rel="preload"
-          href="https://fonts.gstatic.com/s/robotomono/v7/L0xkDF4xlVMF-BfR8bXMIjDgiWqxf7-pAVU_.woff2"
-          as="font"
-          crossOrigin="true"
-        />
         <link rel="icon" href="/favicon.png" sizes="16x16" />
       </Head>
       {analytics.MEASUREMENT_ID && (

@@ -1,4 +1,5 @@
 import { css } from '@emotion/react';
+import { adder, robotoMono } from './fonts';
 import { getStyle } from './utils';
 import { tablet, mobile } from './breakpoints';
 
@@ -33,7 +34,7 @@ const inlineLink = css`
 
 export const heading = css`
   ${base};
-  font-family: 'Adder';
+  font-family: ${adder.style.fontFamily};
   color: ${getStyle('text2')};
   font-size: 52pt;
   ${tablet(`font-size: 40pt;`)};
@@ -46,7 +47,7 @@ export const heading = css`
 
 const base2 = css`
   ${base};
-  font-family: 'Roboto Mono';
+  font-family: ${robotoMono.style.fontFamily};
   color: ${getStyle('text1')};
 `;
 
