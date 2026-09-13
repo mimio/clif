@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
 import UserIcon from 'public/icons/user.svg';
@@ -10,12 +11,16 @@ import { getStyle } from 'styles/utils';
 import { mq } from 'styles/breakpoints';
 
 const StyledImage = styled.div`
+  position: relative;
   flex-grow: 1;
-  background-image: url(${({ imgSrc }) => imgSrc});
-  background-position: center center;
-  background-size: 100%;
+  overflow: hidden;
   opacity: 0.8;
   border-radius: 0 0 20px 20px;
+  img {
+    object-fit: cover;
+    object-position: center;
+    pointer-events: none;
+  }
 `;
 
 const Details = styled.div`
@@ -118,7 +123,15 @@ const ProjectPreview = ({
         <StyledUserIcon />
       </UserRow>
     )}
-    <StyledImage imgSrc={imgSrcSkinny} />
+    <StyledImage>
+      <Image
+        src={imgSrcSkinny}
+        alt={`${id} preview`}
+        fill
+        sizes="200px"
+        draggable={false}
+      />
+    </StyledImage>
   </StyledLink>
 );
 

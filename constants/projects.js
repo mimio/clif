@@ -47,7 +47,7 @@ const _projects = [
         </p>
       </>
     ),
-    imgSrc: '/haikumi.png',
+    imgSrc: '/haikumi.webp',
     imgSrcSkinny: '/haikumi_skinny.webp',
     href: 'https://haikumi.app/',
     Icon: PenIcon,
@@ -94,8 +94,8 @@ const _projects = [
         </p>
       </>
     ),
-    imgSrc: '/salesforce_developers.png',
-    imgSrcSkinny: '/salesforce_developers_skinny.png',
+    imgSrc: '/salesforce_developers.webp',
+    imgSrcSkinny: '/salesforce_developers_skinny.webp',
     href: 'https://developer.salesforce.com/',
     Icon: CodeIcon,
     id: 'developers',
@@ -117,8 +117,8 @@ const _projects = [
         </p>
       </>
     ),
-    imgSrc: '/heroku_pricing.png',
-    imgSrcSkinny: '/heroku_pricing_skinny.png',
+    imgSrc: '/heroku_pricing.webp',
+    imgSrcSkinny: '/heroku_pricing_skinny.webp',
     href: 'https://www.heroku.com/pricing',
     Icon: MoneyIcon,
     id: 'pricing',
@@ -142,8 +142,8 @@ const _projects = [
         <p>My role on the project was animation.</p>
       </>
     ),
-    imgSrc: '/emote_widget.png',
-    imgSrcSkinny: '/emote_widget_skinny.png',
+    imgSrc: '/emote_widget.webp',
+    imgSrcSkinny: '/emote_widget_skinny.webp',
     href: 'https://github.com/developerforce/emote-widget',
     Icon: LaughtHahaIcon,
     id: 'emote',
@@ -198,7 +198,7 @@ const _projects = [
       </>
     ),
     imgSrc: '/ubiquiti_setup.png',
-    imgSrcSkinny: '/ubiquiti_setup_skinny.png',
+    imgSrcSkinny: '/ubiquiti_setup_skinny.webp',
     href: 'https://store.ui.com/us/en?category=all-cloud-keys-gateways',
     Icon: ListIcon,
     id: 'setup',
@@ -225,8 +225,8 @@ const _projects = [
         </p>
       </>
     ),
-    imgSrc: '/ubiquiti_portal.png',
-    imgSrcSkinny: '/ubiquiti_portal_skinny.png',
+    imgSrc: '/ubiquiti_portal.webp',
+    imgSrcSkinny: '/ubiquiti_portal_skinny.webp',
     href: 'https://unifi.ui.com/',
     Icon: CloudIcon,
     id: 'portal',
