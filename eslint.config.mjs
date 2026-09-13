@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import js from '@eslint/js';
 import nextVitals from 'eslint-config-next/core-web-vitals';
+import nextTypescript from 'eslint-config-next/typescript';
 import prettierRecommended from 'eslint-plugin-prettier/recommended';
 import globals from 'globals';
 
@@ -17,9 +18,10 @@ export default defineConfig([
   ]),
   js.configs.recommended,
   ...nextVitals,
+  ...nextTypescript,
   prettierRecommended,
   {
-    files: ['**/*.{js,jsx,mjs,cjs}'],
+    files: ['**/*.{js,jsx,mjs,cjs,ts,tsx,mts}'],
 
     languageOptions: {
       ecmaVersion: 'latest',
@@ -35,7 +37,7 @@ export default defineConfig([
 
     settings: {
       // Bare imports such as 'components/Button' resolve from the repo root,
-      // matching baseUrl in jsconfig.json.
+      // matching the "*" path mapping in tsconfig.json.
       'import/resolver': {
         node: {
           moduleDirectory: [
@@ -74,6 +76,14 @@ export default defineConfig([
       ],
 
       'no-param-reassign': 1,
+    },
+  },
+  {
+    // The remaining CommonJS files (the preprocess script's Mapbox config and
+    // the constants it shares with the app) legitimately use require().
+    files: ['**/*.{js,cjs}'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 0,
     },
   },
 ]);

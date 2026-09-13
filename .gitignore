@@ -10,6 +10,8 @@
 
 # next.js
 /.next/
+next-env.d.ts
+*.tsbuildinfo
 /.vercel/
 /out/
 
