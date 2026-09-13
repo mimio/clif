@@ -2,7 +2,6 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
-import moment from 'moment';
 import { getBool, getStyle } from 'styles/utils';
 import { size } from 'styles/size';
 import { Column } from 'components/layout';
@@ -43,7 +42,12 @@ const Container = styled(Column)`
   )};
 `;
 
-const dateFormat = 'MMM YYYY';
+const dateFormat = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  year: 'numeric',
+});
+const formatDate = (timestamp) =>
+  dateFormat.format(new Date(timestamp));
 
 const Popup = ({
   popupId = '',
@@ -71,9 +75,9 @@ const Popup = ({
       <Detail>{description}</Detail>
       <Detail2>
         {`
-      ${moment(start).format(dateFormat)}
+      ${formatDate(start)}
       ${' '}-${' '}
-      ${end ? moment(end).format(dateFormat) : 'Current'}
+      ${end ? formatDate(end) : 'Current'}
     `}
       </Detail2>
     </Container>

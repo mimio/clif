@@ -1,5 +1,5 @@
 import get from 'lodash.get';
-import uuid from 'uuid/v4';
+import { v4 as uuid } from 'uuid';
 import mapboxGl from 'mapbox-gl-ssr';
 import sizes from 'styles/theme/sizes';
 import { WORK_SOURCE } from 'constants/source';

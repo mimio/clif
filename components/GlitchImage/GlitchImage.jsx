@@ -39,10 +39,10 @@ class GlitchImage extends Component {
   componentWillUnmount() {
     window.removeEventListener('resize', this.onResize);
     cancelAnimationFrame(this.animationRequest);
+    this.material.uniforms.uTexture.value.dispose();
     this.geometry.dispose();
     this.material.dispose();
     this.renderer.dispose();
-    this.scene.dispose();
   }
 
   init = () => {

@@ -1,7 +1,8 @@
-let __ssr_safe__mapboxgl = {};
+// mapbox-gl touches `window` at import time, so only load it in the browser.
+let mapboxgl = {};
 
-if (process.browser) {
-  __ssr_safe__mapboxgl = require('mapbox-gl');
+if (typeof window !== 'undefined') {
+  mapboxgl = require('mapbox-gl');
 }
 
-export default __ssr_safe__mapboxgl;
+export default mapboxgl;

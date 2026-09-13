@@ -17,15 +17,15 @@ const createBase = ({
     typeof p === 'number'
       ? `padding: ${size(p)};`
       : typeof p === 'string'
-      ? `padding: ${p};`
-      : ''
+        ? `padding: ${p};`
+        : ''
   };
   ${
     typeof m === 'number'
       ? `margin: ${size(m)};`
       : typeof m === 'string'
-      ? `margin: ${m};`
-      : ''
+        ? `margin: ${m};`
+        : ''
   };
   ${as ? 'align-self: stretch;' : ''};
 `;

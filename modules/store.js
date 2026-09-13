@@ -1,6 +1,10 @@
-import thunk from 'redux-thunk';
-import { composeWithDevTools } from 'redux-devtools-extension/developmentOnly';
-import { createStore, applyMiddleware, compose } from 'redux';
+import { withExtraArgument } from 'redux-thunk';
+import { composeWithDevTools } from '@redux-devtools/extension';
+import {
+  legacy_createStore as createStore,
+  applyMiddleware,
+  compose,
+} from 'redux';
 import { getMap } from 'utils/map';
 
 import appReducer from './appReducer';
@@ -8,20 +12,17 @@ import appReducer from './appReducer';
 const rootReducer = (state, action) => appReducer(state, action);
 
 function configureStore() {
-  const middlewares = [thunk.withExtraArgument(getMap)];
+  const middlewares = [withExtraArgument(getMap)];
 
-  let composeFn = compose;
+  const composeFn =
+    process.env.NODE_ENV === 'development'
+      ? composeWithDevTools
+      : compose;
 
-  if (process.env === 'development') {
-    composeFn = composeWithDevTools;
-  }
-
-  const store = createStore(
+  return createStore(
     rootReducer,
     composeFn(applyMiddleware(...middlewares)),
   );
-
-  return store;
 }
 
 export default configureStore;

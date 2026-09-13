@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
 import Head from 'next/head';
+import Script from 'next/script';
 import { useRouter } from 'next/router';
 import { Provider } from 'react-redux';
 import styled from '@emotion/styled';
-import { ThemeProvider } from 'emotion-theming';
+import { ThemeProvider } from '@emotion/react';
 import Navigation from 'components/Navigation';
 import Button from 'components/Button';
 import * as analytics from 'utils/analytics';
@@ -21,10 +22,6 @@ import 'normalize.css';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const store = configureStore();
-
-if (global.window) {
-  analytics.init('UA-91745405-6');
-}
 
 const StyledNavigation = styled(Navigation)`
   position: fixed;
@@ -45,10 +42,12 @@ const ContactLink = styled(Button)`
 `;
 
 const App = ({ Component, pageProps }) => {
-  const { pathname } = useRouter();
+  const { events, pathname } = useRouter();
   useEffect(() => {
-    analytics.pageview();
-  }, [pathname]);
+    events.on('routeChangeComplete', analytics.pageview);
+    return () =>
+      events.off('routeChangeComplete', analytics.pageview);
+  }, [events]);
 
   return (
     <>
@@ -88,6 +87,20 @@ const App = ({ Component, pageProps }) => {
         />
         <link rel="icon" href="/favicon.png" sizes="16x16" />
       </Head>
+      {analytics.MEASUREMENT_ID && (
+        <>
+          <Script
+            src={`https://www.googletagmanager.com/gtag/js?id=${analytics.MEASUREMENT_ID}`}
+            strategy="afterInteractive"
+          />
+          <Script id="ga4-init" strategy="afterInteractive">
+            {`window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${analytics.MEASUREMENT_ID}');`}
+          </Script>
+        </>
+      )}
       <GlobalStyles />
       <ThemeProvider theme={theme}>
         <Provider store={store}>

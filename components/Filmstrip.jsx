@@ -1,8 +1,8 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useSyncExternalStore } from 'react';
 import styled from '@emotion/styled';
 import PropTypes from 'prop-types';
-import { animated, useSpring } from 'react-spring';
-import { useDrag } from 'react-use-gesture';
+import { animated, useSpring } from '@react-spring/web';
+import { useDrag } from '@use-gesture/react';
 import isTouchDevice from 'is-touch-device';
 import { getBool, getStyle } from 'styles/utils';
 import { mobile, tablet, mq } from 'styles/breakpoints';
@@ -122,43 +122,29 @@ const Inner = styled(Row)`
   `)};
 `;
 
+// Touch capability is read from the browser on the client and re-checked on
+// resize; the server snapshot is `false` so hydration matches the SSR markup.
+const subscribeToResize = (onChange) => {
+  window.addEventListener('resize', onChange);
+  return () => window.removeEventListener('resize', onChange);
+};
+const getIsTouch = () => isTouchDevice();
+const getServerIsTouch = () => false;
+
 export default function Filmstrip({ className = '', children }) {
   const outerRef = useRef(null);
 
   const [isDragging, setIsDragging] = useState(false);
-  const [isTouch, setIsTouch] = useState(false);
-  // const [isTouching, setIsTouching] = useState(false);
-
-  useEffect(() => {
-    setIsTouch(isTouchDevice());
-    const listener = window.addEventListener('resize', () =>
-      setIsTouch(isTouchDevice()),
-    );
-    // const touchStartListener = outerRef.current.addEventListener(
-    //   'touchstart',
-    //   () => setIsTouching(true),
-    // );
-    // const touchEndListener = outerRef.current.addEventListener(
-    //   'touchend',
-    //   () => setIsTouching(false),
-    // );
-    return () => {
-      window.removeEventListener('resize', listener);
-      // outerRef.current.removeEventListener(
-      //   'touchstart',
-      //   touchStartListener,
-      // );
-      // outerRef.current.removeEventListener(
-      //   'touchend',
-      //   touchEndListener,
-      // );
-    };
-  }, []);
+  const isTouch = useSyncExternalStore(
+    subscribeToResize,
+    getIsTouch,
+    getServerIsTouch,
+  );
 
   const getRange = () =>
     outerRef.current.scrollWidth - outerRef.current.clientWidth;
 
-  const [{ scroll }, setSpring] = useSpring(() => ({
+  const [{ scroll }, springApi] = useSpring(() => ({
     scroll: 0,
   }));
 
@@ -166,15 +152,14 @@ export default function Filmstrip({ className = '', children }) {
     if (isTouch) return;
     const {
       movement: [mx],
-      velocity,
+      velocity: [vx],
       dragging,
     } = drag;
 
     const min = 0;
     const max = getRange();
 
-    const projected =
-      outerRef.current.scrollLeft - mx * (1 + velocity);
+    const projected = outerRef.current.scrollLeft - mx * (1 + vx);
     let normalized = projected;
 
     if (projected <= min) normalized = min;
@@ -182,7 +167,7 @@ export default function Filmstrip({ className = '', children }) {
 
     setIsDragging(dragging && mx !== 0);
 
-    setSpring({ scroll: normalized });
+    springApi.start({ scroll: normalized });
   });
 
   // const bindScroll = useScroll(({ scrolling }) => {
