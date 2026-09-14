@@ -1,0 +1,33 @@
+# Dependabot: weekly dependency updates for the pnpm lockfile, grouped so a
+# normal week is one PR. Major bumps still arrive individually because they
+# usually need a look (see the tooling notes in #50 for the ones known to be
+# blocked: ESLint 10 and TypeScript 7). GitHub Actions used by the CI
+# workflow are checked monthly.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Must match the Node major pinned in package.json engines.
+      - dependency-name: '@types/node'
+        update-types:
+          - version-update:semver-major
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns:
+          - '*'
