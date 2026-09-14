@@ -20,16 +20,6 @@ const Container = styled(animated.div, {
   position: relative;
   width: 100%;
   overflow-y: visible;
-  ${getBool(
-    '',
-    `
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  `,
-    `
-    overflow-x: scroll;
-  `,
-  )};
   overflow-x: ${({ isTouch }) => (isTouch ? 'auto' : 'hidden')};
   -webkit-overflow-scrolling: touch;
   ::-webkit-scrollbar {
@@ -189,10 +179,6 @@ export default function Filmstrip({
     springApi.start({ scroll: normalized });
   });
 
-  // const bindScroll = useScroll(({ scrolling }) => {
-  //   if (isTouch) setIsDragging(isTouching && scrolling);
-  // });
-
   return (
     <Container
       className={className}
@@ -200,7 +186,6 @@ export default function Filmstrip({
       ref={outerRef}
       scrollLeft={scroll}
       {...bindDrag()}
-      // {...bindScroll()}
     >
       <Inner isDragging={isDragging}>
         {children.map((child, i) => (
