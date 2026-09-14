@@ -7,10 +7,10 @@ import setupMapListeners from './map/mapListeners';
 import { thunkExtra, type ThunkExtra } from './extraArgument';
 import { listenerMiddleware } from './listenerMiddleware';
 
-// Listeners live on the shared middleware instance, not on a store, so they are
-// registered once here. Clearing first keeps that true even if this module is
-// re-evaluated (a Fast Refresh): RTK matches existing entries by function
-// identity, and the closures below are new every time.
+// Listeners live on the shared middleware instance rather than on a store, so
+// every feature's setup runs here, once. Clearing first keeps it to once even
+// if this module is re-evaluated (a Fast Refresh): RTK matches existing
+// entries by function identity, and each setup call builds fresh closures.
 listenerMiddleware.clearListeners();
 setupMapListeners();
 
@@ -44,8 +44,11 @@ export const makeStore = () =>
         // rather than importing it.
         thunk: { extraArgument: thunkExtra },
       })
-        // First in the chain, so the state the listener compares against is
-        // the one from before the reducers ran.
+        // The placement RTK prescribes: ahead of the serializability check,
+        // which would otherwise flag the function payloads that
+        // `listenerMiddleware/add` carries. Precautionary here, since
+        // listeners are registered through startListening rather than by
+        // dispatching — but the chain is the wrong place to be clever.
         .prepend(listenerMiddleware.middleware),
     // configureStore defaults this to true in every environment, where the
     // store it replaced composed the devtools enhancer only in development.
