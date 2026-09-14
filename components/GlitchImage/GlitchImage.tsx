@@ -72,7 +72,11 @@ class GlitchImage extends Component<
       this.animationRequest = requestAnimationFrame(this.animate);
       this.renderScene();
       this.onResize();
-    } catch {
+    } catch (error) {
+      console.warn(
+        'GlitchImage: WebGL setup failed, showing the plain image',
+        error,
+      );
       this.disposeScene();
       this.setState({ fallback: true });
     }

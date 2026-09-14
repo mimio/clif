@@ -12,12 +12,14 @@
  *   160-200 CSS px wide): resized to at most SKINNY_MAX_WIDTH wide; alpha
  *   is kept.
  *
- * A PNG or JPEG source is always converted to WebP; an existing WebP is only
- * re-encoded when it is wider than its target or larger than MIN_BYTES. A
- * re-encode without a resize is only kept when it shrinks the file by at
- * least MIN_REDUCTION, so re-running is safe. The output replaces the source
- * file; PNG sources are removed and constants/projects.tsx is updated to
- * point at the .webp file.
+ * A PNG or JPEG source is converted to WebP whenever that shrinks it by at
+ * least MIN_REDUCTION (a WebP that would come out larger, as happens for
+ * small flat graphics, is not worth it). An existing WebP is only re-encoded
+ * when it is wider than its target or larger than MIN_BYTES, and that
+ * re-encode is kept under the same MIN_REDUCTION rule, so re-running is
+ * safe. The output replaces the source file: a converted PNG or JPEG source
+ * is removed and constants/projects.tsx is updated to point at the .webp
+ * file.
  */
 import fs from 'node:fs';
 import path from 'node:path';

@@ -339,6 +339,50 @@ async function main(): Promise<void> {
     );
   });
 
+  // Without WebGL the project page must fall back to the plain image, with
+  // no dialog and no page error (three.js logs its own context error, which
+  // is expected here).
+  const noWebgl = await chromium.launch({
+    headless: true,
+    args: ['--disable-webgl', '--disable-webgl2'],
+  });
+  const fallbackPage = await noWebgl.newPage({
+    viewport: { width: 1280, height: 800 },
+  });
+  const fallbackErrors: string[] = [];
+  let dialogs = 0;
+  fallbackPage.on('pageerror', (e) => fallbackErrors.push(String(e)));
+  fallbackPage.on('dialog', (dialog) => {
+    dialogs += 1;
+    void dialog.dismiss();
+  });
+  await fallbackPage.goto(`${BASE}${projectRoute}`, {
+    waitUntil: 'load',
+    timeout: 60000,
+  });
+  await fallbackPage
+    .waitForSelector('img[alt]', { timeout: 10000 })
+    .catch(() => null);
+  const fallback = await fallbackPage.evaluate(() => ({
+    images: Array.from(document.querySelectorAll('img')).filter(
+      (img) => img.alt.length > 0 && img.clientWidth > 0,
+    ).length,
+    canvases: document.querySelectorAll('canvas').length,
+  }));
+  report(
+    `${projectRoute} without WebGL shows the plain image`,
+    fallback.images > 0 && fallback.canvases === 0,
+    JSON.stringify(fallback),
+  );
+  report(
+    `${projectRoute} without WebGL no page errors or dialogs`,
+    fallbackErrors.length === 0 && dialogs === 0,
+    [...fallbackErrors, dialogs ? `${dialogs} dialog(s)` : '']
+      .filter(Boolean)
+      .join(' | '),
+  );
+  await noWebgl.close();
+
   await browser.close();
   server.kill();
   console.log(
