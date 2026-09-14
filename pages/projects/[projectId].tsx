@@ -201,7 +201,7 @@ const Project = ({ projectId }: ProjectPageProps) => {
             href={`/${PROJECTS}/[projectId]`}
           />
         </Navigation>
-        <BackNavLink href={`/${PROJECTS}`} sp={1}>
+        <BackNavLink href={`/${PROJECTS}`}>
           <Detail3>BACK TO ALL PROJECTS</Detail3>
           <CaretDownIcon />
         </BackNavLink>
