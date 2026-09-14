@@ -7,6 +7,13 @@ export const setMap = (mapboxMap: MapboxMap): MapboxMap => {
   return mapboxMap;
 };
 
+// Paired with map.remove() on unmount. Every consumer reads a defined handle
+// as a live map, so leaving the removed one here would have thunks and
+// listeners calling into a map whose WebGL context is already gone.
+export const clearMap = (): void => {
+  globalThis.map = undefined;
+};
+
 export const getMap = (): MapboxMap | undefined => globalThis.map;
 
 export type GetMap = typeof getMap;

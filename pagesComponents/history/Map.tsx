@@ -11,7 +11,7 @@ import {
 } from 'constants/history';
 import { getBool, getStyle } from 'styles/utils';
 import { Full } from 'components/layout';
-import { setMap } from 'utils/map';
+import { clearMap, setMap } from 'utils/map';
 import { useAppDispatch, useAppSelector } from 'modules/hooks';
 import {
   mapLoaded,
@@ -98,7 +98,18 @@ class MapCanvas extends Component<MapCanvasProps> {
   }
 
   componentWillUnmount() {
+    // Reset the store before tearing the map down, never after: the listener
+    // in modules/map/mapListeners.ts reads selectMapLoaded once the reducer
+    // has run, so this dispatch is what stops it reaching for a map that is
+    // about to stop existing.
     this.props.resetMap();
+    // React drops the container element, but the Mapbox instance it held owns
+    // a WebGL context, web workers, a render loop and a window resize
+    // listener that only remove() releases. Without it every visit to
+    // /history strands another context until the browser's per-tab cap.
+    this.map?.remove();
+    this.map = null;
+    clearMap();
   }
 
   initialize = () => {
