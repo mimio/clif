@@ -1,11 +1,10 @@
-import { connect } from 'react-redux';
 import styled from '@emotion/styled';
-import { selectIsMobile } from 'modules/app/selectors';
-import type { RootState } from 'modules/store';
+import { selectIsMobile } from 'modules/app/appSlice';
+import { useAppSelector } from 'modules/hooks';
 import Page from 'components/Page';
-import Popup from 'pagesComponents/history/containers/Popup';
-import Map from 'pagesComponents/history/containers/Map';
-import Controls from 'pagesComponents/history/containers/Controls';
+import Popup from 'pagesComponents/history/Popup';
+import Map from 'pagesComponents/history/Map';
+import Controls from 'pagesComponents/history/Controls';
 import { getStyle } from 'styles/utils';
 import { tablet } from 'styles/breakpoints';
 
@@ -20,27 +19,22 @@ const DesktopControls = styled(Controls)`
   `)}
 `;
 
-type HistoryProps = {
-  isMobile: boolean;
+const History = () => {
+  const isMobile = useAppSelector(selectIsMobile);
+
+  return (
+    <Page
+      Background={
+        <>
+          {!isMobile && <DesktopControls />}
+          <Popup />
+          <Map reveal />
+        </>
+      }
+      Subheader={isMobile ? <Controls /> : null}
+      title="history"
+    />
+  );
 };
 
-const History = ({ isMobile }: HistoryProps) => (
-  <Page
-    Background={
-      <>
-        {!isMobile && <DesktopControls />}
-        <Popup />
-        <Map reveal />
-      </>
-    }
-    Subheader={isMobile ? <Controls /> : null}
-    title="history"
-  />
-);
-
-export default connect(
-  (state: RootState) => ({
-    isMobile: selectIsMobile(state),
-  }),
-  null,
-)(History);
+export default History;

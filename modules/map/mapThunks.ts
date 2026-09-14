@@ -1,4 +1,4 @@
-import { v4 as uuid } from 'uuid';
+import { nanoid } from '@reduxjs/toolkit';
 import type {
   Map as MapboxMap,
   MapMouseEvent,
@@ -6,62 +6,50 @@ import type {
 } from 'mapbox-gl';
 import mapboxGl from 'mapbox-gl-ssr';
 import sizes from 'styles/theme/sizes';
-import { WORK_SOURCE } from 'constants/source';
 import {
   BOUNDS_PADDING,
   BOUNDS_PADDING_MOBILE,
   MAP_PITCH,
 } from 'constants/map';
 import { featureLookup, historyBounds } from 'constants/history';
+import { selectIsMobile } from 'modules/app/appSlice';
 import type { AppThunk } from 'modules/store';
-import { selectIsMobile } from '../app/selectors';
 import {
+  featureHovered,
+  featureSelected,
+  featureUnhovered,
+  popupClosed,
+  popupOpened,
   selectHoveredFeatureId,
-  selectMapLoaded,
-  selectSelectedFeatureId,
-  selectPopupId,
-  selectNextFeatureId,
-  selectPrevFeatureId,
   selectIsFeatureSelected,
-} from './selectors';
-import {
-  CLEAR_SELECTION,
-  HOVER_FEATURE,
-  SET_MAP_LOADED,
-  SELECT_FEATURE,
-  UNHOVER_FEATURE,
-  SET_POPUP_ID,
-  RESET_MAP,
-  type MapAction,
-} from './types';
+  selectMapLoaded,
+  selectNextFeatureId,
+  selectPopupId,
+  selectPrevFeatureId,
+  selectSelectedFeatureId,
+  selectionCleared,
+} from './mapSlice';
 
 // Map event handlers receive the Mapbox event; the prev/next controls pass
 // a feature id directly.
 export type FeatureRef = MapMouseEvent | number;
 
-export const setMapLoaded = (isLoaded: boolean): MapAction => ({
-  type: SET_MAP_LOADED,
-  payload: isLoaded,
-});
-
-export const setPopupId = (id: string | null): MapAction => ({
-  type: SET_POPUP_ID,
-  payload: id,
-});
-
-export const resetMap = (): MapAction => ({ type: RESET_MAP });
+// Imperative one-off commands to the Mapbox instance live in thunks, per the
+// style guide's "Use Thunks and Listeners for Other Async Logic": they read
+// state, talk to the map and dispatch. Keeping the highlighting sync in a
+// listener instead leaves these free of feature-state bookkeeping.
+// https://redux.js.org/style-guide/#use-thunks-and-listeners-for-other-async-logic
 
 export const fitBounds =
-  (): AppThunk => (_dispatch, getState, getMap) => {
+  (): AppThunk =>
+  (_dispatch, getState, { getMap }) => {
     const map = getMap();
     if (!map) return;
     const state = getState();
-    const isMobile = selectIsMobile(state);
-    const isFeatureSelected = selectIsFeatureSelected(state);
 
     map.fitBounds(historyBounds, {
       padding:
-        isMobile && isFeatureSelected
+        selectIsMobile(state) && selectIsFeatureSelected(state)
           ? BOUNDS_PADDING_MOBILE
           : BOUNDS_PADDING,
       pitch: MAP_PITCH,
@@ -70,43 +58,32 @@ export const fitBounds =
   };
 
 export const unhoverFeature =
-  (): AppThunk => (dispatch, getState, getMap) => {
+  (): AppThunk =>
+  (dispatch, getState, { getMap }) => {
     const map = getMap();
     if (!map || !selectMapLoaded(getState())) return;
-    const hoveredId = selectHoveredFeatureId(getState());
-
-    if (hoveredId !== null) {
-      map.setFeatureState(
-        { source: WORK_SOURCE, id: hoveredId },
-        { hover: false },
-      );
-    }
 
     map.getCanvas().style.cursor = 'grab';
-    dispatch({ type: UNHOVER_FEATURE });
+    dispatch(featureUnhovered());
   };
 
+// The Popup is a live DOM object, so it is held here instead of in the store,
+// which must only hold serializable values. The store keeps the id of the
+// element the popup renders, which is what the React portal needs.
+// https://redux.js.org/style-guide/#do-not-put-non-serializable-values-in-state-or-actions
 let popup: Popup | undefined;
 const removePopup = () => {
   if (popup?.isOpen()) popup.remove();
 };
 
 export const clearSelection =
-  (): AppThunk => (dispatch, getState, getMap) => {
+  (): AppThunk =>
+  (dispatch, getState, { getMap }) => {
     const map = getMap();
     if (!map || !selectMapLoaded(getState())) return;
-    const selectedId = selectSelectedFeatureId(getState());
 
     removePopup();
-
-    if (selectedId !== null) {
-      map.setFeatureState(
-        { source: WORK_SOURCE, id: selectedId },
-        { selected: false },
-      );
-    }
-
-    dispatch({ type: CLEAR_SELECTION });
+    dispatch(selectionCleared());
   };
 
 const getId = (map: MapboxMap, ref: FeatureRef): number | null => {
@@ -120,7 +97,7 @@ const getId = (map: MapboxMap, ref: FeatureRef): number | null => {
 
 export const selectFeature =
   (ref: FeatureRef): AppThunk =>
-  (dispatch, getState, getMap) => {
+  (dispatch, getState, { getMap }) => {
     const state = getState();
     const map = getMap();
     if (!map || !selectMapLoaded(state)) return;
@@ -141,33 +118,24 @@ export const selectFeature =
       essential: true,
     });
 
-    if (id !== prevSelectedId) {
-      if (prevSelectedId !== null) {
-        map.setFeatureState(
-          { source: WORK_SOURCE, id: prevSelectedId },
-          { selected: false },
-        );
-      }
-      map.setFeatureState(
-        { source: WORK_SOURCE, id },
-        { selected: true },
-      );
-      dispatch({ type: SELECT_FEATURE, payload: id });
-    }
+    if (id !== prevSelectedId) dispatch(featureSelected(id));
 
     if ((id !== prevSelectedId || !prevPopupId) && !isMobile) {
       removePopup();
-      const popupId = uuid();
+      // RTK's nanoid rather than crypto.randomUUID(), which is only defined in
+      // secure contexts and so is missing when the dev server is opened over
+      // plain http from another device.
+      const popupId = nanoid();
       popup = new mapboxGl.Popup({
         closeButton: false,
         offset: 30,
         maxWidth: sizes.popupWidth,
       })
-        .once('close', () => dispatch(setPopupId(null)))
+        .once('close', () => dispatch(popupClosed()))
         .setLngLat(feature.coordinates)
         .setHTML(`<div id="${popupId}"></div>`)
         .addTo(map);
-      dispatch(setPopupId(popupId));
+      dispatch(popupOpened(popupId));
     }
   };
 
@@ -187,7 +155,7 @@ export const selectPrevFeature =
 
 export const hoverFeature =
   (ref: FeatureRef): AppThunk =>
-  (dispatch, getState, getMap) => {
+  (dispatch, getState, { getMap }) => {
     const state = getState();
     const map = getMap();
     if (!map || !selectMapLoaded(state)) return;
@@ -201,6 +169,5 @@ export const hoverFeature =
     if (hoveredId !== id) dispatch(unhoverFeature());
     if (hoveredId === id) return;
 
-    map.setFeatureState({ source: WORK_SOURCE, id }, { hover: true });
-    dispatch({ type: HOVER_FEATURE, payload: id });
+    dispatch(featureHovered(id));
   };
