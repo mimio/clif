@@ -1,42 +1,68 @@
-import { withExtraArgument, type ThunkAction } from 'redux-thunk';
-import { composeWithDevTools } from '@redux-devtools/extension';
-import {
-  legacy_createStore as createStore,
-  applyMiddleware,
-} from 'redux';
-import { getMap, type GetMap } from 'utils/map';
+import { configureStore } from '@reduxjs/toolkit';
+import type { ThunkAction } from '@reduxjs/toolkit';
 
-import rootReducer, {
-  type RootAction,
-  type RootState,
-} from './appReducer';
+import { appSlice } from './app/appSlice';
+import { mapSlice } from './map/mapSlice';
+import setupMapListeners from './map/mapListeners';
+import { thunkExtra, type ThunkExtra } from './extraArgument';
+import { listenerMiddleware } from './listenerMiddleware';
 
-export type { RootAction, RootState };
+// Listeners live on the shared middleware instance rather than on a store, so
+// every feature's setup runs here, once. Clearing first keeps it to once even
+// if this module is re-evaluated (a Fast Refresh): RTK matches existing
+// entries by function identity, and each setup call builds fresh closures.
+listenerMiddleware.clearListeners();
+setupMapListeners();
 
-// Thunks receive getMap() as their extra argument so they can drive the
-// Mapbox instance directly.
-export type AppThunk<Result = void> = ThunkAction<
-  Result,
-  RootState,
-  GetMap,
-  RootAction
->;
+// Every action the slices can produce. Thunks are typed against this union
+// rather than a bare Action, so a thunk cannot dispatch something the store
+// does not model — the same guarantee the pre-Toolkit store gave.
+type RootAction =
+  | ReturnType<
+      (typeof appSlice.actions)[keyof typeof appSlice.actions]
+    >
+  | ReturnType<
+      (typeof mapSlice.actions)[keyof typeof mapSlice.actions]
+    >;
 
-function configureStore() {
-  const middleware = withExtraArgument<RootState, RootAction, GetMap>(
-    getMap,
-  );
+// The store is built per caller rather than exported as a module singleton.
+// Nothing dispatches during a server render today, so no state actually leaks;
+// this just removes the shared mutable module global that would make it
+// possible.
+// https://redux.js.org/usage/nextjs
+export const makeStore = () =>
+  configureStore({
+    // configureStore calls combineReducers for a plain object of slice
+    // reducers; combineSlices is only needed for lazy-loaded slices.
+    reducer: {
+      [appSlice.reducerPath]: appSlice.reducer,
+      [mapSlice.reducerPath]: mapSlice.reducer,
+    },
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware({
+        // Thunks reach the Mapbox instance through the injected accessor
+        // rather than importing it.
+        thunk: { extraArgument: thunkExtra },
+      })
+        // The placement RTK prescribes: ahead of the serializability check,
+        // which would otherwise flag the function payloads that
+        // `listenerMiddleware/add` carries. Precautionary here, since
+        // listeners are registered through startListening rather than by
+        // dispatching — but the chain is the wrong place to be clever.
+        .prepend(listenerMiddleware.middleware),
+    // configureStore defaults this to true in every environment, where the
+    // store it replaced composed the devtools enhancer only in development.
+    devTools: process.env.NODE_ENV === 'development',
+  });
 
-  const enhancer = applyMiddleware(middleware);
-  const composed: typeof enhancer =
-    process.env.NODE_ENV === 'development'
-      ? composeWithDevTools(enhancer)
-      : enhancer;
-
-  return createStore(rootReducer, composed);
-}
-
-export type AppStore = ReturnType<typeof configureStore>;
+export type AppStore = ReturnType<typeof makeStore>;
+export type RootState = ReturnType<AppStore['getState']>;
 export type AppDispatch = AppStore['dispatch'];
 
-export default configureStore;
+// Thunks receive the injected dependencies as their extra argument.
+export type AppThunk<ThunkReturnType = void> = ThunkAction<
+  ThunkReturnType,
+  RootState,
+  ThunkExtra,
+  RootAction
+>;

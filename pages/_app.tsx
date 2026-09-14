@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { AppProps } from 'next/app';
 import Head from 'next/head';
 import Script from 'next/script';
@@ -16,12 +16,10 @@ import theme from 'styles/theme';
 import { mobile } from 'styles/breakpoints';
 import { size } from 'styles/size';
 import GlobalStyles from 'styles/GlobalStyles';
-import configureStore from 'modules/store';
+import { makeStore, type AppStore } from 'modules/store';
 
 import 'normalize.css';
 import 'mapbox-gl/dist/mapbox-gl.css';
-
-const store = configureStore();
 
 const StyledNavigation = styled(Navigation)`
   position: fixed;
@@ -42,6 +40,9 @@ const ContactLink = styled(Button)`
 `;
 
 const App = ({ Component, pageProps }: AppProps) => {
+  // One store per render tree rather than a module singleton, so a server
+  // render can never leak one request's state into the next.
+  const [store] = useState<AppStore>(makeStore);
   const { events, pathname } = useRouter();
   useEffect(() => {
     events.on('routeChangeComplete', analytics.pageview);

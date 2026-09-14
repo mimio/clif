@@ -1,4 +1,4 @@
-import { Component, createRef } from 'react';
+import { Component, createRef, useMemo } from 'react';
 import styled from '@emotion/styled';
 import type { Map as MapboxMap, MapMouseEvent } from 'mapbox-gl';
 import mapboxgl from 'mapbox-gl-ssr';
@@ -12,6 +12,18 @@ import {
 import { getBool, getStyle } from 'styles/utils';
 import { Full } from 'components/layout';
 import { setMap } from 'utils/map';
+import { useAppDispatch, useAppSelector } from 'modules/hooks';
+import {
+  mapLoaded,
+  mapReset,
+  selectMapLoaded,
+} from 'modules/map/mapSlice';
+import {
+  clearSelection,
+  hoverFeature,
+  selectFeature,
+  unhoverFeature,
+} from 'modules/map/mapThunks';
 
 const StyledMap = styled(Full)<{
   isLoaded: boolean;
@@ -55,19 +67,21 @@ const StyledMap = styled(Full)<{
   )};
 `;
 
-export type MapProps = {
+type MapCanvasProps = {
   className?: string;
   clearSelection: () => void;
   hoverFeature: (event: MapMouseEvent) => void;
   isMapLoaded: boolean;
-  setMapLoaded: (isLoaded: boolean) => void;
+  onMapLoaded: () => void;
   selectFeature: (event: MapMouseEvent) => void;
   unhoverFeature: () => void;
   reveal: boolean;
   resetMap: () => void;
 };
 
-class Map extends Component<MapProps> {
+// Mapbox owns its own DOM and needs the lifecycle hooks, so the canvas stays a
+// class component; only the store wiring below moved to hooks.
+class MapCanvas extends Component<MapCanvasProps> {
   mapRef = createRef<HTMLDivElement>();
 
   map: MapboxMap | null = null;
@@ -76,7 +90,7 @@ class Map extends Component<MapProps> {
     this.initialize();
   }
 
-  shouldComponentUpdate({ isMapLoaded, reveal }: MapProps) {
+  shouldComponentUpdate({ isMapLoaded, reveal }: MapCanvasProps) {
     return (
       (isMapLoaded && !this.props.isMapLoaded) ||
       reveal !== this.props.reveal
@@ -107,7 +121,7 @@ class Map extends Component<MapProps> {
       }),
     );
 
-    this.map.on('load', this.onMapLoaded);
+    this.map.on('load', this.handleMapLoad);
   };
 
   addLayers = () => {
@@ -123,12 +137,14 @@ class Map extends Component<MapProps> {
     });
   };
 
-  onMapLoaded = () => {
+  // Named apart from the `onMapLoaded` prop it calls: this runs on Mapbox's
+  // own 'load' event, which fires before the first idle frame.
+  handleMapLoad = () => {
     const { map } = this;
     if (!map) return;
-    const { clearSelection, setMapLoaded } = this.props;
+    const { clearSelection, onMapLoaded } = this.props;
     this.addLayers();
-    map.on('idle', () => setMapLoaded(true));
+    map.on('idle', onMapLoaded);
     map.on('click', (e) => {
       if (
         map.queryRenderedFeatures(e.point, { layers: mapLayerIds })
@@ -151,5 +167,40 @@ class Map extends Component<MapProps> {
     );
   }
 }
+
+export type MapProps = {
+  className?: string;
+  reveal: boolean;
+};
+
+const Map = ({ className, reveal }: MapProps) => {
+  const dispatch = useAppDispatch();
+  const isMapLoaded = useAppSelector(selectMapLoaded);
+
+  // dispatch is stable, so the Mapbox event handlers registered once at load
+  // stay valid for the life of the map.
+  const handlers = useMemo(
+    () => ({
+      clearSelection: () => dispatch(clearSelection()),
+      hoverFeature: (event: MapMouseEvent) =>
+        dispatch(hoverFeature(event)),
+      onMapLoaded: () => dispatch(mapLoaded()),
+      resetMap: () => dispatch(mapReset()),
+      selectFeature: (event: MapMouseEvent) =>
+        dispatch(selectFeature(event)),
+      unhoverFeature: () => dispatch(unhoverFeature()),
+    }),
+    [dispatch],
+  );
+
+  return (
+    <MapCanvas
+      {...handlers}
+      className={className}
+      isMapLoaded={isMapLoaded}
+      reveal={reveal}
+    />
+  );
+};
 
 export default Map;

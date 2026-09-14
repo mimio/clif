@@ -1,7 +1,13 @@
 import { createPortal } from 'react-dom';
 import styled from '@emotion/styled';
-import type { HistoryFeature } from 'makeHistoryData/features';
 import { getBool, getStyle } from 'styles/utils';
+import { useAppSelector } from 'modules/hooks';
+import { selectIsMobile } from 'modules/app/appSlice';
+import {
+  selectIsFeatureSelected,
+  selectPopupId,
+  selectSelectedFeature,
+} from 'modules/map/mapSlice';
 import { size } from 'styles/size';
 import { Column } from 'components/layout';
 import { Body, Body2, Detail, Detail2 } from 'components/text';
@@ -48,19 +54,12 @@ const dateFormat = new Intl.DateTimeFormat('en-US', {
 const formatDate = (timestamp: number) =>
   dateFormat.format(new Date(timestamp));
 
-export type PopupProps = {
-  popupId: string | null;
-  feature?: HistoryFeature;
-  isMobile: boolean;
-  isFeatureSelected: boolean;
-};
+const Popup = () => {
+  const popupId = useAppSelector(selectPopupId);
+  const feature = useAppSelector(selectSelectedFeature);
+  const isMobile = useAppSelector(selectIsMobile);
+  const isFeatureSelected = useAppSelector(selectIsFeatureSelected);
 
-const Popup = ({
-  popupId,
-  feature,
-  isMobile,
-  isFeatureSelected,
-}: PopupProps) => {
   if (!isFeatureSelected || !feature) return null;
 
   const {

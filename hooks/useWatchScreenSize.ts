@@ -1,17 +1,22 @@
 import { useEffect } from 'react';
-import { setScreenSize as setScreenSizeAction } from 'modules/app/actions';
-import useActions from './useActions';
+import { screenResized } from 'modules/app/appSlice';
+import { useAppDispatch } from 'modules/hooks';
 
 export default function useWatchScreenSize(): void {
-  const setScreenSize = useActions(setScreenSizeAction);
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     const update = () =>
-      setScreenSize(window.innerWidth, window.innerHeight);
+      dispatch(
+        screenResized({
+          x: window.innerWidth,
+          y: window.innerHeight,
+        }),
+      );
     update();
     window.addEventListener('resize', update);
     return () => {
       window.removeEventListener('resize', update);
     };
-  }, [setScreenSize]);
+  }, [dispatch]);
 }
