@@ -36,7 +36,7 @@ const StyledLink = styled(Link)<LayoutProps>`
     color: ${getStyle('text1')};
   }
   ${getBool(
-    'aria-selected',
+    'aria-current',
     `
       color: ${getStyle('text3')};
       ${StyledHomeIcon} {
@@ -64,7 +64,7 @@ const StyledLink = styled(Link)<LayoutProps>`
     top: 0;
     left: 0;
     height: 100%;
-    width: ${(props) => (props['aria-selected'] ? '100%' : 0)};
+    width: ${(props) => (props['aria-current'] ? '100%' : 0)};
     transition: ${getStyle('easeOutSize')};
     background: ${getStyle('ctaBackground1')};
     z-index: -1;
@@ -84,8 +84,8 @@ type NavigationProps = {
 const Navigation = ({ className = '' }: NavigationProps) => {
   const { pathname } = useRouter();
   return (
-    <nav className={className}>
-      <UL aria-label="navigation" role="menubar" sp={4}>
+    <nav className={className} aria-label="Main">
+      <UL sp={4}>
         {orderedTabs.map(({ id, path }) => {
           const isTabActive =
             path === '/'
@@ -95,10 +95,9 @@ const Navigation = ({ className = '' }: NavigationProps) => {
             <li key={id}>
               <StyledLink
                 href={path}
-                aria-label={`Link To Page ${path}`}
+                aria-label={id === HELLO ? 'Home' : undefined}
                 className={id}
-                aria-selected={isTabActive}
-                role="menuitem"
+                aria-current={isTabActive ? 'page' : undefined}
               >
                 {copy[id]}
               </StyledLink>

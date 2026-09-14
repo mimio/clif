@@ -62,7 +62,6 @@ export default defineConfig([
       camelcase: 0,
       'no-plusplus': 0,
       'react/static-property-placement': 0,
-      'react/jsx-props-no-spreading': 1,
       'react/state-in-constructor': 0,
       'react/prefer-stateless-function': 0,
 

@@ -196,8 +196,8 @@ const _projects: ProjectSource[] = [
         </p>
       </>
     ),
-    imgSrc: '/ubiquiti_settings.png',
-    imgSrcSkinny: '/ubiquiti_settings_skinny.png',
+    imgSrc: '/ubiquiti_settings.webp',
+    imgSrcSkinny: '/ubiquiti_settings_skinny.webp',
     href: 'https://unifi.ui.com/',
     Icon: GearsIcon,
     id: 'settings',
@@ -223,7 +223,7 @@ const _projects: ProjectSource[] = [
         </p>
       </>
     ),
-    imgSrc: '/ubiquiti_setup.png',
+    imgSrc: '/ubiquiti_setup.webp',
     imgSrcSkinny: '/ubiquiti_setup_skinny.webp',
     href: 'https://store.ui.com/us/en?category=all-cloud-keys-gateways',
     Icon: ListIcon,
