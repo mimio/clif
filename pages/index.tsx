@@ -1,13 +1,5 @@
-import type { GetStaticProps } from 'next';
 import styled from '@emotion/styled';
 import Link from 'next/link';
-import { feature } from 'topojson-client';
-import type { Topology, MultiPolygon } from 'topojson-specification';
-import type {
-  Feature,
-  MultiPolygon as GeoMultiPolygon,
-} from 'geojson';
-import land from 'public/ne110m_land.json';
 import { Column } from 'components/layout';
 import { Body, Heading3 } from 'components/text';
 import Page from 'components/Page';
@@ -44,12 +36,8 @@ const CallToAction = styled.div`
   }
 `;
 
-type HomeProps = {
-  countries: Feature<GeoMultiPolygon>;
-};
-
-const Home = ({ countries }: HomeProps) => (
-  <Page title="hello." Background={<Globe countries={countries} />}>
+const Home = () => (
+  <Page title="hello." Background={<Globe />}>
     <Column a="flex-start" m="24px 0 0 0">
       <Heading3>
         My name is Clifton Campbell.
@@ -78,13 +66,3 @@ const Home = ({ countries }: HomeProps) => (
 );
 
 export default Home;
-
-export const getStaticProps: GetStaticProps<HomeProps> = async () => {
-  const topology = land as unknown as Topology;
-  // The land object is a single MultiPolygon, so feature() yields one Feature.
-  const countries = feature(
-    topology,
-    topology.objects.land as MultiPolygon,
-  );
-  return { props: { countries } };
-};

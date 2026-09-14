@@ -192,7 +192,9 @@ async function main(): Promise<void> {
   }
 
   await visit('/', async (page) => {
-    const globe = await page.evaluate(() => {
+    // Counts painted pixels in the middle of the globe canvas. The land
+    // topology loads after mount, so wait for the first painted frame.
+    const measureGlobe = () => {
       const canvas = document.getElementById(
         'globe',
       ) as HTMLCanvasElement | null;
@@ -209,7 +211,11 @@ async function main(): Promise<void> {
       for (let i = 3; i < data.length; i += 4)
         if (data[i] > 0) painted += 1;
       return { found: true, painted };
-    });
+    };
+    await page
+      .waitForFunction(measureGlobe, undefined, { timeout: 10000 })
+      .catch(() => null);
+    const globe = await page.evaluate(measureGlobe);
     report(
       '/ globe canvas painted',
       globe.found && globe.painted > 0,
