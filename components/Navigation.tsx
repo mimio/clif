@@ -5,7 +5,7 @@ import styled from '@emotion/styled';
 import { getBool, getStyle } from 'styles/utils';
 import { size } from 'styles/size';
 import { detail } from 'styles/text';
-import { centered } from 'styles/layout';
+import { centered, type LayoutProps } from 'styles/layout';
 import {
   HELLO,
   WORK,
@@ -23,7 +23,7 @@ const StyledHomeIcon = styled(HomeIcon)`
 
 const UL = Column.withComponent('ul');
 
-const StyledLink = styled(Link)`
+const StyledLink = styled(Link)<LayoutProps>`
   ${centered};
   ${detail};
   font-weight: 300;

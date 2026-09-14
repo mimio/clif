@@ -21,9 +21,10 @@ type StyleProps = {
 };
 
 // Shared by the link, external link and button variants below. A function of
-// props because the getBool() fragments depend on them.
+// props because the getBool() fragments depend on them. Buttons never receive
+// layout props, so the centered() defaults apply.
 const buttonStyles = (props: object) => css`
-  ${centered(props)};
+  ${centered({})};
   border: ${getStyle('ctaBorder2')};
   cursor: pointer;
   background: transparent;

@@ -5,7 +5,7 @@ import type { Project } from 'constants/projects';
 import UserIcon from 'public/icons/user.svg';
 import { PROJECTS } from 'constants/pages';
 import { Detail2, Body, Detail3 } from 'components/text';
-import { column } from 'styles/layout';
+import { column, type LayoutProps } from 'styles/layout';
 import { getStyle } from 'styles/utils';
 import { mq } from 'styles/breakpoints';
 
@@ -61,12 +61,11 @@ const StyledUserIcon = styled(UserIcon)`
   width: 12px;
 `;
 
-const StyledLink = styled(Link)`
+const StyledLink = styled(Link)<LayoutProps>`
   ${column};
   position: relative;
   height: 100%;
   border-radius: 20px;
-  background: ${getStyle('background1')};
   transition: ${getStyle('linearHue')};
   border: ${getStyle('contentBorder')};
   overflow: hidden;

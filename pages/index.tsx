@@ -2,11 +2,11 @@ import type { GetStaticProps } from 'next';
 import styled from '@emotion/styled';
 import Link from 'next/link';
 import { feature } from 'topojson-client';
+import type { Topology, MultiPolygon } from 'topojson-specification';
 import type {
-  Topology,
-  GeometryCollection,
-} from 'topojson-specification';
-import type { FeatureCollection } from 'geojson';
+  Feature,
+  MultiPolygon as GeoMultiPolygon,
+} from 'geojson';
 import land from 'public/ne110m_land.json';
 import { Column } from 'components/layout';
 import { Body, Heading3 } from 'components/text';
@@ -45,7 +45,7 @@ const CallToAction = styled.div`
 `;
 
 type HomeProps = {
-  countries: FeatureCollection;
+  countries: Feature<GeoMultiPolygon>;
 };
 
 const Home = ({ countries }: HomeProps) => (
@@ -81,9 +81,10 @@ export default Home;
 
 export const getStaticProps: GetStaticProps<HomeProps> = async () => {
   const topology = land as unknown as Topology;
+  // The land object is a single MultiPolygon, so feature() yields one Feature.
   const countries = feature(
     topology,
-    topology.objects.land as GeometryCollection,
+    topology.objects.land as MultiPolygon,
   );
   return { props: { countries } };
 };

@@ -33,16 +33,14 @@ const spacing = (
   return '';
 };
 
-const createBase = (input: object): string => {
-  const {
-    a = 'center',
-    j = 'flex-start',
-    p,
-    m,
-    stretch,
-    ga,
-  } = input as LayoutProps;
-  return `
+const createBase = ({
+  a = 'center',
+  j = 'flex-start',
+  p,
+  m,
+  stretch,
+  ga,
+}: LayoutProps): string => `
   display: flex;
   align-items: ${a};
   justify-content: ${j};
@@ -51,11 +49,10 @@ const createBase = (input: object): string => {
   ${spacing(m, 'margin')}
   ${stretch ? 'align-self: stretch;' : ''}
 `;
-};
 
-// The helpers accept `object` (not LayoutProps) so that Emotion can call them
-// with any styled component's props without a weak-type mismatch.
-export const centered = (props: object): string => `
+// Styled components that interpolate these helpers declare LayoutProps
+// (`styled.div<LayoutProps>`) so the props are typed at the call site.
+export const centered = (props: LayoutProps): string => `
   ${createBase(props)};
   justify-content: center;
 `;
@@ -107,9 +104,7 @@ const createSpacing = (
   }
 };
 
-export const row = (input: object): string => {
-  const { sp, msp, ...props } = input as LayoutProps;
-  return `
+export const row = ({ sp, msp, ...props }: LayoutProps): string => `
   ${createBase(props)};
   flex-direction: row;
   ${createSpacing(sp, 'margin-right')};
@@ -117,11 +112,12 @@ export const row = (input: object): string => {
     ${createSpacing(msp, 'margin-right')};
   `)};
 `;
-};
 
-export const column = (input: object): string => {
-  const { sp, msp, ...props } = input as LayoutProps;
-  return `
+export const column = ({
+  sp,
+  msp,
+  ...props
+}: LayoutProps): string => `
   ${createBase(props)};
   flex-direction: column;
   ${createSpacing(sp, 'margin-bottom')};
@@ -129,7 +125,6 @@ export const column = (input: object): string => {
     ${createSpacing(msp, 'margin-bottom')};
   `)};
 `;
-};
 
 export const full = `
   position: absolute;

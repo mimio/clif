@@ -1,21 +1,17 @@
 import { Component, createRef } from 'react';
 import styled from '@emotion/styled';
-import type { Interpolation, Theme } from '@emotion/react';
 import type { Map as MapboxMap, MapMouseEvent } from 'mapbox-gl';
 import mapboxgl from 'mapbox-gl-ssr';
-import mapLayers from 'public/history/mapLayers.json';
-import mapLayerIds from 'public/history/mapLayerIds.json';
 import mapConfig from 'public/history/mapConfig.json';
 import { MAP_PITCH } from 'constants/map';
+import {
+  historyBounds,
+  mapLayerIds,
+  mapLayers,
+} from 'constants/history';
 import { getBool, getStyle } from 'styles/utils';
 import { Full } from 'components/layout';
 import { setMap } from 'utils/map';
-
-// The layer type accepted by Map#addLayer, which allows inline sources.
-type MapLayer = Parameters<MapboxMap['addLayer']>[0];
-
-const layers = mapLayers as unknown as MapLayer[];
-const layerIds = mapLayerIds as string[];
 
 const StyledMap = styled(Full)<{
   isLoaded: boolean;
@@ -61,7 +57,6 @@ const StyledMap = styled(Full)<{
 
 export type MapProps = {
   className?: string;
-  css?: Interpolation<Theme>;
   clearSelection: () => void;
   hoverFeature: (event: MapMouseEvent) => void;
   isMapLoaded: boolean;
@@ -75,7 +70,7 @@ export type MapProps = {
 class Map extends Component<MapProps> {
   mapRef = createRef<HTMLDivElement>();
 
-  map: mapboxgl.Map | null = null;
+  map: MapboxMap | null = null;
 
   componentDidMount() {
     this.initialize();
@@ -97,7 +92,7 @@ class Map extends Component<MapProps> {
     this.map = setMap(
       new mapboxgl.Map({
         ...mapConfig,
-        bounds: mapConfig.bounds as [number, number, number, number],
+        bounds: historyBounds,
         // mapbox-gl >= 2.7 resets pitch to 0 in fitBounds(), which the
         // `bounds` option runs on construction, unless a pitch is given.
         pitch: MAP_PITCH,
@@ -117,7 +112,7 @@ class Map extends Component<MapProps> {
     if (!map) return;
     const { hoverFeature, unhoverFeature, selectFeature } =
       this.props;
-    layers.forEach((layer) => {
+    mapLayers.forEach((layer) => {
       map.addLayer(layer);
       map.on('mousemove', layer.id, hoverFeature);
       map.on('mouseleave', layer.id, unhoverFeature);
@@ -133,7 +128,7 @@ class Map extends Component<MapProps> {
     map.on('idle', () => setMapLoaded(true));
     map.on('click', (e) => {
       if (
-        map.queryRenderedFeatures(e.point, { layers: layerIds })
+        map.queryRenderedFeatures(e.point, { layers: mapLayerIds })
           .length === 0
       )
         clearSelection();
@@ -141,12 +136,11 @@ class Map extends Component<MapProps> {
   };
 
   render() {
-    const { className, css, isMapLoaded, reveal } = this.props;
+    const { className, isMapLoaded, reveal } = this.props;
 
     return (
       <StyledMap
         className={className}
-        css={css}
         isLoaded={isMapLoaded}
         ref={this.mapRef}
         reveal={reveal}

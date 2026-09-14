@@ -12,7 +12,11 @@ import { getBool, getStyle } from 'styles/utils';
 import { mobile, tablet, mq } from 'styles/breakpoints';
 import { Row } from './layout';
 
-const Container = styled(animated.div)<{ isTouch: boolean }>`
+// animated.div is a component, so Emotion forwards every prop to it; keep
+// the styling flag off the DOM.
+const Container = styled(animated.div, {
+  shouldForwardProp: (prop) => prop !== 'isTouch',
+})<{ isTouch: boolean }>`
   position: relative;
   width: 100%;
   overflow-y: visible;

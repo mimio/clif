@@ -27,10 +27,10 @@
   },
   "include": [
     "next-env.d.ts",
-    "types/**/*.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    "**/*.mts"
+    "**/*.mts",
+    "**/*.js"
   ],
   "exclude": ["node_modules", ".next", ".smoke-output"]
 }

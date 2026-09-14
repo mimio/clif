@@ -73,7 +73,7 @@ const Navigation = styled(Row)`
   `)};
 `;
 
-const BackNavLink = styled(NextLink)`
+const BackNavLink = styled(NextLink)<LayoutProps>`
   ${column};
   border-top: ${getStyle('ctaBorder3')};
   grid-area: back;
@@ -201,7 +201,7 @@ const Project = ({ projectId }: ProjectPageProps) => {
             href={`/${PROJECTS}/[projectId]`}
           />
         </Navigation>
-        <BackNavLink href={`/${PROJECTS}`}>
+        <BackNavLink href={`/${PROJECTS}`} sp={1}>
           <Detail3>BACK TO ALL PROJECTS</Detail3>
           <CaretDownIcon />
         </BackNavLink>

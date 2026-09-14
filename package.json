@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "engines": {
-    "node": "22.x"
+    "node": ">=22.18 <23"
   },
   "packageManager": "pnpm@10.33.0",
   "scripts": {
@@ -14,8 +14,8 @@
     "start": "next start",
     "preprocess": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON makeHistoryData/index.mts",
     "images": "node scripts/optimize-images.mts",
-    "lint": "eslint \"{pagesComponents,components,constants,hooks,modules,pages,styles,utils,makeHistoryData,scripts,types}/**/*.{js,jsx,ts,tsx,mts}\"",
-    "lint:fix": "eslint --fix \"{pagesComponents,components,constants,hooks,modules,pages,styles,utils,makeHistoryData,scripts,types}/**/*.{js,jsx,ts,tsx,mts}\"",
+    "lint": "eslint \"{pagesComponents,components,constants,hooks,modules,pages,styles,utils,makeHistoryData,scripts,types}/**/*.{js,jsx,ts,tsx,mts}\" \"*.{ts,mts,mjs}\"",
+    "lint:fix": "eslint --fix \"{pagesComponents,components,constants,hooks,modules,pages,styles,utils,makeHistoryData,scripts,types}/**/*.{js,jsx,ts,tsx,mts}\" \"*.{ts,mts,mjs}\"",
     "format": "prettier --write \"*/**/*.{js,jsx,ts,tsx,mts}\" \"!public/**\" \"!node_modules/**\" \"!.next/**\" \"!.vercel/**\" \"!.vscode/**\"",
     "prepare": "husky",
     "test": "pnpm run test:e2e",

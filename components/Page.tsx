@@ -7,6 +7,7 @@ import {
   centered,
   full,
   foregroundContentTopPadding,
+  type LayoutProps,
 } from 'styles/layout';
 import { Heading } from './text';
 import { Full, Column } from './layout';
@@ -80,7 +81,7 @@ const ForegroundContainer = styled.div`
   `)}
 `;
 
-const BackgroundContainer = styled(Full)`
+const BackgroundContainer = styled(Full)<LayoutProps>`
   z-index: 0;
   ${centered};
 `;

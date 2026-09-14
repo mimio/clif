@@ -4,7 +4,6 @@ import {
   featureLookup,
 } from 'constants/history';
 import type { RootState } from 'modules/store';
-import type { HistoryFeature } from 'makeHistoryData/features';
 
 export const selectMapState = (state: RootState) => state.map;
 
@@ -30,8 +29,7 @@ export const selectIsFeatureSelected = createSelector(
 
 export const selectSelectedFeature = createSelector(
   selectSelectedFeatureId,
-  (id): HistoryFeature | undefined =>
-    id === null ? undefined : featureLookup[String(id)],
+  (id) => (id === null ? undefined : featureLookup[id]),
 );
 
 export const selectIsFirstFeatureSelected = createSelector(

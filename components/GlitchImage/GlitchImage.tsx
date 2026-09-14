@@ -36,18 +36,18 @@ class GlitchImage extends Component<GlitchImageProps> {
 
   clock!: THREE.Clock;
 
-  geometry!: THREE.PlaneGeometry;
+  // Created in createMesh(), which can bail before assigning them.
+  geometry?: THREE.PlaneGeometry;
 
-  material!: THREE.ShaderMaterial;
+  material?: THREE.ShaderMaterial;
 
-  texture!: THREE.Texture;
+  texture?: THREE.Texture;
 
-  mesh!: THREE.Mesh;
+  mesh?: THREE.Mesh;
 
   animationRequest = 0;
 
   componentDidMount() {
-    if (!this.containerRef) return;
     this.setSize();
     this.init();
     this.createMesh();
@@ -59,9 +59,9 @@ class GlitchImage extends Component<GlitchImageProps> {
   componentWillUnmount() {
     window.removeEventListener('resize', this.onResize);
     cancelAnimationFrame(this.animationRequest);
-    this.texture.dispose();
-    this.geometry.dispose();
-    this.material.dispose();
+    this.texture?.dispose();
+    this.geometry?.dispose();
+    this.material?.dispose();
     this.renderer.dispose();
   }
 
@@ -101,7 +101,7 @@ class GlitchImage extends Component<GlitchImageProps> {
     this.camera.updateProjectionMatrix();
 
     this.renderer.setSize(this.width, this.height);
-    this.mesh.scale.set(
+    this.mesh?.scale.set(
       this.width / this.height - (this.width / this.height) * 0.2,
       0.8,
       1,
@@ -119,7 +119,10 @@ class GlitchImage extends Component<GlitchImageProps> {
   };
 
   renderScene = () => {
-    this.material.uniforms.uTime.value = this.clock.getElapsedTime();
+    if (this.material) {
+      this.material.uniforms.uTime.value =
+        this.clock.getElapsedTime();
+    }
     this.renderer.render(this.scene, this.camera);
   };
 

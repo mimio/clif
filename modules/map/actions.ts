@@ -37,7 +37,7 @@ import {
 
 // Map event handlers receive the Mapbox event; the prev/next controls pass
 // a feature id directly.
-export type FeatureRef = MapMouseEvent | number | string;
+export type FeatureRef = MapMouseEvent | number;
 
 export const setMapLoaded = (isLoaded: boolean): MapAction => ({
   type: SET_MAP_LOADED,
@@ -111,7 +111,6 @@ export const clearSelection =
 
 const getId = (map: MapboxMap, ref: FeatureRef): number | null => {
   if (typeof ref === 'number') return ref;
-  if (typeof ref === 'string') return Number(ref);
   const id: unknown = map.queryRenderedFeatures(ref.point)[0]
     ?.properties?.id;
   if (typeof id === 'number') return id;
@@ -132,7 +131,7 @@ export const selectFeature =
 
     const id = getId(map, ref);
     if (id === null) return;
-    const feature = featureLookup[String(id)];
+    const feature = featureLookup[id];
     if (!feature) return;
 
     map.flyTo({

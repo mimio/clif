@@ -6,7 +6,7 @@ import {
   timer,
   type Timer,
 } from 'd3';
-import type { FeatureCollection } from 'geojson';
+import type { Feature, MultiPolygon } from 'geojson';
 import styled from '@emotion/styled';
 
 const normalizeCursorLocation = ([x, y]: [number, number]): [
@@ -31,7 +31,7 @@ const Canvas = styled.canvas`
 `;
 
 type GlobeProps = {
-  countries: FeatureCollection;
+  countries: Feature<MultiPolygon>;
 };
 
 type GlobeState = {

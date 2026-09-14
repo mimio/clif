@@ -3,13 +3,15 @@ import { composeWithDevTools } from '@redux-devtools/extension';
 import {
   legacy_createStore as createStore,
   applyMiddleware,
-  type UnknownAction,
 } from 'redux';
 import { getMap, type GetMap } from 'utils/map';
 
-import rootReducer, { type RootState } from './appReducer';
+import rootReducer, {
+  type RootAction,
+  type RootState,
+} from './appReducer';
 
-export type { RootState };
+export type { RootAction, RootState };
 
 // Thunks receive getMap() as their extra argument so they can drive the
 // Mapbox instance directly.
@@ -17,15 +19,13 @@ export type AppThunk<Result = void> = ThunkAction<
   Result,
   RootState,
   GetMap,
-  UnknownAction
+  RootAction
 >;
 
 function configureStore() {
-  const middleware = withExtraArgument<
-    RootState,
-    UnknownAction,
-    GetMap
-  >(getMap);
+  const middleware = withExtraArgument<RootState, RootAction, GetMap>(
+    getMap,
+  );
 
   const enhancer = applyMiddleware(middleware);
   const composed: typeof enhancer =

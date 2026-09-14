@@ -28,11 +28,9 @@ const featureLookup = features.reduce<Record<number, HistoryFeature>>(
   {},
 );
 
-// Keeps the ordering the original boolean comparator produced (1 when a ends
-// later than b, 0 otherwise, with a missing end date counting as 0), so the
-// generated files stay byte-identical.
-const chronoFeatures = [...features].sort((a, b) =>
-  (a.date.end ?? 0) > (b.date.end ?? 0) ? 1 : 0,
+// Ascending by end date; a missing end date means "current", which sorts last.
+const chronoFeatures = [...features].sort(
+  (a, b) => (a.date.end ?? Infinity) - (b.date.end ?? Infinity),
 );
 
 const chronoFeatureIds = chronoFeatures.map(({ id }) => id);

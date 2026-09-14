@@ -1,3 +1,3 @@
-const gradients: Record<string, string> = {};
+const gradients = {};
 
 export default gradients;
