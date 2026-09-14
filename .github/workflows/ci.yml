@@ -38,11 +38,17 @@ jobs:
 
       - run: pnpm build
 
+      # The browser build only changes when Playwright itself is bumped, so
+      # key the cache on its version rather than the whole lockfile.
+      - name: Read Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
 
       - run: pnpm exec playwright install --with-deps chromium
 
