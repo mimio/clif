@@ -227,8 +227,8 @@ const countFeatureStateWrites = (page: Page) =>
     const writes = { selected: 0, hover: 0 };
     map.smokeWrites = writes;
     map.setFeatureState = (target, state) => {
-      if ('selected' in state) writes.selected += 1;
-      if ('hover' in state) writes.hover += 1;
+      if (state && 'selected' in state) writes.selected += 1;
+      if (state && 'hover' in state) writes.hover += 1;
       return write(target, state);
     };
     return true;
@@ -535,22 +535,22 @@ async function main(): Promise<void> {
 
   await visit('/history', async (page) => {
     await page.waitForFunction(
-      () =>
+      (layer) =>
         window.map &&
         window.map.loaded() &&
-        window.map.getLayer('work-source') !== undefined,
-      null,
+        window.map.getLayer(layer) !== undefined,
+      WORK_LAYER,
       { timeout: 60000 },
     );
-    const info = await page.evaluate(() => {
+    const info = await page.evaluate((source) => {
       const { map } = window;
       if (!map) return { pitch: 0, layers: 0, features: 0 };
       return {
         pitch: map.getPitch(),
         layers: map.getStyle()?.layers.length ?? 0,
-        features: map.querySourceFeatures('work-source').length,
+        features: map.querySourceFeatures(source).length,
       };
-    });
+    }, WORK_SOURCE);
     report(
       '/history map loaded with layers',
       info.layers === 4 && info.features === 10,
@@ -653,13 +653,32 @@ async function main(): Promise<void> {
     // Reported per step rather than thrown, so one failure names the step it
     // happened in and the steps after it still run.
     const selects = async (featureId: number, label: string) => {
-      const ok = await waitForSelection(page, featureId)
+      const reached = await waitForSelection(page, featureId)
         .then(() => true)
         .catch(() => false);
       await settleMap(page);
+      // Asserted on the settled snapshot, not just on the instant the
+      // predicate first held, so a selection that flickers away during the
+      // fly-to still fails.
       const snapshot = await snapshotMap(page);
+      const ok =
+        reached &&
+        snapshot.selected.length === 1 &&
+        snapshot.selected[0] === featureId;
       report(label, ok, JSON.stringify(snapshot));
       return { ok, snapshot };
+    };
+
+    // A control that stays disabled because an earlier step failed would
+    // otherwise block for the full actionability timeout and throw into the
+    // shared handler, taking every later check with it.
+    const clickControl = async (selector: string, label: string) => {
+      const ok = await page
+        .click(selector, { timeout: 5000 })
+        .then(() => true)
+        .catch(() => false);
+      if (!ok) report(label, false, `${selector} was not clickable`);
+      return ok;
     };
 
     let writesBefore = await readFeatureStateWrites(page);
@@ -691,7 +710,8 @@ async function main(): Promise<void> {
     }
 
     writesBefore = await readFeatureStateWrites(page);
-    await page.click(NEXT_CONTROL);
+    if (!(await clickControl(NEXT_CONTROL, '/history next control')))
+      return;
     const advanced = await selects(
       nextId,
       `/history next control moves the selection to feature ${nextId}`,
@@ -713,7 +733,8 @@ async function main(): Promise<void> {
       );
     }
 
-    await page.click(PREV_CONTROL);
+    if (!(await clickControl(PREV_CONTROL, '/history prev control')))
+      return;
     const stepped = await selects(
       startId,
       `/history prev control moves the selection back to feature ${startId}`,
@@ -750,13 +771,31 @@ async function main(): Promise<void> {
       JSON.stringify(cleared),
     );
 
+    // The reset assertion below is "the camera came back", which only means
+    // something if it left: without this, deleting the fly-to from
+    // selectFeature would satisfy the reset predicate on its first poll and
+    // the whole suite would pass with a camera that never moved.
+    const moved =
+      cleared.camera.zoom !== idle.camera.zoom ||
+      cleared.camera.lng !== idle.camera.lng ||
+      cleared.camera.lat !== idle.camera.lat;
+    report(
+      '/history selecting a feature moved the camera',
+      moved,
+      `${JSON.stringify(idle.camera)} -> ${JSON.stringify(cleared.camera)}`,
+    );
+
     // fitBounds() is the one thunk the steps above never reach. The map was
-    // constructed with the same bounds and the same padding the thunk passes,
-    // so resetting must land the camera exactly where it started — an
-    // assertion that catches a dropped pitch (fitBounds flattens to 0 without
-    // it), the wrong padding branch, or the wrong bounds, none of which a bare
-    // "it zoomed out" check would notice.
-    await page.click(RESET_CONTROL);
+    // constructed with the same bounds and the same padding this thunk passes,
+    // so resetting must land the camera exactly where it started — which
+    // catches a dropped pitch (fitBounds flattens to 0 without its pitch
+    // argument), the wrong bounds, or padding other than BOUNDS_PADDING. It
+    // does not cover the mobile padding branch: the reset runs with nothing
+    // selected, so that ternary is false here whatever the viewport.
+    if (
+      !(await clickControl(RESET_CONTROL, '/history reset control'))
+    )
+      return;
     const restored = await page
       .waitForFunction(
         (start) => {
