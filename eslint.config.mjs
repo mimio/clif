@@ -77,12 +77,4 @@ export default defineConfig([
       'no-param-reassign': 1,
     },
   },
-  {
-    // The remaining CommonJS files (the preprocess script's Mapbox config and
-    // the constants it shares with the app) legitimately use require().
-    files: ['**/*.{js,cjs}'],
-    rules: {
-      '@typescript-eslint/no-require-imports': 0,
-    },
-  },
 ]);

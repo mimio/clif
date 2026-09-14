@@ -19,6 +19,9 @@ jobs:
     timeout-minutes: 15
     env:
       NEXT_TELEMETRY_DISABLED: 1
+      # The smoke test answers every Mapbox request locally, so the build only
+      # needs a token-shaped value here, not a real one.
+      NEXT_PUBLIC_MAPBOX_TOKEN: pk.smoke-test-placeholder
     steps:
       - uses: actions/checkout@v7
 

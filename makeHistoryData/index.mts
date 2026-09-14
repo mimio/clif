@@ -9,7 +9,7 @@ import path from 'node:path';
 import { bbox } from '@turf/bbox';
 import { lineString } from '@turf/helpers';
 import type { Map as MapboxMap } from 'mapbox-gl';
-import mapboxConfig from './mapboxConfig.js';
+import mapboxConfig from './mapboxConfig.ts';
 import { features, type HistoryFeature } from './features.ts';
 import {
   WORK_SOURCE,
