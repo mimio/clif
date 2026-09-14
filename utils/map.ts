@@ -7,10 +7,11 @@ export const setMap = (mapboxMap: MapboxMap): MapboxMap => {
   return mapboxMap;
 };
 
-// Paired with map.remove() on unmount. Most consumers gate on selectMapLoaded
-// as well, which the unmount's mapReset clears, but fitBounds() is gated on
-// the handle alone — and leaving it set would keep the removed map's whole
-// object graph reachable from globalThis.
+// Paired with map.remove() on unmount. remove() frees the heavy parts — the
+// style, the sources, the GL context — but leaves the map's own
+// back-references intact: its detached container, and the handlers registered
+// in Map.tsx, which chain back to the component. An uncleared handle would
+// strand one of those dead shells on globalThis per visit.
 export const clearMap = (): void => {
   globalThis.map = undefined;
 };

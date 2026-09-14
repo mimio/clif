@@ -99,10 +99,10 @@ class MapCanvas extends Component<MapCanvasProps> {
 
   componentWillUnmount() {
     // Store first, map second: the listener in modules/map/mapListeners.ts
-    // reads selectMapLoaded after the reducer, and remove() re-enters the
-    // store itself — Mapbox's 'remove' event closes the popup, whose 'close'
-    // handler dispatches popupClosed — so both find it already reset. The
-    // reverse order is not unsafe, since the listener would bail on the
+    // reads selectMapLoaded after the reducer, and remove() can re-enter the
+    // store itself — Mapbox's 'remove' event closes an open popup, whose
+    // 'close' handler dispatches popupClosed — so both find it already reset.
+    // The reverse order is not unsafe, since the listener would bail on the
     // cleared handle instead; it just leaves more moving parts to follow.
     this.props.resetMap();
     // React drops the container element, but the Mapbox instance it held owns
