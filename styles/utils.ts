@@ -2,23 +2,24 @@ import { flatStanley, type StyleKey } from './theme';
 
 export const getStyle = (key: StyleKey): string => flatStanley[key];
 
-// Reads a boolean-ish prop inside a styled template and returns one of two
-// CSS fragments. `P` is the props type of the styled component the fragment
-// lands in, so a key that is not one of that component's props is a compile
-// error instead of a silently emitted false branch.
+// Reads a prop for truthiness inside a styled template and returns one of two
+// CSS fragments. Keying off `P` rather than a bare string is what makes an
+// empty or misspelled key a compile error instead of a silent false branch.
+// The check is only ever as narrow as the component's props, though: for a DOM
+// element that means every HTML and ARIA attribute it accepts, so it catches
+// invented names, not a rename that lands on a real attribute.
 //
-// `P` is normally inferred from the interpolation's contextual type, which
-// Emotion supplies only when the result is interpolated directly:
-// `${getBool('isDone', ...)}`. A call site that applies it to props by hand
-// has no contextual type to infer from and must name the props type itself:
-// `getBool<StyleProps>('disabled', ...)(props)`.
+// `NoInfer` stops the key from standing in as the source of `P`. Without it a
+// call that passes its own props -- rather than being interpolated, which is
+// how Emotion supplies `P` -- infers `P` from the key alone and checks nothing
+// against the component; it now fails until the props type is named, as in
+// `getBool<Props>('key', ...)(props)`.
 //
-// The key is deliberately not constrained to boolean-valued props: callers
-// such as Navigation key off `aria-current`, which is `'page' | undefined`
-// and is meant to be read for truthiness.
+// Keys are deliberately not restricted to boolean-valued props: the ARIA
+// attributes worth reading this way are string unions rather than booleans.
 export const getBool =
   <P extends object>(
-    key: keyof P & string,
+    key: keyof NoInfer<P>,
     ifTrue = '',
     ifFalse = '',
   ) =>
