@@ -7,9 +7,10 @@ export const setMap = (mapboxMap: MapboxMap): MapboxMap => {
   return mapboxMap;
 };
 
-// Paired with map.remove() on unmount. Every consumer reads a defined handle
-// as a live map, so leaving the removed one here would have thunks and
-// listeners calling into a map whose WebGL context is already gone.
+// Paired with map.remove() on unmount. Most consumers gate on selectMapLoaded
+// as well, which the unmount's mapReset clears, but fitBounds() is gated on
+// the handle alone — and leaving it set would keep the removed map's whole
+// object graph reachable from globalThis.
 export const clearMap = (): void => {
   globalThis.map = undefined;
 };

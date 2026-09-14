@@ -98,15 +98,18 @@ class MapCanvas extends Component<MapCanvasProps> {
   }
 
   componentWillUnmount() {
-    // Reset the store before tearing the map down, never after: the listener
-    // in modules/map/mapListeners.ts reads selectMapLoaded once the reducer
-    // has run, so this dispatch is what stops it reaching for a map that is
-    // about to stop existing.
+    // Store first, map second: the listener in modules/map/mapListeners.ts
+    // reads selectMapLoaded after the reducer, and remove() re-enters the
+    // store itself — Mapbox's 'remove' event closes the popup, whose 'close'
+    // handler dispatches popupClosed — so both find it already reset. The
+    // reverse order is not unsafe, since the listener would bail on the
+    // cleared handle instead; it just leaves more moving parts to follow.
     this.props.resetMap();
     // React drops the container element, but the Mapbox instance it held owns
-    // a WebGL context, web workers, a render loop and a window resize
-    // listener that only remove() releases. Without it every visit to
-    // /history strands another context until the browser's per-tab cap.
+    // a WebGL context, a render loop, the window listeners it registered and
+    // a slot in Mapbox's shared worker pool, none of which it gives up
+    // without remove(). Skipping it stranded a context per visit to /history,
+    // up to the browser's per-tab cap.
     this.map?.remove();
     this.map = null;
     clearMap();
