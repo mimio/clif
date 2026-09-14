@@ -4,21 +4,22 @@
   "description": "",
   "main": "index.js",
   "engines": {
-    "node": "22.x"
+    "node": ">=22.18 <23"
   },
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "next dev",
+    "typecheck": "next typegen && tsc --noEmit",
     "build": "next build",
     "start": "next start",
-    "preprocess": "node ./makeHistoryData",
-    "images": "node scripts/optimize-images.js",
-    "lint": "eslint \"{pagesComponents,components,constants,hooks,modules,pages,styles,utils,makeHistoryData,scripts}/**/*.{js,jsx}\"",
-    "lint:fix": "eslint --fix \"{pagesComponents,components,constants,hooks,modules,pages,styles,utils,makeHistoryData,scripts}/**/*.{js,jsx}\"",
-    "format": "prettier --write \"*/**/*.{js,jsx}\" \"!public/**\" \"!node_modules/**\" \"!dist/**\"  \"!.next/**\" \"!.vercel/**\" \"!.vscode/**\"",
+    "preprocess": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON makeHistoryData/index.mts",
+    "images": "node scripts/optimize-images.mts",
+    "lint": "eslint \"{pagesComponents,components,constants,hooks,modules,pages,styles,utils,makeHistoryData,scripts,types}/**/*.{js,jsx,ts,tsx,mts}\" \"*.{ts,mts,mjs}\"",
+    "lint:fix": "eslint --fix \"{pagesComponents,components,constants,hooks,modules,pages,styles,utils,makeHistoryData,scripts,types}/**/*.{js,jsx,ts,tsx,mts}\" \"*.{ts,mts,mjs}\"",
+    "format": "prettier --write \"*/**/*.{js,jsx,ts,tsx,mts}\" \"!public/**\" \"!node_modules/**\" \"!.next/**\" \"!.vercel/**\" \"!.vscode/**\"",
     "prepare": "husky",
     "test": "pnpm run test:e2e",
-    "test:e2e": "node scripts/smoke.js"
+    "test:e2e": "node scripts/smoke.mts"
   },
   "repository": "git+https://github.com/mimio/clif2.git",
   "keywords": [],
@@ -36,14 +37,11 @@
     "@use-gesture/react": "^10.3.1",
     "d3": "^7.9.0",
     "facepaint": "^1.2.1",
-    "glslify": "^7.0.0",
     "hex-to-rgba": "^2.0.1",
     "is-touch-device": "^1.0.1",
-    "lodash.get": "^4.4.2",
     "mapbox-gl": "^3.30.0",
     "next": "^16.3.5",
     "normalize.css": "^8.0.1",
-    "prop-types": "^15.6.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-redux": "^9.3.0",
@@ -59,6 +57,15 @@
     "@svgr/webpack": "^8.1.0",
     "@turf/bbox": "^7.4.0",
     "@turf/helpers": "^7.4.0",
+    "@types/d3": "^7.4.3",
+    "@types/facepaint": "^1.2.5",
+    "@types/geojson": "^7946.0.16",
+    "@types/node": "^22.20.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "@types/topojson-client": "^3.1.5",
+    "@types/topojson-specification": "^1.0.5",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.5",
     "eslint-config-prettier": "^10.1.8",
@@ -74,7 +81,7 @@
     "typescript": "^6.0.3"
   },
   "lint-staged": {
-    "*.{js,jsx}": [
+    "*.{js,jsx,ts,tsx,mts}": [
       "eslint --fix",
       "prettier --write"
     ]
