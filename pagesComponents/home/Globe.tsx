@@ -6,8 +6,25 @@ import {
   timer,
   type Timer,
 } from 'd3';
+import { feature } from 'topojson-client';
+import type {
+  Topology,
+  MultiPolygon as TopoMultiPolygon,
+} from 'topojson-specification';
 import type { Feature, MultiPolygon } from 'geojson';
 import styled from '@emotion/styled';
+
+type Land = Feature<MultiPolygon>;
+
+// The Natural Earth 110m land topology is about 200 KB, so it is not part of
+// the page's props. It loads after mount as its own content-hashed chunk,
+// which the browser caches across visits, and the land object is a single
+// MultiPolygon so feature() yields one Feature.
+const loadLand = async (): Promise<Land> => {
+  const { default: json } = await import('./ne110m_land.json');
+  const topology = json as unknown as Topology;
+  return feature(topology, topology.objects.land as TopoMultiPolygon);
+};
 
 const normalizeCursorLocation = ([x, y]: [number, number]): [
   number,
@@ -30,15 +47,11 @@ const Canvas = styled.canvas`
   fill: transparent;
 `;
 
-type GlobeProps = {
-  countries: Feature<MultiPolygon>;
-};
-
 type GlobeState = {
   size: number;
 };
 
-export default class Globe extends Component<GlobeProps, GlobeState> {
+export default class Globe extends Component<object, GlobeState> {
   coords: [number, number] = [0, 0];
 
   rotationX = 0;
@@ -51,17 +64,38 @@ export default class Globe extends Component<GlobeProps, GlobeState> {
 
   timer: Timer | null = null;
 
+  unmounted = false;
+
   state: GlobeState = {
     size: 0,
   };
 
   componentDidMount() {
+    // Reset for a remount of the same instance (React StrictMode does one).
+    this.unmounted = false;
     window.addEventListener('mousemove', this.onMouseMove);
     window.addEventListener('touchmove', this.onTouchMove);
-    this.initGlobe();
+
+    const size =
+      Math.max(window.innerHeight, window.innerWidth) + 200;
+    this.setState({ size });
+    this.translateX = size / 2;
+    this.translateY = size / 2;
+    this.rotationX = size;
+
+    loadLand().then(
+      (land) => {
+        if (!this.unmounted) this.draw(land, size);
+      },
+      (error: unknown) => {
+        // The globe is a decorative background; leave it blank.
+        console.warn('Globe: land topology failed to load', error);
+      },
+    );
   }
 
   componentWillUnmount() {
+    this.unmounted = true;
     window.removeEventListener('touchmove', this.onTouchMove);
     window.removeEventListener('mousemove', this.onMouseMove);
     this.timer?.stop();
@@ -80,23 +114,14 @@ export default class Globe extends Component<GlobeProps, GlobeState> {
     this.coords = normalizeCursorLocation([clientX, clientY]);
   };
 
-  initGlobe() {
-    const { countries } = this.props;
-
-    const size =
-      Math.max(window.innerHeight, window.innerWidth) + 200;
-    this.setState({ size });
-    this.translateX = size / 2;
-    this.translateY = size / 2;
-    this.rotationX = size;
-
+  draw(land: Land, size: number) {
     const canvas = select<HTMLCanvasElement, unknown>(
       '#globe',
     ).node();
     const context = canvas?.getContext('2d');
     if (!context) return;
     const projection = geoOrthographic()
-      .fitSize([size, size], countries)
+      .fitSize([size, size], land)
       .rotate([this.rotationX, this.rotationY])
       .clipAngle(180)
       .translate([this.translateX, this.translateY]);
@@ -120,7 +145,7 @@ export default class Globe extends Component<GlobeProps, GlobeState> {
         .translate([this.translateX, this.translateY]);
       context.clearRect(0, 0, size, size);
       context.beginPath();
-      path(countries);
+      path(land);
       context.fillStyle = '#111';
       context.fill();
       context.lineWidth = 0.5;
