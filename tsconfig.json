@@ -12,8 +12,9 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
+    // No JavaScript sources remain, but Next writes allowJs back into this
+    // file whenever it is missing, so it stays.
     "allowJs": true,
-    "checkJs": true,
     "skipLibCheck": true,
     "incremental": true,
     "paths": {
@@ -25,12 +26,6 @@
       }
     ]
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    "**/*.mts",
-    "**/*.js"
-  ],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "**/*.mts"],
   "exclude": ["node_modules", ".next", ".smoke-output"]
 }

@@ -18,6 +18,7 @@ Redux, mapbox-gl, three.js and d3. Deployed on Vercel.
 
 ```sh
 pnpm install
+cp .env.example .env.local   # then add a public Mapbox token
 pnpm dev
 ```
 
@@ -45,8 +46,8 @@ rewrites the references. `pnpm images --dry-run` shows what would change.
 **Work history** lives in `makeHistoryData/features.ts`. Run `pnpm preprocess`
 after editing it; it writes the GeoJSON, layer definitions and map config the
 history page reads from `public/history/`, and that output is committed. The
-Mapbox token in `makeHistoryData/mapboxConfig.js` is a public token; restrict
-it to the site's domain in the Mapbox dashboard.
+map options live in `makeHistoryData/mapboxConfig.ts`; the access token does
+not (see Configuration).
 
 **Fonts** are self-hosted from `styles/fonts/` through `next/font/local`.
 
@@ -65,8 +66,18 @@ runs ESLint and Prettier on staged files.
 
 ## Configuration
 
-- `NEXT_PUBLIC_GA_MEASUREMENT_ID`: a Google Analytics 4 measurement id.
-  Analytics is a no-op when it is unset.
+Both variables are inlined at build time. Locally they go in `.env.local`
+(start from `.env.example`); on Vercel they live in the project's Environment
+Variables for Production, Preview and Development.
+
+- `NEXT_PUBLIC_MAPBOX_TOKEN`, required: a public Mapbox token (`pk.…`) for the
+  history map. `pnpm build` and `pnpm dev` refuse to start without it
+  (`scripts/check-env.mts`), rather than shipping a history page whose map
+  cannot load. Restrict the token to the site's domain in the Mapbox
+  dashboard. CI builds with a placeholder because the smoke test answers every
+  Mapbox request locally.
+- `NEXT_PUBLIC_GA_MEASUREMENT_ID`, optional: a Google Analytics 4 measurement
+  id. Analytics is a no-op when it is unset.
 
 ## Credits
 

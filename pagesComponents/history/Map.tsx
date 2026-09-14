@@ -92,6 +92,9 @@ class Map extends Component<MapProps> {
     this.map = setMap(
       new mapboxgl.Map({
         ...mapConfig,
+        // Inlined at build time; scripts/check-env.mts stops the build and
+        // the dev server when it is missing.
+        accessToken: process.env.NEXT_PUBLIC_MAPBOX_TOKEN,
         bounds: historyBounds,
         // mapbox-gl >= 2.7 resets pitch to 0 in fitBounds(), which the
         // `bounds` option runs on construction, unless a pitch is given.
