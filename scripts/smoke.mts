@@ -192,14 +192,16 @@ async function main(): Promise<void> {
   }
 
   await visit('/', async (page) => {
-    // Counts painted pixels in the middle of the globe canvas. The land
-    // topology loads after mount, so wait for the first painted frame.
-    const measureGlobe = () => {
+    // Counts painted pixels in the middle of the globe canvas, returning
+    // null while there are none so it doubles as the waitForFunction
+    // predicate: the land topology loads after mount, so the first painted
+    // frame comes some time after the load event.
+    const paintedGlobePixels = (): number | null => {
       const canvas = document.getElementById(
         'globe',
       ) as HTMLCanvasElement | null;
       const ctx = canvas?.getContext('2d');
-      if (!canvas || !ctx) return { found: false, painted: 0 };
+      if (!canvas || !ctx) return null;
       const { width, height } = canvas;
       const data = ctx.getImageData(
         width / 2 - 50,
@@ -210,17 +212,16 @@ async function main(): Promise<void> {
       let painted = 0;
       for (let i = 3; i < data.length; i += 4)
         if (data[i] > 0) painted += 1;
-      return { found: true, painted };
+      return painted > 0 ? painted : null;
     };
-    await page
-      .waitForFunction(measureGlobe, undefined, { timeout: 10000 })
-      .catch(() => null);
-    const globe = await page.evaluate(measureGlobe);
-    report(
-      '/ globe canvas painted',
-      globe.found && globe.painted > 0,
-      JSON.stringify(globe),
-    );
+    const painted =
+      (await page
+        .waitForFunction(paintedGlobePixels, undefined, {
+          timeout: 10000,
+        })
+        .then((handle) => handle.jsonValue())
+        .catch(() => null)) ?? 0;
+    report('/ globe canvas painted', painted > 0, `${painted} px`);
     const styles = await page.evaluate(
       () => document.querySelectorAll('style[data-emotion]').length,
     );

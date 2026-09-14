@@ -71,6 +71,8 @@ export default class Globe extends Component<object, GlobeState> {
   };
 
   componentDidMount() {
+    // Reset for a remount of the same instance (React StrictMode does one).
+    this.unmounted = false;
     window.addEventListener('mousemove', this.onMouseMove);
     window.addEventListener('touchmove', this.onTouchMove);
 
