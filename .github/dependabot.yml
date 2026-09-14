@@ -1,8 +1,9 @@
 # Dependabot: weekly dependency updates for the pnpm lockfile, grouped so a
-# normal week is one PR. Major bumps still arrive individually because they
-# usually need a look (see the tooling notes in #50 for the ones known to be
-# blocked: ESLint 10 and TypeScript 7). GitHub Actions used by the CI
-# workflow are checked monthly.
+# normal week is one PR (security updates are grouped separately, since one
+# group cannot cover both kinds). Major bumps still arrive individually
+# because they usually need a look, except the two known to be blocked (see
+# the tooling notes in #50). GitHub Actions used by the CI workflow are
+# checked monthly.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -17,9 +18,25 @@ updates:
         update-types:
           - minor
           - patch
+      security:
+        applies-to: security-updates
+        patterns:
+          - '*'
     ignore:
       # Must match the Node major pinned in package.json engines.
       - dependency-name: '@types/node'
+        update-types:
+          - version-update:semver-major
+      # Blocked until eslint-config-next ships an eslint-plugin-react that
+      # supports ESLint 10 (see #50). @eslint/js tracks the ESLint major.
+      - dependency-name: eslint
+        update-types:
+          - version-update:semver-major
+      - dependency-name: '@eslint/js'
+        update-types:
+          - version-update:semver-major
+      # Blocked until typescript-eslint supports TypeScript 7 (see #50).
+      - dependency-name: typescript
         update-types:
           - version-update:semver-major
 
