@@ -8,10 +8,10 @@ export const setMap = (mapboxMap: MapboxMap): MapboxMap => {
 };
 
 // Paired with map.remove() on unmount. remove() frees the heavy parts — the
-// style, the sources, the GL context — but leaves the map's own
-// back-references intact: its detached container, and the handlers registered
-// in Map.tsx, which chain back to the component. An uncleared handle would
-// strand one of those dead shells on globalThis per visit.
+// style, the sources, the GL context — but not the references the map itself
+// still holds: its detached container and the handlers registered in Map.tsx.
+// An uncleared handle leaves that dead map reachable from globalThis until
+// the next visit's setMap overwrites it.
 export const clearMap = (): void => {
   globalThis.map = undefined;
 };
