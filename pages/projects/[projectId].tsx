@@ -187,7 +187,7 @@ const Project = ({ projectId }: ProjectPageProps) => {
             </ProjectLink>
           )}
         </DetailsColTwo>
-        <GlitchImage ga="image" src={imgSrc} />
+        <GlitchImage ga="image" src={imgSrc} alt={title} />
         <Navigation ga="nav" j="space-between">
           <NavLink
             reverse

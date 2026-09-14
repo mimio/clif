@@ -1,8 +1,8 @@
 {
   "name": "clif",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "description": "Clifton Campbell's personal site: projects, work history and a globe",
   "engines": {
     "node": ">=22.18 <23"
   },
@@ -21,14 +21,13 @@
     "test": "pnpm run test:e2e",
     "test:e2e": "node scripts/smoke.mts"
   },
-  "repository": "git+https://github.com/mimio/clif2.git",
-  "keywords": [],
+  "repository": "git+https://github.com/mimio/clif.git",
   "author": "Clifton Campbell <clif@mimio.io>",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/mimio/clif2/issues"
+    "url": "https://github.com/mimio/clif/issues"
   },
-  "homepage": "https://github.com/mimio/clif2#readme",
+  "homepage": "https://github.com/mimio/clif#readme",
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",

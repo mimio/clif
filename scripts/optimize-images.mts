@@ -12,11 +12,12 @@
  *   160-200 CSS px wide): resized to at most SKINNY_MAX_WIDTH wide; alpha
  *   is kept.
  *
- * An image is only touched when it is wider than its target or larger than
- * MIN_BYTES, and a re-encode without a resize is only kept when it shrinks
- * the file by at least MIN_REDUCTION, so re-running is safe. The output
- * replaces the source file; PNG sources are removed and constants/projects.tsx
- * is updated to point at the .webp file.
+ * A PNG or JPEG source is always converted to WebP; an existing WebP is only
+ * re-encoded when it is wider than its target or larger than MIN_BYTES. A
+ * re-encode without a resize is only kept when it shrinks the file by at
+ * least MIN_REDUCTION, so re-running is safe. The output replaces the source
+ * file; PNG sources are removed and constants/projects.tsx is updated to
+ * point at the .webp file.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -57,8 +58,9 @@ async function optimize(
   const width = meta.width ?? 0;
   const height = meta.height ?? 0;
   const needsResize = width > maxWidth;
+  const isWebp = path.extname(file).toLowerCase() === '.webp';
 
-  if (!needsResize && before <= MIN_BYTES) {
+  if (!needsResize && isWebp && before <= MIN_BYTES) {
     console.log(`keep   ${file} (${width}x${height}, ${kb(before)})`);
     return { outFile: file, saved: 0 };
   }
