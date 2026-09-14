@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Page } from 'playwright';
+import { WORK_SOURCE } from '../constants/source.ts';
 
 const PORT = Number(process.env.PORT) || 3999;
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -54,15 +55,29 @@ const readJson = (relativePath: string): unknown =>
   );
 
 // The same generated data the app imports, so the interaction checks below can
-// say which feature they expect rather than just "a different one".
+// say which feature they expect rather than just "a different one". Typed
+// exactly as constants/history.ts types it: an id with no entry is undefined,
+// not a silently-trusted object.
 const featureIds = readJson(
   'public/history/featureIds.json',
 ) as number[];
 const featureLookup = readJson(
   'public/history/featureLookup.json',
-) as Record<string, { company: string; role: string }>;
+) as Partial<
+  Record<number, { company: string; role: string; outlier?: boolean }>
+>;
 
-const WORK_SOURCE = 'work-source';
+// The work layer carries an inline GeoJSON source, so Mapbox registers that
+// source under the layer's own id and one string names both. Spelled out
+// separately so a query by layer is not mistaken for a query by source.
+const WORK_LAYER = WORK_SOURCE;
+
+type FeatureStateWrites = { selected: number; hover: number };
+
+// The live map with the setFeatureState counter attached by the test.
+type CountedMap = NonNullable<typeof globalThis.map> & {
+  smokeWrites?: FeatureStateWrites;
+};
 const MAP_LAYER_IDS = readJson(
   'public/history/mapLayerIds.json',
 ) as string[];
@@ -87,7 +102,7 @@ type MapSnapshot = {
   popupText: string;
   prevDisabled: boolean | null;
   nextDisabled: boolean | null;
-  zoom: number;
+  camera: { zoom: number; pitch: number; lng: number; lat: number };
 };
 
 // Everything the history checks assert on: the Mapbox feature-state the
@@ -116,7 +131,12 @@ const snapshotMap = (page: Page): Promise<MapSnapshot> =>
           .trim(),
         prevDisabled: disabled(prevSelector),
         nextDisabled: disabled(nextSelector),
-        zoom: map?.getZoom() ?? 0,
+        camera: {
+          zoom: map?.getZoom() ?? 0,
+          pitch: map?.getPitch() ?? 0,
+          lng: map?.getCenter().lng ?? 0,
+          lat: map?.getCenter().lat ?? 0,
+        },
       };
     },
     {
@@ -145,7 +165,7 @@ const locateFeature = (page: Page, featureId: number) =>
       if (!hit?.closest('.mapboxgl-canvas-container')) return null;
       return { x, y };
     },
-    { id: featureId, layer: WORK_SOURCE },
+    { id: featureId, layer: WORK_LAYER },
   );
 
 const locateEmptySpot = (page: Page) =>
@@ -190,6 +210,39 @@ const waitForSelection = (page: Page, featureId: number | null) =>
     },
     { ids: featureIds, source: WORK_SOURCE, expected: featureId },
     { timeout: 20000 },
+  );
+
+// Wraps Mapbox's setFeatureState so the listener's bookkeeping can be counted,
+// not just its end state. Counted per flag, because moving the pointer onto a
+// feature or off it writes `hover` independently of any selection. moveFlag
+// writes `selected` once for a first selection (set the new id) and twice for
+// a step (unset the old, set the new), so a second writer — a thunk syncing
+// the map as well as the listener — shows up here and nowhere else: the end
+// state alone is identical either way, since setFeatureState is idempotent.
+const countFeatureStateWrites = (page: Page) =>
+  page.evaluate(() => {
+    const map = window.map as CountedMap | undefined;
+    if (!map || map.smokeWrites) return false;
+    const write = map.setFeatureState.bind(map);
+    const writes = { selected: 0, hover: 0 };
+    map.smokeWrites = writes;
+    map.setFeatureState = (target, state) => {
+      if ('selected' in state) writes.selected += 1;
+      if ('hover' in state) writes.hover += 1;
+      return write(target, state);
+    };
+    return true;
+  });
+
+const noWrites: FeatureStateWrites = { selected: -1, hover: -1 };
+
+const readFeatureStateWrites = (
+  page: Page,
+): Promise<FeatureStateWrites> =>
+  page.evaluate(
+    (none) =>
+      (window.map as CountedMap | undefined)?.smokeWrites ?? none,
+    noWrites,
   );
 
 const waitForHover = (page: Page, featureId: number | null) =>
@@ -515,6 +568,10 @@ async function main(): Promise<void> {
     // applied by a listener reacting to the resulting state change. Check the
     // observable results of each rather than the store itself.
     await settleMap(page);
+    report(
+      '/history feature-state writes instrumented',
+      await countFeatureStateWrites(page),
+    );
 
     const idle = await snapshotMap(page);
     report(
@@ -526,26 +583,48 @@ async function main(): Promise<void> {
       JSON.stringify(idle),
     );
 
-    // Walk from the second feature: the first is a chronological outlier far
-    // outside the starting extent, and the last one has no "next".
-    const startId: number | undefined = featureIds[1];
-    const nextId: number | undefined = featureIds[2];
-    const startPoint =
-      startId === undefined
-        ? null
-        : await locateFeature(page, startId);
+    // Chosen from the generated data rather than hard-coded: the feature needs
+    // a previous and a next to step to, must not be the chronological outlier
+    // that sits far outside the starting extent, and must actually be on
+    // screen to click.
+    let startIndex = -1;
+    let startPoint: { x: number; y: number } | null = null;
+    for (let i = 1; i < featureIds.length - 1; i += 1) {
+      const candidate = featureIds[i];
+      if (
+        candidate === undefined ||
+        featureLookup[candidate]?.outlier
+      )
+        continue;
+      const point = await locateFeature(page, candidate);
+      if (point) {
+        startIndex = i;
+        startPoint = point;
+        break;
+      }
+    }
+    const startId =
+      startIndex === -1 ? undefined : featureIds[startIndex];
+    const nextId =
+      startIndex === -1 ? undefined : featureIds[startIndex + 1];
+    const start =
+      startId === undefined ? undefined : featureLookup[startId];
+    const next =
+      nextId === undefined ? undefined : featureLookup[nextId];
     const emptyPoint = await locateEmptySpot(page);
     report(
-      '/history found a feature and an empty spot to drive',
-      startId !== undefined &&
-        nextId !== undefined &&
-        Boolean(startPoint) &&
-        Boolean(emptyPoint),
+      '/history found a steppable on-screen feature and an empty spot',
+      Boolean(startPoint) &&
+        Boolean(emptyPoint) &&
+        start !== undefined &&
+        next !== undefined,
       JSON.stringify({ startId, nextId, startPoint, emptyPoint }),
     );
     if (
       startId === undefined ||
       nextId === undefined ||
+      start === undefined ||
+      next === undefined ||
       !startPoint ||
       !emptyPoint
     )
@@ -558,6 +637,7 @@ async function main(): Promise<void> {
     report(
       `/history hovering feature ${startId} highlights it`,
       hoverApplied,
+      JSON.stringify(await snapshotMap(page)),
     );
 
     await page.mouse.move(emptyPoint.x, emptyPoint.y);
@@ -567,49 +647,85 @@ async function main(): Promise<void> {
     report(
       '/history moving off the feature clears the highlight',
       hoverCleared,
+      JSON.stringify(await snapshotMap(page)),
     );
 
+    // Reported per step rather than thrown, so one failure names the step it
+    // happened in and the steps after it still run.
+    const selects = async (featureId: number, label: string) => {
+      const ok = await waitForSelection(page, featureId)
+        .then(() => true)
+        .catch(() => false);
+      await settleMap(page);
+      const snapshot = await snapshotMap(page);
+      report(label, ok, JSON.stringify(snapshot));
+      return { ok, snapshot };
+    };
+
+    let writesBefore = await readFeatureStateWrites(page);
     await page.mouse.click(startPoint.x, startPoint.y);
-    await waitForSelection(page, startId);
-    await settleMap(page);
-    const selected = await snapshotMap(page);
-    report(
-      `/history clicking feature ${startId} selects it and opens the popup`,
-      selected.selected.length === 1 &&
-        selected.selected[0] === startId &&
-        selected.popups === 1 &&
-        selected.popupText.includes(featureLookup[startId].company) &&
-        selected.popupText.includes(featureLookup[startId].role) &&
-        selected.prevDisabled === false &&
-        selected.nextDisabled === false,
-      JSON.stringify(selected),
+    const selected = await selects(
+      startId,
+      `/history clicking feature ${startId} selects it`,
     );
+    const selectWrites =
+      (await readFeatureStateWrites(page)).selected -
+      writesBefore.selected;
+    if (selected.ok) {
+      report(
+        `/history feature ${startId} popup renders its role and company`,
+        selected.snapshot.popups === 1 &&
+          selected.snapshot.popupText.includes(start.company) &&
+          // Not discriminating on its own — two features share a role — but it
+          // proves the whole popup body rendered, not just its heading.
+          selected.snapshot.popupText.includes(start.role) &&
+          selected.snapshot.prevDisabled === false &&
+          selected.snapshot.nextDisabled === false,
+        JSON.stringify(selected.snapshot),
+      );
+      report(
+        '/history selecting writes the selected flag exactly once',
+        selectWrites === 1,
+        `${selectWrites} write(s)`,
+      );
+    }
 
+    writesBefore = await readFeatureStateWrites(page);
     await page.click(NEXT_CONTROL);
-    await waitForSelection(page, nextId);
-    await settleMap(page);
-    const advanced = await snapshotMap(page);
-    report(
+    const advanced = await selects(
+      nextId,
       `/history next control moves the selection to feature ${nextId}`,
-      advanced.selected.length === 1 &&
-        advanced.selected[0] === nextId &&
-        advanced.popups === 1 &&
-        advanced.popupText.includes(featureLookup[nextId].company),
-      JSON.stringify(advanced),
     );
+    const stepWrites =
+      (await readFeatureStateWrites(page)).selected -
+      writesBefore.selected;
+    if (advanced.ok) {
+      report(
+        `/history feature ${nextId} popup replaces the previous one`,
+        advanced.snapshot.popups === 1 &&
+          advanced.snapshot.popupText.includes(next.company),
+        JSON.stringify(advanced.snapshot),
+      );
+      report(
+        '/history stepping writes the selected flag exactly twice',
+        stepWrites === 2,
+        `${stepWrites} write(s)`,
+      );
+    }
 
     await page.click(PREV_CONTROL);
-    await waitForSelection(page, startId);
-    await settleMap(page);
-    const stepped = await snapshotMap(page);
-    report(
+    const stepped = await selects(
+      startId,
       `/history prev control moves the selection back to feature ${startId}`,
-      stepped.selected.length === 1 &&
-        stepped.selected[0] === startId &&
-        stepped.popups === 1 &&
-        stepped.popupText.includes(featureLookup[startId].company),
-      JSON.stringify(stepped),
     );
+    if (stepped.ok) {
+      report(
+        `/history feature ${startId} popup returns with it`,
+        stepped.snapshot.popups === 1 &&
+          stepped.snapshot.popupText.includes(start.company),
+        JSON.stringify(stepped.snapshot),
+      );
+    }
 
     const blankPoint = await locateEmptySpot(page);
     report(
@@ -619,39 +735,60 @@ async function main(): Promise<void> {
     if (!blankPoint) return;
 
     await page.mouse.click(blankPoint.x, blankPoint.y);
-    await waitForSelection(page, null);
+    const clearedOk = await waitForSelection(page, null)
+      .then(() => true)
+      .catch(() => false);
+    await settleMap(page);
     const cleared = await snapshotMap(page);
     report(
       '/history clicking empty map clears the selection and closes the popup',
-      cleared.selected.length === 0 &&
+      clearedOk &&
+        cleared.selected.length === 0 &&
         cleared.popups === 0 &&
         cleared.prevDisabled === true &&
         cleared.nextDisabled === true,
       JSON.stringify(cleared),
     );
 
-    // fitBounds() is the one thunk the steps above never reach.
+    // fitBounds() is the one thunk the steps above never reach. The map was
+    // constructed with the same bounds and the same padding the thunk passes,
+    // so resetting must land the camera exactly where it started — an
+    // assertion that catches a dropped pitch (fitBounds flattens to 0 without
+    // it), the wrong padding branch, or the wrong bounds, none of which a bare
+    // "it zoomed out" check would notice.
     await page.click(RESET_CONTROL);
-    const settled = await page
+    const restored = await page
       .waitForFunction(
-        (before) => {
+        (start) => {
           const { map } = window;
           if (!map || map.isMoving()) return false;
-          const zoom = map.getZoom();
-          return zoom < before ? { zoom } : false;
+          const { lng, lat } = map.getCenter();
+          const camera = {
+            zoom: map.getZoom(),
+            pitch: map.getPitch(),
+            lng,
+            lat,
+          };
+          const close = (a: number, b: number) =>
+            Math.abs(a - b) < 1e-6;
+          return close(camera.zoom, start.zoom) &&
+            close(camera.pitch, start.pitch) &&
+            close(camera.lng, start.lng) &&
+            close(camera.lat, start.lat)
+            ? camera
+            : false;
         },
-        cleared.zoom,
+        idle.camera,
         { timeout: 20000 },
       )
       .then((handle) => handle.jsonValue())
       .catch(() => false as const);
-    const zoomedOut = settled === false ? null : settled.zoom;
     report(
-      '/history reset control returns to the full extent',
-      zoomedOut !== null,
-      `zoom ${cleared.zoom.toFixed(2)} -> ${
-        zoomedOut === null ? 'unchanged' : zoomedOut.toFixed(2)
-      }`,
+      '/history reset control restores the starting camera',
+      restored !== false,
+      `from ${JSON.stringify(cleared.camera)} to ${
+        restored === false ? 'unrestored' : JSON.stringify(restored)
+      }, expected ${JSON.stringify(idle.camera)}`,
     );
   });
 

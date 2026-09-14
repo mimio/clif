@@ -8,9 +8,9 @@ import {
   type Device,
 } from 'constants/devices';
 
-export type ScreenSize = { x: number; y: number };
+type ScreenSize = { x: number; y: number };
 
-export type AppState = {
+type AppState = {
   screenSize: ScreenSize | null;
 };
 

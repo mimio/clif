@@ -111,6 +111,8 @@ export const selectFeature =
     const feature = featureLookup[id];
     if (!feature) return;
 
+    // Before the dispatch, as it was before the rewrite: the camera is already
+    // in motion by the time anything observes the new selection.
     map.flyTo({
       center: feature.coordinates,
       offset: [0, isMobile ? -60 : 180],

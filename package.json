@@ -19,7 +19,7 @@
     "format": "prettier --write \"*/**/*.{js,jsx,ts,tsx,mts}\" \"!public/**\" \"!node_modules/**\" \"!.next/**\" \"!.vercel/**\" \"!.vscode/**\"",
     "prepare": "husky",
     "test": "pnpm run test:e2e",
-    "test:e2e": "node scripts/smoke.mts"
+    "test:e2e": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/smoke.mts"
   },
   "repository": "git+https://github.com/mimio/clif.git",
   "author": "Clifton Campbell <clif@mimio.io>",

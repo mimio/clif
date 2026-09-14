@@ -5,7 +5,7 @@ import {
   featureLookup,
 } from 'constants/history';
 
-export type MapState = {
+type MapState = {
   selectedFeatureId: number | null;
   hoveredFeatureId: number | null;
   mapLoaded: boolean;

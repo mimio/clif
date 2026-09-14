@@ -1,5 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
-import type { Action, ThunkAction } from '@reduxjs/toolkit';
+import type { ThunkAction } from '@reduxjs/toolkit';
 
 import { appSlice } from './app/appSlice';
 import { mapSlice } from './map/mapSlice';
@@ -7,12 +7,28 @@ import setupMapListeners from './map/mapListeners';
 import { thunkExtra, type ThunkExtra } from './extraArgument';
 import { listenerMiddleware } from './listenerMiddleware';
 
-// Listeners are attached to the shared middleware instance once, not per
-// store, so that a second makeStore() call does not register them twice.
+// Listeners live on the shared middleware instance, not on a store, so they are
+// registered once here. Clearing first keeps that true even if this module is
+// re-evaluated (a Fast Refresh): RTK matches existing entries by function
+// identity, and the closures below are new every time.
+listenerMiddleware.clearListeners();
 setupMapListeners();
 
-// The store is built per caller rather than exported as a module singleton, so
-// a server render can never hand one request's state to the next.
+// Every action the slices can produce. Thunks are typed against this union
+// rather than a bare Action, so a thunk cannot dispatch something the store
+// does not model — the same guarantee the pre-Toolkit store gave.
+type RootAction =
+  | ReturnType<
+      (typeof appSlice.actions)[keyof typeof appSlice.actions]
+    >
+  | ReturnType<
+      (typeof mapSlice.actions)[keyof typeof mapSlice.actions]
+    >;
+
+// The store is built per caller rather than exported as a module singleton.
+// Nothing dispatches during a server render today, so no state actually leaks;
+// this just removes the shared mutable module global that would make it
+// possible.
 // https://redux.js.org/usage/nextjs
 export const makeStore = () =>
   configureStore({
@@ -28,11 +44,12 @@ export const makeStore = () =>
         // rather than importing it.
         thunk: { extraArgument: thunkExtra },
       })
-        // Ahead of the serializability check, which would otherwise reject the
-        // functions carried by the listener middleware's own actions.
+        // First in the chain, so the state the listener compares against is
+        // the one from before the reducers ran.
         .prepend(listenerMiddleware.middleware),
-    // configureStore wires up the Redux DevTools Extension itself, outside
-    // production, so there is no compose() dance to hand-roll.
+    // configureStore defaults this to true in every environment, where the
+    // store it replaced composed the devtools enhancer only in development.
+    devTools: process.env.NODE_ENV === 'development',
   });
 
 export type AppStore = ReturnType<typeof makeStore>;
@@ -44,5 +61,5 @@ export type AppThunk<ThunkReturnType = void> = ThunkAction<
   ThunkReturnType,
   RootState,
   ThunkExtra,
-  Action<string>
+  RootAction
 >;
