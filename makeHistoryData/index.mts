@@ -21,7 +21,7 @@ import {
   makeHoverCase,
   makeSelectedCase,
 } from '../utils/geojson.ts';
-import colors from '../styles/theme/colors.ts';
+import { palette } from '../styles/palette.ts';
 
 const featureLookup = features.reduce<Record<number, HistoryFeature>>(
   (acc, ft) => ({ ...acc, [ft.id]: ft }),
@@ -69,7 +69,7 @@ const mapLayers: MapLayer[] = [
       data: pathGeojson,
     },
     paint: {
-      'line-color': colors.text2,
+      'line-color': palette.accent,
       'line-opacity': 0.5,
       'line-width': 1,
     },
@@ -82,13 +82,13 @@ const mapLayers: MapLayer[] = [
       data: geojson,
     },
     paint: {
-      'circle-color': colors.ctaBackground1,
+      'circle-color': palette.accent,
       'circle-radius': makeSelectedCase(8, 6),
       'circle-stroke-width': makeSelectedCase(
         10,
         makeHoverCase(8, 5),
       ),
-      'circle-stroke-color': colors.ctaBackground1,
+      'circle-stroke-color': palette.accent,
       'circle-stroke-opacity': makeHoverCase(0.3, 0.2),
     },
   },
@@ -100,7 +100,7 @@ const mapLayers: MapLayer[] = [
       data: geojson,
     },
     paint: {
-      'text-color': colors.text2,
+      'text-color': palette.accent,
     },
     layout: {
       'text-field': '{company}',

@@ -1,130 +1,29 @@
 import type { ReactNode } from 'react';
 import type { GetStaticPaths, GetStaticProps } from 'next';
-import styled from '@emotion/styled';
 import NextLink from 'next/link';
 import projects, { projectsList } from 'constants/projects';
 import CaretDownIcon from 'public/icons/caret-down.svg';
 import EyeIcon from 'public/icons/eye.svg';
 import UserIcon from 'public/icons/user.svg';
 import { PROJECTS, PROJECTS_PATH } from 'constants/pages';
-import { getStyle } from 'styles/utils';
-import { mobile, tablet } from 'styles/breakpoints';
-import { column, type LayoutProps } from 'styles/layout';
+import { cn } from 'utils/cn';
 import NavLink from 'pagesComponents/projects/NavLink';
 import { Body, Detail2, Detail3, Heading2 } from 'components/text';
 import GlitchImage from 'components/GlitchImage';
-import { Column, Row } from 'components/layout';
 import Button from 'components/Button';
 import Page from 'components/Page';
 
-const StyledUserIcon = styled(UserIcon)`
-  color: ${getStyle('border1')};
-  margin-left: 12px;
-  width: 12px;
-`;
-
-const DetailsColOne = styled(Column)`
-  grid-area: details1;
-  align-self: start;
-  align-items: flex-start;
-`;
-
-const DetailsColTwo = styled(Column)`
-  grid-area: details2;
-  align-self: start;
-  align-items: flex-start;
-`;
-
-const ProjectLink = styled(Button)`
-  grid-area: link;
-  ${mobile(`
-    max-width: 120px;
-  `)};
-`;
-
-const Subcontainer = styled.div`
-  display: grid;
-  grid-template-areas: 'heading2 heading2 icon' 'details1 details1 details2' 'image image image' 'nav nav nav' 'back back back';
-  grid-template-rows: min-content;
-  grid-template-columns: min-content auto max-content;
-  grid-row-gap: 56px;
-  grid-column-gap: 56px;
-  align-items: end;
-  > svg {
-    justify-self: start;
-    align-self: end;
-    height: 40px;
-    color: ${getStyle('text1e')};
-  }
-  ${tablet(`
-    padding-top: 24px;
-  `)}
-  ${mobile(`
-    grid-template-columns: auto min-content;
-    grid-template-areas: 'heading2 icon' 'details1 details1' 'details2 details2' 'image image' 'nav nav' 'back back';
-    grid-row-gap: 32px;
-  `)}
-`;
-
-const Navigation = styled(Row)`
-  margin-top: 48px;
-  ${mobile(`
-    height: 24px;
-  `)};
-`;
-
-const BackNavLink = styled(NextLink)<LayoutProps>`
-  ${column};
-  border-top: ${getStyle('ctaBorder3')};
-  grid-area: back;
-  padding: 0 28px;
-  height: 84px;
-  justify-content: center;
-  border-radius: 8px;
-  transition: ${getStyle('linearHue')};
-  ${Detail3} {
-    font-size: 12px;
-    margin-bottom: 4px;
-  }
-  svg {
-    width: 8px;
-    color: ${getStyle('text1d')};
-    transition: ${getStyle('easeOutSize')};
-  }
-  &:hover {
-    background: #1b1b1b;
-    ${Detail3} {
-      color: ${getStyle('text1b')};
-    }
-    svg {
-      color: ${getStyle('text1c')};
-      transform: translateY(4px);
-    }
-  }
-  &:active {
-    background: #202020;
-    ${Detail3} {
-      color: ${getStyle('text1b')};
-    }
-    svg {
-      transform: translateY(8px);
-    }
-  }
-  ${mobile(`
-    height: 64px;
-  `)};
-`;
-
-type PairingProps = LayoutProps & {
+type PairingProps = {
   children: ReactNode;
+  className?: string;
   title: string;
 };
 
-const Pairing = ({ children, title, ...props }: PairingProps) => (
-  <Column a="flex-start" {...props} sp={2}>
+const Pairing = ({ children, className, title }: PairingProps) => (
+  <div className={cn('flex flex-col items-start gap-2', className)}>
     <Detail3>{title}</Detail3>
     {children}
-  </Column>
+  </div>
 );
 
 type ProjectPageProps = {
@@ -150,24 +49,24 @@ const Project = ({ projectId }: ProjectPageProps) => {
   } = projects[projectId];
   return (
     <Page title={id} key={id}>
-      <Subcontainer>
-        <Heading2>{title}</Heading2>
-        <Icon />
+      <div className="grid grid-cols-[min-content_auto_max-content] grid-rows-[min-content] items-end gap-14 [grid-template-areas:'heading2_heading2_icon'_'details1_details1_details2'_'image_image_image'_'nav_nav_nav'_'back_back_back'] max-desktop:pt-6 max-tablet:grid-cols-[auto_min-content] max-tablet:gap-y-8 max-tablet:[grid-template-areas:'heading2_icon'_'details1_details1'_'details2_details2'_'image_image'_'nav_nav'_'back_back']">
+        <Heading2 className="[grid-area:heading2]">{title}</Heading2>
+        <Icon className="h-10 self-end justify-self-start text-surface-3 [grid-area:icon]" />
 
-        <DetailsColOne sp={8}>
-          <Pairing stretch title="DESCRIPTION">
+        <div className="flex flex-col items-start gap-8 self-start [grid-area:details1]">
+          <Pairing className="self-stretch" title="DESCRIPTION">
             <Body>{subtitle}</Body>
           </Pairing>
           {usersApproximate && (
             <Pairing title="USER COUNT">
               <Detail2>
                 {usersApproximate}
-                <StyledUserIcon />
+                <UserIcon className="ml-3 inline w-3 text-accent" />
               </Detail2>
             </Pairing>
           )}
-        </DetailsColOne>
-        <DetailsColTwo sp={8}>
+        </div>
+        <div className="flex flex-col items-start gap-8 self-start [grid-area:details2]">
           <Pairing title="YEAR">
             <Detail2>{year}</Detail2>
           </Pairing>
@@ -178,17 +77,18 @@ const Project = ({ projectId }: ProjectPageProps) => {
             <Detail2>{roles.join(', ')}</Detail2>
           </Pairing>
           {!appDeactivated && (
-            <ProjectLink
+            <Button
+              className="[grid-area:link] max-tablet:max-w-[120px]"
               ariaLabel="View Project"
               href={href}
               Icon={EyeIcon}
             >
               View
-            </ProjectLink>
+            </Button>
           )}
-        </DetailsColTwo>
+        </div>
         <GlitchImage ga="image" src={imgSrc} alt={title} />
-        <Navigation ga="nav" j="space-between">
+        <div className="mt-12 flex items-center justify-between [grid-area:nav] max-tablet:h-6">
           <NavLink
             reverse
             title={prevId}
@@ -200,12 +100,17 @@ const Project = ({ projectId }: ProjectPageProps) => {
             as={`/${PROJECTS}/${nextId}`}
             href={`/${PROJECTS}/[projectId]`}
           />
-        </Navigation>
-        <BackNavLink href={`/${PROJECTS}`}>
-          <Detail3>BACK TO ALL PROJECTS</Detail3>
+        </div>
+        <NextLink
+          href={`/${PROJECTS}`}
+          className="group flex h-21 flex-col items-center justify-center rounded-lg border-t border-surface-3 px-7 [grid-area:back] transition-hue hover:bg-[#1b1b1b] active:bg-surface-2 max-tablet:h-16 [&_svg]:w-2 [&_svg]:text-fg-5 [&_svg]:transition-size [&:active_svg]:translate-y-2 [&:hover_svg]:translate-y-1 [&:hover_svg]:text-fg-4"
+        >
+          <Detail3 className="mb-1 text-[12px] group-hover:text-fg-2 group-active:text-fg-2">
+            BACK TO ALL PROJECTS
+          </Detail3>
           <CaretDownIcon />
-        </BackNavLink>
-      </Subcontainer>
+        </NextLink>
+      </div>
     </Page>
   );
 };

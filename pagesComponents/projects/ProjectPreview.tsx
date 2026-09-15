@@ -1,100 +1,9 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import styled from '@emotion/styled';
 import type { Project } from 'constants/projects';
 import UserIcon from 'public/icons/user.svg';
 import { PROJECTS } from 'constants/pages';
 import { Detail2, Body, Detail3 } from 'components/text';
-import { column, type LayoutProps } from 'styles/layout';
-import { getStyle } from 'styles/utils';
-import { mq } from 'styles/breakpoints';
-
-const StyledImage = styled.div`
-  position: relative;
-  flex-grow: 1;
-  overflow: hidden;
-  opacity: 0.8;
-  border-radius: 0 0 20px 20px;
-  img {
-    object-fit: cover;
-    object-position: center;
-    pointer-events: none;
-  }
-`;
-
-const Details = styled.div`
-  height: 160px;
-  ${Body} {
-    font-weight: 300;
-  }
-  > svg {
-    grid-area: icon;
-    height: 18px;
-    color: ${getStyle('text1d')};
-    fill: ${getStyle('text1d')};
-    justify-self: end;
-  }
-  display: grid;
-  grid-template-rows: min-content auto min-content;
-  align-items: center;
-  grid-template-areas: 'detail2 icon' 'body body' 'detail3 detail3';
-  padding: 16px;
-  > * {
-    transition: ${getStyle('linearHue')};
-  }
-`;
-
-const UserRow = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: ${getStyle('border1')};
-  padding: 6px 16px;
-  ${Detail3} {
-    color: ${getStyle('text3')};
-    font-weight: 700;
-  }
-`;
-
-const StyledUserIcon = styled(UserIcon)`
-  color: black;
-  width: 12px;
-`;
-
-const StyledLink = styled(Link)<LayoutProps>`
-  ${column};
-  position: relative;
-  height: 100%;
-  border-radius: 20px;
-  transition: ${getStyle('linearHue')};
-  border: ${getStyle('contentBorder')};
-  overflow: hidden;
-  user-select: none;
-  user-drag: none;
-  ${mq({
-    width: ['200px', '180px', '160px'],
-  })};
-  * {
-    user-select: none;
-  }
-  > * {
-    width: 100%;
-    transition: ${getStyle('linearHue')};
-  }
-  &:hover {
-    border: ${getStyle('ctaBorder2')};
-    ${StyledImage} {
-      opacity: 1;
-    }
-    ${Body} {
-      color: ${getStyle('text2')};
-    }
-    svg {
-      color: #5d5d5d;
-      fill: #5d5d5d;
-    }
-  }
-`;
 
 type ProjectPreviewProps = Pick<
   Project,
@@ -111,23 +20,30 @@ const ProjectPreview = ({
   product,
   usersApproximate,
 }: ProjectPreviewProps) => (
-  <StyledLink
+  <Link
     as={`/${PROJECTS}/${id}`}
     href={`/${PROJECTS}/[projectId]`}
+    className="group relative flex h-full w-[200px] flex-col items-center overflow-hidden rounded-[20px] border border-surface-2 select-none [-webkit-user-drag:none] transition-hue *:w-full *:transition-hue **:select-none hover:border-accent/30 max-desktop:w-[180px] max-tablet:w-[160px]"
   >
-    <Details>
-      <Icon />
-      <Detail2>{index < 10 ? `0${index}` : index}</Detail2>
-      <Body>{id}</Body>
-      <Detail3>{product}</Detail3>
-    </Details>
+    <div className="grid h-40 grid-rows-[min-content_auto_min-content] items-center p-4 [grid-template-areas:'detail2_icon'_'body_body'_'detail3_detail3'] *:transition-hue">
+      <Icon className="h-[18px] justify-self-end fill-fg-5 text-fg-5 [grid-area:icon] group-hover:fill-[#5d5d5d] group-hover:text-[#5d5d5d]" />
+      <Detail2 className="[grid-area:detail2]">
+        {index < 10 ? `0${index}` : index}
+      </Detail2>
+      <Body className="font-light [grid-area:body] group-hover:text-accent">
+        {id}
+      </Body>
+      <Detail3 className="[grid-area:detail3]">{product}</Detail3>
+    </div>
     {usersApproximate && (
-      <UserRow>
-        <Detail3>{usersApproximate} users</Detail3>
-        <StyledUserIcon />
-      </UserRow>
+      <div className="flex items-center justify-between bg-accent px-4 py-[6px]">
+        <Detail3 className="font-bold text-on-accent">
+          {usersApproximate} users
+        </Detail3>
+        <UserIcon className="w-3 text-on-accent group-hover:fill-[#5d5d5d] group-hover:text-[#5d5d5d]" />
+      </div>
     )}
-    <StyledImage>
+    <div className="relative grow overflow-hidden rounded-b-[20px] opacity-80 group-hover:opacity-100 [&_img]:pointer-events-none [&_img]:object-cover [&_img]:object-center">
       <Image
         src={imgSrcSkinny}
         alt={`${id} preview`}
@@ -135,8 +51,8 @@ const ProjectPreview = ({
         sizes="200px"
         draggable={false}
       />
-    </StyledImage>
-  </StyledLink>
+    </div>
+  </Link>
 );
 
 export default ProjectPreview;

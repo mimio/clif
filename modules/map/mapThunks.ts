@@ -5,11 +5,11 @@ import type {
   Popup,
 } from 'mapbox-gl';
 import mapboxGl from 'mapbox-gl-ssr';
-import sizes from 'styles/theme/sizes';
 import {
   BOUNDS_PADDING,
   BOUNDS_PADDING_MOBILE,
   MAP_PITCH,
+  POPUP_MAX_WIDTH,
 } from 'constants/map';
 import { featureLookup, historyBounds } from 'constants/history';
 import { selectIsMobile } from 'modules/app/appSlice';
@@ -131,7 +131,7 @@ export const selectFeature =
       popup = new mapboxGl.Popup({
         closeButton: false,
         offset: 30,
-        maxWidth: sizes.popupWidth,
+        maxWidth: POPUP_MAX_WIDTH,
       })
         .once('close', () => dispatch(popupClosed()))
         .setLngLat(feature.coordinates)

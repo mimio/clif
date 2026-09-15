@@ -5,103 +5,37 @@ import type {
   SVGProps,
 } from 'react';
 import NextLink from 'next/link';
-import styled from '@emotion/styled';
-import { css } from '@emotion/react';
-import { getBool, getStyle } from 'styles/utils';
-import { size } from 'styles/size';
-import { detail2 } from 'styles/text';
-import { centered } from 'styles/layout';
+import { cn } from 'utils/cn';
+import { textClass } from './text';
 
 export type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
 type StyleProps = {
-  disabled?: boolean;
-  'data-vertical'?: boolean;
-  'data-has-children'?: boolean;
+  disabled: boolean;
+  hasChildren: boolean;
+  vertical: boolean;
 };
 
-// Shared by the link, external link and button variants below. A function of
-// props because the getBool() fragments depend on them. Buttons never receive
-// layout props, so the centered() defaults apply.
-//
-// The fragments are applied to `props` by hand rather than interpolated,
-// because a function nested inside a css`` call is serialised eagerly and
-// never handed props. That leaves getBool no contextual type to infer its
-// props from, so StyleProps is named explicitly at each call below.
-const buttonStyles = (props: StyleProps) => css`
-  ${centered({})};
-  border: ${getStyle('ctaBorder2')};
-  cursor: pointer;
-  background: transparent;
-  svg {
-    color: inherit;
-  }
-  ${getBool<StyleProps>(
-    'data-vertical',
-    `
-      writing-mode: vertical-lr;
-      width: ${size(8)};
-      padding: ${size(3)} 0;
-      svg {
-        transform: rotate(90deg);
-        margin-bottom: ${size(3)};
-      }
-    `,
-    `
-      height: ${size(8)};
-      padding: 0 ${size(3)};
-      svg {
-        margin-right: ${size(3)};
-      }
-    `,
-  )(props)};
-  border-radius: ${size(4)};
-  ${detail2};
-  svg {
-    width: ${size(4)};
-  }
-  ${getBool<StyleProps>(
-    'data-has-children',
-    '',
-    `
-    padding: 0;
-    width: ${size(8)};
-    svg {
-      height: 12px;
-      margin-right: 0;
-      margin-bottom: 0;
-    }
-  `,
-  )(props)}
-  &:hover,
-  &:active,
-  &:focus {
-    color: ${getStyle('text3')};
-    background: ${getStyle('ctaBackground1')};
-  }
-  &:active {
-    opacity: 0.7 !important;
-  }
-  ${getBool<StyleProps>(
-    'disabled',
-    `
-    opacity: 0.5;
-    pointer-events: none;
-  `,
-  )(props)}
-`;
-
-const StyledNextLink = styled(NextLink)<StyleProps>`
-  ${buttonStyles};
-`;
-
-const StyledLink = styled.a<StyleProps>`
-  ${buttonStyles};
-`;
-
-const StyledButton = styled.button<StyleProps>`
-  ${buttonStyles};
-`;
+// Shared by the link, external link and button variants below. Later
+// classes win in cn(), so the icon-only override follows the orientation
+// classes it narrows, and the caller's className comes last.
+const buttonClass = (
+  { disabled, hasChildren, vertical }: StyleProps,
+  className: string,
+): string =>
+  cn(
+    'flex cursor-pointer items-center justify-center rounded-2xl border border-accent/30 bg-transparent [&_svg]:w-4',
+    textClass.detail2,
+    // Physical pt/pb rather than py: py-* sets padding-block, which runs
+    // horizontally once the writing mode is vertical.
+    vertical
+      ? 'w-8 pt-3 pb-3 [writing-mode:vertical-lr] [&_svg]:mb-3 [&_svg]:rotate-90'
+      : 'h-8 px-3 [&_svg]:mr-3',
+    !hasChildren && 'w-8 p-0 [&_svg]:m-0 [&_svg]:h-3',
+    'hover:bg-accent hover:text-on-accent focus:bg-accent focus:text-on-accent active:bg-accent active:text-on-accent active:opacity-70!',
+    disabled && 'pointer-events-none opacity-50',
+    className,
+  );
 
 export type ButtonProps = {
   ariaLabel: string;
@@ -128,11 +62,11 @@ const Button = ({
   vertical = false,
 }: ButtonProps) => {
   const shared = {
-    className,
+    className: buttonClass(
+      { disabled, hasChildren: Boolean(children), vertical },
+      className,
+    ),
     onClick,
-    disabled,
-    'data-vertical': vertical,
-    'data-has-children': Boolean(children),
     'aria-label': ariaLabel,
   };
   const meat = (
@@ -143,27 +77,32 @@ const Button = ({
   );
   if (href && internal) {
     return (
-      <StyledNextLink href={href} {...shared}>
+      <NextLink
+        href={href}
+        aria-disabled={disabled || undefined}
+        {...shared}
+      >
         {meat}
-      </StyledNextLink>
+      </NextLink>
     );
   }
   if (href) {
     return (
-      <StyledLink
+      <a
         href={href}
         target="_blank"
         rel="noopener noreferrer"
+        aria-disabled={disabled || undefined}
         {...shared}
       >
         {meat}
-      </StyledLink>
+      </a>
     );
   }
   return (
-    <StyledButton type="button" {...shared}>
+    <button type="button" disabled={disabled} {...shared}>
       {meat}
-    </StyledButton>
+    </button>
   );
 };
 

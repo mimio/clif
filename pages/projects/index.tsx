@@ -1,34 +1,17 @@
-import styled from '@emotion/styled';
 import Filmstrip from 'components/Filmstrip';
 import Page from 'components/Page';
 import { projectsList } from 'constants/projects';
-import { mobile } from 'styles/breakpoints';
-import {
-  foregroundContentTopPadding,
-  foregroundContentBottomPadding,
-} from 'styles/layout';
 import ProjectPreview from 'pagesComponents/projects/ProjectPreview';
-
-const StyledFilmstrip = styled(Filmstrip)`
-  height: 100%;
-  width: 100%;
-  max-height: 760px;
-  ${foregroundContentTopPadding};
-  ${foregroundContentBottomPadding};
-  ${mobile(`
-    height: 86%;
-  `)};
-`;
 
 const Projects = () => (
   <Page
     title="projects"
     Background={
-      <StyledFilmstrip>
+      <Filmstrip className="h-full max-h-[760px] w-full pt-52 pb-20 max-desktop:pt-44 max-tablet:h-[86%] max-tablet:pt-24 max-tablet:pb-10">
         {projectsList.map((project, i) => (
           <ProjectPreview {...project} key={project.id} index={i} />
         ))}
-      </StyledFilmstrip>
+      </Filmstrip>
     }
   />
 );

@@ -2,123 +2,14 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
+  type MouseEvent,
   type ReactElement,
 } from 'react';
-import styled from '@emotion/styled';
 import { animated, useSpring } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 import isTouchDevice from 'is-touch-device';
-import { getBool, getStyle } from 'styles/utils';
-import { mobile, tablet, mq } from 'styles/breakpoints';
-import { Row } from './layout';
-
-// animated.div is a component, so Emotion forwards every prop to it; keep
-// the styling flag off the DOM.
-const Container = styled(animated.div, {
-  shouldForwardProp: (prop) => prop !== 'isTouch',
-})<{ isTouch: boolean }>`
-  position: relative;
-  width: 100%;
-  overflow-y: visible;
-  overflow-x: ${({ isTouch }) => (isTouch ? 'auto' : 'hidden')};
-  -webkit-overflow-scrolling: touch;
-  ::-webkit-scrollbar {
-    height: 0;
-    width: 0;
-  }
-
-  ::-webkit-scrollbar-track,
-  ::-webkit-scrollbar-thumb {
-    border: 0px solid rgba(255, 255, 255, 0);
-    border-radius: 0px;
-  }
-`;
-
-const Child = styled.div<{ index: number }>`
-  height: 100%;
-  > * {
-    @keyframes slidein {
-      from {
-        opacity: 0;
-        transform: translateY(-16px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    animation: 0.3s ease-in forwards slidein;
-    ${({ index }) => `
-      animation-delay: ${index * 80}ms;
-    `};
-    opacity: 0;
-  }
-`;
-
-const Inner = styled(Row)<{ isDragging: boolean }>`
-  height: 100%;
-  width: min-content;
-  cursor: ew-resize;
-  ${Child} {
-    pointer-events: ${({ isDragging }) =>
-      isDragging ? 'none' : 'auto'};
-    transition: transform ease-in-out 0.24s !important;
-    ${getBool(
-      'isDragging',
-      `
-        transform: scale(0.96);
-      `,
-      `
-        &:hover {
-          transform: scale(1.02);
-        }
-        &:active {
-          transform: scale(1.01);
-        }
-      `,
-    )};
-  }
-  > *:nth-child(odd) {
-    margin-bottom: 24px;
-  }
-  > *:nth-child(even) {
-    margin-top: 24px;
-  }
-  > *:last-child {
-    ${mq({
-      marginRight: [
-        getStyle('foregroundContentRightPadding'),
-        getStyle('foregroundContentRightPaddingTablet'),
-        getStyle('foregroundContentRightPaddingMobile'),
-      ],
-    })};
-  }
-  > *:first-child {
-    margin-left: ${getStyle('foregroundLeftPadding')};
-  }
-  > * {
-    margin-left: 48px;
-  }
-  ${tablet(`
-    > *:first-child {
-      margin-left: ${getStyle('foregroundLeftPaddingTablet')};
-    }
-    > * {
-      margin-left: 24px;
-    }
-    > *:nth-child(odd) {
-      margin-bottom: 12px;
-    }
-    > *:nth-child(even) {
-      margin-top: 12px;
-    }
-  `)};
-  ${mobile(`
-      > * {
-    margin-left: 12px;
-  }
-  `)};
-`;
+import { cn } from 'utils/cn';
 
 // Touch capability is read from the browser on the client and re-checked on
 // resize; the server snapshot is `false` so hydration matches the SSR markup.
@@ -128,6 +19,10 @@ const subscribeToResize = (onChange: () => void) => {
 };
 const getIsTouch = () => isTouchDevice();
 const getServerIsTouch = () => false;
+
+// Horizontal movement, in px, beyond which a gesture counts as a drag
+// rather than a click on the card under the pointer.
+const DRAG_DISTANCE = 4;
 
 type FilmstripProps = {
   className?: string;
@@ -156,13 +51,28 @@ export default function Filmstrip({
     scroll: 0,
   }));
 
+  // A pointer that has dragged the strip must not also click the card it
+  // is released over: the cards keep -webkit-user-drag: none so no native
+  // link drag starts, which leaves the browser free to fire that click.
+  const dragged = useRef(false);
+  const suppressClickAfterDrag = (
+    event: MouseEvent<HTMLDivElement>,
+  ) => {
+    if (!dragged.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
   const bindDrag = useDrag((drag) => {
     if (isTouch) return;
     const {
+      first,
       movement: [mx],
       velocity: [vx],
       dragging,
     } = drag;
+    if (first) dragged.current = false;
+    if (Math.abs(mx) >= DRAG_DISTANCE) dragged.current = true;
 
     const min = 0;
     const max = getRange();
@@ -180,20 +90,36 @@ export default function Filmstrip({
   });
 
   return (
-    <Container
-      className={className}
-      isTouch={isTouch}
+    <animated.div
+      className={cn(
+        'relative scrollbar-hidden w-full overflow-y-visible',
+        isTouch ? 'overflow-x-auto' : 'overflow-x-hidden',
+        className,
+      )}
       ref={outerRef}
       scrollLeft={scroll}
+      onClickCapture={suppressClickAfterDrag}
       {...bindDrag()}
     >
-      <Inner isDragging={isDragging}>
+      <div
+        className={cn(
+          'flex h-full w-min cursor-ew-resize items-center *:ml-12 *:transition-transform *:duration-[240ms] *:ease-in-out max-desktop:*:ml-6 max-tablet:*:ml-3 [&>*:first-child]:ml-28 max-desktop:[&>*:first-child]:ml-4 [&>*:last-child]:mr-30 max-desktop:[&>*:last-child]:mr-23 max-tablet:[&>*:last-child]:mr-13 [&>*:nth-child(even)]:mt-6 max-desktop:[&>*:nth-child(even)]:mt-3 [&>*:nth-child(odd)]:mb-6 max-desktop:[&>*:nth-child(odd)]:mb-3',
+          isDragging
+            ? '*:pointer-events-none *:scale-[0.96]'
+            : '*:pointer-events-auto [&>*:active]:scale-[1.01] [&>*:hover]:scale-[1.02]',
+        )}
+      >
         {children.map((child, i) => (
-          <Child key={child.props.id ?? i} index={i}>
+          // Each child slides in a beat after the one before it.
+          <div
+            key={child.props.id ?? i}
+            className="h-full [--slide-in-from:-16px] *:animate-slide-in-stagger *:opacity-0 *:[animation-delay:var(--stagger)]"
+            style={{ '--stagger': `${i * 80}ms` } as CSSProperties}
+          >
             {child}
-          </Child>
+          </div>
         ))}
-      </Inner>
-    </Container>
+      </div>
+    </animated.div>
   );
 }
