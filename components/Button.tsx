@@ -23,7 +23,12 @@ type StyleProps = {
 // Shared by the link, external link and button variants below. A function of
 // props because the getBool() fragments depend on them. Buttons never receive
 // layout props, so the centered() defaults apply.
-const buttonStyles = (props: object) => css`
+//
+// The fragments are applied to `props` by hand rather than interpolated,
+// because a function nested inside a css`` call is serialised eagerly and
+// never handed props. That leaves getBool no contextual type to infer its
+// props from, so StyleProps is named explicitly at each call below.
+const buttonStyles = (props: StyleProps) => css`
   ${centered({})};
   border: ${getStyle('ctaBorder2')};
   cursor: pointer;
@@ -31,7 +36,7 @@ const buttonStyles = (props: object) => css`
   svg {
     color: inherit;
   }
-  ${getBool(
+  ${getBool<StyleProps>(
     'data-vertical',
     `
       writing-mode: vertical-lr;
@@ -55,7 +60,7 @@ const buttonStyles = (props: object) => css`
   svg {
     width: ${size(4)};
   }
-  ${getBool(
+  ${getBool<StyleProps>(
     'data-has-children',
     '',
     `
@@ -77,7 +82,7 @@ const buttonStyles = (props: object) => css`
   &:active {
     opacity: 0.7 !important;
   }
-  ${getBool(
+  ${getBool<StyleProps>(
     'disabled',
     `
     opacity: 0.5;
