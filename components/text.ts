@@ -8,8 +8,6 @@ import {
   heading,
   heading2,
   heading3,
-  subheader,
-  subheader2,
 } from 'styles/text';
 
 export const Body = styled.span`
@@ -35,16 +33,6 @@ export const Heading2 = styled.h2`
 export const Heading3 = styled.h3`
   grid-area: heading3;
   ${heading3};
-`;
-
-export const Subheader = styled.span`
-  grid-area: subheader;
-  ${subheader};
-`;
-
-export const Subheader2 = styled.span`
-  grid-area: subheader2;
-  ${subheader2};
 `;
 
 export const Detail = styled.span`

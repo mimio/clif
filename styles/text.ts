@@ -67,26 +67,6 @@ export const heading3 = css`
   margin: 0;
 `;
 
-export const subheader = css`
-  ${base2};
-  ${inlineLink};
-  font-size: 22pt;
-  line-height: 24pt;
-  ${tablet(`
-    font-size: 18pt;
-    line-height: 22pt;
-  `)};
-  ${mobile(`
-    font-size: 14pt;
-    line-height: 20pt;
-  `)};
-`;
-
-export const subheader2 = css`
-  ${subheader};
-  color: ${getStyle('text2')};
-`;
-
 export const detail = css`
   ${base2};
   font-size: 14px;
