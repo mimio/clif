@@ -1,11 +1,6 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  compiler: {
-    // Emotion's css prop and labels via SWC; jsxImportSource lives in
-    // tsconfig.json.
-    emotion: true,
-  },
   images: {
     // Images are referenced by URL, never imported, so Next's static-image
     // module typings are not needed and would shadow the SVG-as-component

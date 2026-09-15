@@ -439,13 +439,15 @@ async function main(): Promise<void> {
         .then((handle) => handle.jsonValue())
         .catch(() => null)) ?? 0;
     report('/ globe canvas painted', painted > 0, `${painted} px`);
-    const styles = await page.evaluate(
-      () => document.querySelectorAll('style[data-emotion]').length,
+    // The body background is the --color-surface token from
+    // styles/globals.css, so this proves the compiled stylesheet loaded.
+    const background = await page.evaluate(
+      () => getComputedStyle(document.body).backgroundColor,
     );
     report(
-      '/ emotion styles injected',
-      styles > 0,
-      `${styles} style tags`,
+      '/ stylesheet applied',
+      background === 'rgb(22, 22, 22)',
+      `body background ${background}`,
     );
   });
 

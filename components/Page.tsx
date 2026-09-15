@@ -1,98 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import styled from '@emotion/styled';
-import { getStyle } from 'styles/utils';
-import { size } from 'styles/size';
-import { mobile, tablet, mq } from 'styles/breakpoints';
-import {
-  centered,
-  full,
-  foregroundContentTopPadding,
-  type LayoutProps,
-} from 'styles/layout';
+import { cn } from 'utils/cn';
 import { Heading } from './text';
-import { Full, Column } from './layout';
-
-const HeaderContainer = styled(Column)`
-  ${full};
-  align-items: flex-start;
-  height: min-content;
-  top: ${getStyle('pageMinimumPadding')};
-  width: calc(100% - ${size(15)});
-  z-index: 1;
-  ${Heading} {
-    opacity: 1;
-    width: 100%;
-    will-change: opacity;
-  }
-  > * {
-    pointer-events: auto;
-  }
-`;
-
-const ForegroundContentContainer = styled(Full)`
-  align-items: flex-start;
-  z-index: 2;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  pointer-events: auto;
-  ${foregroundContentTopPadding};
-  ${mq({
-    paddingRight: [
-      getStyle('foregroundContentRightPadding'),
-      getStyle('foregroundContentRightPaddingTablet'),
-      getStyle('foregroundContentRightPaddingMobile'),
-    ],
-  })};
-  > *:not(:last-child) {
-    margin-bottom: ${size(27)};
-  }
-  ${mobile(`
-    > *:not(:last-child) {
-      margin-bottom: ${size(13)};
-    }
-  `)}
-`;
-
-const pageSlideIn = `
-  @keyframes slidein {
-    from {
-      opacity: 0;
-      transform: translateY(-8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  animation: 0.6s ease-out forwards slidein;
-`;
-
-const ForegroundContainer = styled.div`
-  z-index: 3;
-  position: absolute;
-  ${pageSlideIn};
-  height: 100%;
-  left: ${getStyle('foregroundLeftPadding')};
-  width: calc(100% - ${size(28)});
-  pointer-events: none;
-  ${tablet(`
-    left: ${getStyle('foregroundLeftPaddingTablet')};
-    width: calc(100% - ${getStyle('pageMinimumPadding')});
-  `)}
-`;
-
-const BackgroundContainer = styled(Full)<LayoutProps>`
-  z-index: 0;
-  ${centered};
-`;
-
-const Container = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 100%;
-`;
 
 export type PageProps = {
   className?: string;
@@ -103,7 +11,7 @@ export type PageProps = {
 };
 
 const Page = ({
-  className = '',
+  className,
   Background = null,
   Subheader = null,
   children = null,
@@ -136,25 +44,38 @@ const Page = ({
   }, []);
 
   return (
-    <Container>
-      <ForegroundContainer>
-        <HeaderContainer ref={headerContainer} sp={4}>
-          <Heading ref={header}>{title}</Heading>
+    <div className="absolute inset-0">
+      <div className="pointer-events-none absolute left-28 z-3 h-full w-[calc(100%-112px)] animate-slide-in max-desktop:left-4 max-desktop:w-[calc(100%-16px)]">
+        <div
+          className="absolute top-4 left-0 z-1 flex h-min w-[calc(100%-60px)] flex-col items-start gap-4 *:pointer-events-auto"
+          ref={headerContainer}
+        >
+          <Heading
+            className="w-full opacity-100 will-change-[opacity]"
+            ref={header}
+          >
+            {title}
+          </Heading>
           {Subheader}
-        </HeaderContainer>
+        </div>
         {children && (
-          <ForegroundContentContainer
-            className={className}
+          <div
+            className={cn(
+              'pointer-events-auto absolute inset-0 z-2 overflow-y-auto pt-52 pr-30 max-desktop:pt-44 max-desktop:pr-23 max-tablet:pt-24 max-tablet:pr-13 [&>*:not(:last-child)]:mb-27 max-tablet:[&>*:not(:last-child)]:mb-13',
+              className,
+            )}
             ref={foregroundContent}
           >
             {children}
-          </ForegroundContentContainer>
+          </div>
         )}
-      </ForegroundContainer>
+      </div>
       {Background && (
-        <BackgroundContainer>{Background}</BackgroundContainer>
+        <div className="absolute inset-0 z-0 flex items-center justify-center">
+          {Background}
+        </div>
       )}
-    </Container>
+    </div>
   );
 };
 

@@ -12,7 +12,6 @@ import type {
   MultiPolygon as TopoMultiPolygon,
 } from 'topojson-specification';
 import type { Feature, MultiPolygon } from 'geojson';
-import styled from '@emotion/styled';
 
 type Land = Feature<MultiPolygon>;
 
@@ -42,10 +41,6 @@ const bufferChange = (val: number, oldVal: number): number => {
   const smallerChange = difference < 0 ? max : -max;
   return Math.abs(difference) > max ? oldVal + smallerChange : val;
 };
-
-const Canvas = styled.canvas`
-  fill: transparent;
-`;
 
 type GlobeState = {
   size: number;
@@ -156,6 +151,13 @@ export default class Globe extends Component<object, GlobeState> {
 
   render() {
     const { size } = this.state;
-    return <Canvas id="globe" width={size} height={size} />;
+    return (
+      <canvas
+        id="globe"
+        className="fill-transparent"
+        width={size}
+        height={size}
+      />
+    );
   }
 }

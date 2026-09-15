@@ -1,0 +1,217 @@
+/*
+ * Tailwind entry point and the site's design tokens.
+ *
+ * Tokens declared in @theme become CSS custom properties on :root and the
+ * utilities that read them: --color-accent gives bg-accent, text-accent,
+ * border-accent and so on, and --breakpoint-desktop gives desktop: and
+ * max-desktop:. Rules that cannot be utilities (element defaults,
+ * scrollbars) live in @layer base, and recurring declaration groups are
+ * @utility classes so they take variants like any other utility.
+ */
+@import 'tailwindcss';
+
+/* Mapbox's stylesheet sits in the components layer, below utilities, so the
+   map overrides in pagesComponents/history/Map.tsx win without !important. */
+@import 'mapbox-gl/dist/mapbox-gl.css' layer(components);
+
+/* Tailwind's own `hover:` applies only on devices that can hover. The site's
+   CSS has always applied :hover everywhere (a tap sticks), and its arbitrary
+   variants still do, so plain :hover is restored for consistency; drop this
+   to take Tailwind's default. */
+@custom-variant hover (&:hover);
+
+/* The word "container" in source text (Mapbox's constructor option) makes
+   the scanner emit Tailwind's unused .container utility. */
+@source not inline('container');
+
+@theme {
+  /* The 4px grid behind every spacing utility: p-7 is 28px, w-96 is 384px.
+     Pixels rather than the rem default so the grid stays exact whatever the
+     root font size. */
+  --spacing: 4px;
+
+  /* Device classes, named for the width at which each begins. Tailwind is
+     mobile-first: `desktop:` applies from 1000px up and `max-desktop:`
+     below it. styles/breakpoints.ts carries the same numbers for the JS
+     side. */
+  --breakpoint-*: initial;
+  --breakpoint-tablet: 650px;
+  --breakpoint-desktop: 1000px;
+
+  /* Palette: surfaces darkest first, foreground brightest first. The accent
+     takes opacity modifiers (border-accent/30) where the old theme kept
+     separate translucent entries. */
+  --color-*: initial;
+  --color-surface: #161616;
+  --color-surface-2: #202020;
+  --color-surface-3: #232323;
+  --color-backdrop: rgb(22 22 22 / 0.69);
+  --color-fg: #fff;
+  --color-fg-2: #ebebeb;
+  --color-fg-3: rgb(180 180 180);
+  --color-fg-4: #858585;
+  --color-fg-5: #474747;
+  --color-accent: #ffe520;
+  --color-on-accent: #161616;
+
+  /* Enter animations. slide-in reads --slide-in-from for its start offset,
+     so a component can pair animate-slide-in with [--slide-in-from:-16px]. */
+  --animate-slide-in: slide-in 0.6s ease-out forwards;
+  --animate-slide-in-fast: slide-in 0.22s linear forwards;
+  --animate-slide-in-stagger: slide-in 0.3s ease-in forwards;
+  --animate-zoom-in: zoom-in 0.4s ease-out forwards;
+
+  @keyframes slide-in {
+    from {
+      opacity: 0;
+      transform: translateY(var(--slide-in-from, -8px));
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes zoom-in {
+    from {
+      opacity: 0.3;
+      transform: scale(1.05);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}
+
+/* Families come from next/font (styles/fonts.ts); pages/_app.tsx sets these
+   variables on the app wrapper, a display: contents element inside #__next.
+   `inline` makes the utilities read them from the element rather than from
+   :root. */
+@theme inline {
+  --font-mono: var(--font-roboto-mono);
+  --font-display: var(--font-adder);
+}
+
+/* The two transition groups the old theme shared between components:
+   colour-like properties, and geometry. */
+@utility transition-hue {
+  transition:
+    box-shadow 0.15s linear,
+    color 0.15s linear,
+    background-color 0.15s linear,
+    opacity 0.15s linear,
+    fill 0.15s linear,
+    border-color 0.15s linear;
+}
+
+@utility transition-size {
+  transition:
+    transform 0.15s ease-out,
+    translate 0.15s ease-out,
+    scale 0.15s ease-out,
+    width 0.15s ease-out,
+    height 0.15s ease-out,
+    margin 0.15s ease-out,
+    border-width 0.15s ease-out;
+}
+
+@utility scrollbar-hidden {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Links inside body copy: an accent underline that grows on hover. Applied
+   to the copy's container, since the links come from content. */
+@utility link-underline {
+  & a {
+    color: var(--color-fg-2);
+    text-decoration: none;
+    background-image: linear-gradient(
+      120deg,
+      color-mix(in srgb, var(--color-accent) 60%, transparent) 0%,
+      color-mix(in srgb, var(--color-accent) 60%, transparent) 100%
+    );
+    background-repeat: no-repeat;
+    background-size: 100% 1px;
+    background-position: 0 100%;
+    transition: background-size 0.15s linear;
+  }
+  & a:hover {
+    color: var(--color-fg);
+    background-size: 100% 50%;
+  }
+  & a:active {
+    color: var(--color-fg);
+    background-size: 100% 30%;
+  }
+}
+
+@layer base {
+  /* The app fills the viewport and each page scrolls its own content pane. */
+  html,
+  body,
+  #__next {
+    position: relative;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    background-color: var(--color-surface);
+  }
+
+  svg {
+    fill: currentColor;
+  }
+
+  a *,
+  button * {
+    user-select: none;
+  }
+
+  ::-webkit-scrollbar {
+    height: 12px;
+    width: 12px;
+    background-color: transparent;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-thumb {
+    border: 4px solid transparent;
+    border-radius: 10px;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    transition: background-color 0.15s linear;
+    background-color: color-mix(
+      in srgb,
+      var(--color-accent) 30%,
+      transparent
+    );
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(
+      in srgb,
+      var(--color-accent) 50%,
+      transparent
+    );
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background-color: color-mix(
+      in srgb,
+      var(--color-accent) 80%,
+      transparent
+    );
+  }
+}

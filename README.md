@@ -4,8 +4,8 @@ Clifton Campbell's personal site: a landing page with a rotating globe, a
 filmstrip of projects with a WebGL glitch effect on each project page, and a
 work history drawn on a Mapbox map.
 
-Built with Next.js (Pages Router, Turbopack), React, TypeScript, Emotion,
-Redux, mapbox-gl, three.js and d3. Deployed on Vercel.
+Built with Next.js (Pages Router, Turbopack), React, TypeScript, Tailwind
+CSS, Redux, mapbox-gl, three.js and d3. Deployed on Vercel.
 
 ## Requirements
 
@@ -49,7 +49,37 @@ history page reads from `public/history/`, and that output is committed. The
 map options live in `makeHistoryData/mapboxConfig.ts`; the access token does
 not (see Configuration).
 
-**Fonts** are self-hosted from `styles/fonts/` through `next/font/local`.
+**Fonts** are self-hosted from `styles/fonts/` through `next/font/local`,
+which exposes each as a CSS variable that the `font-mono` and `font-display`
+utilities read.
+
+## Styling
+
+Tailwind CSS v4, configured entirely in `styles/globals.css`:
+
+- Design tokens (colours, breakpoints, animations, the 4px spacing grid)
+  live in its `@theme` block and become both CSS custom properties and
+  utility classes: `--color-accent` gives `bg-accent`, `text-accent`,
+  `border-accent/30` and so on.
+- Recurring declaration groups are `@utility` classes (`transition-hue`,
+  `transition-size`, `link-underline`, `scrollbar-hidden`), so they take
+  variants like any other utility. Element defaults live in `@layer base`.
+- `hover:` is redefined as plain `:hover` (`@custom-variant` in
+  `globals.css`) to match the site's pre-Tailwind behaviour on touch;
+  Tailwind's default applies it only where hovering is possible.
+- Breakpoints are `tablet` (650px) and `desktop` (1000px), used mobile-first:
+  `max-tablet:` targets phones, `max-desktop:` phones and tablets.
+  `styles/breakpoints.ts` carries the same numbers for the Redux device
+  selectors, and `styles/palette.ts` the colours for code that paints
+  outside CSS (the history map layers).
+
+Components style themselves with utilities in `className`. `cn()` in
+`utils/cn.ts` joins conditional classes and lets a caller's `className`
+override a component's own, so components list their classes first and the
+caller's last. The type scale is `components/text.tsx`: `Heading`, `Body`,
+`Detail3` and friends as components, and `textClass` for elements that are
+not text. Prettier sorts class names (`prettier-plugin-tailwindcss`), and
+`pnpm format` covers `.css` files too.
 
 ## Tests and CI
 

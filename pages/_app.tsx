@@ -4,40 +4,16 @@ import Head from 'next/head';
 import Script from 'next/script';
 import { useRouter } from 'next/router';
 import { Provider } from 'react-redux';
-import styled from '@emotion/styled';
-import { ThemeProvider } from '@emotion/react';
 import Navigation from 'components/Navigation';
 import Button from 'components/Button';
 import * as analytics from 'utils/analytics';
 import email from 'constants/email';
 import EnvelopeIcon from 'public/icons/envelope.svg';
 import AppHooks from 'hooks/AppHooks';
-import theme from 'styles/theme';
-import { mobile } from 'styles/breakpoints';
-import { size } from 'styles/size';
-import GlobalStyles from 'styles/GlobalStyles';
+import { adder, robotoMono } from 'styles/fonts';
 import { makeStore, type AppStore } from 'modules/store';
 
-import 'normalize.css';
-import 'mapbox-gl/dist/mapbox-gl.css';
-
-const StyledNavigation = styled(Navigation)`
-  position: fixed;
-  top: ${size(4)};
-  right: ${size(4)};
-  z-index: 4;
-`;
-
-const ContactLink = styled(Button)`
-  position: fixed;
-  bottom: ${size(4)};
-  right: ${size(4)};
-  z-index: 4;
-  border-radius: 5px;
-  ${mobile(`
-    width: ${size(7)};
-  `)};
-`;
+import 'styles/globals.css';
 
 const App = ({ Component, pageProps }: AppProps) => {
   // One store per render tree rather than a module singleton, so a server
@@ -84,26 +60,31 @@ gtag('config', '${analytics.MEASUREMENT_ID}');`}
           </Script>
         </>
       )}
-      <GlobalStyles />
-      <ThemeProvider theme={theme}>
-        <Provider store={store}>
-          <AppHooks />
+      <Provider store={store}>
+        <AppHooks />
+        {/* next/font hands out its variables as class names, so they go on
+            an element inside #__next; display: contents keeps #__next the
+            pages' containing block. */}
+        <div
+          className={`${robotoMono.variable} ${adder.variable} contents font-mono`}
+        >
           {pathname !== '/404' && (
             <>
-              <ContactLink
+              <Button
+                className="fixed right-4 bottom-4 z-4 rounded-[5px] max-tablet:w-7"
                 ariaLabel="Contact Email"
                 href={`mailto:${email}`}
                 Icon={EnvelopeIcon}
                 vertical
               >
                 {email}
-              </ContactLink>
-              <StyledNavigation />
+              </Button>
+              <Navigation className="fixed top-8 right-4 z-4" />
             </>
           )}
           <Component {...pageProps} />
-        </Provider>
-      </ThemeProvider>
+        </div>
+      </Provider>
     </>
   );
 };

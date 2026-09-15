@@ -1,21 +1,9 @@
-import styled from '@emotion/styled';
 import UFOIcon from 'public/icons/ufo.svg';
-import { Column } from 'components/layout';
 import { Heading, Detail } from 'components/text';
 import Button from 'components/Button';
 
-const Container = styled(Column)`
-  width: 100%;
-  height: 100%;
-  justify-content: center;
-  > a {
-    margin-top: 40px;
-    max-width: 200px;
-  }
-`;
-
 const Lost = () => (
-  <Container sp={6}>
+  <div className="flex h-full w-full flex-col items-center justify-center gap-6 [&>a]:mt-10 [&>a]:max-w-[200px]">
     <Heading>404</Heading>
     <Detail>It Looks Like You Are Lost</Detail>
     <Button
@@ -26,7 +14,7 @@ const Lost = () => (
     >
       Take Me Home
     </Button>
-  </Container>
+  </div>
 );
 
 export default Lost;

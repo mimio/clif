@@ -1,23 +1,8 @@
 import { Component } from 'react';
 import Image from 'next/image';
-import styled from '@emotion/styled';
 import * as THREE from 'three';
 import vertexShader from './glsl/vertex.glsl';
 import fragmentShader from './glsl/fragment.glsl';
-
-const Container = styled.div`
-  position: relative;
-  width: 100%;
-  canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    background: transparent;
-  }
-  img {
-    object-fit: contain;
-  }
-`;
 
 type GlitchImageProps = {
   src: string;
@@ -179,7 +164,8 @@ class GlitchImage extends Component<
     const { ga = '', src, alt } = this.props;
     const { fallback } = this.state;
     return (
-      <Container
+      <div
+        className="relative w-full [&_canvas]:absolute [&_canvas]:top-0 [&_canvas]:left-0 [&_canvas]:bg-transparent [&_img]:object-contain"
         style={{
           gridArea: ga,
         }}
@@ -188,7 +174,7 @@ class GlitchImage extends Component<
         }}
       >
         {fallback && <Image src={src} alt={alt} fill sizes="100vw" />}
-      </Container>
+      </div>
     );
   }
 }

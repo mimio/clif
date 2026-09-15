@@ -1,6 +1,5 @@
 import { createPortal } from 'react-dom';
-import styled from '@emotion/styled';
-import { getBool, getStyle } from 'styles/utils';
+import { cn } from 'utils/cn';
 import { useAppSelector } from 'modules/hooks';
 import { selectIsMobile } from 'modules/app/appSlice';
 import {
@@ -8,44 +7,7 @@ import {
   selectPopupId,
   selectSelectedFeature,
 } from 'modules/map/mapSlice';
-import { size } from 'styles/size';
-import { Column } from 'components/layout';
 import { Body, Body2, Detail, Detail2 } from 'components/text';
-
-const Container = styled(Column)<{ isMobile: boolean }>`
-  background: ${getStyle('background1')};
-  align-items: flex-start;
-  padding: ${size(7)};
-  overflow-y: auto;
-  width: 100%;
-  height: 100%;
-  border-radius: 20px;
-  border: ${getStyle('contentBorder')};
-  @keyframes slidein {
-    from {
-      opacity: 0;
-      transform: translateY(-8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  animation: 0.22s linear forwards slidein;
-  ${getBool(
-    'isMobile',
-    `
-    position: absolute;
-    bottom: 4px;
-    left: 4px;
-    z-index: 3;
-    padding-right: ${size(14)};
-    width: calc(100% - 8px);
-    height: unset;
-    max-height: ${size(60)};
-  `,
-  )};
-`;
 
 const dateFormat = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -69,7 +31,13 @@ const Popup = () => {
     description,
   } = feature;
   const Content = (
-    <Container sp={4} isMobile={isMobile}>
+    <div
+      className={cn(
+        'flex h-full w-full animate-slide-in-fast flex-col items-start gap-4 overflow-y-auto rounded-[20px] border border-surface-2 bg-surface p-7',
+        isMobile &&
+          'absolute bottom-1 left-1 z-3 h-auto max-h-60 w-[calc(100%-8px)] pr-14',
+      )}
+    >
       <Body>
         <b>{role}</b>
         <br />
@@ -85,7 +53,7 @@ const Popup = () => {
       ${end ? formatDate(end) : 'Current'}
     `}
       </Detail2>
-    </Container>
+    </div>
   );
 
   if (isMobile) {

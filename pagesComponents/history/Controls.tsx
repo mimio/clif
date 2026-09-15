@@ -1,7 +1,5 @@
-import styled from '@emotion/styled';
 import Button from 'components/Button';
-import { Row } from 'components/layout';
-import { getStyle } from 'styles/utils';
+import { cn } from 'utils/cn';
 import { useAppDispatch, useAppSelector } from 'modules/hooks';
 import {
   selectIsFeatureSelected,
@@ -16,13 +14,6 @@ import {
 import ArrowLeftIcon from 'public/icons/arrow-left.svg';
 import ArrowRightIcon from 'public/icons/arrow-right.svg';
 import ExpandIcon from 'public/icons/expand.svg';
-
-const Container = styled(Row)`
-  height: 56px;
-  border-radius: 28px;
-  padding: 12px;
-  background: ${getStyle('controlBackdrop')};
-`;
 
 export type ControlsProps = {
   className?: string;
@@ -39,7 +30,12 @@ const Controls = ({ className = '' }: ControlsProps) => {
   );
 
   return (
-    <Container className={className} sp={3}>
+    <div
+      className={cn(
+        'flex h-14 items-center gap-3 rounded-[28px] bg-backdrop p-3',
+        className,
+      )}
+    >
       <Button
         ariaLabel="Reset Map Extent"
         onClick={() => dispatch(fitBounds())}
@@ -58,7 +54,7 @@ const Controls = ({ className = '' }: ControlsProps) => {
         onClick={() => dispatch(selectNextFeature())}
         Icon={ArrowRightIcon}
       />
-    </Container>
+    </div>
   );
 };
 

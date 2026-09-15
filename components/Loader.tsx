@@ -1,57 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import styled from '@emotion/styled';
-import { getBool, getStyle } from 'styles/utils';
-import { Column } from './layout';
+import { cn } from 'utils/cn';
 import { Detail2 } from './text';
-
-const Bar = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 100%;
-  transform: translateX(-100%);
-  border-radius: 4px;
-  background: ${getStyle('ctaBackground1')};
-`;
-
-const Progress = styled.div`
-  width: 100%;
-  max-width: 180px;
-  height: 8px;
-  border: ${getStyle('ctaBorder2')};
-  border-radius: 6px;
-  background: none;
-  position: relative;
-  overflow: hidden;
-`;
-
-const Container = styled(Column)<{ isDone: boolean }>`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  z-index: 10000;
-  justify-content: center;
-  background: ${getStyle('background1')};
-  transition: opacity 0.4s ease-in-out;
-  ${getBool(
-    'isDone',
-    `
-    opacity: 0;
-    pointer-events: none;
-    transition-delay: 0.3s;
-    > * {
-      transition: transform 0.15s ease-in-out, ${getStyle('linearHue')};
-      transform: translateY(-8px);
-      opacity: 0;
-      transition-delay: 0.15s;
-    }
-  `,
-  )}
-`;
 
 let progress = 0;
 const Loader = () => {
@@ -80,14 +29,23 @@ const Loader = () => {
   }, []);
 
   return (
-    <Container isDone={isDone} sp={6}>
+    <div
+      className={cn(
+        'absolute top-0 left-0 z-10000 flex h-full w-full flex-col items-center justify-center gap-6 overflow-hidden bg-surface transition-opacity duration-400 ease-in-out',
+        isDone &&
+          'pointer-events-none opacity-0 delay-300 *:-translate-y-2 *:opacity-0 *:transition-[translate,opacity] *:delay-150 *:duration-150 *:ease-in-out',
+      )}
+    >
       <Detail2>
         {isDone ? 'Stuff loaded!' : 'Loading stuff...'}
       </Detail2>
-      <Progress>
-        <Bar ref={barEl} />
-      </Progress>
-    </Container>
+      <div className="relative h-2 w-full max-w-[180px] overflow-hidden rounded-[6px] border border-accent/30">
+        <div
+          className="absolute top-0 left-0 h-full w-full transform-[translateX(-100%)] rounded-[4px] bg-accent"
+          ref={barEl}
+        />
+      </div>
+    </div>
   );
 };
 

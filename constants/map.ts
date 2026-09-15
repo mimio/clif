@@ -23,3 +23,7 @@ export const BOUNDS_PADDING_MOBILE: BoundsPadding = {
   right: 130,
   bottom: 260,
 };
+
+// The popup's width, the `w-96` that pagesComponents/history/Map.tsx gives
+// .mapboxgl-popup; Mapbox needs the same value as its maxWidth option.
+export const POPUP_MAX_WIDTH = '384px';

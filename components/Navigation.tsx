@@ -1,11 +1,7 @@
-import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import styled from '@emotion/styled';
-import { getBool, getStyle } from 'styles/utils';
-import { size } from 'styles/size';
-import { detail } from 'styles/text';
-import { centered, type LayoutProps } from 'styles/layout';
+import type { ReactNode } from 'react';
+import { cn } from 'utils/cn';
 import {
   HELLO,
   WORK,
@@ -14,68 +10,32 @@ import {
   type TabId,
 } from 'constants/pages';
 import HomeIcon from 'public/icons/home.svg';
-import { Column } from './layout';
-
-const StyledHomeIcon = styled(HomeIcon)`
-  height: 20px;
-  width: 20px;
-`;
-
-const UL = Column.withComponent('ul');
-
-const StyledLink = styled(Link)<LayoutProps>`
-  ${centered};
-  ${detail};
-  font-weight: 300;
-  position: relative;
-  writing-mode: vertical-lr;
-  z-index: 1;
-  width: ${size(6)};
-  padding: ${size(2)} 0;
-  ${StyledHomeIcon} {
-    color: ${getStyle('text1')};
-  }
-  ${getBool(
-    'aria-current',
-    `
-      color: ${getStyle('text3')};
-      ${StyledHomeIcon} {
-        color: ${getStyle('text2')};
-      }
-    `,
-    `
-      &:not(.${HELLO}):hover::after {
-        width: 20%;
-      }
-      &:not(.${HELLO}):active::after {
-        width: 12%;
-      }
-      &.${HELLO}:hover {
-        opacity: 0.9;
-      }
-      &.${HELLO}:active {
-        opacity: 0.8;
-      }
-  `,
-  )};
-  &:not(.${HELLO}) ::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: ${(props) => (props['aria-current'] ? '100%' : 0)};
-    transition: ${getStyle('easeOutSize')};
-    background: ${getStyle('ctaBackground1')};
-    z-index: -1;
-  }
-`;
+import { textClass } from './text';
 
 const copy: Record<TabId, ReactNode> = {
-  [HELLO]: <StyledHomeIcon />,
+  [HELLO]: <HomeIcon className="h-5 w-5" />,
   [PROJECTS]: 'Projects',
   [WORK]: 'History',
 };
+
+// The text tabs sit on an accent bar that fills behind the current one and
+// peeks out on hover; the home tab is an icon and fades instead. Physical
+// pt/pb rather than py: py-* sets padding-block, which runs horizontally
+// once the writing mode is vertical.
+const tabClass = (isHome: boolean, isActive: boolean): string =>
+  cn(
+    'relative z-1 flex w-6 items-center justify-center pt-2 pb-2 [writing-mode:vertical-lr] [&_svg]:text-fg',
+    textClass.detail,
+    'font-light',
+    isHome
+      ? !isActive && 'hover:opacity-90 active:opacity-80'
+      : 'after:absolute after:top-0 after:left-0 after:-z-1 after:h-full after:w-0 after:bg-accent after:transition-size',
+    isActive
+      ? isHome
+        ? '[&_svg]:text-accent'
+        : 'text-on-accent after:w-full'
+      : !isHome && 'hover:after:w-[20%] active:after:w-[12%]',
+  );
 
 type NavigationProps = {
   className?: string;
@@ -85,7 +45,7 @@ const Navigation = ({ className = '' }: NavigationProps) => {
   const { pathname } = useRouter();
   return (
     <nav className={className} aria-label="Main">
-      <UL sp={4}>
+      <ul className="flex flex-col items-center gap-4">
         {orderedTabs.map(({ id, path }) => {
           const isTabActive =
             path === '/'
@@ -93,18 +53,18 @@ const Navigation = ({ className = '' }: NavigationProps) => {
               : pathname.includes(path);
           return (
             <li key={id}>
-              <StyledLink
+              <Link
                 href={path}
                 aria-label={id === HELLO ? 'Home' : undefined}
-                className={id}
                 aria-current={isTabActive ? 'page' : undefined}
+                className={tabClass(id === HELLO, isTabActive)}
               >
                 {copy[id]}
-              </StyledLink>
+              </Link>
             </li>
           );
         })}
-      </UL>
+      </ul>
     </nav>
   );
 };

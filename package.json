@@ -16,7 +16,7 @@
     "images": "node scripts/optimize-images.mts",
     "lint": "eslint \"{pagesComponents,components,constants,hooks,modules,pages,styles,utils,makeHistoryData,scripts,types}/**/*.{js,jsx,ts,tsx,mts}\" \"*.{ts,mts,mjs}\"",
     "lint:fix": "eslint --fix \"{pagesComponents,components,constants,hooks,modules,pages,styles,utils,makeHistoryData,scripts,types}/**/*.{js,jsx,ts,tsx,mts}\" \"*.{ts,mts,mjs}\"",
-    "format": "prettier --write \"*/**/*.{js,jsx,ts,tsx,mts}\" \"!public/**\" \"!node_modules/**\" \"!.next/**\" \"!.vercel/**\" \"!.vscode/**\"",
+    "format": "prettier --write \"*/**/*.{js,jsx,ts,tsx,mts,css}\" \"!public/**\" \"!node_modules/**\" \"!.next/**\" \"!.vercel/**\" \"!.vscode/**\"",
     "prepare": "husky",
     "test": "pnpm run test:e2e",
     "test:e2e": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/smoke.mts"
@@ -29,21 +29,18 @@
   },
   "homepage": "https://github.com/mimio/clif#readme",
   "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
     "@react-spring/web": "^10.1.2",
     "@reduxjs/toolkit": "^2.12.0",
     "@use-gesture/react": "^10.3.1",
+    "clsx": "^2.1.1",
     "d3": "^7.9.0",
-    "facepaint": "^1.2.1",
-    "hex-to-rgba": "^2.0.1",
     "is-touch-device": "^1.0.1",
     "mapbox-gl": "^3.30.0",
     "next": "^16.3.5",
-    "normalize.css": "^8.0.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-redux": "^9.3.0",
+    "tailwind-merge": "^3.7.0",
     "three": "^0.186.0",
     "topojson-client": "^3.1.0"
   },
@@ -51,10 +48,10 @@
     "@eslint/js": "^9.39.5",
     "@next/env": "16.3.5",
     "@svgr/webpack": "^8.1.0",
+    "@tailwindcss/postcss": "^4.3.3",
     "@turf/bbox": "^7.4.0",
     "@turf/helpers": "^7.4.0",
     "@types/d3": "^7.4.3",
-    "@types/facepaint": "^1.2.5",
     "@types/geojson": "^7946.0.16",
     "@types/node": "^22.20.2",
     "@types/react": "^19.3.0",
@@ -72,13 +69,18 @@
     "lint-staged": "^17.5.1",
     "playwright": "1.63.0",
     "prettier": "^3.9.6",
+    "prettier-plugin-tailwindcss": "^0.8.1",
     "raw-loader": "^4.0.1",
     "sharp": "^0.35.4",
+    "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mts}": [
       "eslint --fix",
+      "prettier --write"
+    ],
+    "*.css": [
       "prettier --write"
     ]
   }

@@ -1,5 +1,4 @@
 import { Component, createRef, useMemo } from 'react';
-import styled from '@emotion/styled';
 import type { Map as MapboxMap, MapMouseEvent } from 'mapbox-gl';
 import mapboxgl from 'mapbox-gl-ssr';
 import mapConfig from 'public/history/mapConfig.json';
@@ -9,8 +8,7 @@ import {
   mapLayerIds,
   mapLayers,
 } from 'constants/history';
-import { getBool, getStyle } from 'styles/utils';
-import { Full } from 'components/layout';
+import { cn } from 'utils/cn';
 import { clearMap, setMap } from 'utils/map';
 import { useAppDispatch, useAppSelector } from 'modules/hooks';
 import {
@@ -24,48 +22,6 @@ import {
   selectFeature,
   unhoverFeature,
 } from 'modules/map/mapThunks';
-
-const StyledMap = styled(Full)<{
-  isLoaded: boolean;
-  reveal: boolean;
-}>`
-  z-index: 1;
-  .mapboxgl-map {
-    height: 100%;
-    width: 100%;
-    pointer-events: ${getBool('isLoaded', 'auto', 'none')};
-  }
-  .mapboxgl-popup {
-    width: ${getStyle('popupWidth')};
-    height: ${getStyle('popupMaxHeight')};
-  }
-  .mapboxgl-popup-content {
-    padding: 0;
-    background: none;
-  }
-  .mapboxgl-popup-tip,
-  .mapboxgl-ctrl-logo {
-    display: none;
-  }
-  opacity: 0.3;
-  transform: scale(1.1);
-  ${getBool(
-    'reveal',
-    `
-    @keyframes zoomin {
-      from {
-        opacity: 0.3;
-        transform: scale(1.05);
-      }
-      to {
-        opacity: 1;
-        transform: scale(1);
-      }
-    }
-    animation: 0.4s ease-out forwards zoomin;
-  `,
-  )};
-`;
 
 type MapCanvasProps = {
   className?: string;
@@ -172,11 +128,16 @@ class MapCanvas extends Component<MapCanvasProps> {
     const { className, isMapLoaded, reveal } = this.props;
 
     return (
-      <StyledMap
-        className={className}
-        isLoaded={isMapLoaded}
+      <div
+        className={cn(
+          'absolute inset-0 z-1 transform-[scale(1.1)] opacity-30 [&_.mapboxgl-ctrl-logo]:hidden [&_.mapboxgl-map]:h-full [&_.mapboxgl-map]:w-full [&_.mapboxgl-popup]:h-65 [&_.mapboxgl-popup]:w-96 [&_.mapboxgl-popup-content]:bg-transparent [&_.mapboxgl-popup-content]:p-0 [&_.mapboxgl-popup-tip]:hidden',
+          isMapLoaded
+            ? '[&_.mapboxgl-map]:pointer-events-auto'
+            : '[&_.mapboxgl-map]:pointer-events-none',
+          reveal && 'animate-zoom-in',
+          className,
+        )}
         ref={this.mapRef}
-        reveal={reveal}
       />
     );
   }
