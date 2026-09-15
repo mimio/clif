@@ -11,7 +11,7 @@ import {
 } from 'constants/history';
 import { getBool, getStyle } from 'styles/utils';
 import { Full } from 'components/layout';
-import { setMap } from 'utils/map';
+import { clearMap, setMap } from 'utils/map';
 import { useAppDispatch, useAppSelector } from 'modules/hooks';
 import {
   mapLoaded,
@@ -98,7 +98,21 @@ class MapCanvas extends Component<MapCanvasProps> {
   }
 
   componentWillUnmount() {
+    // Store first, map second: the listener in modules/map/mapListeners.ts
+    // reads selectMapLoaded after the reducer, and remove() can re-enter the
+    // store itself — Mapbox's 'remove' event closes an open popup, whose
+    // 'close' handler dispatches popupClosed — so both find it already reset.
+    // The reverse order is not unsafe, since the listener would bail on the
+    // cleared handle instead; it just leaves more moving parts to follow.
     this.props.resetMap();
+    // React drops the container element, but the Mapbox instance it held owns
+    // a WebGL context, a render loop, the window listeners it registered and
+    // a slot in Mapbox's shared worker pool, none of which it gives up
+    // without remove(). Skipping it stranded a context per visit to /history,
+    // up to the browser's per-tab cap.
+    this.map?.remove();
+    this.map = null;
+    clearMap();
   }
 
   initialize = () => {
