@@ -20,7 +20,7 @@ const subscribeToResize = (onChange: () => void) => {
 const getIsTouch = () => isTouchDevice();
 const getServerIsTouch = () => false;
 
-// Horizontal movement, in px, beyond which a gesture counts as a drag
+// Horizontal movement, in px, from which a gesture counts as a drag
 // rather than a click on the card under the pointer.
 const DRAG_DISTANCE = 4;
 
@@ -52,13 +52,17 @@ export default function Filmstrip({
   }));
 
   // A pointer that has dragged the strip must not also click the card it
-  // is released over: the cards keep -webkit-user-drag: none so no native
-  // link drag starts, which leaves the browser free to fire that click.
+  // is released over: the cards now carry -webkit-user-drag: none (the old
+  // `user-drag: none` was invalid and never applied), so no native link
+  // drag starts and the browser is free to fire that click. One click per
+  // drag is swallowed; a keyboard activation (detail 0) never is.
   const dragged = useRef(false);
   const suppressClickAfterDrag = (
     event: MouseEvent<HTMLDivElement>,
   ) => {
     if (!dragged.current) return;
+    dragged.current = false;
+    if (event.detail === 0) return;
     event.preventDefault();
     event.stopPropagation();
   };
@@ -106,7 +110,7 @@ export default function Filmstrip({
           'flex h-full w-min cursor-ew-resize items-center *:ml-12 *:transition-transform *:duration-[240ms] *:ease-in-out max-desktop:*:ml-6 max-tablet:*:ml-3 [&>*:first-child]:ml-28 max-desktop:[&>*:first-child]:ml-4 [&>*:last-child]:mr-30 max-desktop:[&>*:last-child]:mr-23 max-tablet:[&>*:last-child]:mr-13 [&>*:nth-child(even)]:mt-6 max-desktop:[&>*:nth-child(even)]:mt-3 [&>*:nth-child(odd)]:mb-6 max-desktop:[&>*:nth-child(odd)]:mb-3',
           isDragging
             ? '*:pointer-events-none *:scale-[0.96]'
-            : '*:pointer-events-auto [&>*:active]:scale-[1.01] [&>*:hover]:scale-[1.02]',
+            : '*:pointer-events-auto [&>*:active]:scale-[1.01] [&>*:hover:not(:active)]:scale-[1.02]',
         )}
       >
         {children.map((child, i) => (

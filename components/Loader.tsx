@@ -33,7 +33,7 @@ const Loader = () => {
       className={cn(
         'absolute top-0 left-0 z-10000 flex h-full w-full flex-col items-center justify-center gap-6 overflow-hidden bg-surface transition-opacity duration-400 ease-in-out',
         isDone &&
-          'pointer-events-none opacity-0 delay-300 *:-translate-y-2 *:opacity-0 *:transition-[transform,opacity] *:delay-150 *:duration-150 *:ease-in-out',
+          'pointer-events-none opacity-0 delay-300 *:-translate-y-2 *:opacity-0 *:transition-[translate,opacity] *:delay-150 *:duration-150 *:ease-in-out',
       )}
     >
       <Detail2>
@@ -41,7 +41,7 @@ const Loader = () => {
       </Detail2>
       <div className="relative h-2 w-full max-w-[180px] overflow-hidden rounded-[6px] border border-accent/30">
         <div
-          className="absolute top-0 left-0 h-full w-full -translate-x-full rounded-[4px] bg-accent"
+          className="absolute top-0 left-0 h-full w-full transform-[translateX(-100%)] rounded-[4px] bg-accent"
           ref={barEl}
         />
       </div>

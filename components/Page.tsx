@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { cn } from 'utils/cn';
 import { Heading } from './text';
 
 export type PageProps = {
@@ -10,7 +11,7 @@ export type PageProps = {
 };
 
 const Page = ({
-  className = '',
+  className,
   Background = null,
   Subheader = null,
   children = null,
@@ -59,7 +60,10 @@ const Page = ({
         </div>
         {children && (
           <div
-            className={`pointer-events-auto absolute inset-0 z-2 overflow-y-auto pt-52 pr-30 max-desktop:pt-44 max-desktop:pr-23 max-tablet:pt-24 max-tablet:pr-13 [&>*:not(:last-child)]:mb-27 max-tablet:[&>*:not(:last-child)]:mb-13 ${className}`}
+            className={cn(
+              'pointer-events-auto absolute inset-0 z-2 overflow-y-auto pt-52 pr-30 max-desktop:pt-44 max-desktop:pr-23 max-tablet:pt-24 max-tablet:pr-13 [&>*:not(:last-child)]:mb-27 max-tablet:[&>*:not(:last-child)]:mb-13',
+              className,
+            )}
             ref={foregroundContent}
           >
             {children}

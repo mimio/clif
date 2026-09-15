@@ -14,6 +14,16 @@
    map overrides in pagesComponents/history/Map.tsx win without !important. */
 @import 'mapbox-gl/dist/mapbox-gl.css' layer(components);
 
+/* Tailwind's own `hover:` applies only on devices that can hover. The site's
+   CSS has always applied :hover everywhere (a tap sticks), and its arbitrary
+   variants still do, so plain :hover is restored for consistency; drop this
+   to take Tailwind's default. */
+@custom-variant hover (&:hover);
+
+/* The word "container" in source text (Mapbox's constructor option) makes
+   the scanner emit Tailwind's unused .container utility. */
+@source not inline('container');
+
 @theme {
   /* The 4px grid behind every spacing utility: p-7 is 28px, w-96 is 384px.
      Pixels rather than the rem default so the grid stays exact whatever the
@@ -74,9 +84,10 @@
   }
 }
 
-/* Families come from next/font (styles/fonts.ts), which sets these
-   variables on the app root in pages/_app.tsx. `inline` makes the utilities
-   read them from the element rather than from :root. */
+/* Families come from next/font (styles/fonts.ts); pages/_app.tsx sets these
+   variables on the app wrapper, a display: contents element inside #__next.
+   `inline` makes the utilities read them from the element rather than from
+   :root. */
 @theme inline {
   --font-mono: var(--font-roboto-mono);
   --font-display: var(--font-adder);
@@ -180,6 +191,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
+    transition: background-color 0.15s linear;
     background-color: color-mix(
       in srgb,
       var(--color-accent) 30%,

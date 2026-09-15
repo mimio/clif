@@ -24,7 +24,7 @@ const buttonClass = (
   className: string,
 ): string =>
   cn(
-    'flex cursor-pointer items-center justify-center rounded-2xl border border-accent/30 bg-transparent [&_svg]:w-4',
+    'flex cursor-pointer items-center justify-center rounded-[16px] border border-accent/30 bg-transparent [&_svg]:w-4',
     textClass.detail2,
     // Physical pt/pb rather than py: py-* sets padding-block, which runs
     // horizontally once the writing mode is vertical.

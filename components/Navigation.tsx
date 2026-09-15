@@ -28,10 +28,12 @@ const tabClass = (isHome: boolean, isActive: boolean): string =>
     textClass.detail,
     'font-light',
     isHome
-      ? 'hover:opacity-90 active:opacity-80'
+      ? !isActive && 'hover:opacity-90 active:opacity-80'
       : 'after:absolute after:top-0 after:left-0 after:-z-1 after:h-full after:w-0 after:bg-accent after:transition-size',
     isActive
-      ? 'text-on-accent after:w-full [&_svg]:text-accent'
+      ? isHome
+        ? '[&_svg]:text-accent'
+        : 'text-on-accent after:w-full'
       : !isHome && 'hover:after:w-[20%] active:after:w-[12%]',
   );
 

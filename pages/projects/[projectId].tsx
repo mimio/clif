@@ -61,7 +61,7 @@ const Project = ({ projectId }: ProjectPageProps) => {
             <Pairing title="USER COUNT">
               <Detail2>
                 {usersApproximate}
-                <UserIcon className="ml-3 inline w-3 text-accent" />
+                <UserIcon className="ml-3 inline w-3 align-baseline text-accent" />
               </Detail2>
             </Pairing>
           )}
@@ -103,9 +103,9 @@ const Project = ({ projectId }: ProjectPageProps) => {
         </div>
         <NextLink
           href={`/${PROJECTS}`}
-          className="group flex h-21 flex-col items-center justify-center rounded-lg border-t border-surface-3 px-7 [grid-area:back] transition-hue hover:bg-[#1b1b1b] active:bg-surface-2 max-tablet:h-16 [&_svg]:w-2 [&_svg]:text-fg-5 [&_svg]:transition-size [&:active_svg]:translate-y-2 [&:hover_svg]:translate-y-1 [&:hover_svg]:text-fg-4"
+          className="group flex h-21 flex-col items-center justify-center rounded-[8px] border-t border-surface-3 px-7 [grid-area:back] transition-hue hover:bg-[#1b1b1b] active:bg-surface-2 max-tablet:h-16 [&_svg]:w-2 [&_svg]:text-fg-5 [&_svg]:transition-size [&:active_svg]:translate-y-2 [&:hover_svg]:text-fg-4 [&:hover:not(:active)_svg]:translate-y-1"
         >
-          <Detail3 className="mb-1 text-[12px] group-hover:text-fg-2 group-active:text-fg-2">
+          <Detail3 className="mb-1 text-[12px] leading-[18px] group-hover:text-fg-2 group-active:text-fg-2">
             BACK TO ALL PROJECTS
           </Detail3>
           <CaretDownIcon />

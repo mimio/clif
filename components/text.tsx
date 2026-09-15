@@ -23,7 +23,7 @@ const body = cn(
 export const textClass = {
   heading: cn(
     base,
-    "font-display [font-feature-settings:'aalt'] text-[52pt] leading-[1.15] wrap-break-word text-accent max-desktop:text-[40pt] max-tablet:text-[28pt]",
+    "font-display [font-feature-settings:'aalt'] text-[52pt] leading-[1.15] wrap-anywhere text-accent max-desktop:text-[40pt] max-tablet:text-[28pt]",
   ),
   heading2,
   heading3: cn(heading2, 'font-extralight'),

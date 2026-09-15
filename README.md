@@ -64,6 +64,9 @@ Tailwind CSS v4, configured entirely in `styles/globals.css`:
 - Recurring declaration groups are `@utility` classes (`transition-hue`,
   `transition-size`, `link-underline`, `scrollbar-hidden`), so they take
   variants like any other utility. Element defaults live in `@layer base`.
+- `hover:` is redefined as plain `:hover` (`@custom-variant` in
+  `globals.css`) to match the site's pre-Tailwind behaviour on touch;
+  Tailwind's default applies it only where hovering is possible.
 - Breakpoints are `tablet` (650px) and `desktop` (1000px), used mobile-first:
   `max-tablet:` targets phones, `max-desktop:` phones and tablets.
   `styles/breakpoints.ts` carries the same numbers for the Redux device
