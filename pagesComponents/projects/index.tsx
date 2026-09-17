@@ -9,8 +9,9 @@ import SceneStage from 'components/composed/SceneStage';
 import { anchors, type AnchorId } from 'content/anchors';
 import type { Project } from 'content/projects';
 import { projectPath } from 'content/routes';
-import { useSceneHover } from 'scene/MapProvider';
-import { useIsMobile } from 'scene/useViewport';
+import { foregroundEnter } from 'scene/enter';
+import { useSceneHover, useSceneView } from 'scene/MapProvider';
+import { useIsMobile, useReducedMotion } from 'scene/useViewport';
 import { cn } from 'utils/cn';
 
 /*
@@ -36,15 +37,9 @@ import { cn } from 'utils/cn';
  *     is `flex-1 min-h-0` inside the stage and the table grows into it.
  *   - the hover channel: a row lights its city point and nudges the camera
  *     8% toward it, which is scene/MapProvider's `setHover`.
- *
- * What it does NOT own, and cannot: the map's own labels. 1c and 1g both
- * carry `data-labels="0"`, and the second of those is live -- SceneRoot
- * drops the site labels below the tablet breakpoint. Browse-all is a state
- * of this page rather than of the viewport, and there is no channel from a
- * route to the layer set: `useSceneCamera` carries a CameraSpec, which has
- * no labels field, and the layering rule (enforced by eslint) puts
- * mapbox-gl behind scene/ so a page cannot reach the layers itself. The
- * sheet wash is what protects the full-bleed table today.
+ *   - the map's own type. Browse-all is a state of this page rather than
+ *     of the viewport, so the scene cannot derive it; the route declares
+ *     it through useSceneView and the scene vetoes on either input.
  *
  * Copy is lorem ipsum on purpose, and stays that way: the owner asked that
  * nothing placeholder be written in words that could survive into
@@ -158,6 +153,28 @@ export const ProjectsPage = ({
 
   const { setHover } = useSceneHover();
   const isMobile = useIsMobile();
+  const reduced = useReducedMotion();
+
+  /*
+   * 1c and 1g both carry data-labels="0", for the reason stated twice:
+   * "there is no band where both can be read, so the table carries the
+   * names and the points carry the places." Mobile is the viewport's own
+   * call and the scene already makes it; browse-all is this page's, at
+   * any width. Both are vetoes -- the scene ANDs them -- so declaring it
+   * here cannot switch the mobile suppression back on.
+   *
+   * Written inline on purpose: useSceneView compares the patch by value.
+   */
+  useSceneView({ labels: !showAll });
+
+  /*
+   * 1b and 1g: the foreground arrives once the camera move is 60% done
+   * and steps 40ms apart -- word, subtitle, table, cap. The delay is not
+   * a number this route keeps; scene/enter.ts derives it from the move
+   * /projects actually arrives on, so retiming the camera retimes this.
+   */
+  const step = (index: number) =>
+    foregroundEnter(index, { reduced, scene: 'projects' });
 
   const rows = useMemo(
     () =>
@@ -196,15 +213,20 @@ export const ProjectsPage = ({
         data-view={showAll ? 'all' : 'featured'}
       >
         <div className="flex flex-col gap-2.5">
-          <PageWord
-            className={cn(
-              'whitespace-nowrap transition-[font-size,padding-bottom]',
-              CINCH,
-            )}
-            size={showAll ? 'sm' : 'md'}
-          >
-            projects
-          </PageWord>
+          {/* The word gets its own box: PageWord is w-fit so its clipped
+              gradient samples the word itself, and the arrival belongs to
+              the box rather than to the glyphs. */}
+          <div style={step(0)}>
+            <PageWord
+              className={cn(
+                'whitespace-nowrap transition-[font-size,padding-bottom]',
+                CINCH,
+              )}
+              size={showAll ? 'sm' : 'md'}
+            >
+              projects
+            </PageWord>
+          </div>
           {/* 1g has no subtitle: at 390px the word and the table are the
               whole page, and a third block would push the table off. */}
           <Text
@@ -212,27 +234,37 @@ export const ProjectsPage = ({
               'transition-[font-size,line-height] max-tablet:hidden',
               CINCH,
             )}
+            style={step(1)}
             variant={showAll ? 'detail' : 'body'}
           >
             {showAll ? SUBTITLE_COPY : BODY_COPY}
           </Text>
         </div>
-        <ProjectTable
-          activeId={activeId}
+        {/* The table's step is a box around it: the arrival and the growth
+            are two different properties of the same element, and
+            ProjectTable takes a className rather than a style. The box is
+            also the bounded flex parent its own flex-1 resolves against. */}
+        <div
           className={cn(
-            'transition-[flex-grow]',
+            'flex min-h-0 flex-col transition-[flex-grow]',
             CINCH,
-            showAll && ROW_STAGGER,
+            showAll && 'flex-1',
           )}
-          columns={showAll ? 'all' : 'featured'}
-          count={`${String(rows.length).padStart(2, '0')} of ${
-            projects.length
-          }`}
-          eyebrow={showAll ? 'all projects' : 'selected work'}
-          onHoverRow={handleHover}
-          rows={rows}
-        />
-        <div className="flex pt-2">
+          style={step(2)}
+        >
+          <ProjectTable
+            activeId={activeId}
+            className={cn(showAll && ROW_STAGGER)}
+            columns={showAll ? 'all' : 'featured'}
+            count={`${String(rows.length).padStart(2, '0')} of ${
+              projects.length
+            }`}
+            eyebrow={showAll ? 'all projects' : 'selected work'}
+            onHoverRow={handleHover}
+            rows={rows}
+          />
+        </div>
+        <div className="flex pt-2" style={step(3)}>
           {showAll ? (
             <Button
               lead="←"
