@@ -93,6 +93,11 @@ export type ChromeRootProps = {
  *                   while the pill went on reading the untouched centre --
  *                   at three decimals, which is a claim of ~100m.
  *
+ * There is a fourth, frameCamera, and it is left out on purpose: it
+ * resolves the globe's frame into a zoom and a padding and MOVES NOTHING
+ * ELSE. The readout is of the centre, which a frame never touches, so
+ * applying it here would cost a live viewport read and change nothing.
+ *
  * They are pure functions of (pathname, declared, viewport, hover), which
  * is the whole reason the chrome can apply them: this derives the same
  * value from the same inputs rather than keeping a second copy of it.

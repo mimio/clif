@@ -237,7 +237,15 @@ const stubScript = (options: StubOptions): void => {
         if (at >= 0) current.splice(at, 1);
       },
 
-      // No style precondition: the camera only touches the transform.
+      /*
+       * A flight that lands at once, which the real thing never does --
+       * and `isEasing` says so, because the scene's rotation loop asks.
+       * Real mapbox's setBearing is jumpTo, which STOPS an easeTo in
+       * progress, so the loop holds off while one is running; a stub
+       * that answered `undefined` here would throw from inside the
+       * loop rather than exercise it.
+       */
+      isEasing: (): boolean => false,
       easeTo: (spec: Record<string, unknown>): void => {
         record.easeTo.push({
           zoom: spec.zoom as number,

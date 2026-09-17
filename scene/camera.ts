@@ -1,12 +1,20 @@
 import { anchors, type AnchorId } from 'content/anchors';
 import {
+  type CameraPadding,
   type CameraSpec,
   cameras,
+  NOT_FOUND_FRAME_MOBILE,
+  ORBIT_FRAME_MOBILE,
   SCENE_MOVE_LONG_MS,
   SCENE_MOVE_MS,
   type SceneId,
+  type Viewport,
 } from 'content/cameras';
 import { terrainExaggeration } from 'scene/budget';
+import {
+  clampGlobeZoom,
+  globeZoomForScreenRadius,
+} from 'scene/globe';
 
 /*
  * Route -> camera, and every rule about how the camera gets there.
@@ -53,12 +61,33 @@ const CAMERA_FIELDS = Object.keys(
   cameras.hello,
 ) as (keyof CameraSpec)[];
 
+/*
+ * Structural, all the way down, and that is load-bearing rather than
+ * tidy. Two of CameraSpec's fields are objects that get REBUILT every
+ * time a camera is resolved -- `padding`, which frameCamera computes from
+ * the live viewport, and `frame`, which the mobile patch swaps -- so
+ * comparing them by reference reports "changed" on every render.
+ * sameCamera is what decides whether to issue an easeTo, so that is not a
+ * wasted comparison: it is a fresh 600ms camera move per render, for ever.
+ */
 const sameValue = (a: unknown, b: unknown): boolean => {
   if (Array.isArray(a)) {
     return (
       Array.isArray(b) &&
       a.length === b.length &&
-      a.every((value, at) => value === b[at])
+      a.every((value, at) => sameValue(value, b[at]))
+    );
+  }
+  if (a !== null && typeof a === 'object') {
+    if (b === null || typeof b !== 'object' || Array.isArray(b)) {
+      return false;
+    }
+    const left = a as Record<string, unknown>;
+    const right = b as Record<string, unknown>;
+    const keys = Object.keys(left);
+    return (
+      keys.length === Object.keys(right).length &&
+      keys.every((key) => sameValue(left[key], right[key]))
     );
   }
   return a === b;
@@ -155,16 +184,33 @@ export const cameraAt = (
  * Mobile variants, from design inventory 6.2. They are not separate
  * scenes -- same fog, same terrain flag, same interactivity -- so they are
  * a patch over the desktop entry rather than a second table. The detail
- * and 404 cameras have no mobile artboard and are unchanged apart from
- * terrain.
+ * camera has no mobile artboard and is unchanged apart from terrain; the
+ * 404 has no artboard at either size and follows hello, which is the only
+ * thing there is to follow.
  */
 export const MOBILE_MAX_WIDTH = 650;
 
 const MOBILE_CAMERAS: Partial<Record<SceneId, Partial<CameraSpec>>> =
   {
-    hello: { zoom: 1.4 },
+    /*
+     * The two framed scenes swap the FRAME, not the zoom, and carry the
+     * frame resolved at 1f's 390x844 alongside it for the same reason the
+     * desktop table does: it is what ships where there is no box to
+     * measure. test/scene-camera.test.ts holds them to their frames.
+     */
+    hello: {
+      frame: ORBIT_FRAME_MOBILE,
+      zoom: 1.0455375319488909,
+      // 0.4 * 844: half of it lifts the centre to 0.3 * 844 = 253.2.
+      padding: { top: 0, right: 0, bottom: 337.6, left: 0 },
+    },
     projects: { zoom: 2.2, pitch: 20 },
     about: { zoom: 10.2, pitch: 55 },
+    notFound: {
+      frame: NOT_FOUND_FRAME_MOBILE,
+      zoom: 0.24553753194889083,
+      padding: { top: 0, right: 0, bottom: 337.6, left: 0 },
+    },
   };
 
 /**
@@ -185,6 +231,81 @@ export const forViewport = (
   return {
     ...patched,
     terrain: terrainExaggeration(patched.terrain, true),
+  };
+};
+
+/*
+ * THE FRAME, RESOLVED.
+ *
+ * A GlobeFrame says where the sphere goes and how big it is, both as
+ * fractions of the viewport. mapbox takes a zoom and a padding. This is
+ * the conversion, and it is the last step of the camera pipeline --
+ * after resolveCamera has picked the route's camera and forViewport has
+ * chosen the breakpoint's frame.
+ *
+ * WHY PADDING AND NOT easeTo's `offset`. Both sound like they move the
+ * globe and only one does. `offset` is a one-shot: mapbox reads it as
+ * "put the destination CENTRE this far from the middle of the screen" and
+ * turns it into a different lng/lat, so the sphere stays dead centre and
+ * the geography slides under it -- the opposite of what 1a draws, which
+ * is Portland still facing the viewer with the whole sphere pushed right.
+ * It is also not camera state, so it survives nothing: not a resize, not
+ * a drag, not the next move. `padding` moves the PROJECTION CENTRE, which
+ * is the point the globe is drawn around, and it persists on the
+ * transform. Measured: a left padding of P puts the sphere's centre P/2
+ * to the right and leaves the painted radius untouched to the pixel.
+ *
+ * WHY IT RE-RESOLVES RATHER THAN BEING A CONSTANT. Both halves are
+ * viewport-relative. The radius is a fraction of the height and mapbox's
+ * globe is a perspective projection whose magnification depends on the
+ * viewport height too, so the zoom that frames it is a function of the
+ * height and nothing else; the padding is in pixels, so a resize leaves
+ * yesterday's pixels behind. A single committed zoom is right at exactly
+ * one window size.
+ */
+
+/** The padding that puts the projection centre at `at` in this viewport. */
+export const paddingFor = (
+  at: [number, number],
+  viewport: Viewport,
+): CameraPadding => {
+  // centerPoint is (size + near - far) / 2, so the gap between opposing
+  // sides has to be twice the offset wanted.
+  const dx = viewport.width * (2 * at[0] - 1);
+  const dy = viewport.height * (2 * at[1] - 1);
+  return {
+    top: dy > 0 ? dy : 0,
+    right: dx < 0 ? -dx : 0,
+    bottom: dy < 0 ? -dy : 0,
+    left: dx > 0 ? dx : 0,
+  };
+};
+
+/**
+ * The camera with its frame resolved against a real box, or unchanged
+ * when there is no frame or nothing to measure.
+ *
+ * A null viewport is not a fallback so much as an honest answer: on the
+ * server, and under jsdom, there is no layout and any width would be
+ * invented. The table's own `zoom` and `padding` are that frame at the
+ * artboard size, so passing the spec through is the artboard camera --
+ * which is the one thing that is certainly not a guess.
+ */
+export const frameCamera = (
+  spec: CameraSpec,
+  viewport: Viewport | null,
+): CameraSpec => {
+  const { frame } = spec;
+  if (frame === null || viewport === null) return spec;
+  const axis =
+    frame.of === 'width' ? viewport.width : viewport.height;
+  return {
+    ...spec,
+    zoom: clampGlobeZoom(
+      globeZoomForScreenRadius(frame.radius * axis, viewport.height) +
+        frame.zoomOffset,
+    ),
+    padding: paddingFor(frame.at, viewport),
   };
 };
 

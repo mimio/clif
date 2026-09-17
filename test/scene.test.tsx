@@ -33,6 +33,7 @@ import {
 } from 'scene/budget';
 import {
   cameraAt,
+  forViewport,
   REDUCED_MOVE_MS,
   SCENE_REFRAME_MS,
 } from 'scene/camera';
@@ -66,9 +67,11 @@ import { resetLutCacheForTests, THEME_EVENT } from 'scene/theme';
 import useSceneCamera from 'scene/useSceneCamera';
 import {
   MOBILE_QUERY,
+  readViewport,
   REDUCED_MOTION_QUERY,
   useIsMobile,
   useReducedMotion,
+  useViewportSize,
 } from 'scene/useViewport';
 import { applyTheme, THEME_IDS } from 'styles/theme-bootstrap';
 import { FALLBACK_PALETTE } from 'styles/tokens/palette';
@@ -312,7 +315,9 @@ describe('MapProvider and useSceneCamera', () => {
         <Probe />
       </SceneContext.Provider>,
     );
-    expect(screen.getByText('1.6/clear')).toBeVisible();
+    expect(
+      screen.getByText(`${cameras.hello.zoom}/clear`),
+    ).toBeVisible();
   });
 });
 
@@ -394,6 +399,93 @@ describe('the viewport and motion reads', () => {
     }
     expect(stub.listeners(MOBILE_QUERY)).toBe(0);
     expect(stub.listeners(REDUCED_MOTION_QUERY)).toBe(0);
+  });
+});
+
+/* ---- the box the globe is framed in ------------------------------------ */
+
+const Box = () => {
+  const box = useViewportSize();
+  return (
+    <p>{box === null ? 'no layout' : `${box.width}x${box.height}`}</p>
+  );
+};
+
+/** jsdom has no layout, so clientWidth/Height are set by hand here. */
+const setLayout = (width: number, height: number): void => {
+  const root = document.documentElement;
+  Object.defineProperty(root, 'clientWidth', {
+    configurable: true,
+    value: width,
+  });
+  Object.defineProperty(root, 'clientHeight', {
+    configurable: true,
+    value: height,
+  });
+};
+
+describe('the scene box', () => {
+  afterEach(() => {
+    setLayout(0, 0);
+  });
+
+  it('answers null where there is no layout to read', () => {
+    // jsdom, and the server. frameCamera reads that as "leave the
+    // table's artboard framing alone" rather than inventing a width.
+    render(<Box />);
+    expect(screen.getByText('no layout')).toBeVisible();
+  });
+
+  it('has no box on the server either', () => {
+    // There is no layout there to have one, and the artboard camera in
+    // the table is what a server render is describing.
+    expect(renderToStaticMarkup(<Box />)).toContain('no layout');
+  });
+
+  it('reports the layout viewport, not the window', () => {
+    setLayout(1440, 900);
+    render(<Box />);
+    expect(screen.getByText('1440x900')).toBeVisible();
+  });
+
+  it('follows a resize, and hands back the same object until it changes', () => {
+    setLayout(1440, 900);
+    render(<Box />);
+    act(() => {
+      setLayout(1280, 800);
+      window.dispatchEvent(new Event('resize'));
+    });
+    expect(screen.getByText('1280x800')).toBeVisible();
+
+    /*
+     * useSyncExternalStore compares snapshots by identity, so a fresh
+     * object per read would re-render for ever. This is the only place
+     * that can say so: React throws "getSnapshot should be cached" only
+     * after it has already looped.
+     */
+    expect(readViewport()).toBe(readViewport());
+
+    act(() => {
+      setLayout(0, 0);
+      window.dispatchEvent(new Event('resize'));
+    });
+    expect(screen.getByText('no layout')).toBeVisible();
+  });
+
+  it('stops listening on unmount', () => {
+    const add = vi.spyOn(window, 'addEventListener');
+    const remove = vi.spyOn(window, 'removeEventListener');
+    const { unmount } = render(<Box />);
+    const resizes = add.mock.calls.filter(
+      ([type]) => type === 'resize',
+    );
+    expect(resizes).toHaveLength(1);
+    unmount();
+    expect(
+      remove.mock.calls.filter(([type]) => type === 'resize'),
+    ).toHaveLength(1);
+    add.mockRestore();
+    remove.mockRestore();
   });
 });
 
@@ -942,6 +1034,35 @@ describe('the persistent map', () => {
     expect(FakeMap.last.calls.bearing.length).toBeGreaterThan(0);
   });
 
+  it('does not rotate over a camera that is still flying', async () => {
+    /*
+     * mapbox's setBearing IS jumpTo, and jumpTo opens with `this.stop()`
+     * -- so a rotation written during a flight cancels it. The hello
+     * globe was stopped by its own spin about 8% into its 800ms move and
+     * sat there, which is most of what "the globe is too small and in
+     * the middle" was. Nothing but the rate is asserted anywhere else,
+     * and a rate is not a rotation that happened at the right time.
+     */
+    await mount();
+    const map = FakeMap.last;
+    map.easing = true;
+    const before = map.calls.bearing.length;
+    await act(async () => {
+      await new Promise((done) => {
+        requestAnimationFrame(() => done(null));
+      });
+    });
+    expect(map.calls.bearing).toHaveLength(before);
+
+    map.easing = false;
+    await act(async () => {
+      await new Promise((done) => {
+        requestAnimationFrame(() => done(null));
+      });
+    });
+    expect(map.calls.bearing.length).toBeGreaterThan(before);
+  });
+
   it('is static under reduced motion: 200ms, no rotation', async () => {
     vi.stubGlobal(
       'matchMedia',
@@ -962,7 +1083,9 @@ describe('the persistent map', () => {
   it('applies the mobile artboard camera below the breakpoint', async () => {
     vi.stubGlobal('matchMedia', matchMediaStub([MOBILE_QUERY]));
     await mount();
-    expect(FakeMap.last.calls.easeTo[0].zoom).toBe(1.4);
+    const mobileHello = forViewport(cameras.hello, 'hello', true);
+    expect(FakeMap.last.calls.easeTo[0].zoom).toBe(mobileHello.zoom);
+    expect(mobileHello.zoom).not.toBe(cameras.hello.zoom);
   });
 
   /*
@@ -1007,7 +1130,9 @@ describe('the persistent map', () => {
       media.fire(MOBILE_QUERY, true);
     });
     // The mobile artboard, on the same map: a rotation is not a remount.
-    expect(map.calls.easeTo.at(-1)?.zoom).toBe(1.4);
+    expect(map.calls.easeTo.at(-1)?.zoom).toBe(
+      forViewport(cameras.hello, 'hello', true).zoom,
+    );
     expect(FakeMap.instances).toHaveLength(1);
 
     await act(async () => {
@@ -1506,20 +1631,47 @@ describe('the style lifecycle', () => {
     expect(guarded.has('setConfigProperty')).toBe(false);
   });
 
-  it('drives the camera but touches nothing else before style.load', async () => {
+  it('touches nothing at all before style.load, the camera included', async () => {
     await mount();
     const map = FakeMap.last;
     expect(map.styleLoaded).toBe(false);
-    // The camera has no style precondition and is applied at once, so the
-    // map never sits at its constructed [0, 0] waiting for a stylesheet.
-    expect(map.calls.easeTo).toHaveLength(1);
-    expect(map.calls.easeTo[0].center).toEqual(cameras.hello.center);
+    /*
+     * THE CAMERA WAITS TOO, and this assertion used to say the opposite.
+     *
+     * It was written on the grounds that easeTo has no style
+     * precondition -- which is true of what it WRITES and false of what
+     * it does. easeTo is an animation, and it advances only on the map's
+     * render frames, of which a map with no stylesheet has none. The
+     * move sat at t=0 until the style arrived and mapbox dropped it on
+     * the way through, leaving the transform at its constructed [0, 0]
+     * zoom 0 for the life of the tab.
+     *
+     * Nothing here could see that: the fake lands an easeTo in one step,
+     * so "easeTo was called" and "the camera moved" are the same fact
+     * against the stub and two very different facts against mapbox.
+     * e2e/hermetic/globe-frame.spec.ts measures the second one.
+     */
+    expect(map.calls.easeTo).toEqual([]);
     // Everything that would have thrown.
     expect(map.calls.colorTheme).toEqual([]);
     expect(map.calls.config).toEqual([]);
     expect(map.calls.fog).toEqual([]);
     expect(map.calls.terrain).toEqual([]);
     expect(map.layers.size).toBe(0);
+  });
+
+  it('flies the route camera the moment the style arrives', async () => {
+    await mount();
+    const map = FakeMap.last;
+    await act(async () => {
+      map.loadStyle();
+    });
+    expect(map.calls.easeTo).toHaveLength(1);
+    expect(map.calls.easeTo[0].center).toEqual(cameras.hello.center);
+    expect(map.calls.easeTo[0].zoom).toBe(cameras.hello.zoom);
+    expect(map.calls.easeTo[0].padding).toEqual(
+      cameras.hello.padding,
+    );
   });
 
   it('applies everything it was asked for once the style loads', async () => {
