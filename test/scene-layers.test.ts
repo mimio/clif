@@ -82,6 +82,7 @@ const options = (
   palette: FALLBACK_PALETTE,
   hover: null,
   labels: true,
+  selectedStop: null,
   dash: true,
   onHoverAnchor: vi.fn(),
   onSelectAnchor: vi.fn(),
@@ -486,20 +487,24 @@ describe('the work path and the history stops', () => {
     }
   });
 
-  it('marks the current job as the live stop', () => {
+  /*
+   * This used to derive the live stop from the data -- `end === null`,
+   * the current job -- which lit Salesforce for ever and made the map the
+   * one part of /about that ignored the selection. The live element is
+   * whatever the route selected; see test/scene-view.test.tsx.
+   */
+  it('draws every stop, and derives no live one from the data', () => {
     const stops = layerSetsFor('about', options())[0];
     const source = stops.sources.find(
       (one) => one.id === HISTORY_SET,
     );
     const data = source?.spec.data as {
-      features: { properties: { live: boolean } }[];
+      features: { properties: Record<string, unknown> }[];
     };
-    const live = data.features.filter(
-      (feature) => feature.properties.live,
-    );
-    expect(live).toHaveLength(
-      historyStops.filter((stop) => stop.end === null).length,
-    );
+    expect(data.features).toHaveLength(historyStops.length);
+    expect(
+      data.features.some((feature) => 'live' in feature.properties),
+    ).toBe(false);
     expect(stops.layers.map((one) => one.id)).toContain(
       HISTORY_POINTS,
     );

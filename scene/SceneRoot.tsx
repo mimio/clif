@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
-import type { SceneId } from 'content/cameras';
+import type { CameraSpec, SceneId } from 'content/cameras';
 import {
   cameraForHover,
   dashRuns,
@@ -12,7 +12,11 @@ import {
   terrainFor,
 } from 'scene/camera';
 import { layerSetsFor, WORK_PATH_DASH } from 'scene/layers/sets';
-import { useScene, useSceneHover } from 'scene/MapProvider';
+import {
+  useScene,
+  useSceneHover,
+  useSceneViewValue,
+} from 'scene/MapProvider';
 import {
   applyBasemapConfig,
   applyCamera,
@@ -35,6 +39,7 @@ import {
   subscribeTheme,
 } from 'scene/theme';
 import { useIsMobile, useReducedMotion } from 'scene/useViewport';
+import { showLabels } from 'scene/view';
 import type { Palette } from 'styles/tokens/palette';
 import { cn } from 'utils/cn';
 
@@ -110,6 +115,7 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
   const { pathname } = useRouter();
   const { camera: declared } = useScene();
   const { hover, setHover } = useSceneHover();
+  const view = useSceneViewValue();
   const isMobile = useIsMobile();
   const reduced = useReducedMotion();
 
@@ -120,6 +126,7 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
   // basemap config only sends what changed.
   const lastScene = useRef<SceneId | null>(null);
   const lastConfig = useRef<BasemapConfig | null>(null);
+  const lastTarget = useRef<CameraSpec | null>(null);
 
   const sceneId = sceneIdForPath(pathname);
 
@@ -143,15 +150,25 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
       layerSetsFor(sceneId, {
         palette,
         hover,
-        // Below the tablet breakpoint the table carries the names and the
-        // points carry the places (artboard 1g).
-        labels: !isMobile,
+        // Both the viewport and the route can veto map type; neither
+        // outranks the other.
+        labels: showLabels(view, isMobile),
+        selectedStop: view.selectedStop,
         dash: dashRuns(spec, reduced),
         onHoverAnchor: setHover,
         // A tap is the touch equivalent of a hover: it lights the city.
         onSelectAnchor: setHover,
       }),
-    [sceneId, palette, hover, isMobile, spec, reduced, setHover],
+    [
+      sceneId,
+      palette,
+      hover,
+      isMobile,
+      view,
+      spec,
+      reduced,
+      setHover,
+    ],
   );
 
   /*
@@ -218,10 +235,22 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
   useEffect(() => {
     if (state !== 'live') return;
 
-    const from = lastScene.current;
-    lastScene.current = sceneId;
+    /*
+     * The camera moves only when the camera changed.
+     *
+     * This pass re-runs for things that are not the camera -- a repaint,
+     * a route declaring labels off, a stop being selected -- and an
+     * unconditional easeTo would answer each of those with a 600ms move
+     * to where the camera already is. Everything below is a setter and
+     * idempotent; a move is not.
+     */
+    if (target !== lastTarget.current) {
+      const from = lastScene.current;
+      lastScene.current = sceneId;
+      lastTarget.current = target;
+      applyCamera(target, moveDurationFor(from, sceneId, reduced));
+    }
 
-    applyCamera(target, moveDurationFor(from, sceneId, reduced));
     applyFog(spec, palette);
     applyTerrain(terrainFor(spec));
     applyInteractivity(spec.interactive);

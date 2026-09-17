@@ -36,6 +36,7 @@ import {
 } from 'scene/camera';
 import {
   HISTORY_POINTS,
+  SITE_LABELS,
   SITE_POINTS,
   WORK_PATH_LINE,
 } from 'scene/layers/sets';
@@ -43,6 +44,7 @@ import MapProvider, {
   SceneContext,
   useScene,
   useSceneHover,
+  useSceneView,
 } from 'scene/MapProvider';
 import {
   ensureMap,
@@ -593,6 +595,80 @@ describe('the persistent map', () => {
     vi.stubGlobal('matchMedia', matchMediaStub([MOBILE_QUERY]));
     await mount();
     expect(FakeMap.last.calls.easeTo[0].zoom).toBe(1.4);
+  });
+
+  it('changes what the scene shows without moving the camera', async () => {
+    pathname.current = '/projects';
+    const Browsing = ({ open }: { open: boolean }) => {
+      useSceneView({ labels: !open });
+      return null;
+    };
+    await mount(
+      <>
+        <SceneRoot />
+        <Browsing open={false} />
+      </>,
+    );
+    const map = FakeMap.last;
+    const moves = map.calls.easeTo.length;
+    const labelOpacity = () =>
+      map.calls.paint
+        .filter(
+          ([layer, property]) =>
+            layer === SITE_LABELS && property === 'text-opacity',
+        )
+        .at(-1)?.[2];
+    expect(labelOpacity()).toBe(1);
+
+    // Opening browse-all is a state of the page, not a camera move: the
+    // artboard says "browsing is not travelling, so the camera holds".
+    await act(async () => {
+      view.rerender(
+        <MapProvider>
+          <SceneRoot />
+          <Browsing open />
+        </MapProvider>,
+      );
+    });
+    expect(labelOpacity()).toBe(0);
+    expect(map.calls.easeTo).toHaveLength(moves);
+  });
+
+  it('lights the history stop the route selected', async () => {
+    pathname.current = '/about';
+    const Selecting = ({ stop }: { stop: number }) => {
+      useSceneView({ selectedStop: stop });
+      return null;
+    };
+    await mount(
+      <>
+        <SceneRoot />
+        <Selecting stop={2} />
+      </>,
+    );
+    const map = FakeMap.last;
+    const moves = map.calls.easeTo.length;
+    const radius = () =>
+      map.calls.paint
+        .filter(
+          ([layer, property]) =>
+            layer === HISTORY_POINTS && property === 'circle-radius',
+        )
+        .at(-1)?.[2];
+    expect(JSON.stringify(radius())).toContain('2');
+
+    await act(async () => {
+      view.rerender(
+        <MapProvider>
+          <SceneRoot />
+          <Selecting stop={5} />
+        </MapProvider>,
+      );
+    });
+    expect(JSON.stringify(radius())).toContain('5');
+    // Selecting a stop repaints; the camera move to that stop is the
+    // about route's own business, through useSceneCamera.
+    expect(map.calls.easeTo).toHaveLength(moves);
   });
 
   it('fogs the scene from the route preset', async () => {

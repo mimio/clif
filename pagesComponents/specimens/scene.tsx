@@ -225,6 +225,7 @@ const LayerTable = () => {
             palette: FALLBACK_PALETTE,
             hover: null,
             labels: true,
+            selectedStop: null,
             dash: true,
             onHoverAnchor: noop,
             onSelectAnchor: noop,
@@ -419,6 +420,58 @@ const Scene = () => {
         title="Layer sets"
       >
         <LayerTable />
+      </Section>
+
+      <Section
+        note="A route declares the camera through useSceneCamera, and everything else through useSceneView. Both are declarative and both are taken back when the route unmounts; neither moves the camera except useSceneCamera."
+        title="What a route declares"
+      >
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b border-surface-3">
+              <th className={head}>route</th>
+              <th className={head}>call</th>
+              <th className={head}>why</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-surface-3">
+              <td className={`${cell} text-fg`}>projects</td>
+              <td className="px-3 py-2 align-top text-[11px] text-fg-2">
+                <code>{'useSceneView({ labels: !browseAll })'}</code>
+              </td>
+              <td className="px-3 py-2 align-top text-[11px] text-fg-4">
+                1c: at full bleed the table overprints the map type.
+                ANDed with the viewport, which suppresses it below
+                650px on its own (1g).
+              </td>
+            </tr>
+            <tr className="border-b border-surface-3">
+              <td className={`${cell} text-fg`}>about</td>
+              <td className="px-3 py-2 align-top text-[11px] text-fg-2">
+                <code>{'useSceneView({ selectedStop: id })'}</code>
+              </td>
+              <td className="px-3 py-2 align-top text-[11px] text-fg-4">
+                1e: the live element is the SELECTED stop, so the map
+                tracks the sheet and the scrubber rather than the
+                current job.
+              </td>
+            </tr>
+            <tr className="border-b border-surface-3">
+              <td className={`${cell} text-fg`}>detail</td>
+              <td className="px-3 py-2 align-top text-[11px] text-fg-2">
+                <code>
+                  {'useSceneCamera(cameraAt(spec, centre))'}
+                </code>
+              </td>
+              <td className="px-3 py-2 align-top text-[11px] text-fg-4">
+                A refinement may move the centre and nothing else, or
+                it is treated as a camera left behind by the last
+                route.
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </Section>
 
       <Section

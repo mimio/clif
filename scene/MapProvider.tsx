@@ -2,12 +2,20 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react';
 import type { AnchorId } from 'content/anchors';
 import type { CameraSpec } from 'content/cameras';
+import {
+  DEFAULT_VIEW,
+  mergeView,
+  sameView,
+  type SceneView,
+  type SceneViewPatch,
+} from 'scene/view';
 
 /*
  * One camera, shared by the whole tree.
@@ -22,8 +30,11 @@ import type { CameraSpec } from 'content/cameras';
  * own site points set it when the pointer is on the globe rather than on
  * the table -- which is why it lives here and inside neither one.
  *
- * Both hover fields are optional, so a consumer can still build a context
- * value out of `{ camera, setCamera }` alone.
+ * `view` is the third: everything a route declares about the scene that is
+ * not where the camera is -- see scene/view.ts.
+ *
+ * The hover and view fields are optional, so a consumer can still build a
+ * context value out of `{ camera, setCamera }` alone.
  */
 export type SceneContextValue = {
   /** The camera the current route asked for; null before any route has. */
@@ -32,6 +43,9 @@ export type SceneContextValue = {
   /** The anchor city a hovered project is nudging the camera toward. */
   hover?: AnchorId | null;
   setHover?: (anchor: AnchorId | null) => void;
+  /** What the current route says about the scene besides the camera. */
+  view?: SceneView;
+  setView?: (view: SceneView) => void;
 };
 
 const noop = (): void => {};
@@ -59,6 +73,28 @@ export const useSceneHover = (): SceneHover => {
   return { hover: hover ?? null, setHover: setHover ?? noop };
 };
 
+/** The live scene view, with the outside-a-provider case resolved. */
+export const useSceneViewValue = (): SceneView =>
+  useScene().view ?? DEFAULT_VIEW;
+
+/**
+ * A route's statement about the scene beyond the camera. Call it with
+ * only the fields the route cares about; the rest keep their defaults,
+ * and the declaration is dropped when the route unmounts.
+ *
+ * The patch may be an inline object: it is compared by value.
+ */
+export const useSceneView = (patch: SceneViewPatch): void => {
+  const { setView } = useScene();
+  const { labels, selectedStop } = mergeView(patch);
+
+  useEffect(() => {
+    if (!setView) return undefined;
+    setView({ labels, selectedStop });
+    return () => setView(DEFAULT_VIEW);
+  }, [setView, labels, selectedStop]);
+};
+
 export type MapProviderProps = {
   children?: ReactNode;
 };
@@ -66,6 +102,7 @@ export type MapProviderProps = {
 export const MapProvider = ({ children }: MapProviderProps) => {
   const [camera, setCamera] = useState<CameraSpec | null>(null);
   const [hover, setHoverState] = useState<AnchorId | null>(null);
+  const [view, setViewState] = useState<SceneView>(DEFAULT_VIEW);
 
   // Stable, because the map's own interaction handlers are registered
   // once per layer set and close over it.
@@ -73,9 +110,17 @@ export const MapProvider = ({ children }: MapProviderProps) => {
     setHoverState(anchor);
   }, []);
 
+  // Value-compared, so a route can declare its view inline without the
+  // object identity churning on every render.
+  const setView = useCallback((next: SceneView) => {
+    setViewState((current) =>
+      sameView(current, next) ? current : next,
+    );
+  }, []);
+
   const value = useMemo(
-    () => ({ camera, setCamera, hover, setHover }),
-    [camera, hover, setHover],
+    () => ({ camera, setCamera, hover, setHover, view, setView }),
+    [camera, hover, setHover, view, setView],
   );
 
   return (

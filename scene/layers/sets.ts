@@ -164,8 +164,15 @@ export type LayerSetOptions = {
   palette: Palette;
   /** The anchor a hovered project row is lighting, if any. */
   hover: AnchorId | null;
-  /** False below the tablet breakpoint: the table carries the names (1g). */
+  /** False below the tablet breakpoint (1g) or in browse-all (1c). */
   labels: boolean;
+  /**
+   * The history stop drawn live, by id. Artboard 1e's yellow budget
+   * allows one live element per view, and on /about it is the SELECTED
+   * stop -- what the sheet and the scrubber are showing -- not the
+   * current job.
+   */
+  selectedStop: number | null;
   /** False on terrain routes and under reduced motion. */
   dash: boolean;
   /** Called with the anchor under the pointer, or null on leave. */
@@ -444,8 +451,10 @@ const projectSitesSet = (options: LayerSetOptions): LayerSet => {
 };
 
 const historySet = (options: LayerSetOptions): LayerSet => {
-  const { labels } = options;
-  const live = ['==', ['get', 'live'], true];
+  const { labels, selectedStop } = options;
+  // A stop id is never null, so a null selection matches nothing and the
+  // route simply has no live element until it names one.
+  const live = ['==', ['get', 'id'], selectedStop ?? -1];
 
   const paint = (palette: Palette): PaintPatch[] => [
     {
@@ -522,8 +531,8 @@ const historySet = (options: LayerSetOptions): LayerSet => {
             historyStops.map((stop) => ({
               center: [...stop.coordinates] as Point,
               properties: {
+                id: stop.id,
                 company: stop.company.toUpperCase(),
-                live: stop.end === null,
               },
             })),
           ),
