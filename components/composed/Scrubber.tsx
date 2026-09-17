@@ -106,16 +106,18 @@ export const Scrubber = ({
                 className={cn(
                   'block',
                   live
-                    ? 'h-6 w-[3px] bg-accent'
-                    : 'h-[17px] w-px bg-accent-35',
+                    ? 'h-[17px] w-[3px] bg-accent tablet:h-6'
+                    : 'h-[11px] w-px bg-accent-35 tablet:h-[17px]',
                 )}
               />
+              {/* 1h drops the inactive labels: at 390px six of them
+                  overprint each other, and the ticks still read. */}
               <Text
                 className={cn(
                   'block [letter-spacing:0.12em] whitespace-nowrap',
                   live
                     ? 'rounded-[var(--radius-pill)] bg-accent px-[9px] py-[3px] text-on-accent'
-                    : 'text-fg-4',
+                    : 'text-fg-4 max-tablet:hidden',
                 )}
                 variant="readout"
               >

@@ -74,8 +74,13 @@ export const ScreenshotPlane = ({
           <GlitchImage alt={alt} src={src} />
         </div>
       )}
+      {/* The artboard's caption sits on a dark placeholder weave; a real
+          capture can be any colour, so the caption carries its own plate.
+          --surface-control-backdrop is the themed ground at 69%, which is
+          the one surface --text-body is guaranteed against in all eight
+          themes -- a wash cannot promise that over an arbitrary photo. */}
       {caption === undefined ? null : (
-        <figcaption className="absolute inset-x-0 bottom-0 p-[18px]">
+        <figcaption className="absolute inset-x-0 bottom-0 bg-backdrop p-[18px]">
           <Text
             className="[letter-spacing:var(--type-label-tracking)] text-fg-2 uppercase"
             variant="readout"
