@@ -7,6 +7,23 @@
  * imported later and wins -- design inventory 8 gap 12, "three sources,
  * three answers". themes.css is the one source now, because it is the one
  * that actually shipped and the only one that themes.
+ *
+ * Of those two, --vignette-night is live (SceneStage's `night`) and
+ * --vignette-left currently has no consumer. It is kept anyway, and the
+ * reason is worth writing down so nobody either deletes it or reaches for
+ * it again by accident:
+ *
+ *   The artboards specify it as the wash under the hello and projects
+ *   foreground columns, so it is a documented part of the token surface and
+ *   the token specimen renders it. But the cardless project table failed on
+ *   it -- a plain left vignette decays to 0.39 by the table's right edge,
+ *   leaving the last two columns on bare terrain -- so SceneStage's `left`
+ *   variant points at --scrim-wide instead, which holds its strength under
+ *   the full column and only fades past it.
+ *
+ * So it is superseded for its one purpose rather than merely unused.
+ * Anything tempted to adopt it should check the decay across its own
+ * content width first, and will probably want --scrim-wide too.
  */
 :root {
   /* the fog presets. Each route names one; nothing else tints the scene. */

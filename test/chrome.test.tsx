@@ -547,6 +547,43 @@ describe('ThemeEye', () => {
   });
 });
 
+describe('the dense labels sit on the micro steps', () => {
+  /*
+   * These were rendered at 11px before typography.css had a step below the
+   * readout, which was a visible deviation on the densest text in the
+   * system. The scale now goes label 12 / readout 11 / caption 10 / micro 9,
+   * and these assertions exist so nobody rounds them back up.
+   */
+  it('sets the theme panel in the 9px micro step', () => {
+    render(<ThemeEye defaultOpen />);
+    expect(screen.getByText('theme')).toHaveStyle({
+      fontSize: 'var(--type-micro-size)',
+      letterSpacing: 'var(--type-micro-tracking)',
+    });
+    expect(
+      screen.getByRole('option', { name: 'teal' }).lastElementChild,
+    ).toHaveStyle({ fontSize: 'var(--type-micro-size)' });
+  });
+
+  it('sets the contact eyebrow in the same step', () => {
+    render(<ContactMouth defaultOpen />);
+    expect(screen.getByText('lorem ipsum')).toHaveStyle({
+      fontSize: 'var(--type-micro-size)',
+      letterSpacing: 'var(--type-micro-tracking)',
+    });
+  });
+
+  it('splits the pill: readout 11px, caption 10px', () => {
+    render(<CoordPill lat={45.5} lng={-122.7} />);
+    expect(screen.getByText('45.500, -122.700')).toHaveStyle({
+      fontSize: 'var(--type-readout-size)',
+    });
+    expect(screen.getByText('camera')).toHaveStyle({
+      fontSize: 'var(--type-caption-size)',
+    });
+  });
+});
+
 describe('ContactMouth', () => {
   it('opens onto the one address', async () => {
     render(<ContactMouth />);

@@ -103,10 +103,20 @@
   --color-fg-4: var(--text-muted);
   --color-fg-5: var(--text-faint);
 
-  /* accents. -small is the ground-aware step for 9-11px type, picked per
-     theme as the first ladder step clearing 4.5:1. */
+  /* Accents. Accent ink comes in three steps by size, and all three are
+     mapped here so none of them has to be reached as an arbitrary value:
+       accent        24px and up, where AA asks only 3:1
+       accent-body   body2 (18) and detail2 (14); the full accent on six
+                     themes and the darkened step on paper and chalk, whose
+                     near-white grounds put the full accent under AA for
+                     running copy
+       accent-small  9-11px, the first ladder step clearing 4.5:1 per theme
+     These map --text-* names into --color-*, which is the point: --text-* is
+     Tailwind's font-size namespace, so mapping those tokens under their own
+     names would collide. Under --color-* they are plain colour utilities. */
   --color-accent: var(--clif-accent);
   --color-accent-2: var(--clif-accent-2);
+  --color-accent-body: var(--text-accent-body);
   --color-accent-small: var(--text-accent-small);
   --color-accent2-text: var(--accent2-text);
   --color-accent2-line: var(--accent2-line);

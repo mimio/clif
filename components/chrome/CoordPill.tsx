@@ -65,10 +65,28 @@ const LIMB_MOTION =
 const BONE = 'absolute rounded-[1px] bg-accent-60';
 const JOINT = 'absolute h-[3px] w-[3px] rounded-full bg-accent';
 
-const READOUT_TYPE: CSSProperties = {
+/*
+ * Both lines run down the pill, and they are two different steps: the
+ * coordinate is the readout (11px), the caption under the divider is the
+ * caption step (10px). The caption's own tracking is 0.22em rather than the
+ * step's canonical 0.24em -- it is set vertically, where the tracking reads
+ * as leading between glyphs and wants a touch less.
+ */
+const VERTICAL: CSSProperties = {
   writingMode: 'vertical-rl',
-  fontSize: 'var(--type-readout-size)',
   fontWeight: 'var(--weight-regular)',
+};
+
+const READOUT_TYPE: CSSProperties = {
+  ...VERTICAL,
+  fontSize: 'var(--type-readout-size)',
+  letterSpacing: '.12em',
+};
+
+const CAPTION_TYPE: CSSProperties = {
+  ...VERTICAL,
+  fontSize: 'var(--type-caption-size)',
+  letterSpacing: '.22em',
 };
 
 export type CoordPillProps = {
@@ -153,20 +171,14 @@ export const CoordPill = ({
         onMouseEnter={() => setAwake(true)}
         onMouseLeave={() => setAwake(false)}
       >
-        <span
-          className="text-accent-small"
-          style={{ ...READOUT_TYPE, letterSpacing: '.12em' }}
-        >
+        <span className="text-accent-small" style={READOUT_TYPE}>
           {formatCoordinates(lng, lat)}
         </span>
         <span
           aria-hidden="true"
           className="h-[14px] w-px flex-none bg-surface-3"
         />
-        <span
-          className="text-fg-4 uppercase"
-          style={{ ...READOUT_TYPE, letterSpacing: '.22em' }}
-        >
+        <span className="text-fg-4 uppercase" style={CAPTION_TYPE}>
           {label}
         </span>
       </div>

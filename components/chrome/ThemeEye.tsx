@@ -155,8 +155,8 @@ export const ThemeEye = ({
             <span
               className="text-fg-4 uppercase"
               style={{
-                fontSize: 'var(--type-readout-size)',
-                letterSpacing: '.26em',
+                fontSize: 'var(--type-micro-size)',
+                letterSpacing: 'var(--type-micro-tracking)',
               }}
             >
               theme
@@ -164,7 +164,7 @@ export const ThemeEye = ({
             <span
               className="text-accent-small"
               style={{
-                fontSize: 'var(--type-readout-size)',
+                fontSize: 'var(--type-micro-size)',
                 letterSpacing: '.14em',
               }}
             >
@@ -228,7 +228,7 @@ export const ThemeEye = ({
                       on ? 'text-fg-2' : 'text-fg-4',
                     )}
                     style={{
-                      fontSize: 'var(--type-readout-size)',
+                      fontSize: 'var(--type-micro-size)',
                       letterSpacing: '.1em',
                     }}
                   >

@@ -103,8 +103,8 @@ export const ContactMouth = ({
           <p
             className="mb-[9px] text-fg-4 uppercase"
             style={{
-              fontSize: 'var(--type-readout-size)',
-              letterSpacing: '.26em',
+              fontSize: 'var(--type-micro-size)',
+              letterSpacing: 'var(--type-micro-tracking)',
             }}
           >
             lorem ipsum

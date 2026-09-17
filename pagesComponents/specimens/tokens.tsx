@@ -206,6 +206,8 @@ const GROUPS: Group[] = [
       '--type-detail-size',
       '--type-label-size',
       '--type-readout-size',
+      '--type-caption-size',
+      '--type-micro-size',
       '--space-4',
       '--space-16',
       '--foreground-left',

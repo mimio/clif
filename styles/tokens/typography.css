@@ -43,4 +43,30 @@
   --type-label-tracking: 0.2em;
   --type-readout-size: 11px;
   --type-readout-tracking: 0.18em;
+
+  /*
+   * The two micro steps, below the readout. They are two steps and not one:
+   * the bundle sets 10px 59 times and 9px 53 times, and the two do different
+   * jobs on different surfaces.
+   *
+   * caption 10px  the eyebrow over a block of content, and the numerals
+   *               beside it: `selected work`, `06 of 14`, the scrubber's
+   *               year ticks, the coordinate pill's caption. It is also the
+   *               artboards' own annotation heading, which is where most of
+   *               the 59 are. Canonical tracking 0.24em.
+   * micro    9px  only inside a popover, where a 262-318px panel has to
+   *               carry a header, an active-value readout and eight rows and
+   *               still leave the rows legible. The theme panel and the
+   *               contact panel are the whole of its use. Canonical tracking
+   *               0.26em.
+   *
+   * Neither takes a -tablet/-mobile step, and that is deliberate rather than
+   * an omission: the chrome that uses them scales as a whole through a
+   * transform (ChromeRoot's `max-tablet:` scale), so a size switch
+   * underneath would compound with it and shrink twice.
+   */
+  --type-caption-size: 10px;
+  --type-caption-tracking: 0.24em;
+  --type-micro-size: 9px;
+  --type-micro-tracking: 0.26em;
 }
