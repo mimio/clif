@@ -11,6 +11,7 @@ import {
   readPalette,
 } from 'styles/tokens/palette';
 import {
+  styleSheets,
   THEMES_CSS,
   THEME_SELECTORS,
   themeBlock,
@@ -251,4 +252,28 @@ describe('every theme scope', () => {
   it('is eight scopes and no more', () => {
     expect(THEME_SELECTORS).toHaveLength(8);
   });
+});
+
+/*
+ * Tailwind's `inline` governs what a utility contains, not whether the
+ * variable exists: every --color-* the scanner sees is still emitted into
+ * :root, in @layer theme, already resolved against :root. Reading one back
+ * by hand therefore pins it to the root theme, which is wrong anywhere
+ * [data-theme] sits below <html> -- the theme lens previews each theme on
+ * its own swatch and would show eight copies of the current one.
+ *
+ * globals.css spends a paragraph saying so. This makes it enforceable for
+ * the files this lane owns.
+ */
+describe('the --color-* aliases', () => {
+  // Comments are stripped first: globals.css's own warning spells the
+  // pattern out, and `var(--color-*)` with a literal star is not a token
+  // Tailwind can emit anything for. It is the declarations that matter.
+  it.each(styleSheets())(
+    '%s reaches for the token, not the alias',
+    (_file, css) => {
+      const declarations = css.replace(/\/\*[\s\S]*?\*\//g, '');
+      expect(declarations.match(/var\(\s*--color-/g)).toBeNull();
+    },
+  );
 });

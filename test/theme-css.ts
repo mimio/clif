@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -56,3 +56,18 @@ export const THEME_SELECTORS = [
   "[data-theme='paper']",
   "[data-theme='chalk']",
 ] as const;
+
+/** Every .css file under styles/, as [relative path, contents]. */
+export const styleSheets = (): [string, string][] => {
+  const dir = path.join(root, 'styles');
+  const walk = (at: string): string[] =>
+    readdirSync(at, { withFileTypes: true }).flatMap((entry) => {
+      const full = path.join(at, entry.name);
+      if (entry.isDirectory()) return walk(full);
+      return entry.name.endsWith('.css') ? [full] : [];
+    });
+  return walk(dir).map((full) => [
+    path.relative(root, full),
+    readFileSync(full, 'utf8'),
+  ]);
+};
