@@ -91,3 +91,73 @@ test.describe('the scene container', () => {
     expect(box?.height).toBeGreaterThan(700);
   });
 });
+
+/*
+ * The debug handle, which exists so the visual tier does not have to
+ * patch HTMLImageElement to find out what the style is wearing.
+ *
+ * It is opt-in: nothing publishes it unless __SCENE_DEBUG__ was set
+ * before the app booted, which is what keeps it out of a normal session.
+ */
+test.describe('the debug handle', () => {
+  test('is absent unless a test asks for it', async ({
+    context,
+    page,
+  }) => {
+    await stubMapboxNetwork(context);
+    await page.goto('/', { waitUntil: 'load' });
+    await expect(page.getByTestId('scene-root')).toBeAttached();
+    expect(
+      await page.evaluate(
+        () => (window as { __SCENE__?: unknown }).__SCENE__,
+      ),
+    ).toBeUndefined();
+  });
+
+  test('reports the style, the LUT and a clean error log', async ({
+    context,
+    page,
+  }) => {
+    await stubMapboxNetwork(context);
+    await page.addInitScript(() => {
+      (window as { __SCENE_DEBUG__?: boolean }).__SCENE_DEBUG__ =
+        true;
+    });
+    await page.goto('/', { waitUntil: 'load' });
+    await expect(page.getByTestId('scene-root')).toHaveAttribute(
+      'data-scene-state',
+      'live',
+    );
+
+    const seen = await page.evaluate(async () => {
+      type Handle = {
+        styleStatus: () => string;
+        appliedLut: () => string | null;
+        errors: () => string[];
+        lastAction: () => string;
+      };
+      const handle = (window as { __SCENE__?: Handle }).__SCENE__;
+      if (!handle) return null;
+      // Give the style a moment to settle before reading it.
+      await new Promise((done) => {
+        setTimeout(done, 1_500);
+      });
+      return {
+        status: handle.styleStatus(),
+        lut: handle.appliedLut()?.slice(0, 16) ?? null,
+        errors: handle.errors(),
+        lastAction: handle.lastAction(),
+      };
+    });
+
+    expect(seen).not.toBeNull();
+    expect(seen?.status).toBe('ready');
+    // The LUT the scene handed to setColorTheme, read from the scene
+    // rather than inferred from how mapbox decodes it.
+    expect(seen?.lut).toMatch(/^[A-Za-z0-9+/]+$/);
+    expect(seen?.lastAction).not.toBe('none');
+    // Nothing should have gone wrong. If the real Mapbox ever rejects
+    // the LUT or a config key, this is where it will show up.
+    expect(seen?.errors).toEqual([]);
+  });
+});

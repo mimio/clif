@@ -143,8 +143,119 @@ let appliedLut: string | null = null;
 /** True while a terrain want is parked waiting for the DEM to resolve. */
 let waitingForDem = false;
 
+/*
+ * WHY THIS FILE TALKS.
+ *
+ * Registering an `error` listener on a Map switches mapbox-gl's own
+ * console reporting off: it assumes whoever listened will handle it. The
+ * listener here existed only to notice a stylesheet that never arrived,
+ * and dropped everything after that on the floor -- so a 401 on tiles, a
+ * colour-theme LUT mapbox refused and a `setConfigProperty` key it did
+ * not recognise all produced nothing, anywhere. No console, no state, no
+ * signal of any kind.
+ *
+ * That is the worst possible shape for this subsystem in particular,
+ * because the LUT and the basemap config keys are the two things that
+ * cannot be verified without a real Mapbox account: if the owner deploys
+ * and the LUT is rejected, the globe quietly wears the wrong colours and
+ * nothing says so.
+ *
+ * So nothing is swallowed, and severity means one specific thing:
+ *
+ *   console.error  wrong, and NOTHING ELSE SAYS SO. A style-level
+ *                  failure after load carries no sourceId, which is the
+ *                  shape a rejected colour theme and an unknown config
+ *                  key arrive in, and the app carries on looking fine.
+ *                  Nobody should ever see one.
+ *   console.warn   wrong, and already visible some other way. A tile,
+ *                  sprite or glyph is routine at the edge of coverage
+ *                  and a map is expected to survive it; a stylesheet
+ *                  that never arrives has already put the scene into
+ *                  'failed' and drawn the fallback plate.
+ *
+ * That split is what lets the e2e suite keep treating any console error
+ * as a defect. A failure the app handles and shows is not a defect, and
+ * logging it at error level would train everyone to ignore the channel.
+ *
+ * Both carry the last thing the scene asked the map to do, because
+ * mapbox reports its failures asynchronously and the message alone does
+ * not say which call provoked it.
+ */
+const SCENE_ERROR_LIMIT = 20;
+
+/** The last thing flush() asked of the map; context for a failure. */
+let lastAction = 'none';
+
+/** Recent failures, newest last. Read by the debug handle. */
+const sceneErrors: string[] = [];
+
+const record = (line: string): void => {
+  sceneErrors.push(line);
+  if (sceneErrors.length > SCENE_ERROR_LIMIT) sceneErrors.shift();
+};
+
+type MapboxErrorEvent = {
+  error?: { message?: string };
+  sourceId?: string;
+};
+
+const reportMapboxError = (event: unknown): void => {
+  const { error, sourceId } = (event ?? {}) as MapboxErrorEvent;
+  const message = error?.message ?? String(error ?? 'unknown error');
+  const where = sourceId ? ` source=${sourceId}` : '';
+  const line = `mapbox error${where} after=${lastAction}: ${message}`;
+  record(line);
+  // A tile can fail; the style itself failing is a defect.
+  if (sourceId) console.warn(`[scene] ${line}`);
+  else console.error(`[scene] ${line}`);
+};
+
 const asSceneMap = (map: MapboxMap): SceneMap =>
   map as unknown as SceneMap;
+
+/* ---- the debug handle ------------------------------------------------ */
+
+/**
+ * What `window.__SCENE__` offers a test that asked for it.
+ *
+ * It exists because the visual suite had to patch the src setter on
+ * HTMLImageElement to find out whether mapbox accepted the colour-theme
+ * LUT -- a clever probe, but one that asserts an implementation detail
+ * of how mapbox decodes a LUT rather than what the style ended up
+ * wearing. The two things nobody can verify without a real Mapbox
+ * account are the LUT and the config keys, so those are exactly the two
+ * that deserve a seam rather than a workaround.
+ */
+export type SceneDebug = {
+  map: MapboxMap;
+  styleStatus: () => StyleStatus;
+  /** The LUT the map is currently wearing, as handed to setColorTheme. */
+  appliedLut: () => string | null;
+  /** Recent mapbox failures, newest last. Empty is the healthy state. */
+  errors: () => string[];
+  /** The last thing the scene asked the map to do. */
+  lastAction: () => string;
+};
+
+/*
+ * Opt-in, and off unless something asked for it before the app booted --
+ * the same shape as __MAPBOX_STUB__, and for the same reason: a handle
+ * that is always there is a handle application code starts using. A test
+ * sets window.__SCENE_DEBUG__ = true through addInitScript; nothing in a
+ * normal session ever does, so a production build carries one unread
+ * boolean and no live reference to the map.
+ */
+const publishDebugHandle = (map: MapboxMap): void => {
+  if (typeof window === 'undefined') return;
+  if (!window.__SCENE_DEBUG__) return;
+  window.__SCENE__ = {
+    map,
+    styleStatus: () => status,
+    appliedLut: () => appliedLut,
+    errors: () => [...sceneErrors],
+    lastAction: () => lastAction,
+  };
+};
 
 /** Applies everything still wanted. A no-op until the style is ready. */
 const flush = (): void => {
@@ -154,6 +265,7 @@ const flush = (): void => {
   // Config first: the light preset decides how the fog reads.
   if (desired.config.size > 0) {
     for (const [key, value] of desired.config) {
+      lastAction = `setConfigProperty(${key})`;
       map.setConfigProperty('basemap', key, value);
     }
     desired.config.clear();
@@ -164,6 +276,7 @@ const flush = (): void => {
     desired.lut = undefined;
     if (lut !== appliedLut) {
       appliedLut = lut;
+      lastAction = `setColorTheme(${lut.length}b)`;
       map.setColorTheme({ data: lut });
     }
   }
@@ -172,6 +285,7 @@ const flush = (): void => {
     const { spec, palette } = desired.fog;
     desired.fog = undefined;
     const fog = fogPresets[spec.fog];
+    lastAction = `setFog(${spec.fog})`;
     map.setFog({
       range: fog.range,
       color: fog.color,
@@ -187,6 +301,7 @@ const flush = (): void => {
     const exaggeration = desired.terrain;
     if (exaggeration === null) {
       desired.terrain = undefined;
+      lastAction = 'setTerrain(off)';
       map.setTerrain(null);
     } else {
       if (!map.getSource(DEM_SOURCE)) {
@@ -212,6 +327,7 @@ const flush = (): void => {
        */
       if (map.isSourceLoaded(DEM_SOURCE)) {
         desired.terrain = undefined;
+        lastAction = `setTerrain(${exaggeration})`;
         map.setTerrain({ source: DEM_SOURCE, exaggeration });
       } else if (!waitingForDem) {
         waitingForDem = true;
@@ -230,28 +346,58 @@ const flush = (): void => {
   if (desired.layers !== undefined) {
     const { sets, palette } = desired.layers;
     desired.layers = undefined;
+    lastAction = `syncLayers(${sets.map((set) => set.id).join()})`;
     registry.sync(asSceneMap(map), sets);
     registry.repaint(asSceneMap(map), sets, palette);
   }
 };
 
+/**
+ * Builds the map, or resolves null if it cannot be built.
+ *
+ * NEVER REJECTS, and callers depend on that. `import('mapbox-gl')` is a
+ * dynamic chunk: it rejects on a 404 against a stale deploy or on a
+ * flaky network, and the constructor itself throws when there is no
+ * WebGL context to be had. A rejection here used to leave SceneRoot's
+ * promise unhandled, which stranded the scene at 'pending' for ever --
+ * no map, and no fallback plate either, because the plate only renders
+ * once the scene knows it has failed. The one failure the fallback
+ * exists for was the one it did not cover.
+ *
+ * So every way of not getting a map resolves to the same null the
+ * missing-token path resolves to, and the status goes to 'failed' so the
+ * watchers hear about it too.
+ */
 const create = async (
   container: HTMLElement,
 ): Promise<MapboxMap | null> => {
-  const mapboxgl = await loadMapboxGl();
-  if (!mapboxgl) return null;
+  let map: MapboxMap;
+  try {
+    const mapboxgl = await loadMapboxGl();
+    if (!mapboxgl) return null;
 
-  const map = new mapboxgl.Map({
-    container,
-    accessToken: getMapboxToken(),
-    style: getMapboxStyle(),
-    // Set at construction: changing projection later restyles the whole
-    // map, and the globe is never not the projection.
-    projection: { name: 'globe' },
-    attributionControl: false,
-    // A globe needs to zoom out past the old style's minZoom: 7.
-    minZoom: 0,
-  });
+    map = new mapboxgl.Map({
+      container,
+      accessToken: getMapboxToken(),
+      style: getMapboxStyle(),
+      // Set at construction: changing projection later restyles the
+      // whole map, and the globe is never not the projection.
+      projection: { name: 'globe' },
+      attributionControl: false,
+      // A globe needs to zoom out past the old style's minZoom: 7.
+      minZoom: 0,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error);
+    const line = `mapbox failed to load: ${message}`;
+    record(line);
+    // Handled: the caller gets null and the fallback plate goes up.
+    console.warn(`[scene] ${line}`);
+    setStatus('failed');
+    return null;
+  }
+
   instance = map;
 
   map.once('style.load', () => {
@@ -263,12 +409,28 @@ const create = async (
    * Only a failure BEFORE style.load is fatal to the scene: after it,
    * error events are individual tiles, sprites and fonts, which a map is
    * expected to survive and which a token without tile scope produces by
-   * the hundred. Swallowing those is the difference between degrading and
-   * crashing.
+   * the hundred. Surviving them is the difference between degrading and
+   * crashing -- but surviving is not the same as saying nothing, so
+   * every one of them is reported.
    */
-  map.on('error', () => {
-    if (status === 'loading') setStatus('failed');
+  map.on('error', (event: unknown) => {
+    if (status === 'loading') {
+      setStatus('failed');
+      const { error } = (event ?? {}) as {
+        error?: { message?: string };
+      };
+      const message = error?.message ?? 'unknown error';
+      const line = `mapbox style failed: ${message}`;
+      record(line);
+      // Warn, not error: the scene has already gone to 'failed' and the
+      // plate is up, so this is handled rather than silent.
+      console.warn(`[scene] ${line}`);
+      return;
+    }
+    reportMapboxError(event);
   });
+
+  publishDebugHandle(map);
 
   return map;
 };
@@ -464,4 +626,7 @@ export const resetMapForTests = (): void => {
   desired = emptyDesired();
   appliedLut = null;
   waitingForDem = false;
+  lastAction = 'none';
+  sceneErrors.length = 0;
+  if (typeof window !== 'undefined') delete window.__SCENE__;
 };

@@ -30,6 +30,14 @@ declare global {
      * points at a preview deployment and does not set this.
      */
     __MAPBOX_STUB__?: MapboxModule;
+    /**
+     * Set before the app boots to make the scene publish
+     * `window.__SCENE__`. See SceneDebug in ./instance.ts: it is off
+     * unless something asks, so a normal session carries one unread
+     * boolean and no live reference to the map.
+     */
+    __SCENE_DEBUG__?: boolean;
+    __SCENE__?: import('scene/mapbox/instance').SceneDebug;
   }
 }
 
