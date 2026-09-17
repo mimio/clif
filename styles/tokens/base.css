@@ -44,10 +44,19 @@ ul {
   list-style-type: none;
 }
 
-/* inlined brand glyphs (components/primitives/Icon.tsx) */
-[data-icon-inline] > svg,
-[data-icon] > svg,
-.ico > svg {
+/*
+ * The inlined brand glyphs. components/primitives/Icon.tsx puts
+ * data-icon-inline on the wrapper and @svgr compiles the file into the
+ * <svg> beneath it.
+ *
+ * The design bundle also listed [data-icon] > svg and .ico > svg here.
+ * Nothing in this codebase sets either, and [data-icon] is worse than
+ * dead: the Font Awesome sources in public/icons carry data-icon="home"
+ * and friends on the <svg> ITSELF, and SVGO keeps the attribute, so that
+ * selector now reads as "a Font Awesome icon's child svg" -- inert only
+ * because none of them nests one. Both are gone.
+ */
+[data-icon-inline] > svg {
   width: 100%;
   height: 100%;
   display: block;
