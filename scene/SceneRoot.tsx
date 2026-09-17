@@ -63,6 +63,13 @@ type SceneState = 'pending' | 'live' | 'fallback';
  * The static stand-in for the globe. It is not a picture of the scene --
  * it is the scene's palette, arranged as a lit sphere, so a token-less
  * build still reads as the design rather than as a hole.
+ *
+ * z-index -1 and pointer-events none are not decoration. The plate is the
+ * only thing this component paints, it is the size of the viewport, and
+ * it must be incapable of covering the foreground or eating a click --
+ * including before styles/ gives .clif-scene its own fixed, z-0 box, and
+ * on /specimens, where the scene is behind a page it has nothing to do
+ * with. A negative z-index puts it behind in-flow content in both cases.
  */
 const FallbackPlate = () => (
   <div
@@ -72,6 +79,8 @@ const FallbackPlate = () => (
     style={{
       position: 'absolute',
       inset: 0,
+      zIndex: -1,
+      pointerEvents: 'none',
       overflow: 'hidden',
       background: 'var(--surface-ground)',
     }}
