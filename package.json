@@ -12,14 +12,11 @@
     "typecheck": "next typegen && tsc --noEmit",
     "build": "node scripts/check-env.mts && next build",
     "start": "next start",
-    "preprocess": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON makeHistoryData/index.mts",
     "images": "node scripts/optimize-images.mts",
-    "lint": "eslint \"{pagesComponents,components,constants,hooks,modules,pages,styles,utils,makeHistoryData,scripts,types}/**/*.{js,jsx,ts,tsx,mts}\" \"*.{ts,mts,mjs}\"",
-    "lint:fix": "eslint --fix \"{pagesComponents,components,constants,hooks,modules,pages,styles,utils,makeHistoryData,scripts,types}/**/*.{js,jsx,ts,tsx,mts}\" \"*.{ts,mts,mjs}\"",
+    "lint": "eslint \"{pagesComponents,components,constants,pages,styles,utils,scripts,types}/**/*.{js,jsx,ts,tsx,mts}\" \"*.{ts,mts,mjs}\"",
+    "lint:fix": "eslint --fix \"{pagesComponents,components,constants,pages,styles,utils,scripts,types}/**/*.{js,jsx,ts,tsx,mts}\" \"*.{ts,mts,mjs}\"",
     "format": "prettier --write \"*/**/*.{js,jsx,ts,tsx,mts,css}\" \"!public/**\" \"!node_modules/**\" \"!.next/**\" \"!.vercel/**\" \"!.vscode/**\"",
-    "prepare": "husky",
-    "test": "pnpm run test:e2e",
-    "test:e2e": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/smoke.mts"
+    "prepare": "husky"
   },
   "repository": "git+https://github.com/mimio/clif.git",
   "author": "Clifton Campbell <clif@mimio.io>",

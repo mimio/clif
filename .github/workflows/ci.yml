@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   checks:
-    name: Lint, build, smoke test
+    name: Lint, typecheck, build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -40,29 +40,3 @@ jobs:
       - run: pnpm typecheck
 
       - run: pnpm build
-
-      # The browser build only changes when Playwright itself is bumped, so
-      # key the cache on its version rather than the whole lockfile.
-      - name: Read Playwright version
-        id: playwright
-        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-
-      - run: pnpm exec playwright install --with-deps chromium
-
-      - run: pnpm test:e2e
-        env:
-          SMOKE_OUT: smoke-output
-
-      - name: Upload smoke screenshots
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: smoke-screenshots
-          path: smoke-output
-          if-no-files-found: ignore

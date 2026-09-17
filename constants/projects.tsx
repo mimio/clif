@@ -1,5 +1,4 @@
-import type { ReactNode } from 'react';
-import type { IconComponent } from 'components/Button';
+import type { FC, ReactNode, SVGProps } from 'react';
 import HomeIcon from 'public/icons/home.svg';
 import CubeIcon from 'public/icons/cube.svg';
 import MoleculeIcon from 'public/icons/molecule.svg';
@@ -14,6 +13,8 @@ import LaughtHahaIcon from 'public/icons/face-grin-squint-tears.svg';
 import GearsIcon from 'public/icons/gears.svg';
 import ListIcon from 'public/icons/list.svg';
 import MoneyIcon from 'public/icons/money-bill-wave.svg';
+
+type IconComponent = FC<SVGProps<SVGSVGElement>>;
 
 const DEV = 'Development';
 const UIUX = 'UI/UX Design';
