@@ -1,10 +1,13 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   collectProblems,
   installLutProbe,
+  openThemeLens,
   readLuts,
   THEME_IDS,
   THEME_SETTLE_MS,
+  themeOption,
+  themeOptions,
   waitForScene,
 } from '../fixtures/app';
 import {
@@ -26,11 +29,18 @@ import {
  *      colour sampled off a crossfade;
  *   3. the LUT buildLut produced is one Mapbox will actually take. That is
  *      a 32-tall, 1024-wide PNG and nothing else: mapbox-gl rejects
- *      height > 32 or width !== height * height, and a rejected LUT leaves
- *      the basemap wearing Standard's own colours with no error the app
- *      ever sees, because SceneRoot's error listener swallows everything
- *      after style.load. Tier 2 watches the real library make that check;
- *      this makes it here, for free, with no network at all.
+ *      height > 32 or width !== height * height, and it rejects it inside a
+ *      promise catch that ends in warnOnce -- no error event, so nothing the
+ *      app listens to ever hears about it and the basemap simply keeps
+ *      Standard's own colours. (scene/mapbox/instance.ts no longer drops
+ *      what it DOES hear; it logs at error or warn by severity. The LUT
+ *      rejection is not one of those, which is why it needs its own check.)
+ *      Tier 2 watches the real library make that check; this makes it here,
+ *      for free, with no network at all.
+ *
+ * The lens itself is driven through the shared accessor in
+ * e2e/fixtures/app.ts, which e2e/review/scene.spec.ts also uses -- see the
+ * note there on why the locators are not written out in either spec.
  */
 
 test.beforeEach(async ({ context, page }) => {
@@ -38,22 +48,15 @@ test.beforeEach(async ({ context, page }) => {
   await installMapboxGl(page);
 });
 
-// The panel is a named group of toggles, not a listbox: the roles it used
-// to carry promised an arrow-key model it never had, and the eight rows
-// have always been ordinary buttons.
-const openPanel = async (page: Page) => {
-  await page.getByRole('button', { name: 'Theme' }).click();
-  return page.getByRole('group', { name: 'theme' });
-};
-
 test('the lens offers exactly the eight themes', async ({ page }) => {
   await page.goto('/', { waitUntil: 'load' });
   await waitForScene(page);
 
-  const options = (await openPanel(page)).getByRole('button');
+  const options = themeOptions(await openThemeLens(page));
   await expect(options).toHaveCount(THEME_IDS.length);
-  // e2e/fixtures/app.ts keeps its own copy of the ids; this is what stops
-  // that copy drifting from styles/theme-bootstrap.ts.
+  // THEME_IDS is styles/theme-bootstrap.ts's own list, imported rather than
+  // copied, so this asserts the PANEL matches the app -- a theme added to
+  // the table and not to the lens fails here.
   await expect(options).toHaveText(
     THEME_IDS.map((id) => new RegExp(`^${id}$`, 'i')),
   );
@@ -74,10 +77,8 @@ test('a picked theme reaches the map and survives a reload', async ({
     'yellow',
   );
 
-  const panel = await openPanel(page);
-  await panel
-    .getByRole('button', { name: 'teal', exact: true })
-    .click();
+  const panel = await openThemeLens(page);
+  await themeOption(panel, 'teal').click();
   await expect(page.locator('html')).toHaveAttribute(
     'data-theme',
     'teal',
@@ -119,11 +120,9 @@ test('every theme builds a LUT mapbox-gl will accept', async ({
   await page.goto('/', { waitUntil: 'load' });
   await waitForScene(page);
 
-  const panel = await openPanel(page);
+  const panel = await openThemeLens(page);
   for (const id of THEME_IDS) {
-    await panel
-      .getByRole('button', { name: id, exact: true })
-      .click();
+    await themeOption(panel, id).click();
     await page.waitForTimeout(THEME_SETTLE_MS);
   }
 

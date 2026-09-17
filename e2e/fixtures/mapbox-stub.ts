@@ -568,11 +568,23 @@ const DEM_TILE_PNG =
  * Playwright matches the most recently registered route first, so the
  * specific handlers below have to come after the catch-all.
  *
- * Every spec in e2e/hermetic also installs the library stub, which means
+ * MOST specs in e2e/hermetic also install the library stub, which means
  * nothing should reach any of these -- they are a net rather than a
- * dependency there. e2e/scene-box.spec.ts is the exception and the reason
- * they have to be right: it drives the REAL mapbox-gl, because geometry is
- * only measurable in a browser.
+ * dependency there. TWO are the exception, and they are the reason these
+ * handlers have to be right, because they drive the REAL mapbox-gl:
+ *
+ *   e2e/hermetic/scene-box.spec.ts   the container's box. Geometry is
+ *                                    only measurable in a browser, and
+ *                                    jsdom has no layout at all.
+ *   e2e/hermetic/stress-nav.spec.ts  the map surviving repeated
+ *                                    navigation. The crash it guards --
+ *                                    Map.removeSource re-running the
+ *                                    terrain evaluation -- lives in
+ *                                    mapbox-gl, so a stub cannot have it.
+ *
+ * (This note named scene-box alone, at a path it has not been at since
+ * the hermetic/review split, and stress-nav had been driving the real
+ * library for some time by then.)
  */
 export const stubMapboxNetwork = async (
   context: BrowserContext,

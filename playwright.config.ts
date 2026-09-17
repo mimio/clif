@@ -139,26 +139,61 @@ export default defineConfig({
   },
 
   /*
-   * THE COMPARISON TOLERANCE, AND WHY IT TIGHTENED.
+   * THE COMPARISON TOLERANCE. THRESHOLD IS THE BINDING CONSTRAINT, and
+   * this comment used to reason only about maxDiffPixelRatio.
    *
-   * This used to be threshold 0.3 / maxDiffPixelRatio 0.08, chosen so a
-   * nondeterministic basemap could not turn the job red. That reasoning
-   * belonged to a design where the comparison was the gate. It is not any
-   * more: e2e/review/scene.spec.ts is the gate and it asserts facts, while
-   * every comparison in e2e/review/capture.spec.ts is caught and recorded
-   * as an annotation. A soft signal calibrated not to fire tells nobody
-   * anything -- the failure mode reverses, and the loose number that was
-   * protecting the build is now just hiding drift from a human.
+   * The two numbers are not a pair of dials on the same axis. `threshold`
+   * decides whether a pixel COUNTS as different at all, and
+   * maxDiffPixelRatio only then decides how many counted pixels are too
+   * many. A pixel that threshold ignores never reaches the ratio, so a
+   * loose threshold does not make the comparison lenient -- it makes it
+   * BLIND, and the diff it reports is not "small", it is zero.
    *
-   * So: Playwright's default 0.2 per pixel, and 0.02 of the frame. Two
-   * percent is still generous for a picture that is mostly terrain, and
-   * it is deliberately a STARTING POINT rather than a measurement. Nobody
-   * has ever compared two runs of this site against real Mapbox, so the
-   * honest number is whatever the first few runs' annotations show; the
-   * job exists partly to find that out. Waiting on the map's own `idle`
-   * event rather than on a clock should make the frames much closer to
-   * deterministic than the old number assumed -- tiles are all in by then
-   * -- but "should" is the word this branch has been wrong about before.
+   * pixelmatch ignores a pixel whose YIQ delta is below
+   * 35215 * threshold^2. At Playwright's default 0.2 that is 1408.6.
+   * Measured between the eight themes' --map-land anchors
+   * (styles/tokens/themes.css), which is the colour most of every globe
+   * capture is actually made of:
+   *
+   *   yellow/rust      2.9      rust/pink       8.6      lime/cream    94.1
+   *   yellow/pink      3.8      yellow/cream    9.4      yellow/lime  122.8
+   *   rust/cream       6.4      pink/cream     15.5      yellow/teal  176.1
+   *   lime/teal       17.3      paper/chalk    24.5
+   *   ...and the six-dark-to-two-light pairs, 13001 to 14431.
+   *
+   * So at 0.2 the ONLY pairs that register are dark-against-light --
+   * anything against paper or chalk. The globe could ship wearing `rust`
+   * where the baseline was `yellow`, over the entire basemap, and the
+   * capture would be recorded as matching its baseline with a diff of
+   * ZERO pixels. paper against chalk, the two light themes, is Δ24.5 and
+   * equally invisible. That defeats most of what eight globe-<theme>.png
+   * captures are for.
+   *
+   * 0.02 gives maxDelta 14.1, which is below pink/cream (15.5), lime/teal
+   * (17.3) and paper/chalk (24.5) -- so a whole-basemap theme swap
+   * registers for 23 of the 28 pairs instead of 13. maxDiffPixelRatio
+   * 0.02 is then free to do the job it was chosen for: absorb scattered
+   * tile and terrain noise, while a recolour of the whole frame is nowhere
+   * near 2% of it.
+   *
+   * WHAT IS STILL NOT COVERED, honestly: five pairs sit under 10 and no
+   * usable threshold separates them. Catching yellow/rust (Δ2.9) needs
+   * roughly 0.009, which is close enough to exact-match that ordinary
+   * rasterisation noise would flood it. And the 0.02 ratio remains a
+   * STARTING POINT, not a measurement: nobody has yet compared two runs of
+   * this site against real Mapbox, and until the first few runs'
+   * annotations exist, the right number for tile noise is unknown. Waiting
+   * on the map's own `idle` event rather than on a clock should make the
+   * frames far closer to deterministic than the old numbers assumed, but
+   * "should" is the word this branch has been wrong about before. If the
+   * annotations come back noisy, raise maxDiffPixelRatio -- NOT threshold,
+   * which is the one that decides whether the suite can see colour.
+   *
+   * (The previous 0.3/0.08 was chosen so a nondeterministic basemap could
+   * not turn the job red, from a design in which the comparison WAS the
+   * gate. It is not any more: e2e/review/scene.spec.ts asserts facts and
+   * fails the build, while every comparison in e2e/review/capture.spec.ts
+   * is caught and recorded as an annotation.)
    *
    * These feed toMatchSnapshot rather than toHaveScreenshot, because
    * toHaveScreenshot's stabilisation loop -- capture until two frames are
@@ -167,7 +202,7 @@ export default defineConfig({
    */
   expect: {
     toMatchSnapshot: {
-      threshold: 0.2,
+      threshold: 0.02,
       maxDiffPixelRatio: 0.02,
     },
   },
@@ -201,6 +236,41 @@ export default defineConfig({
              * fade in and terrain refines under their own render loop.
              * That is why the captures are single frames rather than
              * stabilised comparisons.
+             *
+             * WHAT TIER 2 IS THEREFORE NOT A GATE FOR, written down
+             * because it was not, anywhere.
+             *
+             * In review mode `review` is the ONLY project, so this
+             * applies to the hard gate as well as to the captures. The
+             * app answers reduced motion by turning the motion off:
+             *
+             *   scene/camera.ts:179-182  spinRateFor() -> null. The
+             *                            globe does not spin.
+             *   scene/camera.ts:188-191  dashRuns() -> false. The
+             *                            travelling dash never runs.
+             *   scene/camera.ts:137-147  moveDurationFor() collapses the
+             *                            800/900/600ms flights to
+             *                            REDUCED_MOVE_MS = 200ms, which
+             *                            the motion card specifies as a
+             *                            crossfade rather than a move.
+             *   scene/enter.ts:74-92     foregroundEnter() takes the
+             *                            reduced branch, so
+             *                            foregroundHandoffMs() is never
+             *                            evaluated at all.
+             *
+             * So the ONE PLACE THE REAL BASEMAP EXISTS CANNOT SEE ANY OF
+             * THE MOTION. Every one of those dials is verified against
+             * the stub alone -- the unit suite and tier 1 -- and a spin
+             * rate, a dash or a flight duration that is wrong over real
+             * terrain would not be caught here.
+             *
+             * That division is deliberate and defensible: a spinning
+             * globe cannot be photographed reproducibly, and a camera
+             * flight timed against a network-backed map measures the
+             * network. But it is a division, not a coincidence, and the
+             * next person to ask "is the motion covered end to end?"
+             * should get the answer from this comment rather than from a
+             * green check.
              */
             reducedMotion: 'reduce',
           },

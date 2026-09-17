@@ -70,17 +70,48 @@ jobs:
     # Vercel fires deployment_status several times per deployment and for
     # production as well as previews; only a ready preview with a URL is
     # worth a browser.
+    #
+    # THE PRODUCTION FILTER IS A STRING TEST ON A PAYLOAD NOBODY HERE HAS
+    # SEEN. github.event.deployment.environment is whatever Vercel puts
+    # there for this project, and neither the author of this line nor the
+    # reviewer who questioned it has been able to observe a real payload
+    # from this repository. So it is not guessed at; it is bounded.
+    #
+    # It was `!= 'Production'`, an exact match. What that DOES cover, and
+    # the original comment did not say: Actions string comparison is
+    # documented as case-insensitive, so 'production' was never a hole.
+    # What it did not cover is a suffix -- 'Production – clif.dev' is not
+    # equal to 'Production' and would have passed the filter, and the
+    # review suite would have run against the live site.
+    #
+    # startsWith() closes that, and is case-insensitive on the same
+    # documented rule. It still does not cover a name that does not BEGIN
+    # with the word, such as 'Vercel Production'. contains() would, and
+    # would also match a preview environment with the word anywhere in its
+    # name -- a false NEGATIVE that silently stops reviewing previews,
+    # which is the worse of the two failures and much harder to notice.
+    #
+    # The URL check on the step below is the second line of this: it
+    # accepts only https://<name>.vercel.app, so a production deployment
+    # on a custom domain never reaches a browser either. Neither line is a
+    # substitute for reading one real payload, which is what to do the
+    # next time one is to hand.
     if: >-
       github.event.deployment_status.state == 'success' &&
       github.event.deployment_status.environment_url != '' &&
-      github.event.deployment.environment != 'Production'
+      !startsWith(github.event.deployment.environment, 'Production')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
-      # Both of the steps that touch the token run BEFORE the checkout, so
-      # no code from the deployed commit is on disk while they do.
+      # EVERYTHING THAT CAN RUN BEFORE THE CHECKOUT DOES.
+      #
+      # The two steps that decide about the token are first, so no code
+      # from the deployed commit is on disk while they run. The toolchain
+      # steps follow them and still precede the checkout, because a step
+      # that reads the deployed commit's package.json is a step running a
+      # fork's input -- see the note on pnpm/action-setup below.
       - name: Check the preview URL
         id: preview
         env:
@@ -103,14 +134,50 @@ jobs:
       # Two things keep that closed. The job's token is read-only, so the
       # worst a fork's spec can do with it is read what is already public.
       # And the one real secret -- the bypass token for a protected
-      # preview -- is resolved through the expression on the test step
-      # below, which yields an empty string unless this commit came from a
-      # PR whose head is in THIS repository. A fork's code therefore never
-      # has it in its environment at all.
+      # preview -- is resolved through the expression on the test steps
+      # below, which yields an empty string unless the step after this
+      # comment has positively established that the deployed commit's
+      # pull requests all have their head in THIS repository. A fork's
+      # code therefore never has it in its environment at all.
       #
-      # A commit with no PR is a push to a branch here, which only someone
-      # with write access can make. An API failure is treated as a fork:
-      # the job still runs, just without the secret.
+      # THE RULE IS DEFAULT-DENY, and it did not used to be.
+      #
+      # `fork` starts TRUE. It is cleared only when the API returned a
+      # NON-EMPTY list of pull requests and EVERY head repository in that
+      # list is this one. Anything else -- an empty list, an entry that is
+      # not this repository, an API failure -- leaves it true and the job
+      # runs without the secret.
+      #
+      # It used to start FALSE and be set true inside the loop, which
+      # meant an empty $heads skipped the loop entirely and handed a
+      # fork's code the bypass token. There are two documented ways for a
+      # fork PR to produce an empty list:
+      #
+      #   * the head repository has been DELETED. The API still returns
+      #     the pull request, with head.repo: null. The old jq --
+      #     `[.[].head.repo.full_name] | unique | join(" ")` -- renders
+      #     that as the empty string, byte for byte what `[]` renders as,
+      #     so a fork PR was indistinguishable from no PR at all.
+      #   * GET /repos/{owner}/{repo}/commits/{sha}/pulls returns only
+      #     OPEN pull requests when the commit is not on the default
+      #     branch. A fork PR that has since been closed is an empty list
+      #     with nothing wrong anywhere.
+      #
+      # The justification this comment used to carry -- "a commit with no
+      # PR is a push to a branch here, which only someone with write
+      # access can make" -- is true of a genuine no-PR push and covers
+      # neither of those. The trade is now explicit and deliberate: a push
+      # to a branch in this repository with no OPEN pull request runs
+      # WITHOUT the bypass token, so against a protected preview its tests
+      # will fail. That is the safe direction to fail in, and opening the
+      # pull request fixes it.
+      #
+      # The jq prints one head per line and renders a deleted repository
+      # as <deleted> rather than dropping it, so a null can never shrink
+      # the list to nothing; <deleted> is not $REPO, so it forces a fork.
+      # `//` is applied PER ELEMENT (`.[] | ... // ...`) on purpose:
+      # applied to the whole stream it also fires on an empty array, which
+      # would put the alternative into an otherwise empty list.
       - name: Work out whether the deployed commit came from a fork
         id: origin
         env:
@@ -119,39 +186,93 @@ jobs:
           SHA: ${{ github.event.deployment.sha }}
         run: |
           heads=$(gh api "repos/$REPO/commits/$SHA/pulls" \
-            --jq '[.[].head.repo.full_name] | unique | join(" ")' 2>/dev/null) || {
-            echo "could not resolve the commit's pull requests; assuming a fork"
-            echo "fork=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          }
-          fork=false
-          for head in $heads; do
-            if [ "$head" != "$REPO" ]; then fork=true; fi
-          done
+            --jq '.[] | .head.repo.full_name // "<deleted>"' 2>/dev/null) \
+            || heads=''
+
+          fork=true
+          if [ -n "$heads" ]; then
+            fork=false
+            for head in $heads; do
+              if [ "$head" != "$REPO" ]; then fork=true; fi
+            done
+          fi
+
           echo "the deployed commit's pull request heads: ${heads:-none}"
+          echo "treating the deployed commit as a fork's: $fork"
           echo "fork=$fork" >> "$GITHUB_OUTPUT"
 
+      # PINNED, AND AHEAD OF THE CHECKOUT, and both halves matter.
+      #
+      # With no `version:` the action reads `packageManager` out of
+      # package.json and runs `pnpm self-update` on that string. After the
+      # checkout that file is the DEPLOYED COMMIT'S, which on a fork PR is
+      # the fork's -- fork-controlled input to a step that installs a
+      # binary. Running before the checkout means there is no package.json
+      # on disk for it to read, which also makes the pin mandatory rather
+      # than optional.
+      #
+      # Keep this in step with the `packageManager` field in package.json.
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+
+      # No `cache: pnpm` here, deliberately, and this is the one place
+      # this job differs from ci.yml on purpose.
+      #
+      # That cache keys on a hash of the lockfile, which on a fork PR is
+      # the fork's, and a deployment_status run writes into the DEFAULT
+      # BRANCH's cache scope -- so it is a fork-controlled write into a
+      # scope the base branch reads. The saving is roughly twenty seconds
+      # on a job with a thirty-minute budget that spends most of it
+      # waiting on a network-backed basemap. Dropping it also lets this
+      # step run before the checkout, where there is no lockfile for it to
+      # hash at all.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # FROM HERE DOWN, THE DEPLOYED COMMIT'S CODE IS ON DISK. Nothing
+      # below may be given the bypass token except the two test steps,
+      # whose expression resolves it to '' unless `origin` cleared the
+      # fork flag above.
       - uses: actions/checkout@v7
         with:
           # The commit that was deployed, so the specs and the baselines
           # match the site they are pointed at.
           ref: ${{ github.event.deployment.sha }}
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
+      # --ignore-scripts, because pnpm 10 does NOT block the root
+      # project's own lifecycle scripts -- only its dependencies'. This
+      # repository's `prepare` is `husky`, so a plain install executes the
+      # deployed commit's prepare script, and on a fork PR that script is
+      # the fork's. Nothing this job does needs a git hook installed, or
+      # any dependency's build step: it drives a browser at a URL Vercel
+      # already built.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Read Playwright version
         id: playwright
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v6
+      # RESTORE ONLY. This job never writes the browser cache, and that is
+      # the difference from ci.yml's otherwise identical step.
+      #
+      # The key carries a version read out of the deployed commit's
+      # node_modules, so it is fork-controlled; and a deployment_status
+      # run saves into the DEFAULT BRANCH's cache scope, under a key shape
+      # ci.yml also uses. A fork PR could therefore have populated the
+      # entry every later run on this repository restores. It cannot now:
+      # the worst a crafted version string can do is miss, and a miss
+      # costs one chromium download.
+      #
+      # ci.yml, which runs only on pull_request and push and writes to the
+      # ref's own scope, is what fills this cache.
+      #
+      # It cannot move ahead of the checkout, because the version it keys
+      # on can only be read from an installed @playwright/test. Read-only
+      # is what makes that acceptable rather than a hole.
+      - name: Restore the Playwright browser cache
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
@@ -177,8 +298,28 @@ jobs:
           PREVIEW_BYPASS_TOKEN: ${{ steps.origin.outputs.fork == 'false' && secrets.VERCEL_AUTOMATION_BYPASS_SECRET || '' }}
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/gate
 
+      # continue-on-error, and "the comparison cannot fail" is not a
+      # substitute for it.
+      #
+      # That claim is true of the FILE: playwright.config.ts sets
+      # updateSnapshots: 'none' and e2e/fixtures/capture.ts catches the
+      # comparison, so a drifted baseline comes back as
+      # `outcome = drift` with an empty testInfo.errors and a passing
+      # test. It is not true of the STEP. page.goto (30s default
+      # navigation timeout), settle() and page.screenshot() all sit
+      # OUTSIDE that try, and there are eighteen captures: one slow
+      # preview on any one of them throws, fails the test, and turns the
+      # whole job red.
+      #
+      # `if: always()` only makes the step RUN when the gate failed; it
+      # says nothing about this step's own outcome. A soft record whose
+      # job can go red for reasons that are not about the site is exactly
+      # the "job nobody trusts" the split was built to avoid, so the step
+      # is allowed to fail without failing the job. The gate above is
+      # where a real failure belongs, and it has no continue-on-error.
       - name: Playwright (tier 2, captures)
         if: always()
+        continue-on-error: true
         run: >-
           pnpm exec playwright test e2e/review/capture.spec.ts
           --output=test-results/captures

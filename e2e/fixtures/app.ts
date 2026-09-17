@@ -1,4 +1,14 @@
-import { expect, type Page } from '@playwright/test';
+import {
+  expect,
+  type ConsoleMessage,
+  type Locator,
+  type Page,
+} from '@playwright/test';
+import {
+  THEME_IDS,
+  THEME_STORAGE_KEY,
+  type ThemeId,
+} from 'styles/theme-bootstrap';
 
 /*
  * What both tiers need to know about the app, in one place: which routes
@@ -46,26 +56,26 @@ export const ROUTES: Route[] = [
 ];
 
 /*
- * The eight themes, copied rather than imported: a Playwright spec that
- * imports app modules drags tsconfig path resolution into the test runner
- * for no gain. The copy is not allowed to drift -- e2e/hermetic/theme.spec
- * asserts the theme lens offers exactly this list.
+ * The eight themes and the key they are stored under, IMPORTED FROM THE APP
+ * rather than restated.
+ *
+ * They used to be a copy here, on the stated grounds that importing an app
+ * module "drags tsconfig path resolution into the test runner for no gain".
+ * There is a gain, and it is the only one that matters: there is no second
+ * list to keep in step. styles/theme-bootstrap.ts is a leaf with nothing to
+ * drag -- the blocking script is a string it exports, not something it runs,
+ * so importing it starts no DOM, no Next runtime and no mapbox -- and the
+ * runner resolves it through the same "*" mapping in tsconfig.json that
+ * every layer of the app already uses.
+ *
+ * The layer rule allows this: eslint.config.mjs's base restrict() bars only
+ * scene/mapbox/**, and styles/ is L0.
+ *
+ * e2e/hermetic/theme.spec.ts still asserts the lens offers exactly this
+ * list, which is now a check that the PANEL matches the app rather than a
+ * check that two hand-written lists match each other.
  */
-export const THEME_IDS = [
-  'yellow',
-  'lime',
-  'rust',
-  'teal',
-  'pink',
-  'cream',
-  'paper',
-  'chalk',
-] as const;
-
-export type ThemeId = (typeof THEME_IDS)[number];
-
-/** styles/theme-bootstrap.ts's key, read before first paint. */
-export const THEME_STORAGE_KEY = 'oneglobe.theme';
+export { THEME_IDS, THEME_STORAGE_KEY, type ThemeId };
 
 /*
  * [data-theme] crossfades over 400ms and transition-hue rides on top, so
@@ -91,12 +101,56 @@ export type ProblemOptions = {
   /** Allows the three.js context errors the no-WebGL run is asserting. */
   allowWebglErrors?: boolean;
   /**
-   * The document's own status, when it is not 200. Chromium logs every
-   * non-2xx response as a console error, the main document included, so
-   * the not-found route cannot be asked for a silent console -- it can
+   * The route being loaded, when its own status is not 200. Chromium logs
+   * every non-2xx response as a console error, the main document included,
+   * so the not-found route cannot be asked for a silent console -- it can
    * only be asked not to log anything BESIDES its own 404.
+   *
+   * It is the ROUTE and not just the status, and that is the whole fix.
+   * See below.
    */
-  documentStatus?: number;
+  document?: Pick<Route, 'path' | 'status'>;
+};
+
+/*
+ * WHY THE 404 ALLOWANCE MATCHES ON A URL AND NOT ON THE MESSAGE.
+ *
+ * It used to be a regex over message.text():
+ *
+ *   new RegExp(`Failed to load resource.*status of ${status}\\b`)
+ *
+ * and Chromium puts NO URL in that text. The URL is in
+ * message.location().url, on its own. So the allowance written for "the
+ * document's own 404" matched every 404 on the page: 404 both webfonts on
+ * /no-such-page and collectProblems() returned []; 404 every
+ * _next/static/**.js chunk and twelve raw console errors still returned
+ * [], with the route's own test passing throughout. A net that catches
+ * nothing is worse than no net, because the suite reports a pass.
+ *
+ * Matching on message.location().url is what makes it the document's own:
+ * the main document's console error carries the document's URL, and a
+ * font's carries the font's.
+ */
+const isOwnDocumentFailure = (
+  message: ConsoleMessage,
+  own: Pick<Route, 'path' | 'status'>,
+): boolean => {
+  if (own.status === 200) return false;
+  if (
+    !new RegExp(
+      `Failed to load resource.*status of ${own.status}\\b`,
+    ).test(message.text())
+  ) {
+    return false;
+  }
+  const { url } = message.location();
+  if (url === '') return false;
+  try {
+    return new URL(url).pathname === own.path;
+  } catch {
+    // A console location that is not a URL at all is not the document's.
+    return false;
+  }
 };
 
 /**
@@ -108,22 +162,19 @@ export const collectProblems = (
   options: ProblemOptions = {},
 ): string[] => {
   const problems: string[] = [];
-  const status = options.documentStatus;
-  const ownStatus =
-    status === undefined || status === 200
-      ? null
-      : new RegExp(`Failed to load resource.*status of ${status}\\b`);
+  const own = options.document;
 
   const allowed = (text: string): boolean =>
     IGNORED.test(text) ||
     (options.allowWebglErrors === true &&
-      EXPECTED_WITHOUT_WEBGL.test(text)) ||
-    (ownStatus !== null && ownStatus.test(text));
+      EXPECTED_WITHOUT_WEBGL.test(text));
 
   page.on('console', (message) => {
     if (message.type() !== 'error') return;
     const text = message.text();
     if (allowed(text)) return;
+    if (own !== undefined && isOwnDocumentFailure(message, own))
+      return;
     problems.push(`console: ${text}`);
   });
   page.on('pageerror', (error) => {
@@ -158,9 +209,16 @@ export const MOBILE = { width: 390, height: 844 };
  * empty, the probe would see a clean decode, and the globe would still be
  * wearing Standard's colours. If Mapbox ever ships Standard with an
  * override, this line is the only thing that says so.
+ *
+ * The third was missing until now, and it is the one that fires when the
+ * STYLESHEET carries a colour theme mapbox cannot load:
+ * `Couldn't load color theme from the stylesheet: ${err}`, again through
+ * warnOnce. Different verb, different call site, same silence -- and the
+ * two patterns above do not match it, because "load" is not "set" and
+ * there is no "color-theme override" in it.
  */
 const COLOUR_THEME_TROUBLE =
-  /Couldn't set color theme|color-theme override/i;
+  /Couldn't (set|load) color theme|color-theme override/i;
 
 /**
  * Everything that means "Mapbox is unhappy", from four directions at once,
@@ -271,6 +329,14 @@ export const readScene = (page: Page): Promise<SceneReport> =>
  * return` -- an unknown key is not an error, not a warning, not an event.
  * It is a silent no-op, and the globe simply never gets the light preset
  * the route asked for. Reading each one back is the only way to find out.
+ *
+ * This list is a HAND COPY of BasemapConfig's fields and cannot be an
+ * import: tier 2 needs the key NAMES as strings and the type is erased.
+ * So it is guarded instead, hermetically, in e2e/hermetic/routes.spec.ts
+ * -- the stub records every [key, value] the scene sends, and that set
+ * has to equal this one. Without that guard an eighth field added to
+ * BasemapConfig would be the single thing tier 2 never asks Standard
+ * about, which is the one question tier 2 exists to answer.
  */
 export const BASEMAP_CONFIG_KEYS = [
   'lightPreset',
@@ -389,6 +455,56 @@ export const seedTheme = async (
     [THEME_STORAGE_KEY, id] as const,
   );
 };
+
+/* ---- the theme lens --------------------------------------------------- */
+
+/*
+ * THE ONE ACCESSOR FOR THE LENS, AND WHY BOTH TIERS SHARE IT.
+ *
+ * components/chrome/ThemeEye.tsx renders the panel as a role="group" named
+ * by its own visible caption, holding eight ordinary buttons that report
+ * aria-pressed. It used to be role="listbox" over role="option", and those
+ * roles were removed on purpose -- they promised an arrow-key model the
+ * widget does not implement (see that file's header).
+ *
+ * When they went, only the hermetic spec was updated. e2e/review/scene.spec
+ * went on asking for a listbox, and nothing said so for weeks, because the
+ * review tier runs only when PREVIEW_URL is set -- that is, only in CI on a
+ * deployment_status event. The one suite that could see the break is the one
+ * suite no PR runs, and before that the review job was red for an unrelated
+ * reason, which hid it completely. A test that ran and told us nothing.
+ *
+ * So the locators live here once and both tiers import them. The next role
+ * change fails the HERMETIC run -- which every PR runs -- on the PR that
+ * makes it, rather than the review job weeks later.
+ *
+ * These deliberately assert against the real markup and nothing else. There
+ * is no fallback to the old roles: a helper that accepted either would be
+ * more forgiving than the app, which is how the first copy survived.
+ */
+
+/**
+ * Opens the lens and hands back the panel, having checked it is really
+ * there. The check is the point: a role change fails here, immediately and
+ * by name, instead of as a click that waits out the whole test timeout.
+ */
+export const openThemeLens = async (page: Page): Promise<Locator> => {
+  await page.getByRole('button', { name: 'Theme' }).click();
+  const panel = page.getByRole('group', { name: 'theme' });
+  await expect(
+    panel,
+    'the theme lens panel (role="group" named "theme") is not open',
+  ).toBeVisible();
+  return panel;
+};
+
+/** Every theme the open panel offers, in DOM order. */
+export const themeOptions = (panel: Locator): Locator =>
+  panel.getByRole('button');
+
+/** One theme's row in the open panel. */
+export const themeOption = (panel: Locator, id: ThemeId): Locator =>
+  panel.getByRole('button', { name: id, exact: true });
 
 /* ---- the colour-theme probe ------------------------------------------ */
 

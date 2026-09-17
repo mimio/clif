@@ -6,6 +6,8 @@ import {
   DESKTOP,
   installLutProbe,
   installSceneDebug,
+  MAP_IDLE_BUDGET_MS,
+  openThemeLens,
   readBasemapConfig,
   readLuts,
   readScene,
@@ -14,6 +16,7 @@ import {
   settle,
   THEME_IDS,
   THEME_SETTLE_MS,
+  themeOption,
   waitForScene,
 } from '../fixtures/app';
 
@@ -71,7 +74,7 @@ for (const route of ROUTES) {
     page,
   }) => {
     const problems = collectProblems(page, {
-      documentStatus: route.status,
+      document: route,
     });
     const mapbox = collectMapboxFailures(page);
 
@@ -119,6 +122,29 @@ for (const route of ROUTES) {
         luts,
       )}`,
     ).toBeGreaterThan(0);
+
+    /*
+     * AND IT IS THE SCENE'S LUT, not merely some accepted image.
+     *
+     * The line above says an image mapbox decoded passed mapbox's own
+     * height <= 32 / width === height^2 check. It does not say WHICH
+     * image: a 1x1 PNG from anywhere on the page satisfies `ok` just as
+     * well, and nothing tied the probe's record back to what the scene
+     * sent. The tie is free, because the two fingerprints are byte
+     * identical by construction -- readScene() hashes appliedLut() as
+     * `${length}:${fnv}` and the probe hashes value.slice(PREFIX.length)
+     * with the same FNV-1a constants over the same payload.
+     */
+    expect(
+      luts.some(
+        (lut) => `${lut.bytes}:${lut.hash}` === scene.lut && lut.ok,
+      ),
+      `mapbox accepted a LUT, but not the one the scene sent (${
+        scene.lut
+      }); saw ${JSON.stringify(
+        luts.map((lut) => `${lut.bytes}:${lut.hash} ok=${lut.ok}`),
+      )}`,
+    ).toBe(true);
 
     /*
      * Every config key the route sent is a key the Standard import has.
@@ -169,26 +195,62 @@ test('the bootstrap theme reaches the map before first paint', async ({
 test('all eight themes repaint the live basemap', async ({
   page,
 }) => {
+  /*
+   * THIS TEST GETS ITS OWN TIMEOUT, DERIVED RATHER THAN GUESSED.
+   *
+   * It is the only test in either tier that drives the live basemap eight
+   * times in series, and until the locators below were fixed it had never
+   * completed a single iteration -- so the review project's 150s has
+   * never once been measured against what this test actually does.
+   *
+   * Each theme can legitimately spend THEME_SETTLE_MS on the painter's
+   * debounce and the token crossfade, and then all of settle(): up to
+   * MAP_IDLE_BUDGET_MS waiting for the map's own `idle` event, and a 3s
+   * tail when it never arrives. That is about 34s per theme and 271s for
+   * eight, before the navigation and the first settle. 150s is less than
+   * half of what this test's own fixtures are permitted to wait -- not a
+   * budget, but a timeout that fires while the code it is timing is still
+   * doing exactly what it was told to, and reports the shutdown instead
+   * of the cause. That is the failure this file's own note on the review
+   * project's timeout describes having already been had once.
+   *
+   * A healthy run is nowhere near this: setColorTheme reloads the visible
+   * tiles and the map goes idle in seconds. The ceiling is the one the
+   * fixtures already imply, so that a slow preview is reported by the
+   * wait that actually timed out.
+   */
+  const SETTLE_TAIL_MS = 3_000;
+  test.setTimeout(
+    THEME_IDS.length *
+      (THEME_SETTLE_MS + MAP_IDLE_BUDGET_MS + SETTLE_TAIL_MS) +
+      90_000,
+  );
+
   const mapbox = collectMapboxFailures(page);
 
   await page.goto('/', { waitUntil: 'load' });
   await waitForScene(page, 'live');
   await settle(page);
 
-  await page.getByRole('button', { name: 'Theme' }).click();
-  const panel = page.getByRole('listbox');
-
   /*
    * Driven through the lens rather than eight page loads: this is the
    * path a visitor actually takes, it is the one that calls
    * setColorTheme on a map that is already rendering, and it costs one
    * navigation instead of eight.
+   *
+   * openThemeLens and themeOption are e2e/fixtures/app.ts's, and are the
+   * SAME accessors e2e/hermetic/theme.spec.ts drives on every PR. This
+   * spec used to spell out page.getByRole('listbox') / 'option' itself,
+   * and went on doing it for weeks after ThemeEye dropped those roles --
+   * the review tier only runs on a deployment_status event, so nothing
+   * that runs on a PR could see it. Writing the locators out here again
+   * would rebuild exactly that trap.
    */
+  const panel = await openThemeLens(page);
+
   const seen = new Set<string>();
   for (const theme of THEME_IDS) {
-    await panel
-      .getByRole('option', { name: theme, exact: true })
-      .click();
+    await themeOption(panel, theme).click();
     await expect(page.locator('html')).toHaveAttribute(
       'data-theme',
       theme,
