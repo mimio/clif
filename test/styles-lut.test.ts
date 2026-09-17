@@ -1,9 +1,17 @@
 import { Buffer } from 'node:buffer';
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { buildLut, LUT_SIZE, toBase64 } from 'styles/tokens/lut';
+import {
+  buildLut,
+  LAND_STOP,
+  LUT_SIZE,
+  MIN_LUT_SIZE,
+  SOURCE_FLOOR,
+  toBase64,
+} from 'styles/tokens/lut';
 import {
   FALLBACK_PALETTE,
+  luma,
   makePalette,
   type Palette,
   PALETTE_TOKENS,
@@ -126,6 +134,58 @@ const paletteFor = (selector: string): Palette => {
 const distance = (a: number[], b: Rgb): number =>
   Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
+/*
+ * Mapbox Standard's own palette, sampled: the two fills the ramp is
+ * calibrated against. SOURCE_FLOOR and LAND_STOP are meaningless unless
+ * these sit where the module says they do, on the luma scale.
+ */
+const STANDARD_WATER: Rgb = [160, 200, 240];
+const STANDARD_LAND: Rgb = [240, 237, 229];
+
+describe('the ramp calibration', () => {
+  /*
+   * The trap this guards. luma() applies Rec. 709 coefficients to
+   * gamma-encoded sRGB, and someone who "fixes" it into real relative
+   * luminance drops Standard's water from 0.762 to 0.551 -- under the
+   * floor. Every water pixel would then pin to the bottom anchor, the
+   * land beige would fall off its stop, and the share of the cube at the
+   * floor would go from 66.3% to 86.2%: a flat basemap with no water,
+   * and not one assertion about the PNG itself would notice.
+   */
+  it("puts Standard's water above the floor, not on it", () => {
+    expect(luma(STANDARD_WATER)).toBeCloseTo(0.76229, 5);
+    expect(luma(STANDARD_WATER)).toBeGreaterThan(SOURCE_FLOOR);
+  });
+
+  it("puts Standard's land beige on the land stop", () => {
+    const tone =
+      (luma(STANDARD_LAND) - SOURCE_FLOOR) / (1 - SOURCE_FLOOR);
+    expect(luma(STANDARD_LAND)).toBeCloseTo(0.92965, 5);
+    // 0.8149 against a stop of 0.82: the anchor is where the beige
+    // actually lands, within 1% of the ramp.
+    expect(Math.abs(tone - LAND_STOP)).toBeLessThan(0.01);
+  });
+
+  it('leaves two thirds of the cube below the floor, not six sevenths', () => {
+    let floored = 0;
+    const last = LUT_SIZE - 1;
+    for (let g = 0; g < LUT_SIZE; g += 1) {
+      for (let b = 0; b < LUT_SIZE; b += 1) {
+        for (let r = 0; r < LUT_SIZE; r += 1) {
+          const tone = luma([
+            (r / last) * 255,
+            (g / last) * 255,
+            (b / last) * 255,
+          ]);
+          if (tone <= SOURCE_FLOOR) floored += 1;
+        }
+      }
+    }
+    expect(floored).toBe(21709);
+    expect(floored / LUT_SIZE ** 3).toBeCloseTo(0.663, 3);
+  });
+});
+
 describe('toBase64', () => {
   it('encodes a length divisible by three with no padding', () => {
     expect(toBase64(Uint8Array.from([77, 97, 110]))).toBe('TWFu');
@@ -220,6 +280,71 @@ describe('buildLut', () => {
     const red = cell(image, LUT_SIZE, 24, 8, 8);
     expect(blue[2]).toBeGreaterThan(red[2]);
     expect(red[0]).toBeGreaterThan(blue[0]);
+  });
+
+  /*
+   * The output half of the calibration guard above. The cube cell nearest
+   * Standard's water has to come out of the ramp, not off its floor: it
+   * keeps the blue bias the chroma carry preserves, while the floored
+   * black cell is warm, and it is a clearly lighter tone. Linearise
+   * luma() and the water cell collapses onto the black one.
+   */
+  it('keeps a water-like mid-tone off the floor and still blue', () => {
+    const image = decodePng(buildLut(yellow));
+    const index = (channel: number): number =>
+      Math.round((channel / 255) * (LUT_SIZE - 1));
+    const water = cell(
+      image,
+      LUT_SIZE,
+      index(STANDARD_WATER[0]),
+      index(STANDARD_WATER[1]),
+      index(STANDARD_WATER[2]),
+    );
+    const floor = cell(image, LUT_SIZE, 0, 0, 0);
+
+    // The floored anchor: --map-deep [53, 46, 39] shaded at SHADE_FLOOR.
+    expect(floor.slice(0, 3)).toEqual([38, 33, 28]);
+    expect(water[2]).toBeGreaterThan(water[0]);
+    expect(floor[2]).toBeLessThan(floor[0]);
+    expect(luma([water[0], water[1], water[2]])).toBeGreaterThan(
+      luma([floor[0], floor[1], floor[2]]) + 0.02,
+    );
+  });
+
+  it('clamps a cube size Mapbox would reject, or that would not encode', () => {
+    // 0 emits no DEFLATE block and a 0x0 IHDR; 1 makes every channel
+    // 0/0; 33 builds a valid PNG that mapbox-gl refuses at runtime.
+    for (const size of [0, 1, -8, Number.NaN]) {
+      const image = decodePng(buildLut(yellow, { size }));
+      expect(image.height).toBe(MIN_LUT_SIZE);
+      expect(image.width).toBe(MIN_LUT_SIZE * MIN_LUT_SIZE);
+    }
+    for (const size of [33, 4096, Number.POSITIVE_INFINITY]) {
+      const image = decodePng(buildLut(yellow, { size }));
+      expect(image.height).toBe(LUT_SIZE);
+      expect(image.width).toBe(LUT_SIZE * LUT_SIZE);
+    }
+  });
+
+  it('truncates a fractional cube size', () => {
+    const image = decodePng(buildLut(yellow, { size: 4.7 }));
+    expect(image.height).toBe(4);
+    expect(image.width).toBe(16);
+  });
+
+  it('is still an identity at the smallest cube', () => {
+    const image = decodePng(
+      buildLut(yellow, { size: MIN_LUT_SIZE, strength: 0 }),
+    );
+    expect(cell(image, MIN_LUT_SIZE, 0, 0, 0)).toEqual([
+      0, 0, 0, 255,
+    ]);
+    expect(cell(image, MIN_LUT_SIZE, 1, 1, 1)).toEqual([
+      255, 255, 255, 255,
+    ]);
+    expect(cell(image, MIN_LUT_SIZE, 1, 0, 1)).toEqual([
+      255, 0, 255, 255,
+    ]);
   });
 
   it('gives all eight themes a different map', () => {

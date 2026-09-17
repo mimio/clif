@@ -37,6 +37,7 @@ import {
 import {
   HISTORY_POINTS,
   HISTORY_RING,
+  layerSetsFor,
   SITE_LABELS,
   SITE_POINTS,
   WORK_PATH_LINE,
@@ -48,9 +49,11 @@ import MapProvider, {
   useSceneView,
 } from 'scene/MapProvider';
 import {
+  applyTerrain,
   ensureMap,
   getMap,
   resetMapForTests,
+  syncLayers,
 } from 'scene/mapbox/instance';
 import { loadMapboxGl } from 'scene/mapbox/loader';
 import SceneRoot from 'scene/SceneRoot';
@@ -63,6 +66,7 @@ import {
   useReducedMotion,
 } from 'scene/useViewport';
 import { applyTheme, THEME_IDS } from 'styles/theme-bootstrap';
+import { FALLBACK_PALETTE } from 'styles/tokens/palette';
 import {
   FakeMap,
   installMapboxStub,
@@ -437,7 +441,9 @@ describe('the persistent map', () => {
 
   it('turns terrain on for the close routes and off for the far ones', async () => {
     await mount();
-    expect(FakeMap.last.calls.terrain.at(-1)).toBeNull();
+    // Terrain is off and stays off: a route that does not want it does
+    // not spend a setTerrain saying so.
+    expect(FakeMap.last.calls.terrain).toEqual([]);
 
     await navigate('/about');
     expect(FakeMap.last.getSource('mapbox-dem')).toBeDefined();
@@ -476,6 +482,111 @@ describe('the persistent map', () => {
     });
   });
 
+  /*
+   * The removal counterpart of the DEM race above, and the one that took
+   * the app down after a few navigations.
+   *
+   * Map.removeSource re-runs the terrain evaluation, and Terrain.update
+   * reads style.terrain.properties, which does not exist between
+   * setTerrain() and mapbox's next recalculate. Attaching terrain and
+   * then unmounting a layer set in the same tick is therefore fatal --
+   * and it is exactly what entering a detail route from projects does.
+   *
+   * It needed a SECOND visit to a terrain route to show up: on the first
+   * the DEM has not loaded, terrain parks itself, and nothing is
+   * attached when the sources go. Every single-navigation test passed.
+   */
+  it('never removes a source with terrain attached', async () => {
+    pathname.current = '/projects';
+    await mount();
+    const map = FakeMap.last;
+
+    // First visit: the DEM resolves, so terrain really is attached.
+    await navigate('/projects/[projectId]');
+    await act(async () => {
+      map.loadSource('mapbox-dem');
+    });
+    expect(map.terrainSource).toBe('mapbox-dem');
+
+    // Back out and in again. This is the navigation that died: the
+    // projects layer set has to come off while terrain is already on.
+    await navigate('/projects');
+    await navigate('/projects/[projectId]');
+    expect(map.terrainSource).toBe('mapbox-dem');
+    expect(map.getLayer(SITE_POINTS)).toBeUndefined();
+  });
+
+  it('leaves terrain alone moving between two terrain routes', async () => {
+    pathname.current = '/about';
+    await mount();
+    const map = FakeMap.last;
+    await act(async () => {
+      map.loadSource('mapbox-dem');
+    });
+    expect(map.terrainSource).toBe('mapbox-dem');
+    expect(map.getLayer(HISTORY_POINTS)).toBeDefined();
+    const settings = map.calls.terrain.length;
+
+    /*
+     * about and the detail route both want terrain at the same
+     * exaggeration, so the right number of setTerrain calls is zero --
+     * and taking it off first would be actively wrong, since on a globe
+     * setTerrain(null) installs a fresh draping terrain that the very
+     * next removeSource would throw on.
+     */
+    await navigate('/projects/[projectId]');
+    expect(map.calls.terrain).toHaveLength(settings);
+    expect(map.terrainSource).toBe('mapbox-dem');
+    expect(map.getLayer(HISTORY_POINTS)).toBeUndefined();
+  });
+
+  /*
+   * The hazard that ordering alone does not close.
+   *
+   * Within one pass the scene removes sources before it sets terrain, so
+   * a single scene pass is safe. But a SECOND flush in the same frame --
+   * and mapbox hands the scene plenty of those, through sourcedata while
+   * a route's sources are being added -- can remove a source after the
+   * earlier pass set terrain, which is the window where
+   * style.terrain.properties does not exist yet. That is what survived
+   * five navigations and killed the sixth.
+   *
+   * Driven straight at the seam here, because going through SceneRoot
+   * batches the two into one pass and hides it.
+   */
+  it('holds a removal back until mapbox has recalculated terrain', async () => {
+    pathname.current = '/about';
+    await mount();
+    const map = FakeMap.last;
+    await act(async () => {
+      map.loadSource('mapbox-dem');
+    });
+    expect(map.getLayer(HISTORY_POINTS)).toBeDefined();
+
+    // Two flushes, one frame: a real terrain change, then a removal.
+    applyTerrain(1);
+    expect(map.calls.terrain.at(-1)).toEqual({
+      source: 'mapbox-dem',
+      exaggeration: 1,
+    });
+    const empty = layerSetsFor('projectDetail', {
+      palette: FALLBACK_PALETTE,
+      hover: null,
+      labels: true,
+      selectedStop: null,
+      dash: false,
+      onHoverAnchor: vi.fn(),
+      onSelectAnchor: vi.fn(),
+    });
+    expect(() => syncLayers(empty, FALLBACK_PALETTE)).not.toThrow();
+
+    // Held back, not dropped: still mounted for now...
+    expect(map.getLayer(HISTORY_POINTS)).toBeDefined();
+    // ...and gone once mapbox has rendered.
+    await act(async () => {});
+    expect(map.getLayer(HISTORY_POINTS)).toBeUndefined();
+  });
+
   it('drops a parked terrain want when the route leaves terrain', async () => {
     await mount();
     const map = FakeMap.last;
@@ -489,7 +600,6 @@ describe('the persistent map', () => {
     });
     // The stale want was overwritten by "terrain off", so nothing drapes.
     expect(map.calls.terrain.filter(Boolean)).toEqual([]);
-    expect(map.calls.terrain.at(-1)).toBeNull();
   });
 
   it('nudges 8% toward a hovered city over 600ms', async () => {
@@ -867,7 +977,8 @@ describe('the style lifecycle', () => {
     });
     expect(map.calls.colorTheme).toHaveLength(1);
     expect(map.calls.fog).toHaveLength(1);
-    expect(map.calls.terrain).toEqual([null]);
+    // hello wants no terrain and none is attached, so nothing is sent.
+    expect(map.calls.terrain).toEqual([]);
     expect(map.calls.config).toContainEqual([
       'basemap',
       'lightPreset',

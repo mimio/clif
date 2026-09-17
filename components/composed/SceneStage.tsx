@@ -87,7 +87,10 @@ export const SceneStage = ({
       )}
       <div
         className={cn(
-          'absolute inset-y-0 z-10 flex animate-slide-in flex-col gap-6 overflow-x-hidden overflow-y-auto',
+          // The column's own 600ms travel is the one piece of motion this
+          // frame owns; the steps inside it are the routes' inline
+          // animations, which scene/enter.ts already reduces.
+          'absolute inset-y-0 z-10 flex animate-slide-in flex-col gap-6 overflow-x-hidden overflow-y-auto motion-reduce:animate-none',
           INSET_X,
           'pb-[var(--foreground-bottom-mobile)] tablet:pb-[var(--foreground-bottom)]',
           align === 'center'

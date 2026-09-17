@@ -217,73 +217,108 @@ export const AboutPage = ({
     />
   );
 
+  /*
+   * The stop itself: the role, the dates, the prose and the pager, which
+   * is the primary content of this route and not an aside to it.
+   *
+   * SO IT HAS TO BE INSIDE <main>, and SceneStage IS the <main>. It used
+   * to be rendered as a sibling of the stage, which left the landmark
+   * holding the page word and the scrubber and nothing else -- "skip to
+   * main content" landed on the h1 and stopped. The stage has exactly one
+   * slot that renders outside its scrolling column and inside the
+   * landmark, which is `footer`, so the pinned regions 1e draws along the
+   * bottom and the right go in together.
+   *
+   * WHY `fixed` AND NOT `absolute`. Both slots the stage offers are
+   * positioned boxes with insets of their own -- the column carries the
+   * foreground insets and a `forwards` enter animation, which leaves a
+   * transform on it for ever and makes it a containing block for anything
+   * fixed inside it. `fixed` inside the footer's box resolves against the
+   * viewport instead, which is the box this offset was measured from and
+   * the box the sibling used to resolve against (#__next is the viewport,
+   * 100% x 100%, overflow hidden). Same pixels, one landmark.
+   *
+   * A <section> rather than a <div>, because this is a section of the
+   * page's content and not a box that exists to position one. Measured in
+   * Chromium, Sheet's own <aside> still exposes a complementary landmark
+   * inside it -- HTML-AAM demotes a nameless <aside> scoped to sectioning
+   * content to generic, and this build does not. That role belongs to
+   * Sheet's element and Sheet is shared with nothing else on this route,
+   * so it is a change for components/, not for here. What matters and is
+   * fixed is where the content lives: inside the landmark, in reading
+   * order after the word.
+   */
+  const detail = (
+    <section
+      className={cn(
+        'fixed z-10',
+        mobile
+          ? 'inset-x-0 bottom-0'
+          : 'top-[96px] right-[var(--foreground-right-tablet)] desktop:right-[220px]',
+      )}
+      style={foregroundEnter(1, enter)}
+    >
+      <Sheet
+        className={reduced ? CROSSFADE.reduced : CROSSFADE.stop}
+        eyebrow={`stop ${String(stop.id).padStart(2, '0')} / ${String(
+          stops.length,
+        ).padStart(2, '0')}`}
+        key={stop.id}
+        label={stop.role}
+        meta={formatStopMeta(stop)}
+        pager={
+          <Pager
+            grow
+            next={
+              next === undefined
+                ? null
+                : { href: aboutStopPath(next), label: next.company }
+            }
+            prev={
+              prev === undefined
+                ? null
+                : { href: aboutStopPath(prev), label: prev.company }
+            }
+          />
+        }
+        placement={mobile ? 'bottom' : 'right'}
+        title={stop.company}
+      >
+        <span className="whitespace-pre-line">
+          {stop.description}
+        </span>
+        {mobile ? <div className="pt-2">{scrubber}</div> : null}
+      </Sheet>
+    </section>
+  );
+
   return (
-    <>
-      <SceneStage
-        align="top"
-        footer={
-          mobile ? undefined : (
+    <SceneStage
+      align="top"
+      footer={
+        <>
+          {detail}
+          {mobile ? null : (
             // The scrubber's own ticks stagger 40ms inside this step; the
             // step is when the whole rail is allowed to arrive.
             <div style={foregroundEnter(2, enter)}>{scrubber}</div>
-          )
-        }
-        vignette="night"
-        word={
-          // 1e puts the word at top 64, 1h at top 52; the stage's column
-          // supplies the left inset and this box pins it inside it. The
-          // box also carries the step, because PageWord is w-fit so its
-          // clipped gradient samples the word itself.
-          <div
-            className="absolute top-[52px] tablet:top-[64px]"
-            style={foregroundEnter(0, enter)}
-          >
-            <PageWord size="lg">about</PageWord>
-          </div>
-        }
-      />
-      <div
-        className={cn(
-          'absolute z-10',
-          mobile
-            ? 'inset-x-0 bottom-0'
-            : 'top-[96px] right-[var(--foreground-right-tablet)] desktop:right-[220px]',
-        )}
-        style={foregroundEnter(1, enter)}
-      >
-        <Sheet
-          className={reduced ? CROSSFADE.reduced : CROSSFADE.stop}
-          eyebrow={`stop ${String(stop.id).padStart(2, '0')} / ${String(
-            stops.length,
-          ).padStart(2, '0')}`}
-          key={stop.id}
-          label={stop.role}
-          meta={formatStopMeta(stop)}
-          pager={
-            <Pager
-              grow
-              next={
-                next === undefined
-                  ? null
-                  : { href: aboutStopPath(next), label: next.company }
-              }
-              prev={
-                prev === undefined
-                  ? null
-                  : { href: aboutStopPath(prev), label: prev.company }
-              }
-            />
-          }
-          placement={mobile ? 'bottom' : 'right'}
-          title={stop.company}
+          )}
+        </>
+      }
+      vignette="night"
+      word={
+        // 1e puts the word at top 64, 1h at top 52; the stage's column
+        // supplies the left inset and this box pins it inside it. The
+        // box also carries the step, because PageWord is w-fit so its
+        // clipped gradient samples the word itself.
+        <div
+          className="absolute top-[52px] tablet:top-[64px]"
+          style={foregroundEnter(0, enter)}
         >
-          <span className="whitespace-pre-line">
-            {stop.description}
-          </span>
-          {mobile ? <div className="pt-2">{scrubber}</div> : null}
-        </Sheet>
-      </div>
-    </>
+          <PageWord size="lg">about</PageWord>
+        </div>
+      }
+    />
   );
 };
 

@@ -30,6 +30,7 @@ import {
   applyFog,
   applyInteractivity,
   applyTerrain,
+  batchScene,
   ensureMap,
   getStyleStatus,
   setAnimation,
@@ -288,17 +289,26 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
       applyCamera(target, moveDurationFor(from, sceneId, reduced));
     }
 
-    applyFog(spec, palette);
-    applyTerrain(terrainFor(spec));
-    applyInteractivity(spec.interactive);
+    /*
+     * One pass, one flush. These are wants, not commands: batching them
+     * lets the scene apply them in the order mapbox needs rather than
+     * the order they are written -- specifically, every layer removal
+     * ahead of every setTerrain, because doing those two out of order in
+     * one tick throws from inside mapbox and takes the tree down.
+     */
+    batchScene(() => {
+      applyFog(spec, palette);
+      applyTerrain(terrainFor(spec));
+      applyInteractivity(spec.interactive);
 
-    // Tier 2: only the properties that actually changed.
-    const next = basemapConfig(spec.fog, spec.zoom, palette.light);
-    applyBasemapConfig(configChanges(next, lastConfig.current));
-    lastConfig.current = next;
+      // Tier 2: only the properties that actually changed.
+      const next = basemapConfig(spec.fog, spec.zoom, palette.light);
+      applyBasemapConfig(configChanges(next, lastConfig.current));
+      lastConfig.current = next;
 
-    // Tier 3 rides along with the layer diff.
-    syncLayers(sets, palette);
+      // Tier 3 rides along with the layer diff.
+      syncLayers(sets, palette);
+    });
 
     setAnimation(
       spinRateFor(spec, reduced),

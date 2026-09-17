@@ -27,14 +27,15 @@
  * a map that looks plausible until you notice the channels are swapped.
  *
  * THE TRANSFORM
- * A luminance ramp with the source's own chroma carried through:
+ * A tone ramp with the source's own chroma carried through:
  *
  *   1. Take the cell's colour as the basemap's incoming pixel.
- *   2. Normalise its luminance against SOURCE_FLOOR. Standard's basemap
- *      fills live almost entirely in the top third of the range -- its
- *      water is about 0.76, its land about 0.93 -- so a raw 0-1 ramp puts
- *      every fill on the top anchor and the map comes back one flat
- *      colour. The floor is what makes the ramp use its range.
+ *   2. Normalise its luma against SOURCE_FLOOR. Standard's basemap fills
+ *      live almost entirely in the top third of the range -- its water is
+ *      0.762, its land 0.930 -- so a raw 0-1 ramp puts every fill on the
+ *      top anchor and the map comes back one flat colour. The floor is
+ *      what makes the ramp use its range. Luma, not relative luminance:
+ *      palette.ts says why, and why linearising breaks this.
  *   3. Run the normalised tone through three anchors: --map-deep at the
  *      bottom, --map-land at LAND_STOP (where Standard's land beige
  *      lands), and a highlight at the top -- the theme's body ink warmed
@@ -42,7 +43,7 @@
  *      the accent on a light one, because a light theme's body ink is
  *      nearly black and would turn every road into a scar.
  *   4. Add back a fraction of the source's own colour opponency
- *      (src - luminance). Without it every fill collapses onto the ramp
+ *      (src - luma). Without it every fill collapses onto the ramp
  *      and water, parks and roads become one tone; with it water stays
  *      blue and parks stay green inside the theme's terrain.
  *   5. Shade through palette.sh, which is the whole light/dark story in
@@ -60,12 +61,12 @@
  * 131 KB before base64) and it is built once per theme change.
  *
  * Nothing here is cached. The function is a pure function of the palette
- * numbers; cache it by `palette.key`, which is exactly the value that
- * changes when the theme does.
+ * numbers; cache it by `palette.key`, which covers every colour the
+ * palette carries and so changes whenever anything read below changes.
  */
 import {
   type Channel,
-  luminance,
+  luma,
   type Palette,
   type Rgb,
 } from 'styles/tokens/palette';
@@ -73,14 +74,27 @@ import {
 /** Mapbox's ceiling. The cube is 32^3 and the strip is 32 x 1024. */
 export const LUT_SIZE = 32;
 
+/** The smallest cube worth building: two steps per axis. */
+export const MIN_LUT_SIZE = 2;
+
 /**
- * Below this relative luminance, a source pixel is already as dark as
- * Standard's basemap gets and maps straight to --map-deep.
+ * Where the tone ramp starts, on the LUMA scale -- see palette.ts, and do
+ * not linearise it. Mapbox Standard's basemap fills all sit above this
+ * (its water is 0.762, its land beige 0.930), so the ramp spends its
+ * range on tones the basemap actually emits. About two thirds of the cube
+ * -- 21,709 of 32,768 cells at 32^3, 66.3% -- falls below the floor and
+ * lands on the ramp's bottom anchor.
+ *
+ * "Bottom anchor" is not "--map-deep", and the difference is worth
+ * knowing before anyone goes hunting in sh(): the shading step still runs
+ * at tone 0, with k = SHADE_FLOOR, so yellow's deep [53, 46, 39] comes
+ * out at [38, 33, 28], 28% darker than the token. The floor is where the
+ * ramp starts, not where the pipeline stops.
  */
-const SOURCE_FLOOR = 0.62;
+export const SOURCE_FLOOR = 0.62;
 
 /** Where Standard's land beige sits once the tone is normalised. */
-const LAND_STOP = 0.82;
+export const LAND_STOP = 0.82;
 
 /** How much accent the highlight anchor carries, dark themes / light. */
 const DARK_TINT = 0.35;
@@ -91,16 +105,34 @@ const CHROMA_DARK = 0.3;
 const CHROMA_LIGHT = 0.2;
 
 /** The darkest the shading step may take a tone, at the bottom of the ramp. */
-const SHADE_FLOOR = 0.72;
+export const SHADE_FLOOR = 0.72;
 
 export type LutOptions = {
-  /** Cube size. Mapbox allows up to 32, which is the default. */
+  /**
+   * Cube size, clamped to 2..32 and truncated to an integer. The default
+   * and the only size Mapbox should ever be handed is 32; the option
+   * exists so tests can assert the cube layout on a cube small enough to
+   * read. Clamping is not politeness -- every value outside the range
+   * fails differently and quietly:
+   *
+   *   0  -> no DEFLATE block at all (ceil(0 / 65535) is 0), so the zlib
+   *         stream is a header and a checksum that no inflater accepts,
+   *         wrapped in a 0x0 IHDR that PNG forbids.
+   *   1  -> `last` is 0, so every channel is 0/0, and NaN stores as 0
+   *         through a Uint8Array: a valid, entirely black PNG that looks
+   *         like a working identity LUT until it paints.
+   *   33 -> a well-formed 1089x33 PNG that mapbox-gl rejects at runtime,
+   *         long after this function returned.
+   */
   size?: number;
   /** 0 is an exact identity LUT, 1 the full transform. */
   strength?: number;
 };
 
 const clamp01 = (n: number): number => Math.min(1, Math.max(0, n));
+
+const clampSize = (size: number): number =>
+  Math.max(MIN_LUT_SIZE, Math.min(LUT_SIZE, size) | 0);
 
 const lerp = (from: number, to: number, at: number): number =>
   from + (to - from) * at;
@@ -269,7 +301,8 @@ export const buildLut = (
   palette: Palette,
   options: LutOptions = {},
 ): string => {
-  const { size = LUT_SIZE, strength = 1 } = options;
+  const { size: requested = LUT_SIZE, strength = 1 } = options;
+  const size = clampSize(requested);
   const { deep, land, space, accent, body, light, sh } = palette;
 
   const highlight = light
@@ -290,9 +323,9 @@ export const buildLut = (
           (green / last) * 255,
           (blue / last) * 255,
         ];
-        const lum = luminance(src);
+        const tint = luma(src);
         const tone = clamp01(
-          (lum - SOURCE_FLOOR) / (1 - SOURCE_FLOOR),
+          (tint - SOURCE_FLOOR) / (1 - SOURCE_FLOOR),
         );
         const k = SHADE_FLOOR + (1 - SHADE_FLOOR) * tone;
 
@@ -305,7 +338,7 @@ export const buildLut = (
                   highlight[ch],
                   (tone - LAND_STOP) / (1 - LAND_STOP),
                 );
-          const carried = base + (src[ch] - lum * 255) * keep;
+          const carried = base + (src[ch] - tint * 255) * keep;
           const shaded = sh(carried, ch as Channel, k);
           pixels[at] = Math.round(
             Math.min(
