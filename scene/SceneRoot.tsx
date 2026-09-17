@@ -51,7 +51,7 @@ import type { Palette } from 'styles/tokens/palette';
 import { cn } from 'utils/cn';
 
 /*
- * The globe. One instance, mounted once in pages/_app.tsx behind everything
+ * The globe. One instance, mounted once in pages/_app.page.tsx behind everything
  * else at z-index 0, and never unmounted -- that is the whole point of the
  * rewrite. Route changes move the camera; they do not rebuild the map.
  *
@@ -94,7 +94,7 @@ type SceneState = 'pending' | 'live' | 'fallback';
  * lives with it. Inline also makes it the one form a jsdom test can
  * actually read back, so the precondition is asserted rather than assumed.
  * .clif-scene stays as a hook for anything styles/ wants to add later;
- * z-0 is the order pages/_app.tsx documents, under the page at z-10 and
+ * z-0 is the order pages/_app.page.tsx documents, under the page at z-10 and
  * the chrome at z-40.
  */
 const SCENE_BOX: CSSProperties = {

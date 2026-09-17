@@ -3,7 +3,7 @@ import localFont from 'next/font/local';
 /*
  * The two faces, loaded by next/font/local.
  *
- * Each one exposes a CSS variable; pages/_app.tsx puts the variable
+ * Each one exposes a CSS variable; pages/_app.page.tsx puts the variable
  * classes on the app wrapper (a display: contents element inside #__next)
  * and styles/tokens/fonts.css builds --family-mono and --family-display
  * around them. That indirection is why globals.css must map Tailwind's

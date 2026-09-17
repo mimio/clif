@@ -13,7 +13,7 @@ import AboutPage, {
   DEFAULT_STOP_INDEX,
   stopIndexFor,
 } from 'pagesComponents/about';
-import { PageMeta } from 'pages/_app';
+import { PageMeta } from 'pages/_app.page';
 import { cameraAt } from 'scene/camera';
 import { useSceneView } from 'scene/MapProvider';
 import { useSceneCamera } from 'scene/useSceneCamera';

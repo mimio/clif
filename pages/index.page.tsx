@@ -1,7 +1,7 @@
 import { cameras } from 'content/cameras';
 import { projectsList } from 'content/projects';
 import HelloPage from 'pagesComponents/hello';
-import { PageMeta } from 'pages/_app';
+import { PageMeta } from 'pages/_app.page';
 import { useSceneCamera } from 'scene/useSceneCamera';
 
 /** Counted rather than transcribed, so it cannot drift from content/. */

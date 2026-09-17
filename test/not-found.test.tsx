@@ -90,7 +90,7 @@ describe('the 404, interpolated from the system', () => {
       const { camera } = useScene();
       return <span data-testid="camera">{camera?.zoom}</span>;
     };
-    const { default: NotFound } = await import('pages/404');
+    const { default: NotFound } = await import('pages/404.page');
     render(
       <MapProvider>
         <NotFound />
