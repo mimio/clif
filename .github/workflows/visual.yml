@@ -134,10 +134,11 @@ jobs:
       # Two things keep that closed. The job's token is read-only, so the
       # worst a fork's spec can do with it is read what is already public.
       # And the one real secret -- the bypass token for a protected
-      # preview -- is resolved through the expression on the test step
-      # below, which yields an empty string unless this commit came from a
-      # PR whose head is in THIS repository. A fork's code therefore never
-      # has it in its environment at all.
+      # preview -- is resolved through the expression on the test steps
+      # below, which yields an empty string unless the step after this
+      # comment has positively established that the deployed commit's
+      # pull requests all have their head in THIS repository. A fork's
+      # code therefore never has it in its environment at all.
       #
       # THE RULE IS DEFAULT-DENY, and it did not used to be.
       #
