@@ -63,6 +63,8 @@ import { applyTheme, THEME_IDS } from 'styles/theme-bootstrap';
 import {
   FakeMap,
   installMapboxStub,
+  STYLE_GUARDED,
+  STYLE_NOT_LOADED,
   stubThemedStyles,
 } from 'test/fake-mapbox';
 import { themeBlock } from 'test/theme-css';
@@ -469,13 +471,13 @@ describe('the persistent map', () => {
     pathname.current = '/projects';
     await mount();
     expect(FakeMap.last.getLayer(SITE_POINTS)).toBeDefined();
-    expect(FakeMap.last.bound.length).toBeGreaterThan(0);
+    expect(FakeMap.last.handlers.length).toBeGreaterThan(0);
 
     await navigate('/about');
     expect(FakeMap.last.getLayer(SITE_POINTS)).toBeUndefined();
     expect(FakeMap.last.getLayer(HISTORY_POINTS)).toBeDefined();
     // Total teardown: the projects hover handlers are gone.
-    expect(FakeMap.last.bound).toEqual([]);
+    expect(FakeMap.last.handlers).toEqual([]);
 
     await navigate('/');
     expect(FakeMap.last.getLayer(HISTORY_POINTS)).toBeUndefined();
@@ -598,5 +600,247 @@ describe('the persistent map', () => {
     const fog = FakeMap.last.calls.fog.at(-1);
     expect(fog?.range).toEqual([0.6, 12]);
     expect(fog?.color).toBe('#161616');
+  });
+});
+
+/* ---- the style lifecycle ---------------------------------------------- */
+
+/*
+ * The regression block for the outage: with a token present, every route
+ * threw "Style is not done loading" because SceneRoot flushed the theme
+ * painter the moment the map object existed, and a map object is not a
+ * loaded style.
+ *
+ * The unit suite could not see it -- there is no token here, so the path
+ * never ran, and the fake map answered every call whatever its state. The
+ * fake enforces the precondition now, so these tests fail loudly against
+ * the code that shipped the bug.
+ */
+describe('the style lifecycle', () => {
+  let uninstall: () => void;
+
+  beforeEach(() => {
+    uninstall = installMapboxStub({ style: 'manual' });
+    stubThemedStyles(THEME_BLOCKS);
+  });
+
+  afterEach(() => {
+    uninstall();
+  });
+
+  const mount = async (node = <SceneRoot />) => {
+    let view: RenderResult;
+    await act(async () => {
+      view = render(<MapProvider>{node}</MapProvider>);
+    });
+    return view!;
+  };
+
+  it('the fake refuses every guarded call before style.load', () => {
+    const map = new FakeMap({});
+    const calls: Record<string, () => void> = {
+      setColorTheme: () => map.setColorTheme({ data: 'x' }),
+      setConfigProperty: () =>
+        map.setConfigProperty('basemap', 'theme', 'faded'),
+      setPaintProperty: () => map.setPaintProperty('l', 'p', 1),
+      setFog: () => map.setFog({}),
+      setTerrain: () => map.setTerrain(null),
+      addSource: () => map.addSource('s', {}),
+      addLayer: () => map.addLayer({ id: 'l' }),
+      removeSource: () => map.removeSource('s'),
+      removeLayer: () => map.removeLayer('l'),
+    };
+    // Every method mapbox-gl guards, and no others.
+    expect(Object.keys(calls).sort()).toEqual(
+      [...STYLE_GUARDED].sort(),
+    );
+    for (const [name, call] of Object.entries(calls)) {
+      expect(() => call(), name).toThrow(STYLE_NOT_LOADED);
+    }
+    // The camera is not guarded, in the fake or in mapbox-gl.
+    expect(() => map.easeTo({ zoom: 2 })).not.toThrow();
+    expect(() => map.setBearing(4)).not.toThrow();
+  });
+
+  it('drives the camera but touches nothing else before style.load', async () => {
+    await mount();
+    const map = FakeMap.last;
+    expect(map.styleLoaded).toBe(false);
+    // The camera has no style precondition and is applied at once, so the
+    // map never sits at its constructed [0, 0] waiting for a stylesheet.
+    expect(map.calls.easeTo).toHaveLength(1);
+    expect(map.calls.easeTo[0].center).toEqual(cameras.hello.center);
+    // Everything that would have thrown.
+    expect(map.calls.colorTheme).toEqual([]);
+    expect(map.calls.config).toEqual([]);
+    expect(map.calls.fog).toEqual([]);
+    expect(map.calls.terrain).toEqual([]);
+    expect(map.layers.size).toBe(0);
+  });
+
+  it('applies everything it was asked for once the style loads', async () => {
+    await mount();
+    const map = FakeMap.last;
+    await act(async () => {
+      map.loadStyle();
+    });
+    expect(map.calls.colorTheme).toHaveLength(1);
+    expect(map.calls.fog).toHaveLength(1);
+    expect(map.calls.terrain).toEqual([null]);
+    expect(map.calls.config).toContainEqual([
+      'basemap',
+      'lightPreset',
+      'dawn',
+    ]);
+    expect(map.getLayer(WORK_PATH_LINE)).toBeDefined();
+  });
+
+  it('keeps a theme change that arrives mid-load, and applies it once', async () => {
+    await mount();
+    const map = FakeMap.last;
+
+    await act(async () => {
+      applyTheme('paper');
+      await settle();
+    });
+    // Still nothing on the map: the style is not there to take it.
+    expect(map.calls.colorTheme).toEqual([]);
+
+    await act(async () => {
+      map.loadStyle();
+    });
+    // Exactly one, and it is the theme that was asked for last -- not the
+    // yellow one the first paint requested, and not both in sequence.
+    expect(map.calls.colorTheme).toHaveLength(1);
+    const paper = map.calls.colorTheme[0];
+
+    applyTheme('yellow');
+    await act(async () => {
+      await settle();
+    });
+    expect(map.calls.colorTheme).toHaveLength(2);
+    expect(map.calls.colorTheme[1]).not.toBe(paper);
+  });
+
+  it('never sends the same LUT twice, across painter rebuilds', async () => {
+    await mount();
+    const map = FakeMap.last;
+    await act(async () => {
+      map.loadStyle();
+    });
+    expect(map.calls.colorTheme).toHaveLength(1);
+
+    // The state flip from pending to live rebuilds the theme painter, and
+    // a rebuilt painter has no memory of what it painted. The dedupe that
+    // matters lives on the map side, so this must not reload every tile.
+    await act(async () => {
+      window.dispatchEvent(new Event(THEME_EVENT));
+      await settle();
+    });
+    expect(map.calls.colorTheme).toHaveLength(1);
+  });
+
+  it('collapses route changes made during load into the final route', async () => {
+    pathname.current = '/projects';
+    const view = await mount();
+    const map = FakeMap.last;
+
+    pathname.current = '/about';
+    await act(async () => {
+      view.rerender(
+        <MapProvider>
+          <SceneRoot />
+        </MapProvider>,
+      );
+    });
+    expect(map.layers.size).toBe(0);
+
+    await act(async () => {
+      map.loadStyle();
+    });
+    // Only the route the app actually ended on is mounted: the projects
+    // layers were never added, so they never had to be removed.
+    expect(map.getLayer(SITE_POINTS)).toBeUndefined();
+    expect(map.getLayer(HISTORY_POINTS)).toBeDefined();
+
+    // And the config diffs merged rather than the earlier one being lost:
+    // /projects asked for dusk, /about for night, and only night is live.
+    const presets = map.calls.config.filter(
+      ([, key]) => key === 'lightPreset',
+    );
+    expect(presets).toHaveLength(1);
+    expect(presets[0][2]).toBe('night');
+    expect(map.calls.config).toContainEqual([
+      'basemap',
+      'showPlaceLabels',
+      true,
+    ]);
+  });
+
+  it('falls back to the plate when the stylesheet itself fails', async () => {
+    await mount();
+    const map = FakeMap.last;
+    await act(async () => {
+      map.failStyle('Unauthorized');
+    });
+    expect(screen.getByTestId('scene-root')).toHaveAttribute(
+      'data-scene-state',
+      'fallback',
+    );
+    expect(screen.getByTestId('scene-fallback')).toBeInTheDocument();
+    // Degraded, not crashed: nothing was forced onto a map that has no
+    // style, so nothing threw.
+    expect(map.calls.colorTheme).toEqual([]);
+  });
+
+  it('survives tile errors after the style loaded', async () => {
+    await mount();
+    const map = FakeMap.last;
+    await act(async () => {
+      map.loadStyle();
+    });
+    // A token with no tile scope 401s every tile. That is a map missing
+    // its imagery, not a scene that should tear itself down.
+    await act(async () => {
+      map.tileError('Unauthorized');
+      map.tileError('Unauthorized');
+    });
+    expect(screen.getByTestId('scene-root')).toHaveAttribute(
+      'data-scene-state',
+      'live',
+    );
+    expect(
+      screen.queryByTestId('scene-fallback'),
+    ).not.toBeInTheDocument();
+    expect(map.calls.colorTheme).toHaveLength(1);
+  });
+
+  it('falls back when the style fails before the map even resolves', async () => {
+    // A token that cannot fetch the stylesheet 401s it immediately, so
+    // the failure can land before ensureMap's promise does -- which is a
+    // different path into the plate than the watcher above.
+    uninstall();
+    uninstall = installMapboxStub({ style: 'fail' });
+    await mount();
+    expect(screen.getByTestId('scene-root')).toHaveAttribute(
+      'data-scene-state',
+      'fallback',
+    );
+    expect(FakeMap.last.calls.colorTheme).toEqual([]);
+    expect(FakeMap.last.calls.fog).toEqual([]);
+  });
+
+  it('holds the dash still until the style can take a paint property', async () => {
+    await mount();
+    const map = FakeMap.last;
+    await act(async () => {
+      await new Promise((done) => {
+        requestAnimationFrame(() => done(null));
+      });
+    });
+    // The globe is already turning -- setBearing has no precondition --
+    // but the dash is a paint property and must not have been written.
+    expect(map.calls.bearing.length).toBeGreaterThan(0);
+    expect(map.calls.paint).toEqual([]);
   });
 });

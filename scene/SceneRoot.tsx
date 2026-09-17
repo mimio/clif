@@ -21,8 +21,10 @@ import {
   applyInteractivity,
   applyTerrain,
   ensureMap,
+  getStyleStatus,
   setAnimation,
   syncLayers,
+  watchStyleStatus,
 } from 'scene/mapbox/instance';
 import {
   type BasemapConfig,
@@ -152,16 +154,33 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
     [sceneId, palette, hover, isMobile, spec, reduced, setHover],
   );
 
-  // One map, created on the first mount and never again. ensureMap is
-  // idempotent, which is what makes React 19's double-invoked effects
-  // safe here.
+  /*
+   * One map, created on the first mount and never again. ensureMap is
+   * idempotent, which is what makes React 19's double-invoked effects
+   * safe here.
+   *
+   * 'live' means the map object exists, not that its style has loaded --
+   * the camera can be driven straight away and everything with a style
+   * precondition defers itself inside scene/mapbox/instance.ts. What
+   * SceneRoot does care about is the stylesheet failing outright, which
+   * is what a token that cannot fetch it looks like: there will never be
+   * a basemap, so the scene falls back to the same static plate it shows
+   * with no token at all.
+   */
   useEffect(() => {
     let cancelled = false;
+    const stopWatching = watchStyleStatus((next) => {
+      if (!cancelled && next === 'failed') setState('fallback');
+    });
     void ensureMap(containerRef.current).then((map) => {
-      if (!cancelled) setState(map ? 'live' : 'fallback');
+      if (cancelled) return;
+      if (!map) setState('fallback');
+      else
+        setState(getStyleStatus() === 'failed' ? 'fallback' : 'live');
     });
     return () => {
       cancelled = true;
+      stopWatching();
     };
   }, []);
 
@@ -174,7 +193,13 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
   useEffect(() => {
     const painter = createThemePainter((next, lut) => {
       applyColorTheme(lut);
-      setPalette(next);
+      // Identity matters: `palette` is a dependency of the scene pass, so
+      // handing back an equal-but-new object on every paint would re-run
+      // the whole pass -- and re-issue a camera move -- for a theme that
+      // did not change. The key is what changing means here.
+      setPalette((current) =>
+        current.key === next.key ? current : next,
+      );
     });
     const unsubscribe = subscribeTheme(painter.request);
     painter.request();
