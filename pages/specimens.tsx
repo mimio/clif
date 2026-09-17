@@ -1,5 +1,6 @@
 import type { GetStaticProps } from 'next';
 import foundation from 'pagesComponents/specimens/foundation';
+import tokens from 'pagesComponents/specimens/tokens';
 import type { Specimen } from 'pagesComponents/specimens/types';
 
 /*
@@ -10,7 +11,7 @@ import type { Specimen } from 'pagesComponents/specimens/types';
  * To add a section: create pagesComponents/specimens/<lane>.tsx exporting a
  * Specimen, then add it to SECTIONS below. That is the only shared line.
  */
-const SECTIONS: Specimen[] = [foundation];
+const SECTIONS: Specimen[] = [foundation, tokens];
 
 const Specimens = () => (
   <main className="clif-specimens">
