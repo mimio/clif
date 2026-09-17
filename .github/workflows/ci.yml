@@ -19,8 +19,8 @@ jobs:
     timeout-minutes: 15
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      # The e2e suite answers every Mapbox request locally, so the build only
-      # needs a token-shaped value here, not a real one.
+      # Tier 1 replaces mapbox-gl in the page before the token is read, so
+      # the build only needs a token-shaped value here, not a real one.
       NEXT_PUBLIC_MAPBOX_TOKEN: pk.e2e-placeholder
     steps:
       - uses: actions/checkout@v7
@@ -58,8 +58,13 @@ jobs:
 
       - run: pnpm exec playwright install --with-deps chromium
 
-      # The build above is what `playwright test` would otherwise run itself.
-      - run: pnpm exec playwright test
+      # Tier 1: hermetic, no network, mapbox-gl stubbed. PREVIEW_URL is
+      # deliberately unset here -- setting it would switch playwright.config
+      # over to the review tier, which belongs in its own workflow against a
+      # deployed preview. The build above is what `playwright test` would
+      # otherwise run itself.
+      - name: Playwright (tier 1, hermetic)
+        run: pnpm exec playwright test
         env:
           PLAYWRIGHT_REUSE_BUILD: '1'
 
@@ -69,4 +74,15 @@ jobs:
         with:
           name: playwright-report
           path: playwright-report
+          if-no-files-found: ignore
+
+      # The report embeds failure screenshots but not the traces, and a
+      # trace is the only thing that explains a flake on a runner nobody
+      # can attach a debugger to.
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-test-results
+          path: test-results
           if-no-files-found: ignore

@@ -1,0 +1,162 @@
+name: Visual review
+
+# TIER 2. The review app, and the only place the real basemap exists.
+#
+# This sandbox -- and every developer machine without the owner's token --
+# can reach neither Mapbox nor Vercel, so nothing local has ever seen
+# Mapbox Standard wearing one of the eight themes. The preview deployment
+# has the real token and real terrain, so the visual suite runs there and
+# nowhere else.
+#
+# `deployment_status` is the event, because it is the only one that fires
+# when the preview is actually ready and it carries the URL in its payload
+# (deployment_status.environment_url). Watching `pull_request` instead
+# would mean polling Vercel for a URL that may not exist yet.
+#
+# THE SCREENSHOTS ARE UPLOADED ON EVERY RUN, not only on failure: they are
+# the thing the owner asked for, and a job that only produces them when it
+# is unhappy is a job whose output nobody sees.
+#
+# A NOTE ON THE FIRST RUN. There are no committed baselines yet, and none
+# can be produced anywhere but here. Playwright writes a missing baseline
+# and reports the test as failed, which is the correct outcome: a new
+# baseline is a change a human accepts, not one CI adopts silently. So the
+# first run is red, uploads every capture, and turns green once the
+# accepted images are committed under e2e/review/__screenshots__.
+
+on:
+  deployment_status:
+
+concurrency:
+  group: visual-${{ github.event.deployment_status.environment_url }}
+  cancel-in-progress: true
+
+# Read-only, and the job references no secret except through the guarded
+# expression below. See "FORK SAFETY" on the bypass step.
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  review:
+    name: Review-app screenshots
+    # Vercel fires deployment_status several times per deployment and for
+    # production as well as previews; only a ready preview with a URL is
+    # worth a browser.
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.environment_url != '' &&
+      github.event.deployment.environment != 'Production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      # Both of the steps that touch the token run BEFORE the checkout, so
+      # no code from the deployed commit is on disk while they do.
+      - name: Check the preview URL
+        id: preview
+        env:
+          URL: ${{ github.event.deployment_status.environment_url }}
+        run: |
+          if [[ ! "$URL" =~ ^https://[a-z0-9-]+\.vercel\.app/?$ ]]; then
+            echo "::error::refusing to drive a browser at $URL"
+            exit 1
+          fi
+          echo "url=${URL%/}" >> "$GITHUB_OUTPUT"
+
+      # FORK SAFETY.
+      #
+      # deployment_status runs in the BASE repository with the base
+      # branch's workflow file, and it has access to secrets -- which is
+      # exactly the shape that leaks them, because the code this job then
+      # checks out and executes is the deployed commit, which on a fork PR
+      # is the fork's. A Playwright spec is arbitrary code.
+      #
+      # Two things keep that closed. The job's token is read-only, so the
+      # worst a fork's spec can do with it is read what is already public.
+      # And the one real secret -- the bypass token for a protected
+      # preview -- is resolved through the expression on the test step
+      # below, which yields an empty string unless this commit came from a
+      # PR whose head is in THIS repository. A fork's code therefore never
+      # has it in its environment at all.
+      #
+      # A commit with no PR is a push to a branch here, which only someone
+      # with write access can make. An API failure is treated as a fork:
+      # the job still runs, just without the secret.
+      - name: Work out whether the deployed commit came from a fork
+        id: origin
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.deployment.sha }}
+        run: |
+          heads=$(gh api "repos/$REPO/commits/$SHA/pulls" \
+            --jq '[.[].head.repo.full_name] | unique | join(" ")' 2>/dev/null) || {
+            echo "could not resolve the commit's pull requests; assuming a fork"
+            echo "fork=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          fork=false
+          for head in $heads; do
+            if [ "$head" != "$REPO" ]; then fork=true; fi
+          done
+          echo "the deployed commit's pull request heads: ${heads:-none}"
+          echo "fork=$fork" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with:
+          # The commit that was deployed, so the specs and the baselines
+          # match the site they are pointed at.
+          ref: ${{ github.event.deployment.sha }}
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Read Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - run: pnpm exec playwright install --with-deps chromium
+
+      # PREVIEW_URL is what switches playwright.config.ts to the review
+      # tier: no local build, no webServer, and only the specs in
+      # e2e/review. There is nothing to build here -- Vercel already did.
+      - name: Playwright (tier 2, review app)
+        run: pnpm exec playwright test
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+          PREVIEW_BYPASS_TOKEN: ${{ steps.origin.outputs.fork == 'false' && secrets.VERCEL_AUTOMATION_BYPASS_SECRET || '' }}
+
+      # Everything below runs whether the comparison passed or not.
+      - name: Upload the screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: review-screenshots
+          # The accepted baselines, plus every -actual and -diff Playwright
+          # wrote for a comparison that did not match or did not exist.
+          path: |
+            e2e/review/__screenshots__
+            test-results
+          if-no-files-found: warn
+
+      - name: Upload the Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: review-report
+          path: playwright-report
+          if-no-files-found: ignore
