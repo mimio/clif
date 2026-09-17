@@ -1,8 +1,15 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import MetaGrid from 'components/composed/MetaGrid';
-import Pager from 'components/composed/Pager';
+import Pager, { PAGER_LABEL } from 'components/composed/Pager';
 import ProjectTable, {
   cellValue,
   EM_DASH,
@@ -18,8 +25,129 @@ import ScreenshotPlane from 'components/composed/ScreenshotPlane';
 import Scrubber, {
   progressWidth,
   TICK_STAGGER_MS,
+  TICK_TARGET,
+  TICK_TARGET_PX,
 } from 'components/composed/Scrubber';
-import Sheet from 'components/composed/Sheet';
+import Sheet, {
+  focusTarget,
+  restoreFocus,
+} from 'components/composed/Sheet';
+
+/*
+ * three.js, as a stand-in for a GL context.
+ *
+ * The WebGL SUCCESS path is the one a browser takes and the one no test
+ * had ever run: jsdom's getContext returns nothing, three throws, and the
+ * component falls straight through to its next/image fallback -- which is
+ * why a shader canvas with no accessible name and a texture loader with no
+ * error handler could both ship. The stub makes the success path reachable
+ * and keeps the failure path one flag away, so both are asserted here.
+ *
+ * `renderer: 'throws'` is the default because it is jsdom's own answer, and
+ * the tests written against that answer should go on describing it.
+ */
+const three = vi.hoisted(() => ({
+  renderer: 'throws' as 'throws' | 'works',
+  /** Every texture load's onError, waiting to be called. */
+  failures: [] as (() => void)[],
+  /** How many times the renderer was asked to draw a frame. */
+  frames: 0,
+}));
+
+vi.mock('three', () => {
+  const noop = (): void => {};
+
+  class Texture {
+    minFilter = 0;
+
+    dispose = noop;
+  }
+
+  class TextureLoader {
+    load(
+      src: string,
+      onLoad?: () => void,
+      onProgress?: () => void,
+      onError?: (error: unknown) => void,
+    ) {
+      three.failures.push(() => {
+        onError?.(new Error(`could not load ${src}`));
+      });
+      return new Texture();
+    }
+  }
+
+  class WebGLRenderer {
+    domElement = document.createElement('canvas');
+
+    constructor() {
+      if (three.renderer === 'throws') {
+        throw new Error('no WebGL context');
+      }
+    }
+
+    setSize = noop;
+
+    setClearColor = noop;
+
+    setPixelRatio = noop;
+
+    dispose = noop;
+
+    render = () => {
+      three.frames += 1;
+    };
+  }
+
+  return {
+    Clock: class {
+      getElapsedTime = () => 0;
+    },
+    LinearFilter: 1006,
+    Mesh: class {
+      scale = { set: noop };
+    },
+    PerspectiveCamera: class {
+      position = { z: 0 };
+
+      aspect = 1;
+
+      updateProjectionMatrix = noop;
+    },
+    PlaneGeometry: class {
+      dispose = noop;
+    },
+    Scene: class {
+      add = noop;
+    },
+    ShaderMaterial: class {
+      uniforms: Record<string, { value: unknown }> = {
+        uTime: { value: 0 },
+        uTexture: { value: null },
+      };
+
+      dispose = noop;
+    },
+    Texture,
+    TextureLoader,
+    WebGLRenderer,
+  };
+});
+
+/** jsdom implements no CSS, so a media query has to be answered by hand. */
+const matchMediaFor = (matching: string) =>
+  vi.fn((query: string) => ({
+    matches: query === matching,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+
+const REDUCED = '(prefers-reduced-motion: reduce)';
 
 const rows: ProjectRow[] = [
   {
@@ -450,6 +578,375 @@ describe('ScreenshotPlane', () => {
     expect(container.querySelector('figure')).toHaveAttribute(
       'data-src',
       '/haikumi.webp',
+    );
+  });
+});
+
+afterEach(() => {
+  three.renderer = 'throws';
+  three.failures.length = 0;
+  three.frames = 0;
+  vi.stubGlobal('matchMedia', matchMediaFor('nothing matches'));
+});
+
+/*
+ * A2 / A3 / A9, all three of which live on the path a browser takes and
+ * none of which the jsdom fallback can stand in for.
+ */
+describe('the screenshot plane, with a GL context', () => {
+  let warn: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    three.renderer = 'works';
+    warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warn.mockRestore();
+  });
+
+  const canvas = (container: HTMLElement): HTMLCanvasElement | null =>
+    container.querySelector('canvas');
+
+  it('names the canvas, because on this path the canvas IS the image', () => {
+    const { container } = render(
+      <ScreenshotPlane
+        alt="GoPro Mountain Games Event Map"
+        caption="event map sheet"
+        src="/gopro.webp"
+      />,
+    );
+
+    // The shader path renders a bare <div> and lets three.js append the
+    // canvas into it, so `alt` had nowhere to land: the figure's entire
+    // text content was the caption, and the capture itself was not there.
+    expect(container.querySelector('img')).toBeNull();
+    expect(
+      screen.getByRole('img', {
+        name: 'GoPro Mountain Games Event Map',
+      }),
+    ).toBe(canvas(container));
+  });
+
+  it('keeps the name on the canvas across a project swap', () => {
+    // The plane must not remount between /projects and a detail, so the
+    // name has to follow the prop rather than the mount.
+    const { container, rerender } = render(
+      <ScreenshotPlane alt="GoPro" src="/gopro.webp" />,
+    );
+    const first = canvas(container);
+    rerender(<ScreenshotPlane alt="Haikumi" src="/haikumi.webp" />);
+
+    expect(canvas(container)).toBe(first);
+    expect(first).toHaveAttribute('aria-label', 'Haikumi');
+  });
+
+  it('hides a canvas with no alt rather than naming it nothing', () => {
+    // alt="" is next/image's decorative case, and it is this one too: a
+    // role="img" with an empty name is worse than no role at all.
+    const { container } = render(
+      <ScreenshotPlane src="/gopro.webp" />,
+    );
+
+    expect(canvas(container)).toHaveAttribute('aria-hidden', 'true');
+    expect(canvas(container)).not.toHaveAttribute('role');
+    expect(screen.queryByRole('img')).toBeNull();
+  });
+
+  it('degrades to the plain image when the texture never loads', () => {
+    const { container } = render(
+      <ScreenshotPlane alt="GoPro" src="/missing.webp" />,
+    );
+    expect(canvas(container)).not.toBeNull();
+
+    // TextureLoader neither throws nor rejects: its fourth argument is the
+    // only report a 404 or a decode failure ever makes. Before it was
+    // wired up the shader went on drawing an empty texture for ever.
+    expect(three.failures).toHaveLength(1);
+    act(() => {
+      three.failures[0]();
+    });
+
+    expect(canvas(container)).toBeNull();
+    expect(screen.getByRole('img', { name: 'GoPro' }).tagName).toBe(
+      'IMG',
+    );
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('waves on its own frame loop, and does not under reduced motion', () => {
+    const raf = vi.spyOn(window, 'requestAnimationFrame');
+    const { unmount } = render(
+      <ScreenshotPlane alt="GoPro" src="/gopro.webp" />,
+    );
+    expect(raf).toHaveBeenCalled();
+    unmount();
+
+    raf.mockClear();
+    three.frames = 0;
+    vi.stubGlobal('matchMedia', matchMediaFor(REDUCED));
+    render(<ScreenshotPlane alt="GoPro" src="/gopro.webp" />);
+
+    // The globe is deliberately frozen under reduced motion; an
+    // indefinite wave beside a still scene is the one thing this must not
+    // be. The capture is still drawn -- once.
+    expect(raf).not.toHaveBeenCalled();
+    expect(three.frames).toBeGreaterThan(0);
+    raf.mockRestore();
+  });
+});
+
+describe('a scrubber tick is a control, at every width', () => {
+  const stops = [
+    { id: 1, label: 'NIKE', at: 25 },
+    { id: 2, label: 'UBIQUITI', at: 36 },
+  ];
+
+  it('carries its name as an attribute, which a breakpoint cannot hide', () => {
+    render(<Scrubber stops={stops} />);
+    const tick = screen.getByRole('button', { name: 'UBIQUITI' });
+    const label = screen.getByText('UBIQUITI');
+
+    // jsdom applies no CSS, so this cannot be proved by measuring: under
+    // 650px that label is display:none, and display:none content is
+    // excluded from the accessible name. The proof is that the name is on
+    // the control rather than only inside it.
+    expect(label.className).toMatch(/max-tablet:hidden/);
+    expect(tick).toHaveAttribute('aria-label', 'UBIQUITI');
+    expect(tick.getAttribute('aria-label')).toBe(label.textContent);
+  });
+
+  it('gives the 1px stem a target WCAG 2.5.8 would accept', () => {
+    render(<Scrubber stops={stops} />);
+    const stem = screen
+      .getByRole('button', { name: 'UBIQUITI' })
+      .querySelector('span > span');
+
+    expect(TICK_TARGET_PX).toBeGreaterThanOrEqual(24);
+    // Tailwind's spacing scale is 0.25rem, so 6 is TICK_TARGET_PX.
+    expect(TICK_TARGET).toContain(
+      `before:h-${TICK_TARGET_PX / 4} before:w-${TICK_TARGET_PX / 4}`,
+    );
+    for (const className of TICK_TARGET.split(' ')) {
+      expect(stem).toHaveClass(className);
+    }
+  });
+
+  it('stops the live pulse for a visitor who asked it to', () => {
+    render(<Scrubber stops={stops} />);
+    const live = screen.getByRole('button', { name: 'NIKE' });
+
+    // A 1.6s opacity pulse that never ends and cannot be paused is WCAG
+    // 2.2.2; reduced motion is the pause.
+    expect(live.querySelector('span')).toHaveClass(
+      'animate-live-pulse',
+      'motion-reduce:animate-none',
+    );
+    expect(live).toHaveClass(
+      'animate-slide-in',
+      'motion-reduce:animate-none',
+    );
+  });
+});
+
+describe('the sheet keeps the keyboard', () => {
+  const caps = (from: string, to: string) => (
+    <Pager
+      next={{ href: `/about?stop=${to}`, label: to }}
+      prev={{ href: `/about?stop=${from}`, label: from }}
+    />
+  );
+
+  it('is a named landmark', () => {
+    const { container } = render(
+      <Sheet pager={caps('tigard', 'nike')} title="Ubiquiti">
+        body
+      </Sheet>,
+    );
+    expect(container.querySelector('aside')).toHaveAttribute(
+      'aria-label',
+      'Ubiquiti',
+    );
+    expect(
+      screen.getByRole('navigation', { name: PAGER_LABEL }),
+    ).toBeVisible();
+  });
+
+  it('hands focus on when the route swaps the stop under it', () => {
+    // The about route keys this on the stop to buy the 160ms crossfade,
+    // which deletes the cap the visitor just activated. Focus would fall
+    // to document.body -- silently, next to a silent route announcer.
+    const { rerender } = render(
+      <Sheet key="ubiquiti" pager={caps('tigard', 'nike')} title="U">
+        body
+      </Sheet>,
+    );
+    screen.getByRole('link', { name: /nike/ }).focus();
+
+    rerender(
+      <Sheet key="nike" pager={caps('ubiquiti', 'harvard')} title="N">
+        body
+      </Sheet>,
+    );
+
+    expect(document.activeElement).not.toBe(document.body);
+    expect(
+      screen.getByRole('link', { name: /harvard/ }),
+    ).toHaveFocus();
+  });
+
+  it('lands on the one cap a stop at the end of the line has', () => {
+    const { rerender } = render(
+      <Sheet key="nike" pager={caps('ubiquiti', 'harvard')} title="N">
+        body
+      </Sheet>,
+    );
+    screen.getByRole('link', { name: /harvard/ }).focus();
+
+    rerender(
+      <Sheet
+        key="harvard"
+        pager={
+          <Pager prev={{ href: '/about?stop=nike', label: 'nike' }} />
+        }
+        title="H"
+      >
+        body
+      </Sheet>,
+    );
+
+    expect(screen.getByRole('link', { name: /nike/ })).toHaveFocus();
+  });
+
+  it('falls back to the sheet itself, which is named and focusable', () => {
+    const { container, rerender } = render(
+      <Sheet key="ubiquiti" pager={caps('tigard', 'nike')} title="U">
+        body
+      </Sheet>,
+    );
+    screen.getByRole('link', { name: /tigard/ }).focus();
+
+    rerender(
+      <Sheet key="nike" title="Nike">
+        body
+      </Sheet>,
+    );
+
+    const aside = container.querySelector('aside');
+    expect(aside).toHaveAttribute('tabindex', '-1');
+    expect(aside).toHaveFocus();
+  });
+
+  it('leaves focus alone when the sheet was not holding it', () => {
+    const outside = (
+      <button data-testid="outside" type="button">
+        elsewhere
+      </button>
+    );
+    const { rerender } = render(
+      <div>
+        {outside}
+        <Sheet
+          key="ubiquiti"
+          pager={caps('tigard', 'nike')}
+          title="U"
+        >
+          body
+        </Sheet>
+      </div>,
+    );
+    const button = screen.getByTestId('outside');
+    button.focus();
+
+    rerender(
+      <div>
+        {outside}
+        <Sheet
+          key="nike"
+          pager={caps('ubiquiti', 'harvard')}
+          title="N"
+        >
+          body
+        </Sheet>
+      </div>,
+    );
+
+    expect(button).toHaveFocus();
+  });
+
+  it('does not hand focus to a sheet that mounts later', async () => {
+    const { unmount } = render(
+      <Sheet pager={caps('tigard', 'nike')} title="U">
+        body
+      </Sheet>,
+    );
+    screen.getByRole('link', { name: /nike/ }).focus();
+    unmount();
+
+    // The note expires at the end of the commit that wrote it. A sheet
+    // arriving on some later route must not inherit a focus move from a
+    // stop the visitor left behind.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    render(
+      <Sheet pager={caps('tigard', 'nike')} title="Later">
+        body
+      </Sheet>,
+    );
+    expect(document.body).toHaveFocus();
+  });
+
+  it('will not take focus that is already somewhere', () => {
+    const { container } = render(
+      <Sheet pager={caps('tigard', 'nike')} title="U">
+        body
+      </Sheet>,
+    );
+    const root = container.querySelector('aside') as HTMLElement;
+    const held = screen.getByRole('link', { name: /tigard/ });
+    held.focus();
+
+    restoreFocus(root, true);
+    expect(held).toHaveFocus();
+  });
+
+  it('knows both ends of a pager, and that a sheet may have none', () => {
+    const { container } = render(
+      <Sheet pager={caps('tigard', 'nike')} title="U">
+        body
+      </Sheet>,
+    );
+    const root = container.querySelector('aside') as HTMLElement;
+    expect(focusTarget(root, true)).toBe(
+      screen.getByRole('link', { name: /nike/ }),
+    );
+    expect(focusTarget(root, false)).toBe(
+      screen.getByRole('link', { name: /tigard/ }),
+    );
+
+    const bare = render(<Sheet title="Bare">body</Sheet>);
+    const alone = bare.container.querySelector(
+      'aside',
+    ) as HTMLElement;
+    expect(focusTarget(alone, true)).toBe(alone);
+  });
+});
+
+describe('reduced motion reaches components/composed', () => {
+  it('guards every entry animation this lane owns', () => {
+    const { container: stage } = render(
+      <SceneStage>body</SceneStage>,
+    );
+    expect(
+      stage.querySelector('.animate-slide-in')?.className,
+    ).toMatch(/motion-reduce:animate-none/);
+
+    const { container: sheet } = render(
+      <Sheet title="Ubiquiti">body</Sheet>,
+    );
+    expect(sheet.querySelector('aside')?.className).toMatch(
+      /motion-reduce:animate-none/,
     );
   });
 });

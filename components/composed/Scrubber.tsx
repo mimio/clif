@@ -37,6 +37,26 @@ export type ScrubberProps = {
 /** Ticks enter 40ms apart, west to east. */
 export const TICK_STAGGER_MS = 40;
 
+/**
+ * WCAG 2.5.8's floor for a pointer target, in px.
+ *
+ * The stem is the whole of an inactive tick below 650px -- 1x11 -- because
+ * the label that gives it width is dropped at that width on purpose. So the
+ * target is not the stem: it is a transparent box centred on it, drawn as a
+ * pseudo-element so the tick's own geometry (1px stems on the artboard's
+ * percentages) is untouched. 24 rather than 44 because the closest pair of
+ * stops on 1h sit 10% apart -- ~39px at 390px -- and two overlapping targets
+ * would trade one failure for another.
+ */
+export const TICK_TARGET_PX = 24;
+
+/**
+ * The transparent hit box, centred on the stem it is a child of. `content`
+ * and the size are literal because Tailwind reads source text, not values.
+ */
+export const TICK_TARGET =
+  "relative before:absolute before:top-1/2 before:left-1/2 before:h-6 before:w-6 before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']";
+
 /** How far the accent progress rule runs: the last stop's position. */
 export const progressWidth = (stops: ScrubberStop[]): number =>
   stops.length === 0 ? 0 : stops[stops.length - 1].at;
@@ -81,8 +101,13 @@ export const Scrubber = ({
         return (
           <button
             aria-current={live}
+            // The label below is display:none under 650px, and hidden
+            // content is excluded from the accessible name -- so at 390px
+            // every inactive tick would announce as an unnamed button. The
+            // name is on the control, where the breakpoint cannot reach it.
+            aria-label={stop.label}
             className={cn(
-              'absolute top-0 flex animate-slide-in cursor-pointer flex-col gap-2 select-none',
+              'absolute top-0 flex animate-slide-in cursor-pointer flex-col gap-2 select-none motion-reduce:animate-none',
               live ? '-translate-x-1.5 items-center' : 'items-start',
             )}
             data-live={live}
@@ -98,13 +123,16 @@ export const Scrubber = ({
               className={cn(
                 'flex flex-col gap-2',
                 live
-                  ? 'animate-live-pulse items-center'
+                  ? // An indefinite 1.6s pulse with no pause control is
+                    // WCAG 2.2.2; reduced motion is the pause.
+                    'animate-live-pulse items-center motion-reduce:animate-none'
                   : 'items-start',
               )}
             >
               <span
                 className={cn(
                   'block',
+                  TICK_TARGET,
                   live
                     ? 'h-[17px] w-[3px] bg-accent tablet:h-6'
                     : 'h-[11px] w-px bg-accent-35 tablet:h-[17px]',

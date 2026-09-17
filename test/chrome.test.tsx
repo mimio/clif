@@ -25,7 +25,6 @@ import Altimeter, {
   JIGGLE_EASE,
   JIGGLE_MS,
   playBead,
-  prefersReducedMotion,
   RAIL_BOTTOM,
   RAIL_TOP,
   ROUTE_EVENT,
@@ -36,6 +35,7 @@ import ChromeRoot, {
   DETAIL_INDICATOR,
   DETAIL_PATH,
   indicatorForPath,
+  liveCamera,
   pathForRoute,
   routeIdForPath,
 } from 'components/chrome/ChromeRoot';
@@ -54,7 +54,14 @@ import ThemeEye, {
   serverTheme,
 } from 'components/chrome/ThemeEye';
 import { POPOVER_EVENT } from 'components/chrome/usePopover';
-import { coordLabel } from 'scene/camera';
+import type { AnchorId } from 'content/anchors';
+import { prefersReducedMotion } from 'scene/budget';
+import {
+  cameraForHover,
+  coordLabel,
+  forViewport,
+  resolveCamera,
+} from 'scene/camera';
 import { cameras } from 'content/cameras';
 import { SceneContext } from 'scene/MapProvider';
 import {
@@ -247,6 +254,9 @@ describe('playBead', () => {
   it('stands still when the visitor asked for less motion', () => {
     installAnimate();
     reduceMotion(true);
+    // B6: one reduced-motion read for the whole app -- scene/budget.ts's,
+    // which scene/useViewport.ts subscribes to as well. The rail used to
+    // carry a byte-for-byte copy of it.
     expect(prefersReducedMotion()).toBe(true);
     const element = document.createElement('span');
     expect(
@@ -824,5 +834,88 @@ describe('ChromeRoot', () => {
     render(<ChromeRoot />);
     await userEvent.click(rail(/projects/));
     expect(push).toHaveBeenCalledWith('/projects');
+  });
+});
+
+/*
+ * B1. The pill is a readout of the map, so what it reads has to be what
+ * the map was driven to -- which is the camera a route DECLARED put
+ * through scene/SceneRoot's three transforms, not the declaration itself.
+ */
+describe('the coordinate pill reads the driven camera', () => {
+  const pill = (): string =>
+    screen.getByText(/-?\d+\.\d{3}, -?\d+\.\d{3}/).textContent ?? '';
+
+  const chrome = (
+    camera: (typeof cameras)[keyof typeof cameras] | null,
+    hover: AnchorId | null = null,
+  ) =>
+    render(
+      <SceneContext.Provider
+        value={{
+          camera,
+          hover,
+          setCamera: vi.fn(),
+          setHover: vi.fn(),
+        }}
+      >
+        <ChromeRoot />
+      </SceneContext.Provider>,
+    );
+
+  it('is the composition SceneRoot drives the map with, in its order', () => {
+    // Not "a camera like the scene's": the same three functions, applied
+    // to the same four inputs, in the order scene/SceneRoot applies them.
+    for (const isMobile of [false, true]) {
+      for (const hover of [null, 'portland'] as const) {
+        expect(
+          liveCamera('/about', cameras.about, isMobile, hover),
+        ).toEqual(
+          cameraForHover(
+            forViewport(
+              resolveCamera('/about', cameras.about),
+              'about',
+              isMobile,
+            ),
+            hover,
+          ),
+        );
+      }
+    }
+  });
+
+  it('follows a hovered row, which moves the map two degrees', () => {
+    pathname.current = '/projects';
+    chrome(cameras.projects, 'portland');
+
+    // The measurement: for as long as a pointer rests on a project row the
+    // pill used to read the untouched centre -- to three decimals, which
+    // is a claim of about a hundred metres -- while the map sat half a
+    // degree of latitude and near two of longitude away.
+    expect(pill()).toBe('39.522, -99.974');
+    expect(pill()).not.toBe('39.000, -98.000');
+  });
+
+  it('does not show the previous route while the next one is flying', () => {
+    // SceneRoot's effect runs before the page's, so on every navigation
+    // the raw context value is briefly the route the visitor just left.
+    // resolveCamera is what tells a refinement from a leftover, and the
+    // scene has always applied it; the readout had not.
+    pathname.current = '/about';
+    chrome(cameras.projects);
+
+    expect(pill()).toBe('45.512, -122.658');
+  });
+
+  it('still answers before any route has declared a camera', () => {
+    pathname.current = '/projects';
+    chrome(null);
+    expect(pill()).toBe('39.000, -98.000');
+  });
+
+  it('captions the detail route held, declared or not', () => {
+    pathname.current = DETAIL_PATH;
+    chrome(null);
+    expect(screen.getByText('held')).toBeVisible();
   });
 });

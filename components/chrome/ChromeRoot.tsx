@@ -1,9 +1,10 @@
 import { useRouter } from 'next/router';
+import type { AnchorId } from 'content/anchors';
+import type { CameraSpec } from 'content/cameras';
 import Altimeter from 'components/chrome/Altimeter';
 import ContactMouth from 'components/chrome/ContactMouth';
 import CoordPill from 'components/chrome/CoordPill';
 import ThemeEye from 'components/chrome/ThemeEye';
-import { cameras } from 'content/cameras';
 import {
   ABOUT,
   HELLO,
@@ -11,8 +12,15 @@ import {
   routes,
   type RouteId,
 } from 'content/routes';
-import { coordLabel } from 'scene/camera';
-import { useScene } from 'scene/MapProvider';
+import {
+  cameraForHover,
+  coordLabel,
+  forViewport,
+  resolveCamera,
+  sceneIdForPath,
+} from 'scene/camera';
+import { useScene, useSceneHover } from 'scene/MapProvider';
+import { useIsMobile } from 'scene/useViewport';
 import { cn } from 'utils/cn';
 
 /*
@@ -68,13 +76,63 @@ export type ChromeRootProps = {
   className?: string;
 };
 
+/*
+ * THE READOUT IS OF THE MAP, NOT OF THE ROUTE.
+ *
+ * What a page declares through useSceneCamera is a request. What the globe
+ * is actually pointed at is that request put through three transforms, in
+ * scene/SceneRoot's own order:
+ *
+ *   resolveCamera   drops a declared camera that is the PREVIOUS route's
+ *                   left over -- SceneRoot's effect runs before the page's,
+ *                   so mid-navigation the raw context value is stale.
+ *   forViewport     the mobile cameras. Below 650px /about is zoom 10.2 and
+ *                   pitch 55, not the desktop entry.
+ *   cameraForHover  the 8% nudge toward a hovered project's city. Resting a
+ *                   pointer on a row moved the map ~2 degrees of longitude
+ *                   while the pill went on reading the untouched centre --
+ *                   at three decimals, which is a claim of ~100m.
+ *
+ * They are pure functions of (pathname, declared, viewport, hover), which
+ * is the whole reason the chrome can apply them: this derives the same
+ * value from the same inputs rather than keeping a second copy of it.
+ *
+ * WHAT IT STILL CANNOT SEE is the flight. applyCamera hands mapbox an
+ * easeTo of 800-900ms; this snaps to the destination on the frame the route
+ * changes, so for the length of every move the pill is ahead of the globe.
+ * Closing that needs the map's live transform, and scene/mapbox/instance.ts
+ * publishes no camera-change seam (getMap() exists, but there is nothing to
+ * subscribe to and no notification when the map is first created, and the
+ * chrome may not reach into scene/mapbox/** anyway). Interpolating the ease
+ * here would be a second implementation of the flight, wrong in a different
+ * way. So the pill reads the camera's DESTINATION exactly, and the gap that
+ * is left is a whole-frame one rather than a silently wrong decimal.
+ */
+export const liveCamera = (
+  pathname: string,
+  declared: CameraSpec | null,
+  isMobile: boolean,
+  hover: AnchorId | null,
+): CameraSpec =>
+  cameraForHover(
+    forViewport(
+      // Before any route has declared one, resolveCamera still answers:
+      // the pathname's own table entry, which is where the scene is going.
+      resolveCamera(pathname, declared),
+      sceneIdForPath(pathname),
+      isMobile,
+    ),
+    hover,
+  );
+
 export const ChromeRoot = ({ className }: ChromeRootProps) => {
   const { pathname, push } = useRouter();
-  const { camera } = useScene();
+  const { camera: declared } = useScene();
+  const { hover } = useSceneHover();
+  const isMobile = useIsMobile();
   const active = routeIdForPath(pathname);
-  // Before the first route declares a camera, the readout shows where the
-  // scene starts rather than blanking.
-  const { center } = camera ?? cameras.hello;
+  const camera = liveCamera(pathname, declared, isMobile, hover);
+  const { center } = camera;
   const sheeted = active === ABOUT;
 
   return (

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Glyph, { type GlyphKind } from 'components/primitives/Glyph';
 import { routes, type RouteId } from 'content/routes';
+import { prefersReducedMotion } from 'scene/budget';
 import { cn } from 'utils/cn';
 
 /*
@@ -94,9 +95,6 @@ const ROUTE_GLYPHS: Record<RouteId, GlyphKind> = {
   about: 'about',
 };
 
-export const prefersReducedMotion = (): boolean =>
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
 /**
  * Replays a keyframe list on the bead, cancelling whatever was running.
  *
@@ -104,6 +102,15 @@ export const prefersReducedMotion = (): boolean =>
  * position keeps interpolating while this replays and the bead cannot jump.
  * Returns null when there is nothing to animate -- no element, no Web
  * Animations (jsdom), or the visitor asked for less motion.
+ *
+ * THE ORDER OF THOSE THREE GUARDS IS LOAD-BEARING. The Web Animations check
+ * comes first because it is also the "is there a browser here" check:
+ * prefersReducedMotion reads window.matchMedia, which jsdom does not
+ * implement, so asking the preference first would throw in every unit test
+ * that renders the rail rather than quietly declining to animate. The
+ * reduced-motion read is the scene's own (scene/budget.ts) -- the same
+ * function scene/useViewport.ts subscribes to, so the rail and the globe
+ * cannot end up disagreeing about what the visitor asked for.
  */
 export const playBead = (
   element: HTMLElement | null,
