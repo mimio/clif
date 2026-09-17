@@ -1,4 +1,9 @@
-import { act, render, screen } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   afterEach,
@@ -13,6 +18,7 @@ import Pager, { PAGER_LABEL } from 'components/composed/Pager';
 import ProjectTable, {
   cellValue,
   EM_DASH,
+  isHoverPointer,
   PROJECT_TABLE_COLUMNS,
   PROJECT_TABLE_MODEL,
   type ProjectRow,
@@ -341,6 +347,85 @@ describe('ProjectTable', () => {
         .getByText('GoPro Mountain Games Event Map')
         .closest('tr'),
     ).toHaveAttribute('data-active', 'true');
+  });
+
+  /*
+   * THE HOVER CHANNEL, AND THE TWO WAYS IT USED TO BE WRONG.
+   *
+   * It latched on touch: the site's `hover` variant is bare `:hover` with
+   * no `(hover: hover)` guard, and pointerenter fires on a tap while the
+   * matching leave frequently never arrives -- so a tapped row kept the
+   * wash, the slide, the lit city point and the 8% camera nudge until the
+   * next tap somewhere else, and the wash is the same accent-07 that marks
+   * the SELECTED row. And it was withheld from the keyboard entirely: the
+   * row had no onFocus or onBlur, so tabbing through the table lit nothing
+   * and moved nothing.
+   */
+  it('ignores a hover a finger could not have meant', () => {
+    const onHoverRow = vi.fn();
+    render(<ProjectTable onHoverRow={onHoverRow} rows={rows} />);
+    const row = screen.getByText('Haikumi').closest('tr')!;
+
+    fireEvent.pointerEnter(row, { pointerType: 'touch' });
+    expect(onHoverRow).not.toHaveBeenCalled();
+    fireEvent.pointerLeave(row, { pointerType: 'touch' });
+    expect(onHoverRow).not.toHaveBeenCalled();
+
+    // ...and a mouse still gets both halves.
+    fireEvent.pointerEnter(row, { pointerType: 'mouse' });
+    expect(onHoverRow).toHaveBeenCalledWith('haikumi');
+    fireEvent.pointerLeave(row, { pointerType: 'mouse' });
+    expect(onHoverRow).toHaveBeenLastCalledWith(null);
+
+    expect(isHoverPointer('mouse')).toBe(true);
+    expect(isHoverPointer('pen')).toBe(false);
+  });
+
+  it('survives a touch with no handler bound', () => {
+    render(<ProjectTable rows={rows} />);
+    const row = screen.getByText('Haikumi').closest('tr')!;
+    fireEvent.pointerEnter(row, { pointerType: 'touch' });
+    expect(row).toHaveAttribute('data-active', 'false');
+  });
+
+  it('gives the keyboard the same channel the mouse has', async () => {
+    const onHoverRow = vi.fn();
+    render(<ProjectTable onHoverRow={onHoverRow} rows={rows} />);
+    const link = screen.getByRole('link');
+
+    await userEvent.tab();
+    expect(link).toHaveFocus();
+    expect(onHoverRow).toHaveBeenCalledWith('gopro');
+
+    await userEvent.tab();
+    expect(link).not.toHaveFocus();
+    expect(onHoverRow).toHaveBeenLastCalledWith(null);
+  });
+
+  it('paints the wash for focus, and only for a fine pointer on hover', () => {
+    render(<ProjectTable rows={rows} />);
+    const row = screen.getByText('Haikumi').closest('tr')!;
+    row.className
+      .split(' ')
+      .filter((name) => name.includes('hover:'))
+      .forEach((name) =>
+        expect(name.startsWith('pointer-fine:hover:')).toBe(true),
+      );
+    expect(row).toHaveClass('focus-within:bg-accent-07');
+    expect(row).toHaveClass('focus-within:translate-x-[3px]');
+  });
+
+  it('folds the client under the title without repeating the year', () => {
+    render(<ProjectTable rows={rows} />);
+    // The mobile grid keeps three columns -- ##, project, year -- so the
+    // fold under the title carries the client alone. It used to carry the
+    // year as well, and below 650px the year was on screen twice.
+    const fold = screen
+      .getByText('GoPro Mountain Games Event Map')
+      .closest('td')!
+      .querySelector('.tablet\\:hidden')!;
+    expect(fold).toHaveTextContent('970 Design');
+    expect(fold.textContent).not.toContain('2017');
   });
 
   it('scrolls inside itself only in the browse-all state', () => {
