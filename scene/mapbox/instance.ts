@@ -31,10 +31,19 @@ import type { Palette } from 'styles/tokens/palette';
  * `new mapboxgl.Map()` returns before the style exists. Almost everything
  * worth doing to a map goes through Style._checkLoaded(), which throws
  * "Style is not done loading" until the stylesheet has been fetched and
- * parsed: setColorTheme, setConfigProperty (via setImportConfig), setFog,
- * setTerrain, setPaintProperty, addSource, addLayer, removeLayer. So a
- * scene that talks to the map the moment it is constructed takes the whole
- * app down, which is what it did.
+ * parsed: setColorTheme, setFog, setTerrain, setPaintProperty, addSource,
+ * addLayer, removeSource, removeLayer. So a scene that talks to the map
+ * the moment it is constructed takes the whole app down, which is what it
+ * did.
+ *
+ * setConfigProperty is deferred with them and is NOT one of them. It
+ * reaches Style.setConfigProperty, which is unguarded: it opens with
+ * `const fragmentStyle = this.getFragmentStyle(fragmentId); if
+ * (!fragmentStyle) return;` and there is no _checkLoaded anywhere in it.
+ * Called before the style loads it does nothing at all, quietly. That is
+ * a worse failure than throwing, not a better one -- a light preset that
+ * never arrives leaves the basemap looking merely wrong -- so it waits
+ * with the rest rather than being allowed through.
  *
  * SceneRoot must not have to know which of those methods carry the
  * precondition -- that is precisely the knowledge this seam exists to

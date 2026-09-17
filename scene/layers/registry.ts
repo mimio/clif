@@ -1,6 +1,7 @@
 import type {
   LayerInteraction,
   LayerSet,
+  SceneListener,
   SceneMap,
 } from 'scene/layers/types';
 import type { Palette } from 'styles/tokens/palette';
@@ -24,20 +25,59 @@ import type { Palette } from 'styles/tokens/palette';
  * record was never registered.
  */
 
+/*
+ * A bound interaction.
+ *
+ * `bound` is what the map holds, and it never changes for the life of
+ * the mount. `current` is what it forwards to, and it is replaced on
+ * every sync.
+ *
+ * That indirection is the point. Handlers are declared inside the set
+ * builders, so they close over the route's options -- and mount() binds
+ * once while sync() skips a set that is already mounted. A handler that
+ * closed over route state would therefore go stale exactly the way the
+ * about route's ring did when its selection lived in a layer `filter`:
+ * correct in the declaration, ignored by the map. Refreshing the target
+ * costs one indirection and makes that whole class unreachable, so
+ * interactions are dynamic like paint rather than structure like layers.
+ */
+type MountedInteraction = {
+  type: string;
+  layer?: string;
+  /** Held by the map; stable for the life of the mount. */
+  bound: SceneListener;
+  /** Where it forwards; replaced on every sync. */
+  current: SceneListener;
+};
+
 type MountedSet = {
   sources: string[];
   layers: string[];
-  interactions: LayerInteraction[];
+  interactions: MountedInteraction[];
+};
+
+const slotFor = (it: LayerInteraction): MountedInteraction => {
+  const slot: MountedInteraction = {
+    type: it.type,
+    layer: it.layer,
+    current: it.handler,
+    bound: (event: unknown) => slot.current(event),
+  };
+  return slot;
 };
 
 const bind = (
   map: SceneMap,
   method: 'on' | 'off',
-  it: LayerInteraction,
+  slot: MountedInteraction,
 ): void => {
-  if (it.layer === undefined) map[method](it.type, it.handler);
-  else map[method](it.type, it.layer, it.handler);
+  if (slot.layer === undefined) map[method](slot.type, slot.bound);
+  else map[method](slot.type, slot.layer, slot.bound);
 };
+
+/** What the map is listening for, as a comparable shape. */
+const shapeOf = (slots: { type: string; layer?: string }[]): string =>
+  slots.map((slot) => `${slot.type}|${slot.layer ?? ''}`).join();
 
 export type LayerRegistry = {
   /** Mounts every set in `sets` that is not mounted, unmounts the rest. */
@@ -68,22 +108,41 @@ export const createLayerRegistry = (): LayerRegistry => {
     for (const layer of set.layers) {
       if (!map.getLayer(layer.id)) map.addLayer(layer);
     }
-    for (const interaction of set.interactions) {
-      bind(map, 'on', interaction);
-    }
+    const interactions = set.interactions.map(slotFor);
+    for (const slot of interactions) bind(map, 'on', slot);
     mounted.set(set.id, {
       sources: set.sources.map((source) => source.id),
       layers: set.layers.map((layer) => layer.id),
-      interactions: [...set.interactions],
+      interactions,
     });
+  };
+
+  /**
+   * Points a mounted set's handlers at the incoming declaration, so a
+   * handler can close over route state without going stale. Rebinds
+   * outright if the set is listening for something different now, which
+   * a set builder does not do today but is not forbidden from doing.
+   */
+  const refresh = (
+    map: SceneMap,
+    entry: MountedSet,
+    set: LayerSet,
+  ): void => {
+    if (shapeOf(entry.interactions) === shapeOf(set.interactions)) {
+      set.interactions.forEach((it, at) => {
+        entry.interactions[at].current = it.handler;
+      });
+      return;
+    }
+    for (const slot of entry.interactions) bind(map, 'off', slot);
+    entry.interactions = set.interactions.map(slotFor);
+    for (const slot of entry.interactions) bind(map, 'on', slot);
   };
 
   const offAll = (map: SceneMap, setId: string): void => {
     const entry = mounted.get(setId);
     if (!entry) return;
-    for (const interaction of entry.interactions) {
-      bind(map, 'off', interaction);
-    }
+    for (const slot of entry.interactions) bind(map, 'off', slot);
     // Emptied rather than kept: a second offAll must not double-off, and
     // an unmount that follows must not either.
     entry.interactions = [];
@@ -110,7 +169,9 @@ export const createLayerRegistry = (): LayerRegistry => {
       if (!wanted.has(id)) unmount(map, id);
     }
     for (const set of sets) {
-      if (!mounted.has(set.id)) mount(map, set);
+      const entry = mounted.get(set.id);
+      if (entry) refresh(map, entry, set);
+      else mount(map, set);
     }
   };
 

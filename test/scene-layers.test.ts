@@ -48,6 +48,8 @@ type FakeMap = SceneMap & {
   /** Every live (type, layer, handler) triple. */
   bound: string[];
   paints: [string, string, unknown][];
+  /** Dispatches to whatever is bound for (type, layer) right now. */
+  fire: (type: string, layer?: string) => void;
 };
 
 const key = (args: unknown[]): string =>
@@ -58,12 +60,22 @@ const fakeMap = (): FakeMap => {
   const layers = new Map<string, unknown>();
   const bound: string[] = [];
   const paints: [string, string, unknown][] = [];
+  // Recording a binding is not enough to see a stale handler: the map has
+  // to be able to call the one it is actually holding.
+  const live: { type: string; layer?: string; fn: SceneListener }[] =
+    [];
 
   return {
     sources,
     layers,
     bound,
     paints,
+    fire: (type, layer) => {
+      for (const entry of [...live]) {
+        if (entry.type !== type || entry.layer !== layer) continue;
+        entry.fn(undefined);
+      }
+    },
     getSource: (id) => sources.get(id),
     getLayer: (id) => layers.get(id),
     addSource: (id, spec) => sources.set(id, spec),
@@ -72,13 +84,23 @@ const fakeMap = (): FakeMap => {
     removeLayer: (id) => layers.delete(id),
     setPaintProperty: (layer, property, value) =>
       paints.push([layer, property, value]),
-    on: (...args) => bound.push(key(args)),
+    on: (...args) => {
+      bound.push(key(args));
+      live.push({
+        type: args[0] as string,
+        layer: args.length > 2 ? (args[1] as string) : undefined,
+        fn: args[args.length - 1] as SceneListener,
+      });
+    },
     off: (...args) => {
       const at = bound.indexOf(key(args));
       // -1 would mean an off with no matching on: the registry must never
       // produce one, and splice(-1) would silently drop the wrong entry.
       expect(at).toBeGreaterThanOrEqual(0);
       bound.splice(at, 1);
+      const fn = args[args.length - 1] as SceneListener;
+      const found = live.findIndex((entry) => entry.fn === fn);
+      if (found >= 0) live.splice(found, 1);
     },
   };
 };
@@ -300,6 +322,86 @@ describe('the handler registry', () => {
     registry.sync(map, []);
     registry.sync(map, [set('one', [scoped])]);
     expect(map.bound).toHaveLength(1);
+  });
+});
+
+/*
+ * The third slot the ring bug could have moved into.
+ *
+ * mount() binds handlers once and sync() skips a mounted set, so a
+ * handler closing over route state would go stale exactly the way a
+ * selection in a layer `filter` did: right in the declaration, ignored
+ * by the map. Comparing (type, layer) between syncs cannot see that --
+ * the shape is identical and the closure is wrong -- so the registry
+ * points the binding at the newest handler instead.
+ */
+describe('interactions follow the newest declaration', () => {
+  const withHandler = (
+    id: string,
+    handler: SceneListener,
+  ): LayerSet =>
+    set(id, [{ type: 'click', layer: `${id}-a`, handler }]);
+
+  it('calls the handler the latest sync declared, not the first', () => {
+    const map = fakeMap();
+    const registry = createLayerRegistry();
+    const first = vi.fn();
+    const second = vi.fn();
+
+    registry.sync(map, [withHandler('one', first)]);
+    registry.sync(map, [withHandler('one', second)]);
+
+    // One binding still, pointed somewhere new.
+    expect(map.bound).toHaveLength(1);
+    map.fire('click', 'one-a');
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes a map-wide handler too, not just a scoped one', () => {
+    const map = fakeMap();
+    const registry = createLayerRegistry();
+    const first = vi.fn();
+    const second = vi.fn();
+    const mapWide = (handler: SceneListener): LayerSet =>
+      set('one', [{ type: 'click', handler }]);
+
+    registry.sync(map, [mapWide(first)]);
+    registry.sync(map, [mapWide(second)]);
+
+    expect(map.bound).toHaveLength(1);
+    map.fire('click');
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it('survives a set that starts listening for something else', () => {
+    const map = fakeMap();
+    const registry = createLayerRegistry();
+    const clicked = vi.fn();
+    const hovered = vi.fn();
+
+    registry.sync(map, [withHandler('one', clicked)]);
+    registry.sync(map, [
+      set('one', [
+        { type: 'mousemove', layer: 'one-a', handler: hovered },
+      ]),
+    ]);
+
+    expect(map.bound).toHaveLength(1);
+    map.fire('click', 'one-a');
+    expect(clicked).not.toHaveBeenCalled();
+    map.fire('mousemove', 'one-a');
+    expect(hovered).toHaveBeenCalledTimes(1);
+  });
+
+  it('still tears every binding down, refreshed or not', () => {
+    const map = fakeMap();
+    const registry = createLayerRegistry();
+    registry.sync(map, [withHandler('one', vi.fn())]);
+    registry.sync(map, [withHandler('one', vi.fn())]);
+    registry.sync(map, []);
+    expect(map.bound).toEqual([]);
   });
 });
 

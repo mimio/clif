@@ -19,6 +19,21 @@ import type { Palette } from 'styles/tokens/palette';
 /** A mapbox-gl event listener, from this module's point of view. */
 export type SceneListener = (event: unknown) => void;
 
+/**
+ * One map event a set listens for.
+ *
+ * DYNAMIC, like `paint` and unlike `layers`. The registry binds a stable
+ * forwarder once and re-points it at the newest `handler` on every sync,
+ * so a handler that closes over route state -- a selected stop, a
+ * hovered anchor -- is refreshed rather than frozen at mount. Without
+ * that indirection this would be a third place for the bug that put the
+ * about route's ring selection in a layer `filter`: correct in the
+ * declaration, ignored by the map, and invisible to any test that
+ * compares the declaration rather than calling what is bound.
+ *
+ * The (type, layer) pair identifies the binding across syncs. Changing
+ * it is allowed and rebinds; changing only the handler does not.
+ */
 export type LayerInteraction = {
   /** 'mousemove', 'mouseleave', 'click', ... */
   type: string;
@@ -36,14 +51,19 @@ export type SourceEntry = {
  * A layer, as it is handed to addLayer.
  *
  * This is STRUCTURE, and it is read exactly once -- at mount. `sync`
- * skips a set whose id is already mounted, so nothing here is ever
- * re-applied while the route lives. A `filter` is therefore only allowed
- * to express something permanent about a layer (the work path's home
- * point is always Portland); anything that varies with route state --
- * a selection, a hover, a viewport -- belongs in `paint`, which repaint
- * re-applies. Putting selection in a filter is silently a no-op after
- * the first mount, which is exactly how the about route's ring came to
- * be stuck on whichever stop was selected when the route was entered.
+ * skips the sources and layers of a set whose id is already mounted, so
+ * nothing here is ever re-applied while the route lives. A `filter` is
+ * therefore only allowed to express something permanent about a layer
+ * (the work path's home point is always Portland); anything that varies
+ * with route state -- a selection, a hover, a viewport -- belongs in
+ * `paint`, which repaint re-applies. Putting selection in a filter is
+ * silently a no-op after the first mount, which is exactly how the about
+ * route's ring came to be stuck on whichever stop was selected when the
+ * route was entered.
+ *
+ * `sources` and `layers` are the whole of the static half. `paint` and
+ * `interactions` are both refreshed on every sync, so a handler may
+ * close over route state as freely as a paint expression may name it.
  */
 export type LayerEntry = { id: string } & Record<string, unknown>;
 

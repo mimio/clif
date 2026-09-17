@@ -7,12 +7,16 @@ import {
   it,
   vi,
 } from 'vitest';
+import { cameras } from 'content/cameras';
 import { watchCamera } from 'scene/liveCamera';
 import MapProvider from 'scene/MapProvider';
 import {
+  applyCamera,
+  applyInteractivity,
   getMap,
   getStyleStatus,
   resetMapForTests,
+  setAnimation,
 } from 'scene/mapbox/instance';
 import SceneRoot from 'scene/SceneRoot';
 import { resetLutCacheForTests } from 'scene/theme';
@@ -288,6 +292,40 @@ describe('watching the camera without a map', () => {
     );
     expect(seen).toEqual([]);
     expect(() => stop()).not.toThrow();
+  });
+});
+
+/*
+ * The imperative seam with no map behind it.
+ *
+ * These guards were read as unreachable from a unit test, which would
+ * have meant a test-only export to cover them if scene/mapbox/** were
+ * ever folded into coverage. They are not: every one of them is on an
+ * exported function, and setAnimation schedules its frame without
+ * checking for a map at all, so the loop reaches tick() with nothing to
+ * drive. Worth having anyway -- "does nothing, quietly" is the contract
+ * the whole no-token path rests on.
+ */
+describe('driving the scene before there is a map', () => {
+  it('moves no camera and enables no handler', () => {
+    expect(getMap()).toBeNull();
+    expect(() => applyCamera(cameras.hello, 800)).not.toThrow();
+    expect(() => applyInteractivity(true)).not.toThrow();
+    expect(() => applyInteractivity(false)).not.toThrow();
+  });
+
+  it('runs the animation loop without one and stops', async () => {
+    // setAnimation arms the frame whatever the map is doing, so this is
+    // the path where tick() finds nothing to drive.
+    setAnimation(0.0015, true, ['work-path-dash']);
+    await act(async () => {
+      await new Promise((done) => {
+        requestAnimationFrame(() => done(null));
+      });
+    });
+    expect(getMap()).toBeNull();
+    // Nothing was built, and nothing threw.
+    expect(FakeMap.instances).toHaveLength(0);
   });
 });
 
