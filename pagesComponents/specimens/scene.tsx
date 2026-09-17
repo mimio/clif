@@ -150,7 +150,9 @@ const CameraTable = ({ mobile }: { mobile: boolean }) => (
               {coordLabel(spec)}
             </td>
             <td className={`${cell} text-fg-4`}>
-              {spec.spin === null ? '—' : `${spec.spin}°/frame`}
+              {spec.spinDegPerSecond === null
+                ? '—'
+                : `${spec.spinDegPerSecond}°/s`}
             </td>
             <td className={`${cell} text-fg-4`}>
               {moveDurationFor(null, id, false)}ms

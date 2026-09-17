@@ -108,7 +108,14 @@ export type StubRecord = {
   config: [string, unknown][];
   /** Counts only: that they happened is the assertion, not their values. */
   fog: number;
+  /**
+   * Rolls of the BEARING. Zero is the healthy state: the globe turns on
+   * its axis, by walking its centre longitude, and nothing in the app
+   * writes a bearing outside a camera flight any more.
+   */
   bearings: number;
+  /** Writes of the CENTRE outside a flight -- the globe's rotation. */
+  spins: number;
   terrain: (number | null)[];
   easeTo: { zoom: number; duration: number }[];
   /** Layer and source ids currently mounted. */
@@ -159,6 +166,7 @@ const stubScript = (options: StubOptions): void => {
     config: [],
     fog: 0,
     bearings: 0,
+    spins: 0,
     terrain: [],
     easeTo: [],
     layers: [],
@@ -278,7 +286,7 @@ const stubScript = (options: StubOptions): void => {
       /*
        * A flight that lands at once, which the real thing never does --
        * and `isEasing` says so, because the scene's rotation loop asks.
-       * Real mapbox's setBearing is jumpTo, which STOPS an easeTo in
+       * Real mapbox's setCenter is jumpTo, which STOPS an easeTo in
        * progress, so the loop holds off while one is running; a stub
        * that answered `undefined` here would throw from inside the
        * loop rather than exercise it.
@@ -312,9 +320,22 @@ const stubScript = (options: StubOptions): void => {
       setBearing: (next: number): void => {
         // jumpTo, in the real library, and jumpTo stops the flight. The
         // stub lands easeTo in one step so there is never one open --
-        // see isEasing below.
+        // see isEasing above. Nothing in the app calls this any more;
+        // it is here because the library has it.
         bearing = next;
         record.bearings += 1;
+      },
+      setCenter: (next: [number, number]): void => {
+        /*
+         * THE ROTATION. Also jumpTo, and the one camera write the scene
+         * makes outside a flight: the globe turns by walking its centre
+         * meridian east, so the stub has to answer it or the loop throws
+         * on its first frame -- which is exactly what it did.
+         */
+        center = [...next];
+        record.spins += 1;
+        // Same reason easeTo fires one: scene/liveCamera.ts follows it.
+        fire('move');
       },
       getSource: (id: string): unknown => sources.get(id),
       getLayer: (id: string): unknown => layers.get(id),
@@ -532,6 +553,7 @@ export const readStub = (page: Page): Promise<StubRecord> =>
       config: record.config,
       fog: record.fog,
       bearings: record.bearings,
+      spins: record.spins,
       terrain: record.terrain,
       easeTo: record.easeTo,
       layers: record.layers,

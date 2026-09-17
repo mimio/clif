@@ -7,7 +7,7 @@ import {
   it,
   vi,
 } from 'vitest';
-import { cameras } from 'content/cameras';
+import { cameras, SPIN_DEG_PER_SECOND } from 'content/cameras';
 import { watchCamera } from 'scene/liveCamera';
 import MapProvider from 'scene/MapProvider';
 import {
@@ -425,7 +425,7 @@ describe('driving the scene before there is a map', () => {
   it('runs the animation loop without one and stops', async () => {
     // setAnimation arms the frame whatever the map is doing, so this is
     // the path where tick() finds nothing to drive.
-    setAnimation(0.0015, true, ['work-path-dash']);
+    setAnimation(SPIN_DEG_PER_SECOND, true, ['work-path-dash']);
     await act(async () => {
       await new Promise((done) => {
         requestAnimationFrame(() => done(null));

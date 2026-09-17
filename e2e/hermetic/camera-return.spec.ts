@@ -1,5 +1,9 @@
 import { expect, type Page, test } from '@playwright/test';
-import { cameras, type CameraSpec } from 'content/cameras';
+import {
+  cameras,
+  SPIN_DEG_PER_SECOND,
+  type CameraSpec,
+} from 'content/cameras';
 import { frameCamera } from 'scene/camera';
 import { anchors } from 'content/anchors';
 import { installSceneDebug, waitForScene } from '../fixtures/app';
@@ -51,6 +55,24 @@ type Sample = {
   passes: number;
 };
 
+/**
+ * A transform that has stopped flying, and how far the rotation could
+ * have carried it by the time it was read.
+ *
+ * The globe turns by walking its CENTRE LONGITUDE east, so on a spinning
+ * route there is no such thing as a resting longitude to compare against
+ * -- only "the one it landed on, plus however much it has turned since".
+ * That budget is not a guess: the spin cannot start before the scene pass
+ * that issues the flight, so the wall-clock time from the pass to the
+ * read bounds it, and the bound is carried here rather than baked in as a
+ * tolerance that would have to cover the slowest imaginable runner.
+ */
+type Rest = {
+  at: Transform | null;
+  /** Degrees of rotation the read could legitimately include. */
+  drift: number;
+};
+
 const readSample = (page: Page): Promise<Sample> =>
   page.evaluate(() => {
     const scene = window.__SCENE__;
@@ -94,21 +116,34 @@ const scenePasses = (page: Page): Promise<number> =>
  * map was genuinely not easing a few milliseconds in, sitting on the
  * camera of the route before.
  *
- * Bearing is left out of the stillness test on purpose: the hello globe
- * spins, so its bearing is never twice the same and requiring it to be
- * would hang here rather than assert anything.
+ * LONGITUDE is left out of the stillness test on the spinning routes, and
+ * that is not a loosening -- it is the same allowance this file already
+ * made for the bearing, moved to the axis the globe now turns on. The
+ * hello globe walks its centre meridian east for ever, so its longitude
+ * is never twice the same and requiring it to be would hang here rather
+ * than assert anything. Everything else about the arrival -- latitude,
+ * zoom, pitch, and the longitude it landed on, to within what the
+ * rotation can account for -- is still asserted.
  */
 const MIN_DWELL_MS = 1_200;
 const REST_BUDGET_MS = 25_000;
 const SAMPLE_MS = 150;
 
-const framing = (at: Transform): string =>
-  [at.lng, at.lat, at.zoom, at.pitch].join(',');
+/** Whether the route this is settling is one whose globe turns. */
+const spins = (spec: CameraSpec): boolean =>
+  spec.spinDegPerSecond !== null;
+
+const framing = (at: Transform, spec: CameraSpec): string =>
+  [spins(spec) ? '' : at.lng, at.lat, at.zoom, at.pitch].join(',');
+
+const since = (from: number | null): number =>
+  from === null ? 0 : Date.now() - from;
 
 const restingTransform = async (
   page: Page,
   beforePasses: number,
-): Promise<Transform | null> => {
+  spec: CameraSpec,
+): Promise<Rest> => {
   const deadline = Date.now() + REST_BUDGET_MS;
   let passedAt: number | null = null;
   let previous: string | null = null;
@@ -124,24 +159,31 @@ const restingTransform = async (
       passedAt !== null &&
       Date.now() - passedAt >= MIN_DWELL_MS &&
       !at.easing &&
-      framing(at) === previous
+      framing(at, spec) === previous
     ) {
-      return at;
+      return {
+        at,
+        drift: (SPIN_DEG_PER_SECOND * since(passedAt)) / 1_000,
+      };
     }
-    previous = at === null ? null : framing(at);
+    previous = at === null ? null : framing(at, spec);
     await page.waitForTimeout(SAMPLE_MS);
   }
-  return at;
+  return {
+    at,
+    drift: (SPIN_DEG_PER_SECOND * since(passedAt)) / 1_000,
+  };
 };
 
 /** The first route the tab ever sees, settled. */
 const loadAndSettle = async (
   page: Page,
   href: string,
-): Promise<Transform | null> => {
+  spec: CameraSpec,
+): Promise<Rest> => {
   await page.goto(href, { waitUntil: 'load' });
   await waitForScene(page, 'live');
-  return restingTransform(page, 0);
+  return restingTransform(page, 0, spec);
 };
 
 /**
@@ -153,7 +195,8 @@ const hop = async (
   page: Page,
   href: string,
   scene: string,
-): Promise<Transform | null> => {
+  spec: CameraSpec,
+): Promise<Rest> => {
   const before = await scenePasses(page);
   await page.evaluate((to) => {
     (
@@ -167,21 +210,28 @@ const hop = async (
     'data-scene',
     scene,
   );
-  return restingTransform(page, before);
+  return restingTransform(page, before, spec);
 };
 
 /*
- * Centre, zoom and pitch are asserted to three decimal places -- the
- * camera table's own precision, and far tighter than any of the wrong
- * answers this guards against, which were whole routes away.
+ * Latitude, zoom, pitch and bearing are asserted to three decimal places
+ * -- the camera table's own precision, and far tighter than any of the
+ * wrong answers this guards against, which were whole routes away.
  *
- * Bearing gets a tolerance instead, and only on the spinning routes: the
- * globe is turning by the time anything can read it. 0.0015 degrees a
- * frame is a degree every eleven seconds, so a degree is generous for a
- * read taken a second or two after the flight lands, and still nowhere
- * near /projects' -12 or the detail route's -20.
+ * BEARING IS NOW AMONG THEM, and that is a claim in its own right. The
+ * globe used to turn by rolling the bearing, which meant this file could
+ * only ever ask that it be near the camera's; it turns the centre
+ * meridian instead, so the bearing must now be exactly what the route
+ * declared and a route that rolls is a failure.
+ *
+ * LONGITUDE is the one that moves, because that is what the rotation is.
+ * It gets the drift budget the settle measured -- the rotation rate times
+ * the time from the scene pass to the read -- plus a hundredth of a
+ * degree for the arithmetic. The window is about a second in practice,
+ * so the band is a degree and a half wide against wrong answers that are
+ * whole routes away: /projects' centre is 24.7 degrees east of hello's.
  */
-const SPIN_SLACK_DEG = 1;
+const LNG_SLACK_DEG = 0.01;
 
 /*
  * The table's `zoom` and `padding` are the frame at the ARTBOARD size, and
@@ -195,37 +245,40 @@ const SPIN_SLACK_DEG = 1;
  * Framing across viewports is e2e/hermetic/globe-frame.spec.ts's job.
  */
 const expectArrivedAt = (
-  at: Transform | null,
+  rest: Rest,
   spec: CameraSpec,
   where: string,
   viewport: { width: number; height: number } | null,
 ): void => {
-  expect(at, `no transform to read at ${where}`).not.toBeNull();
-  const got = at as Transform;
+  expect(rest.at, `no transform to read at ${where}`).not.toBeNull();
+  const got = rest.at as Transform;
   const want = frameCamera(spec, viewport);
-  expect(got.lng, `${where}: longitude`).toBeCloseTo(
-    want.center[0],
-    3,
-  );
   expect(got.lat, `${where}: latitude`).toBeCloseTo(
     want.center[1],
     3,
   );
   expect(got.zoom, `${where}: zoom`).toBeCloseTo(want.zoom, 3);
   expect(got.pitch, `${where}: pitch`).toBeCloseTo(want.pitch, 3);
-  if (want.spin === null) {
-    expect(got.bearing, `${where}: bearing`).toBeCloseTo(
-      want.bearing,
+  expect(got.bearing, `${where}: bearing`).toBeCloseTo(
+    want.bearing,
+    3,
+  );
+  if (!spins(want)) {
+    expect(got.lng, `${where}: longitude`).toBeCloseTo(
+      want.center[0],
       3,
     );
     return;
   }
-  // A spinning route only ever turns forward from the bearing it landed on.
-  expect(got.bearing, `${where}: bearing`).toBeGreaterThanOrEqual(
-    want.bearing,
+  /*
+   * A spinning route only ever turns EAST from the longitude it landed
+   * on, and only as far as the clock allows.
+   */
+  expect(got.lng, `${where}: longitude`).toBeGreaterThanOrEqual(
+    want.center[0] - LNG_SLACK_DEG,
   );
-  expect(got.bearing, `${where}: bearing`).toBeLessThan(
-    want.bearing + SPIN_SLACK_DEG,
+  expect(got.lng, `${where}: longitude`).toBeLessThan(
+    want.center[0] + rest.drift + LNG_SLACK_DEG,
   );
 };
 
@@ -244,7 +297,7 @@ test.describe('the camera comes home', () => {
     page,
   }) => {
     expectArrivedAt(
-      await loadAndSettle(page, '/'),
+      await loadAndSettle(page, '/', cameras.hello),
       cameras.hello,
       'cold /',
       page.viewportSize(),
@@ -253,20 +306,20 @@ test.describe('the camera comes home', () => {
 
   test('returns to it from /projects', async ({ page }) => {
     expectArrivedAt(
-      await loadAndSettle(page, '/'),
+      await loadAndSettle(page, '/', cameras.hello),
       cameras.hello,
       'cold /',
       page.viewportSize(),
     );
 
     expectArrivedAt(
-      await hop(page, '/projects', 'projects'),
+      await hop(page, '/projects', 'projects', cameras.projects),
       cameras.projects,
       '/projects',
       page.viewportSize(),
     );
     expectArrivedAt(
-      await hop(page, '/', 'hello'),
+      await hop(page, '/', 'hello', cameras.hello),
       cameras.hello,
       'back at /',
       page.viewportSize(),
@@ -277,32 +330,37 @@ test.describe('the camera comes home', () => {
     page,
   }) => {
     expectArrivedAt(
-      await loadAndSettle(page, '/'),
+      await loadAndSettle(page, '/', cameras.hello),
       cameras.hello,
       'cold /',
       page.viewportSize(),
     );
 
     expectArrivedAt(
-      await hop(page, '/projects', 'projects'),
+      await hop(page, '/projects', 'projects', cameras.projects),
       cameras.projects,
       '/projects',
       page.viewportSize(),
     );
     expectArrivedAt(
-      await hop(page, '/projects/gopro', 'projectDetail'),
+      await hop(
+        page,
+        '/projects/gopro',
+        'projectDetail',
+        detailCamera,
+      ),
       detailCamera,
       '/projects/gopro',
       page.viewportSize(),
     );
     expectArrivedAt(
-      await hop(page, '/about', 'about'),
+      await hop(page, '/about', 'about', cameras.about),
       cameras.about,
       '/about',
       page.viewportSize(),
     );
 
-    const home = await hop(page, '/', 'hello');
+    const home = await hop(page, '/', 'hello', cameras.hello);
     expectArrivedAt(
       home,
       cameras.hello,
@@ -316,16 +374,25 @@ test.describe('the camera comes home', () => {
      * came home" and "the globe is a spinning globe again" are two
      * different claims and both are the user's.
      */
-    const before = (home as Transform).bearing;
-    await page.waitForTimeout(2_000);
+    const before = (home.at as Transform).lng;
+    const waited = 2_000;
+    await page.waitForTimeout(waited);
     const after = await readTransform(page);
     expect(
       after,
       'no transform to read after the spin',
     ).not.toBeNull();
-    expect(
-      (after as Transform).bearing,
-      'the hello globe is not turning',
-    ).toBeGreaterThan(before);
+    /*
+     * Eastward, and by roughly what two seconds of it should be. Half the
+     * nominal traversal is the floor: it says the globe is turning at
+     * something like the right speed rather than merely not being stuck,
+     * which is the difference this whole change was about -- the old rate
+     * would have moved it a thirtieth of a degree and passed any test
+     * that only asked for "more than before".
+     */
+    const turned = (after as Transform).lng - before;
+    expect(turned, 'the hello globe is not turning').toBeGreaterThan(
+      (SPIN_DEG_PER_SECOND * waited) / 1_000 / 2,
+    );
   });
 });

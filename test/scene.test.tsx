@@ -1069,7 +1069,7 @@ describe('the persistent map', () => {
     const map = FakeMap.last;
 
     /*
-     * Not while the route's flight is still in the air. setBearing is
+     * Not while the route's flight is still in the air. setCenter is
      * jumpTo and jumpTo stops the flight, so a loop that turned during
      * one would cancel it a frame in -- which is what left the globe
      * short of every camera it was sent to.
@@ -1079,7 +1079,7 @@ describe('the persistent map', () => {
         requestAnimationFrame(() => done(null));
       });
     });
-    expect(map.calls.bearing).toEqual([]);
+    expect(map.calls.center).toEqual([]);
 
     map.endEase();
     await act(async () => {
@@ -1087,12 +1087,24 @@ describe('the persistent map', () => {
         requestAnimationFrame(() => done(null));
       });
     });
-    expect(map.calls.bearing.length).toBeGreaterThan(0);
+    expect(map.calls.center.length).toBeGreaterThan(0);
+
+    /*
+     * And it turns the EARTH: the centre meridian walks east, which is
+     * what carries the ground left across the screen, while the bearing
+     * is never written at all. How far it gets in a frame is a wall-clock
+     * question and belongs to e2e/hermetic/globe-spin.spec.ts; that it
+     * moves the right axis the right way is answerable here.
+     */
+    const [lng, lat] = map.calls.center[0];
+    expect(lng).toBeGreaterThan(cameras.hello.center[0]);
+    expect(lat).toBe(cameras.hello.center[1]);
+    expect(map.calls.bearing).toEqual([]);
   });
 
   it('does not rotate over a camera that is still flying', async () => {
     /*
-     * mapbox's setBearing IS jumpTo, and jumpTo opens with `this.stop()`
+     * mapbox's setCenter IS jumpTo, and jumpTo opens with `this.stop()`
      * -- so a rotation written during a flight cancels it. The hello
      * globe was stopped by its own spin about 8% into its 800ms move and
      * sat there, which is most of what "the globe is too small and in
@@ -1102,13 +1114,13 @@ describe('the persistent map', () => {
     await mount();
     const map = FakeMap.last;
     map.easing = true;
-    const before = map.calls.bearing.length;
+    const before = map.calls.center.length;
     await act(async () => {
       await new Promise((done) => {
         requestAnimationFrame(() => done(null));
       });
     });
-    expect(map.calls.bearing).toHaveLength(before);
+    expect(map.calls.center).toHaveLength(before);
 
     map.easing = false;
     await act(async () => {
@@ -1116,7 +1128,46 @@ describe('the persistent map', () => {
         requestAnimationFrame(() => done(null));
       });
     });
-    expect(map.calls.bearing.length).toBeGreaterThan(before);
+    expect(map.calls.center.length).toBeGreaterThan(before);
+  });
+
+  /*
+   * A YIELD IS NOT A DEBT. The rotation is scaled by the milliseconds
+   * since it last ran, so a loop that simply remembered the last time it
+   * WROTE would come out of an 800ms flight and apply 800ms of rotation
+   * in a single frame -- a globe that lurches on arrival. The clock moves
+   * on every tick, written or not.
+   */
+  it('does not bank the rotation it held back', async () => {
+    await mount();
+    const map = FakeMap.last;
+    map.easing = true;
+    const frame = async (): Promise<void> => {
+      await act(async () => {
+        await new Promise((done) => {
+          requestAnimationFrame(() => done(null));
+        });
+      });
+    };
+    // Several frames of flight, each one held back.
+    await frame();
+    await frame();
+    await frame();
+    await frame();
+    expect(map.calls.center).toEqual([]);
+
+    map.easing = false;
+    await frame();
+    const [lng] = map.calls.center[0];
+    /*
+     * One frame's worth, not four frames' plus the flight's. jsdom's rAF
+     * runs at about 16ms, so a single step is well under a hundredth of a
+     * degree; a banked one would be several hundredths at least. Half a
+     * degree is far above either and far below anything visible, so this
+     * fails on a lurch and cannot fail on timing.
+     */
+    expect(lng - cameras.hello.center[0]).toBeGreaterThan(0);
+    expect(lng - cameras.hello.center[0]).toBeLessThan(0.5);
   });
 
   it('is static under reduced motion: 200ms, no rotation', async () => {
@@ -1133,7 +1184,7 @@ describe('the persistent map', () => {
         requestAnimationFrame(() => done(null));
       });
     });
-    expect(FakeMap.last.calls.bearing).toEqual([]);
+    expect(FakeMap.last.calls.center).toEqual([]);
   });
 
   it('applies the mobile artboard camera below the breakpoint', async () => {
@@ -1207,18 +1258,18 @@ describe('the persistent map', () => {
     await act(async () => {
       await frame();
     });
-    expect(map.calls.bearing.length).toBeGreaterThan(0);
+    expect(map.calls.center.length).toBeGreaterThan(0);
 
     await act(async () => {
       media.fire(REDUCED_MOTION_QUERY, true);
     });
-    const spun = map.calls.bearing.length;
+    const spun = map.calls.center.length;
     await act(async () => {
       await frame();
       await frame();
     });
     // The rotation stopped, and the travelling dash with it.
-    expect(map.calls.bearing).toHaveLength(spun);
+    expect(map.calls.center).toHaveLength(spun);
     const dashOpacity = map.calls.paint
       .filter(
         ([layer, property]) =>
@@ -1334,7 +1385,7 @@ describe('the persistent map', () => {
     // is owned by the route rather than by the style.
     map.removeLayer(WORK_PATH_DASH);
     const painted = map.calls.paint.length;
-    const spun = map.calls.bearing.length;
+    const spun = map.calls.center.length;
     await act(async () => {
       await frame();
       await frame();
@@ -1342,7 +1393,7 @@ describe('the persistent map', () => {
 
     // Still turning, and not writing a paint property to a layer that is
     // not there -- which is the call that throws in real mapbox-gl.
-    expect(map.calls.bearing.length).toBeGreaterThan(spun);
+    expect(map.calls.center.length).toBeGreaterThan(spun);
     expect(map.calls.paint).toHaveLength(painted);
   });
 
@@ -1989,11 +2040,11 @@ describe('the style lifecycle', () => {
 
     /*
      * Neither dial runs. The dash is a paint property so it never could,
-     * but spin used to: setBearing has no style precondition, so a
-     * rotating route kept driving a dead style for the life of the tab,
+     * but spin used to: the camera setters have no style precondition, so
+     * a rotating route kept driving a dead style for the life of the tab,
      * behind the fallback plate where nothing showed it.
      */
-    expect(map.calls.bearing).toEqual([]);
+    expect(map.calls.center).toEqual([]);
     expect(map.calls.paint).toEqual([]);
 
     await act(async () => {
@@ -2001,6 +2052,6 @@ describe('the style lifecycle', () => {
     });
     map.endEase();
     await frame();
-    expect(map.calls.bearing.length).toBeGreaterThan(0);
+    expect(map.calls.center.length).toBeGreaterThan(0);
   });
 });

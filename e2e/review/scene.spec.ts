@@ -426,7 +426,7 @@ test('all eight themes repaint the live basemap', async ({
  *
  *   THE ROUTE IS /projects, NOT /. The hello camera spins, and a globe
  *   at a different rotation differs from itself in every pixel -- a test
- *   that would pass on any two frames. /projects has spin: null in
+ *   that would pass on any two frames. /projects has spinDegPerSecond: null in
  *   content/cameras.ts, a fixed camera at zoom 2.6 over the continental
  *   US, and no terrain. (The review project also runs under
  *   reducedMotion: 'reduce', which turns the spin off anyway. Belt and
