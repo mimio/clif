@@ -6,6 +6,7 @@ import {
   DESKTOP,
   installLutProbe,
   installSceneDebug,
+  MAP_IDLE_BUDGET_MS,
   openThemeLens,
   readBasemapConfig,
   readLuts,
@@ -194,6 +195,37 @@ test('the bootstrap theme reaches the map before first paint', async ({
 test('all eight themes repaint the live basemap', async ({
   page,
 }) => {
+  /*
+   * THIS TEST GETS ITS OWN TIMEOUT, DERIVED RATHER THAN GUESSED.
+   *
+   * It is the only test in either tier that drives the live basemap eight
+   * times in series, and until the locators below were fixed it had never
+   * completed a single iteration -- so the review project's 150s has
+   * never once been measured against what this test actually does.
+   *
+   * Each theme can legitimately spend THEME_SETTLE_MS on the painter's
+   * debounce and the token crossfade, and then all of settle(): up to
+   * MAP_IDLE_BUDGET_MS waiting for the map's own `idle` event, and a 3s
+   * tail when it never arrives. That is about 34s per theme and 271s for
+   * eight, before the navigation and the first settle. 150s is less than
+   * half of what this test's own fixtures are permitted to wait -- not a
+   * budget, but a timeout that fires while the code it is timing is still
+   * doing exactly what it was told to, and reports the shutdown instead
+   * of the cause. That is the failure this file's own note on the review
+   * project's timeout describes having already been had once.
+   *
+   * A healthy run is nowhere near this: setColorTheme reloads the visible
+   * tiles and the map goes idle in seconds. The ceiling is the one the
+   * fixtures already imply, so that a slow preview is reported by the
+   * wait that actually timed out.
+   */
+  const SETTLE_TAIL_MS = 3_000;
+  test.setTimeout(
+    THEME_IDS.length *
+      (THEME_SETTLE_MS + MAP_IDLE_BUDGET_MS + SETTLE_TAIL_MS) +
+      90_000,
+  );
+
   const mapbox = collectMapboxFailures(page);
 
   await page.goto('/', { waitUntil: 'load' });
