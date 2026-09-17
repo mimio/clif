@@ -34,3 +34,7 @@ pnpm-debug.log*
 /test-results/
 /blob-report/
 /.playwright/
+
+# next 16 agentRules output
+/AGENTS.md
+/CLAUDE.md
