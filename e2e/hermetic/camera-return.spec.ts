@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 import { cameras, type CameraSpec } from 'content/cameras';
+import { frameCamera } from 'scene/camera';
 import { anchors } from 'content/anchors';
 import { installSceneDebug, waitForScene } from '../fixtures/app';
 import { stubMapboxNetwork } from '../fixtures/mapbox-stub';
@@ -182,13 +183,26 @@ const hop = async (
  */
 const SPIN_SLACK_DEG = 1;
 
+/*
+ * The table's `zoom` and `padding` are the frame at the ARTBOARD size, and
+ * this spec does not run there -- the project's viewport is Desktop
+ * Chrome's. A hello camera compared against the literal therefore fails by
+ * exactly log2(900 / viewportHeight), which is a fact about the window and
+ * not about coming home. So the expectation is framed for the viewport the
+ * page actually has, the same way scene/SceneRoot.tsx frames it, and this
+ * spec keeps asserting only its own question.
+ *
+ * Framing across viewports is e2e/hermetic/globe-frame.spec.ts's job.
+ */
 const expectArrivedAt = (
   at: Transform | null,
-  want: CameraSpec,
+  spec: CameraSpec,
   where: string,
+  viewport: { width: number; height: number } | null,
 ): void => {
   expect(at, `no transform to read at ${where}`).not.toBeNull();
   const got = at as Transform;
+  const want = frameCamera(spec, viewport);
   expect(got.lng, `${where}: longitude`).toBeCloseTo(
     want.center[0],
     3,
@@ -233,6 +247,7 @@ test.describe('the camera comes home', () => {
       await loadAndSettle(page, '/'),
       cameras.hello,
       'cold /',
+      page.viewportSize(),
     );
   });
 
@@ -241,17 +256,20 @@ test.describe('the camera comes home', () => {
       await loadAndSettle(page, '/'),
       cameras.hello,
       'cold /',
+      page.viewportSize(),
     );
 
     expectArrivedAt(
       await hop(page, '/projects', 'projects'),
       cameras.projects,
       '/projects',
+      page.viewportSize(),
     );
     expectArrivedAt(
       await hop(page, '/', 'hello'),
       cameras.hello,
       'back at /',
+      page.viewportSize(),
     );
   });
 
@@ -262,26 +280,35 @@ test.describe('the camera comes home', () => {
       await loadAndSettle(page, '/'),
       cameras.hello,
       'cold /',
+      page.viewportSize(),
     );
 
     expectArrivedAt(
       await hop(page, '/projects', 'projects'),
       cameras.projects,
       '/projects',
+      page.viewportSize(),
     );
     expectArrivedAt(
       await hop(page, '/projects/gopro', 'projectDetail'),
       detailCamera,
       '/projects/gopro',
+      page.viewportSize(),
     );
     expectArrivedAt(
       await hop(page, '/about', 'about'),
       cameras.about,
       '/about',
+      page.viewportSize(),
     );
 
     const home = await hop(page, '/', 'hello');
-    expectArrivedAt(home, cameras.hello, 'back at /');
+    expectArrivedAt(
+      home,
+      cameras.hello,
+      'back at /',
+      page.viewportSize(),
+    );
 
     /*
      * And it is turning again. The spin loop stops whenever the scene is

@@ -370,7 +370,7 @@ export class FakeMap {
    * window is modelled explicitly: easeTo opens it, endEase() closes it,
    * and setBearing stops it exactly as jumpTo would.
    */
-  private easing = false;
+  easing = false;
 
   constructor(options: Record<string, unknown>) {
     this.options = options;
@@ -670,21 +670,6 @@ export class FakeMap {
   }
 
   /* ---- and everything that is not ---------------------------------- */
-
-  /*
-   * Whether a camera flight is in progress.
-   *
-   * The fake lands every easeTo in one step, so the honest answer after
-   * one is "no". It is settable because the scene's rotation loop asks:
-   * real mapbox's setBearing is jumpTo, and jumpTo STOPS an easeTo, so
-   * the loop must hold off while one is running. A test that wants to
-   * exercise that sets this; nothing else does.
-   */
-  easing = false;
-
-  isEasing(): boolean {
-    return this.easing;
-  }
 
   easeTo(options: Record<string, unknown>): void {
     this.calls.easeTo.push(options);

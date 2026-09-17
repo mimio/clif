@@ -282,6 +282,11 @@ const stubScript = (options: StubOptions): void => {
        * progress, so the loop holds off while one is running; a stub
        * that answered `undefined` here would throw from inside the
        * loop rather than exercise it.
+       *
+       * It is always false: this stub's easeTo arrives in the call that
+       * issued it, so nothing here can be interrupted. Whether the loop
+       * actually leaves a real flight alone is answered by the REAL
+       * library, in e2e/hermetic/camera-return.spec.ts.
        */
       isEasing: (): boolean => false,
       easeTo: (spec: Record<string, unknown>): void => {
@@ -311,15 +316,6 @@ const stubScript = (options: StubOptions): void => {
         bearing = next;
         record.bearings += 1;
       },
-      /*
-       * Never in flight: this stub's easeTo arrives in the call that
-       * issued it, so nothing here can be interrupted. It is the REAL
-       * library, in e2e/hermetic/camera-return.spec.ts, that answers
-       * whether the scene's animation loop leaves a flight alone --
-       * mapbox's own easeTo is the only one with a window to interrupt.
-       */
-      isEasing: (): boolean => false,
-
       getSource: (id: string): unknown => sources.get(id),
       getLayer: (id: string): unknown => layers.get(id),
 
