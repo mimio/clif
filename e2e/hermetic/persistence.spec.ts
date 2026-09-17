@@ -99,6 +99,29 @@ test('the map and its canvas survive a route change', async ({
   // Two navigations, and the camera was asked to move for each: the map
   // was driven rather than rebuilt, which is the other half of the claim.
   expect(record.easeTo.length).toBeGreaterThanOrEqual(3);
+
+  /*
+   * And terrain came on, late, without taking the tree with it.
+   *
+   * /about is the route that switches terrain on after the map has been
+   * rendering for a while, which is the navigation that used to die
+   * inside mapbox's own Terrain.update. The fix parks the terrain want
+   * until the DEM source reports loaded, so what is asserted here is that
+   * the want resolved rather than parking forever -- the stub resolves a
+   * source on a macrotask, so isSourceLoaded() is false for the rest of
+   * the tick that added it, exactly as the real library's is.
+   *
+   * e2e/hermetic/scene-box.spec.ts drives the same navigation against the
+   * REAL library and asserts the page survives it. This is the other half:
+   * that the terrain the route asked for actually arrived.
+   */
+  await expect
+    .poll(async () => (await readStub(page)).terrain)
+    .toContain(1.4);
+  expect((await readStub(page)).loadedSources).toContain(
+    'mapbox-dem',
+  );
+
   expect(problems).toEqual([]);
 });
 

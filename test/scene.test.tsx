@@ -36,6 +36,7 @@ import {
 } from 'scene/camera';
 import {
   HISTORY_POINTS,
+  HISTORY_RING,
   SITE_LABELS,
   SITE_POINTS,
   WORK_PATH_LINE,
@@ -439,11 +440,56 @@ describe('the persistent map', () => {
     expect(FakeMap.last.calls.terrain.at(-1)).toBeNull();
 
     await navigate('/about');
+    expect(FakeMap.last.getSource('mapbox-dem')).toBeDefined();
+    await act(async () => {
+      FakeMap.last.loadSource('mapbox-dem');
+    });
     expect(FakeMap.last.calls.terrain.at(-1)).toEqual({
       source: 'mapbox-dem',
       exaggeration: 1.4,
     });
-    expect(FakeMap.last.getSource('mapbox-dem')).toBeDefined();
+  });
+
+  /*
+   * Adding a raster-dem source and draping on it in the same tick works
+   * on a fresh style and not on a map that has been rendering for a
+   * while: mapbox reaches into the DEM's tile cache on the next frame
+   * and throws. That is a navigation from hello into about, and it took
+   * the whole tree down on every attempt.
+   */
+  it('waits for the DEM before draping terrain on it', async () => {
+    await mount();
+    const map = FakeMap.last;
+    await navigate('/about');
+
+    // The source is there, and terrain has NOT been switched on yet.
+    expect(map.getSource('mapbox-dem')).toBeDefined();
+    expect(map.isSourceLoaded('mapbox-dem')).toBe(false);
+    expect(map.calls.terrain.filter(Boolean)).toEqual([]);
+
+    await act(async () => {
+      map.loadSource('mapbox-dem');
+    });
+    expect(map.calls.terrain.at(-1)).toEqual({
+      source: 'mapbox-dem',
+      exaggeration: 1.4,
+    });
+  });
+
+  it('drops a parked terrain want when the route leaves terrain', async () => {
+    await mount();
+    const map = FakeMap.last;
+    await navigate('/about');
+    expect(map.calls.terrain.filter(Boolean)).toEqual([]);
+
+    // Away again before the DEM ever resolves.
+    await navigate('/projects');
+    await act(async () => {
+      map.loadSource('mapbox-dem');
+    });
+    // The stale want was overwritten by "terrain off", so nothing drapes.
+    expect(map.calls.terrain.filter(Boolean)).toEqual([]);
+    expect(map.calls.terrain.at(-1)).toBeNull();
   });
 
   it('nudges 8% toward a hovered city over 600ms', async () => {
@@ -669,6 +715,65 @@ describe('the persistent map', () => {
     // Selecting a stop repaints; the camera move to that stop is the
     // about route's own business, through useSceneCamera.
     expect(map.calls.easeTo).toHaveLength(moves);
+  });
+
+  /*
+   * The ring used to carry the selection in its layer `filter`. A filter
+   * is read once, at addLayer time, and sync() skips a set that is
+   * already mounted -- so the ring stayed on whichever stop was selected
+   * when the route was entered while the point beside it moved
+   * correctly, because the point's colour and radius are paint patches.
+   *
+   * Asserting the set definition cannot see that: the definition was
+   * always right and the mounted layer never heard about it. So this
+   * reads what actually reached the map.
+   */
+  it('moves the ring on the map itself, not just in the set', async () => {
+    pathname.current = '/about';
+    const Selecting = ({ stop }: { stop: number }) => {
+      useSceneView({ selectedStop: stop });
+      return null;
+    };
+    await mount(
+      <>
+        <SceneRoot />
+        <Selecting stop={4} />
+      </>,
+    );
+    const map = FakeMap.last;
+
+    // What the map is actually drawing, from the calls it received.
+    const ringOnMap = (property: string) =>
+      JSON.stringify(
+        map.calls.paint
+          .filter(
+            ([layer, name]) =>
+              layer === HISTORY_RING && name === property,
+          )
+          .at(-1)?.[2],
+      );
+
+    expect(ringOnMap('circle-radius')).toContain('4');
+    expect(ringOnMap('circle-stroke-width')).toContain('4');
+
+    await act(async () => {
+      view.rerender(
+        <MapProvider>
+          <SceneRoot />
+          <Selecting stop={2} />
+        </MapProvider>,
+      );
+    });
+
+    expect(ringOnMap('circle-radius')).toContain('2');
+    expect(ringOnMap('circle-radius')).not.toContain('4');
+    expect(ringOnMap('circle-stroke-width')).toContain('2');
+
+    // And the mounted layer carries no filter that could pin it.
+    const mounted = map.getLayer(HISTORY_RING) as {
+      filter?: unknown;
+    };
+    expect(mounted.filter).toBeUndefined();
   });
 
   it('fogs the scene from the route preset', async () => {

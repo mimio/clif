@@ -68,6 +68,8 @@ export type StubRecord = {
   sources: string[];
   /** Gesture handlers currently disabled, which is 1d's held map. */
   disabled: string[];
+  /** Source ids whose TileJSON has resolved. */
+  loadedSources: string[];
   /** True once style.load fired. */
   styleLoaded: boolean;
 };
@@ -110,6 +112,7 @@ const stubScript = (options: StubOptions): void => {
     layers: [],
     sources: [],
     disabled: [],
+    loadedSources: [],
     styleLoaded: false,
   };
   window.__ONEGLOBE_STUB__ = record;
@@ -148,6 +151,7 @@ const stubScript = (options: StubOptions): void => {
       ((payload?: unknown) => void)[]
     >();
     const sources = new Map<string, unknown>();
+    const loadedSources = new Set<string>();
     const layers = new Map<string, unknown>();
     const disabled = new Set<string>();
     let bearing = 0;
@@ -156,6 +160,7 @@ const stubScript = (options: StubOptions): void => {
       record.layers = [...layers.keys()];
       record.sources = [...sources.keys()];
       record.disabled = [...disabled];
+      record.loadedSources = [...loadedSources];
     };
 
     const fire = (type: string, payload?: unknown): void => {
@@ -172,6 +177,7 @@ const stubScript = (options: StubOptions): void => {
       getCanvas: () => canvas,
       getContainer: () => container,
       isStyleLoaded: () => record.styleLoaded,
+      isSourceLoaded: (id: string): boolean => loadedSources.has(id),
 
       on: (...args: unknown[]): void => {
         const type = args[0] as string;
@@ -224,10 +230,24 @@ const stubScript = (options: StubOptions): void => {
       getSource: (id: string): unknown => sources.get(id),
       getLayer: (id: string): unknown => layers.get(id),
 
+      /*
+       * A source is NOT loaded the moment it is added -- its TileJSON is
+       * a network round trip -- and pretending otherwise is how the
+       * terrain race hid for so long. The stub resolves it on a
+       * macrotask, so isSourceLoaded() is false for the rest of the tick
+       * that added it, exactly as the real library's is, and the DEM wait
+       * in scene/mapbox/instance.ts is exercised rather than skipped.
+       */
       addSource: (id: string, spec: unknown): void => {
         guard();
         sources.set(id, spec);
         sync();
+        window.setTimeout(() => {
+          if (!sources.has(id)) return;
+          loadedSources.add(id);
+          sync();
+          fire('sourcedata', { sourceId: id, isSourceLoaded: true });
+        }, 0);
       },
       addLayer: (entry: { id: string }): void => {
         guard();
@@ -237,6 +257,7 @@ const stubScript = (options: StubOptions): void => {
       removeSource: (id: string): void => {
         guard();
         sources.delete(id);
+        loadedSources.delete(id);
         sync();
       },
       removeLayer: (id: string): void => {
@@ -362,6 +383,7 @@ export const readStub = (page: Page): Promise<StubRecord> =>
       layers: record.layers,
       sources: record.sources,
       disabled: record.disabled,
+      loadedSources: record.loadedSources,
       styleLoaded: record.styleLoaded,
     };
   });
@@ -432,10 +454,58 @@ const LOCAL_STYLE = {
 };
 
 /*
- * Answers every Mapbox request from inside the browser context. Salvaged
- * from the old scripts/smoke.mts, which proved the three routes are the
- * complete set: telemetry, styles and glyph ranges. Later routes win in
- * Playwright, so the catch-all is registered first.
+ * The terrain DEM, which is not optional.
+ *
+ * `mapbox://mapbox.mapbox-terrain-dem-v1` normalises to
+ * /v4/<tileset>.json, which the catch-all below used to answer with an
+ * empty 204. A raster-dem source with no TileJSON has no tile cache, and
+ * the first frame after a client-side navigation into a terrain route
+ * died inside mapbox's own Terrain.update with "Cannot read properties
+ * of undefined (reading 'get')". A direct load happened to survive it,
+ * which is what made it look like an app bug.
+ *
+ * So the stub serves a real one. Terrain-RGB decodes elevation as
+ * -10000 + (R * 65536 + G * 256 + B) * 0.1, so rgb(1, 134, 160) is
+ * exactly 0m: a valid, flat, deterministic world. Terrain that is on and
+ * flat is the right thing for a screenshot test anyway -- real DEM tiles
+ * would make every terrain-route screenshot depend on the network.
+ */
+const DEM_TILESET = 'mapbox.mapbox-terrain-dem-v1';
+
+const DEM_TILE_URL = `https://api.mapbox.com/v4/${DEM_TILESET}/{z}/{x}/{y}.png`;
+
+const DEM_TILEJSON = {
+  tilejson: '2.2.0',
+  name: 'e2e-dem',
+  format: 'png',
+  encoding: 'mapbox',
+  scheme: 'xyz',
+  tiles: [DEM_TILE_URL],
+  minzoom: 0,
+  maxzoom: 15,
+  bounds: [-180, -85.051129, 180, 85.051129],
+};
+
+/** 256x256 of rgb(1, 134, 160): sea level everywhere. */
+const DEM_TILE_PNG =
+  'iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAB/0lEQVR42u3TQQ0AAAjEsMM8OpDKGw00qYIlS/XAW5EAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwAAYQAUMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA2AAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAOogAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgArgWh1RFKMF4sNAAAAABJRU5ErkJggg==';
+
+/*
+ * Answers every Mapbox request from inside the browser context, so the
+ * suite needs no network, no token and no quota. Salvaged from the old
+ * scripts/smoke.mts, which proved the first three routes are the complete
+ * set for a map that never turns terrain on: telemetry, styles and glyph
+ * ranges. The DEM pair above is the fourth and fifth, and the scene lane's
+ * note explains why they are not optional.
+ *
+ * Playwright matches the most recently registered route first, so the
+ * specific handlers below have to come after the catch-all.
+ *
+ * Every spec in e2e/hermetic also installs the library stub, which means
+ * nothing should reach any of these -- they are a net rather than a
+ * dependency there. e2e/scene-box.spec.ts is the exception and the reason
+ * they have to be right: it drives the REAL mapbox-gl, because geometry is
+ * only measurable in a browser.
  */
 export const stubMapboxNetwork = async (
   context: BrowserContext,
@@ -460,6 +530,24 @@ export const stubMapboxNetwork = async (
         status: 200,
         contentType: 'application/x-protobuf',
         body: Buffer.alloc(0),
+      }),
+  );
+  await context.route(
+    /https:\/\/api\.mapbox\.com\/v4\/[^/]+\.json.*/,
+    (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(DEM_TILEJSON),
+      }),
+  );
+  await context.route(
+    /https:\/\/api\.mapbox\.com\/v4\/[^/]+\/\d+\/\d+\/\d+\.(png|webp|pngraw).*/,
+    (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'image/png',
+        body: Buffer.from(DEM_TILE_PNG, 'base64'),
       }),
   );
 };

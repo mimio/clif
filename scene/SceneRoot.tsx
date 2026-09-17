@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useRouter } from 'next/router';
 import type { CameraSpec, SceneId } from 'content/cameras';
 import {
@@ -65,6 +71,37 @@ export type SceneRootProps = {
 
 /** 'pending' until we know; the plate only shows once there is no map. */
 type SceneState = 'pending' | 'live' | 'fallback';
+
+/*
+ * The container's box, and why it is here rather than in styles/.
+ *
+ * mapbox-gl measures the container's clientWidth/clientHeight when it
+ * constructs the map. Hand it a box of zero height and it does not
+ * complain: it falls back to a 300px canvas and paints a strip. The globe
+ * had never once been visible because .clif-scene was referenced here and
+ * defined nowhere -- the container measured 1440x0 and the map rendered
+ * 1440x300 behind the foreground, on every route.
+ *
+ * Nothing caught it, and the reason is worth keeping: the fallback plate
+ * carries inline styles so it was correctly sized, and with no route to
+ * api.mapbox.com every local check fell through to the plate and looked
+ * right. A missing rule in a file this component does not own is exactly
+ * the kind of thing that fails silently and at a distance.
+ *
+ * So the box is not styling and is not separable from the component that
+ * constructs the map -- it is a precondition of that construction, and it
+ * lives with it. Inline also makes it the one form a jsdom test can
+ * actually read back, so the precondition is asserted rather than assumed.
+ * .clif-scene stays as a hook for anything styles/ wants to add later;
+ * z-0 is the order pages/_app.tsx documents, under the page at z-10 and
+ * the chrome at z-40.
+ */
+const SCENE_BOX: CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  zIndex: 0,
+  overflow: 'hidden',
+};
 
 /**
  * The static stand-in for the globe. It is not a picture of the scene --
@@ -278,6 +315,7 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
       data-scene-state={state}
       data-testid="scene-root"
       ref={containerRef}
+      style={SCENE_BOX}
     >
       {state === 'fallback' ? <FallbackPlate /> : null}
     </div>

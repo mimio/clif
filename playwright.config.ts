@@ -21,17 +21,43 @@ import { defineConfig, devices } from '@playwright/test';
  * hermetic project, because a visual job that also builds and boots a
  * local server spends minutes re-proving what the PR job already proved.
  */
-const PORT = Number(process.env.PORT) || 3999;
+/*
+ * 4311 rather than 3999, and nothing reuses it.
+ *
+ * A stale `next start` left on the old port by another checkout served
+ * a build that was not under test, twice, and both times the suite
+ * reported a confident failure against code nobody was running -- the
+ * HTML carried one build id and the chunks it asked for were 404, so the
+ * page never hydrated and every scene assertion failed for a reason that
+ * had nothing to do with the scene. `reuseExistingServer` is what made
+ * that possible: Playwright skipped its own build-and-boot because
+ * something was already answering.
+ *
+ * So it is off, unconditionally. Playwright now refuses to start when the
+ * port is taken, which is a loud, one-line failure instead of a suite that
+ * verifies the wrong thing. That is the whole trade, and it is not close:
+ * the cost is re-booting a server the developer already had, and the
+ * saving is never again trusting a result that was never produced.
+ */
+const PORT = Number(process.env.PORT) || 4311;
 const LOCAL_URL = `http://127.0.0.1:${PORT}`;
 
 const PREVIEW_URL = (process.env.PREVIEW_URL ?? '').trim();
 const REVIEW = PREVIEW_URL.length > 0;
 
 /*
- * An escape hatch for a machine whose Playwright browsers are not where
- * Playwright puts them -- a sandbox with a pre-installed Chromium, mostly.
+ * An escape hatch for a machine whose Chromium is not the one Playwright
+ * would have downloaded.
+ *
+ * PLAYWRIGHT_BROWSERS_PATH does NOT cover this case: it points Playwright
+ * at a different registry, but Playwright still looks inside it for the
+ * exact build it was pinned to -- so a pre-installed Chromium at any other
+ * revision is invisible to it, and only executablePath reaches one.
+ *
  * It is empty everywhere else, including CI, which downloads its own
- * browser; no path is ever committed here.
+ * matching browser; no path is ever committed here. Locally:
+ *
+ *   PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome pnpm test:e2e
  */
 const CHROMIUM_PATH = process.env.PLAYWRIGHT_CHROMIUM_PATH;
 
@@ -172,7 +198,8 @@ export default defineConfig({
           ? 'pnpm start'
           : 'pnpm build && pnpm start',
         url: LOCAL_URL,
-        reuseExistingServer: !process.env.CI,
+        // Never. See the note on PORT above.
+        reuseExistingServer: false,
         timeout: 180_000,
         env: {
           PORT: String(PORT),

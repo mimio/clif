@@ -32,6 +32,19 @@ export type SourceEntry = {
   spec: Record<string, unknown>;
 };
 
+/**
+ * A layer, as it is handed to addLayer.
+ *
+ * This is STRUCTURE, and it is read exactly once -- at mount. `sync`
+ * skips a set whose id is already mounted, so nothing here is ever
+ * re-applied while the route lives. A `filter` is therefore only allowed
+ * to express something permanent about a layer (the work path's home
+ * point is always Portland); anything that varies with route state --
+ * a selection, a hover, a viewport -- belongs in `paint`, which repaint
+ * re-applies. Putting selection in a filter is silently a no-op after
+ * the first mount, which is exactly how the about route's ring came to
+ * be stuck on whichever stop was selected when the route was entered.
+ */
 export type LayerEntry = { id: string } & Record<string, unknown>;
 
 /** One setPaintProperty call, as data. */
@@ -48,9 +61,11 @@ export type LayerSet = {
   layers: LayerEntry[];
   interactions: LayerInteraction[];
   /**
-   * Theming tier 3: our own layers, repainted straight from the palette.
-   * The same patches build the layers' initial paint, so there is one
-   * source of truth for a colour rather than two that can drift.
+   * Theming tier 3, and the set's only dynamic half: our own layers
+   * repainted straight from the palette, and re-applied on every route,
+   * hover, selection and theme change. The same patches build each
+   * layer's initial paint, so there is one source of truth for a value
+   * rather than two that can drift.
    */
   paint: (palette: Palette) => PaintPatch[];
 };
