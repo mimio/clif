@@ -37,11 +37,6 @@ describe('the foreground handoff', () => {
     expect(foregroundHandoffMs('projectDetail')).toBe(540);
   });
 
-  it('follows the longer move out of the 404, as 1a specifies', () => {
-    expect(foregroundHandoffMs('hello', 'notFound')).toBe(540);
-    expect(foregroundHandoffMs('hello', 'projects')).toBe(480);
-  });
-
   /*
    * The point of deriving it: the delay cannot drift from the camera,
    * because it is the camera's own number.
@@ -102,15 +97,16 @@ describe('foregroundEnter', () => {
     }
   });
 
-  it('carries the from-route through to the delay', () => {
+  it('does not claim to know where the camera came from', () => {
+    // moveDurationFor does take a `from` and uses it; this does not, and
+    // used to advertise a parameter no call site passed.
+    expect(foregroundHandoffMs('hello')).toBe(480);
     expect(
-      delayOf(
-        foregroundEnter(0, {
-          scene: 'hello',
-          reduced: false,
-          from: 'notFound',
-        }),
-      ),
-    ).toBe(540);
+      (
+        foregroundEnter as unknown as {
+          length: number;
+        }
+      ).length,
+    ).toBe(2);
   });
 });

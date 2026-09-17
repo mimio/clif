@@ -42,6 +42,41 @@ export const sceneIdForPath = (pathname: string): SceneId =>
 export const cameraForPath = (pathname: string): CameraSpec =>
   cameras[sceneIdForPath(pathname)];
 
+/*
+ * Every field of a CameraSpec, read off the table rather than written
+ * out again. Two things below compare cameras, and a hand-kept list in
+ * either would go quietly out of date the day CameraSpec grows a field:
+ * the comparison would accept a camera that differs in it, and a test
+ * enumerating the same list by hand would not notice.
+ */
+const CAMERA_FIELDS = Object.keys(
+  cameras.hello,
+) as (keyof CameraSpec)[];
+
+const sameValue = (a: unknown, b: unknown): boolean => {
+  if (Array.isArray(a)) {
+    return (
+      Array.isArray(b) &&
+      a.length === b.length &&
+      a.every((value, at) => value === b[at])
+    );
+  }
+  return a === b;
+};
+
+/**
+ * Two cameras that would put the globe in the same place.
+ *
+ * By value, because the producers build fresh objects: forViewport
+ * patches a mobile camera, cameraAt and cameraForHover re-centre one.
+ * Comparing those by reference makes every route change look like a
+ * change even when the destination is identical -- which on mobile fired
+ * a second easeTo to the place the first was already flying to, killing
+ * the 800ms move about a frame in.
+ */
+export const sameCamera = (a: CameraSpec, b: CameraSpec): boolean =>
+  CAMERA_FIELDS.every((field) => sameValue(a[field], b[field]));
+
 /**
  * True when `declared` is the route's own camera reframed rather than
  * another route's camera left over.
@@ -58,13 +93,47 @@ export const refinesCamera = (
   declared: CameraSpec,
   base: CameraSpec,
 ): boolean =>
-  declared.zoom === base.zoom &&
-  declared.pitch === base.pitch &&
-  declared.bearing === base.bearing &&
-  declared.terrain === base.terrain &&
-  declared.fog === base.fog &&
-  declared.interactive === base.interactive &&
-  declared.spin === base.spin;
+  CAMERA_FIELDS.filter((field) => field !== 'center').every((field) =>
+    sameValue(declared[field], base[field]),
+  );
+
+/*
+ * Scenes whose centre only the page knows.
+ *
+ * The detail route's camera is the client's city, so the table entry is
+ * a placeholder -- it has to be something, and it is gopro's. Flying to
+ * it is wrong for all fourteen projects including gopro, whose real
+ * anchor is [-106.36, 39.64] rather than the table's [-106.355, 39.641].
+ *
+ * That mattered because SceneRoot's effect runs before the page's: on
+ * the first pass after a navigation the declared camera is still the
+ * previous route's, refinesCamera rightly rejects it, and the fallback
+ * used to be the placeholder. So every detail route flew 900ms to
+ * Colorado and then re-aimed with a second 600ms move -- and the
+ * foreground, which waits 60% of 900, landed 90% of the way through the
+ * move it actually got.
+ *
+ * Rejecting a stale camera is not the same as having the right one. For
+ * these scenes the honest answer is to wait: one pass later the page has
+ * declared, and the move that then goes out is the only one.
+ */
+const NEEDS_REFINEMENT = new Set<SceneId>(['projectDetail']);
+
+/**
+ * True when the route's camera is not knowable yet -- the scene needs a
+ * centre from the page and the page has not supplied one. The caller
+ * should hold the camera where it is rather than fly to a placeholder.
+ */
+export const awaitingRefinement = (
+  pathname: string,
+  declared: CameraSpec | null,
+): boolean => {
+  const sceneId = sceneIdForPath(pathname);
+  if (!NEEDS_REFINEMENT.has(sceneId)) return false;
+  return (
+    declared === null || !refinesCamera(declared, cameras[sceneId])
+  );
+};
 
 /** The camera a pathname wants, with the page's refinement if it fits. */
 export const resolveCamera = (
@@ -109,10 +178,13 @@ export const forViewport = (
   isMobile: boolean,
 ): CameraSpec => {
   if (!isMobile) return spec;
+  // The patch first, then terrain read off the RESULT: a mobile entry
+  // that sets its own exaggeration has to survive the flattening, not be
+  // overwritten by the desktop value it replaced.
+  const patched = { ...spec, ...(MOBILE_CAMERAS[sceneId] ?? {}) };
   return {
-    ...spec,
-    ...(MOBILE_CAMERAS[sceneId] ?? {}),
-    terrain: terrainExaggeration(spec.terrain, true),
+    ...patched,
+    terrain: terrainExaggeration(patched.terrain, true),
   };
 };
 

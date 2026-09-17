@@ -349,6 +349,37 @@ export class FakeMap {
     this.fire('error', { error: new Error(message) });
   }
 
+  /*
+   * The orderings this stub used to make unreachable, and which the
+   * whole design rested on not existing. Both are quoted from mapbox
+   * 3.30 and both are ordinary.
+   */
+
+  /**
+   * An import that failed. Style._load does
+   * `_loadImports(...).catch(e => { fire ErrorEvent; fire style.load; })`
+   * -- the error and THEN the style, synchronously. The app's style
+   * always has an import, because setConfigProperty('basemap', ...)
+   * resolves through it.
+   */
+  failImportThenLoad(message = 'Failed to load imports'): void {
+    this.fire('error', { error: new Error(message) });
+    this.loadStyle();
+  }
+
+  /**
+   * A source that 401s before style.load. _loaded is set and every
+   * source starts fetching its TileJSON first, so this arrives during
+   * 'loading' carrying a sourceId -- the same shape that is routine a
+   * moment later.
+   */
+  failSourceWhileLoading(
+    sourceId: string,
+    message = 'Unauthorized',
+  ): void {
+    this.fire('error', { error: new Error(message), sourceId });
+  }
+
   /** A tile, sprite or glyph failing AFTER the style loaded. */
   tileError(message = 'Unauthorized'): void {
     this.fire('error', { error: new Error(message) });

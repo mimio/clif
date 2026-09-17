@@ -4,8 +4,16 @@
  * measured cost per route runs from ~4ms/frame on hello to ~26ms on the
  * mobile about view.
  *
- * Two dials, per the design system: terrain exaggeration and device pixel
- * ratio. DPR is clamped to 1.5 everywhere.
+ * Two dials, per the design system: terrain exaggeration and device
+ * pixel ratio.
+ *
+ * Terrain exaggeration is applied by the scene. DPR is NOT clamped
+ * everywhere, and saying so was wrong: mapbox-gl 3.30 exposes no
+ * pixel-ratio dial at all, so the map -- the largest consumer, and the
+ * reason the constraint exists -- runs at whatever the device reports.
+ * See utils/dpr.ts. The clamp is honoured by the screenshot plane's
+ * shader, which is the other WebGL surface in the same frame and the one
+ * where the cost is quadratic.
  */
 export const DPR_CLAMP = 1.5;
 

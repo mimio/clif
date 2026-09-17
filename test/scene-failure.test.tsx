@@ -356,7 +356,17 @@ describe('the debug handle', () => {
     expect(handle).toBeDefined();
     expect(handle?.map).toBe(getMap());
     expect(handle?.styleStatus()).toBe('ready');
-    // The LUT the style is wearing, without patching HTMLImageElement.
+    /*
+     * Compared against what the map actually received, not just matched
+     * against a base64 shape. The handle reports the LUT the scene
+     * REQUESTED -- mapbox decodes asynchronously and swallows a
+     * rejection into a warnOnce, so nothing can confirm it was worn --
+     * and a regex on its shape would pass just as happily on a value
+     * the map never saw.
+     */
+    expect(handle?.appliedLut()).toBe(
+      FakeMap.last.calls.colorTheme.at(-1),
+    );
     expect(handle?.appliedLut()).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
     expect(handle?.lastAction()).not.toBe('none');
     expect(handle?.errors()).toEqual([]);

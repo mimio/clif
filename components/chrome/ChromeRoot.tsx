@@ -103,12 +103,18 @@ export type ChromeRootProps = {
  * the ease here would be a second implementation of the flight, wrong in a
  * different way, since easeTo does not move lng/lat linearly.
  *
- * `watchCamera` in scene/liveCamera.ts closes that: it reports the map's
- * real transform on every move, and fires once when the map is first
- * created, which is the moment getMap() cannot serve because the chrome
- * mounts before ensureMap resolves. This stays as the fallback for every
- * case where there is no map to read -- no token, the fallback plate, unit
- * tests -- and as the destination the flight is heading for.
+ * The seam for closing it exists and is NOT WIRED HERE YET. `watchCamera`
+ * in scene/liveCamera.ts reports the map's real transform on every move
+ * and fires once when the map is first created -- the moment getMap()
+ * cannot serve, because this component mounts before ensureMap resolves.
+ * Nothing in the app subscribes to it today, so the readout still snaps to
+ * the destination and leads the globe for the length of every flight.
+ *
+ * Wiring it is a few lines here: subscribe in an effect, hold the centre
+ * in state, and prefer it when it is non-null. This function stays either
+ * way -- as the fallback for every case with no map to read (no token, the
+ * fallback plate, unit tests) and as the destination the flight is
+ * heading for.
  */
 export const liveCamera = (
   pathname: string,

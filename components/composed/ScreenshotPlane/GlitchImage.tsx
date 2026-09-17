@@ -1,6 +1,7 @@
 import { Component } from 'react';
 import Image from 'next/image';
 import * as THREE from 'three';
+import { clampDpr } from 'utils/dpr';
 import vertexShader from './glsl/vertex.glsl';
 import fragmentShader from './glsl/fragment.glsl';
 
@@ -222,7 +223,15 @@ class GlitchImage extends Component<
     });
     this.renderer.setSize(this.width, this.height);
     this.renderer.setClearColor(0x161616, 0);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    /*
+     * Clamped, per the design's frame budget. This is the one WebGL
+     * surface that shares a frame with the globe, and the cost of a
+     * fragment shader is the square of the ratio: unclamped, a 3x phone
+     * was asking for nine times the work on the heaviest route there is.
+     *
+     * The map itself cannot be clamped -- see utils/dpr.ts.
+     */
+    this.renderer.setPixelRatio(clampDpr(window.devicePixelRatio));
     this.labelCanvas();
     this.containerRef?.appendChild(this.renderer.domElement);
 

@@ -18,6 +18,14 @@ export const MOBILE_QUERY = `(max-width: ${MOBILE_MAX_WIDTH - 1}px)`;
 export const REDUCED_MOTION_QUERY =
   '(prefers-reduced-motion: reduce)';
 
+/*
+ * Built once per query, not once per render.
+ *
+ * useSyncExternalStore re-subscribes whenever `subscribe` changes
+ * identity, so returning a fresh closure from a factory on every render
+ * tore down and rebuilt both media-query listeners on every commit of
+ * SceneRoot and ChromeRoot -- which is most commits there are.
+ */
 const watch =
   (query: string) =>
   (onChange: () => void): (() => void) => {
@@ -31,18 +39,14 @@ const matches = (query: string) => (): boolean =>
 
 const never = (): boolean => false;
 
+const watchMobile = watch(MOBILE_QUERY);
+const matchesMobile = matches(MOBILE_QUERY);
+const watchReduced = watch(REDUCED_MOTION_QUERY);
+
 /** Below the tablet breakpoint the mobile cameras apply. */
 export const useIsMobile = (): boolean =>
-  useSyncExternalStore(
-    watch(MOBILE_QUERY),
-    matches(MOBILE_QUERY),
-    never,
-  );
+  useSyncExternalStore(watchMobile, matchesMobile, never);
 
 /** Reduced motion: a 200ms crossfade, a static scene, no rotation. */
 export const useReducedMotion = (): boolean =>
-  useSyncExternalStore(
-    watch(REDUCED_MOTION_QUERY),
-    prefersReducedMotion,
-    never,
-  );
+  useSyncExternalStore(watchReduced, prefersReducedMotion, never);

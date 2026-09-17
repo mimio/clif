@@ -220,15 +220,25 @@ let wantedTerrain: number | null = null;
 let appliedTerrain: number | null = null;
 
 /**
- * The LUT currently on the map.
+ * The LUT last handed to setColorTheme -- REQUESTED, not confirmed.
  *
- * The dedupe has to live here rather than in the theme painter's closure.
+ * The dedupe has to live here rather than in the theme painter's closure:
  * setColorTheme reloads every tile, the painter is rebuilt whenever
  * SceneRoot's effect re-runs, and a rebuilt painter has no memory of what
- * it painted -- so this is the only place that knows what the map is
- * actually wearing.
+ * it asked for.
+ *
+ * It is a record of the request and cannot be more than that. mapbox
+ * decodes the LUT asynchronously and swallows a rejection --
+ * Style._reloadColorTheme ends in `.catch(e => warnOnce(...))`, a bare
+ * console.warn with no error event -- so nothing observable comes back
+ * either way. Naming it `applied` was a claim the code could not support,
+ * and the debug handle's appliedLut() means this: what the scene asked
+ * for. Comparing it against the map's own record is the e2e tier's job.
+ *
+ * Assigned AFTER the call, so a throw does not leave the scene believing
+ * it sent something it did not.
  */
-let appliedLut: string | null = null;
+let requestedLut: string | null = null;
 
 /** True while a terrain want is parked waiting for the DEM to resolve. */
 let waitingForDem = false;
@@ -302,7 +312,13 @@ const SCENE_ERROR_LIMIT = 20;
 /** The last thing flush() asked of the map; context for a failure. */
 let lastAction = 'none';
 
-/** Completed scene passes. Read by the debug handle; see SceneDebug. */
+/**
+ * Completed SCENE passes -- one per batchScene, not one per flush.
+ *
+ * Counting flushes let a leftover flush from the previous route satisfy
+ * a waiter, which is a timing dependency wearing a signal's clothes. A
+ * scene pass is what a route change produces exactly one of.
+ */
 let passes = 0;
 
 /** Recent failures, newest last. Read by the debug handle. */
@@ -318,14 +334,42 @@ type MapboxErrorEvent = {
   sourceId?: string;
 };
 
+/*
+ * An asset that failed to fetch, rather than the style being wrong.
+ *
+ * sourceId alone is not the discriminator it looks like: mapbox grafts
+ * one onto source events, but sprites, iconsets and glyph ranges fire on
+ * the Style and carry none, so classifying by its absence sent every
+ * sprite 404 to console.error -- the exact class this calls routine.
+ */
+const ASSET_FAILURE =
+  /\b(sprite|glyph|font|tile|image|icon|model)\b/i;
+
 const reportMapboxError = (event: unknown): void => {
   const { error, sourceId } = (event ?? {}) as MapboxErrorEvent;
   const message = error?.message ?? String(error ?? 'unknown error');
   const where = sourceId ? ` source=${sourceId}` : '';
   const line = `mapbox error${where} after=${lastAction}: ${message}`;
   record(line);
-  // A tile can fail; the style itself failing is a defect.
-  if (sourceId) console.warn(`[scene] ${line}`);
+
+  /*
+   * console.error means "wrong, and NOTHING ELSE SAYS SO". That is a
+   * style-level failure on a style that loaded: a rejected config key,
+   * a basemap that came back wrong. Everything else warns --
+   *
+   *   an asset fetch, which a map is expected to survive;
+   *   anything carrying a sourceId, same reason;
+   *   anything at all once the scene is already showing its plate,
+   *   because it is then reporting a failure the user can see. Without
+   *   that last clause a failed style produced one warning and then a
+   *   run of console.errors as its sources gave up in turn, every one
+   *   of which the e2e suite counts as a defect.
+   */
+  const handled =
+    status !== 'ready' ||
+    sourceId !== undefined ||
+    ASSET_FAILURE.test(message);
+  if (handled) console.warn(`[scene] ${line}`);
   else console.error(`[scene] ${line}`);
 };
 
@@ -348,7 +392,11 @@ const asSceneMap = (map: MapboxMap): SceneMap =>
 export type SceneDebug = {
   map: MapboxMap;
   styleStatus: () => StyleStatus;
-  /** The LUT the map is currently wearing, as handed to setColorTheme. */
+  /**
+   * The LUT last handed to setColorTheme. A request, not a
+   * confirmation: mapbox decodes it asynchronously and swallows a
+   * rejection into a warnOnce, so nothing here can know it was worn.
+   */
   appliedLut: () => string | null;
   /** Recent mapbox failures, newest last. Empty is the healthy state. */
   errors: () => string[];
@@ -379,7 +427,7 @@ const publishDebugHandle = (map: MapboxMap): void => {
   window.__SCENE__ = {
     map,
     styleStatus: () => status,
-    appliedLut: () => appliedLut,
+    appliedLut: () => requestedLut,
     errors: () => [...sceneErrors],
     lastAction: () => lastAction,
     passes: () => passes,
@@ -426,6 +474,7 @@ export const batchScene = (run: () => void): void => {
     batching = false;
   }
   flush();
+  passes += 1;
 };
 
 const requestFlush = (): void => {
@@ -449,6 +498,27 @@ const flush = (): void => {
       flushOnce();
       pass += 1;
     } while (flushAgain && pass < MAX_FLUSH_PASSES);
+    if (flushAgain) {
+      // Giving up quietly is how a scene ends up half-applied with
+      // nothing to show for it.
+      const line = `scene flush did not settle in ${MAX_FLUSH_PASSES} passes, after=${lastAction}`;
+      record(line);
+      console.warn(`[scene] ${line}`);
+    }
+  } catch (error) {
+    /*
+     * A throw from inside mapbox must not escape. The flush is reached
+     * from a React effect, from a setTimeout in the theme painter and
+     * from mapbox's own event handlers, and in two of those an
+     * exception is an uncaught one -- a pageerror, with the scene left
+     * wherever it stopped. Reporting it and carrying on degrades; not
+     * catching it takes the tab down.
+     */
+    const message =
+      error instanceof Error ? error.message : String(error);
+    const line = `scene flush threw after=${lastAction}: ${message}`;
+    record(line);
+    console.error(`[scene] ${line}`);
   } finally {
     flushing = false;
   }
@@ -470,16 +540,15 @@ const flushOnce = (): void => {
   if (desired.lut !== undefined) {
     const lut = desired.lut;
     desired.lut = undefined;
-    if (lut !== appliedLut) {
-      appliedLut = lut;
+    if (lut !== requestedLut) {
       lastAction = `setColorTheme(${lut.length}b)`;
       map.setColorTheme({ data: lut });
+      requestedLut = lut;
     }
   }
 
   if (desired.fog !== undefined) {
     const { spec, palette } = desired.fog;
-    desired.fog = undefined;
     const fog = fogPresets[spec.fog];
     lastAction = `setFog(${spec.fog})`;
     map.setFog({
@@ -491,6 +560,9 @@ const flushOnce = (): void => {
       // Stars would be noise over a bright ground.
       'star-intensity': palette.light ? 0 : 0.15,
     });
+    // Cleared only once it is actually on the map: clearing first loses
+    // the want outright if the call throws, with nothing to retry from.
+    desired.fog = undefined;
   }
 
   /*
@@ -517,14 +589,13 @@ const flushOnce = (): void => {
    */
   if (desired.layers !== undefined && !terrainDirty) {
     const { sets, palette } = desired.layers;
-    desired.layers = undefined;
     lastAction = `syncLayers(${sets.map((set) => set.id).join()})`;
     registry.sync(asSceneMap(map), sets);
     registry.repaint(asSceneMap(map), sets, palette);
+    desired.layers = undefined;
   }
 
   reconcileTerrain(map);
-  passes += 1;
 };
 
 /**
@@ -631,21 +702,48 @@ const create = async (
    * crashing -- but surviving is not the same as saying nothing, so
    * every one of them is reported.
    */
+  /*
+   * FAILURE BEFORE style.load IS PROVISIONAL, NOT TERMINAL.
+   *
+   * Two orderings in mapbox 3.30 make that necessary, and the design
+   * used to assume neither could happen:
+   *
+   *   Imports. Style._load does `_loadImports(...).catch(e => { fire
+   *   ErrorEvent; fire style.load; })` -- error and THEN style.load,
+   *   synchronously. The app's style always has an import, because
+   *   setConfigProperty('basemap', ...) resolves through it.
+   *
+   *   Sources. _loaded is set and every source begins fetching its
+   *   TileJSON before style.load fires, so one 401 on one tileset
+   *   arrives during 'loading' carrying a sourceId -- the very shape
+   *   that is routine a moment later.
+   *
+   * So a source-level failure here is not fatal at all, and even a
+   * style-level one only means "no style YET". style.load still decides,
+   * and it sets 'ready' whatever came before -- which is why SceneRoot
+   * must be able to come back from its plate rather than treating
+   * 'failed' as the end.
+   */
   map.on('error', (event: unknown) => {
-    if (status === 'loading') {
-      setStatus('failed');
-      const { error } = (event ?? {}) as {
-        error?: { message?: string };
-      };
-      const message = error?.message ?? 'unknown error';
-      const line = `mapbox style failed: ${message}`;
+    if (status !== 'loading') {
+      reportMapboxError(event);
+      return;
+    }
+    const { error, sourceId } = (event ?? {}) as MapboxErrorEvent;
+    const message = error?.message ?? 'unknown error';
+    if (sourceId !== undefined) {
+      const line = `mapbox source ${sourceId} failed while loading: ${message}`;
       record(line);
-      // Warn, not error: the scene has already gone to 'failed' and the
-      // plate is up, so this is handled rather than silent.
       console.warn(`[scene] ${line}`);
       return;
     }
-    reportMapboxError(event);
+    setStatus('failed');
+    const line = `mapbox style failed: ${message}`;
+    record(line);
+    // Warn, not error: the scene has gone to 'failed' and the plate is
+    // up, so this is handled rather than silent -- and style.load may
+    // still arrive and take it back.
+    console.warn(`[scene] ${line}`);
   });
 
   publishDebugHandle(map);
@@ -786,26 +884,37 @@ let frame = 0;
 let spin: number | null = null;
 let dash = false;
 let dashLayers: string[] = [];
+/** The dash step last written, so an unchanged one writes nothing. */
+let dashStep: number | null = null;
 
 const tick = (): void => {
   frame = 0;
   if (!instance) return;
-  if (spin !== null) {
+  // Both dials wait for a style. Spin did not, so a route with a
+  // rotating globe kept calling setBearing on a dead one for the life of
+  // the tab -- behind the fallback plate, where nothing showed it.
+  if (spin !== null && status === 'ready') {
     instance.setBearing(instance.getBearing() + spin);
   }
   // The dash is a paint property, so it waits for the style like every
   // other paint property does.
   if (dash && status === 'ready') {
-    // A three-step dash walked one step at a time reads as travel without
-    // writing a paint property every frame on every layer.
+    // A three-step dash walked one step at a time reads as travel. It
+    // advances every 90ms, so on a 60fps display five frames in six have
+    // nothing new to say -- and it is this comparison, not the interval
+    // on its own, that keeps them from writing a paint property on every
+    // dash layer anyway.
     const step = Math.floor(Date.now() / 90) % 3;
-    for (const id of dashLayers) {
-      if (!instance.getLayer(id)) continue;
-      instance.setPaintProperty(id, 'line-dasharray', [
-        0,
-        4 - step,
-        3 + step,
-      ]);
+    if (step !== dashStep) {
+      dashStep = step;
+      for (const id of dashLayers) {
+        if (!instance.getLayer(id)) continue;
+        instance.setPaintProperty(id, 'line-dasharray', [
+          0,
+          4 - step,
+          3 + step,
+        ]);
+      }
     }
   }
   if (spin !== null || dash) frame = requestAnimationFrame(tick);
@@ -824,6 +933,9 @@ export const setAnimation = (
   spin = spinRate;
   dash = dashRunning;
   dashLayers = layers;
+  // A new layer list has never been written to, so the next frame must
+  // write whatever step it lands on rather than skipping it as stale.
+  dashStep = null;
   if (frame !== 0) return;
   if (spin === null && !dash) return;
   frame = requestAnimationFrame(tick);
@@ -836,6 +948,7 @@ export const resetMapForTests = (): void => {
   spin = null;
   dash = false;
   dashLayers = [];
+  dashStep = null;
   instance = null;
   creating = null;
   registry = createLayerRegistry();
@@ -847,7 +960,7 @@ export const resetMapForTests = (): void => {
   terrainDirty = false;
   for (const sub of [...cameraSubs]) sub.detach();
   cameraSubs.clear();
-  appliedLut = null;
+  requestedLut = null;
   wantedTerrain = null;
   appliedTerrain = null;
   waitingForDem = false;

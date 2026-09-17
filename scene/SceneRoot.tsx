@@ -8,11 +8,13 @@ import {
 import { useRouter } from 'next/router';
 import type { CameraSpec, SceneId } from 'content/cameras';
 import {
+  awaitingRefinement,
   cameraForHover,
   dashRuns,
   forViewport,
   moveDurationFor,
   resolveCamera,
+  sameCamera,
   sceneIdForPath,
   spinRateFor,
   terrainFor,
@@ -183,6 +185,16 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
     [spec, hover],
   );
 
+  /*
+   * A route whose centre only the page knows is not ready to be flown
+   * to until the page has said where. Memoised alongside `spec` because
+   * it is a function of the same inputs.
+   */
+  const unresolved = useMemo(
+    () => awaitingRefinement(pathname, declared),
+    [pathname, declared],
+  );
+
   const sets = useMemo(
     () =>
       layerSetsFor(sceneId, {
@@ -224,8 +236,21 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
    */
   useEffect(() => {
     let cancelled = false;
+    /*
+     * 'failed' is provisional, so the plate has to be too.
+     *
+     * mapbox fires its import failure and THEN style.load, and a source
+     * 401 arrives before style.load as well -- so a scene can be plated
+     * and then get a perfectly good style a moment later. With no route
+     * back, the plate sat over a working globe for the life of the tab
+     * while flush() went on painting the map underneath it.
+     */
+    // No `cancelled` guard here, unlike the promise below: the cleanup
+    // unsubscribes synchronously, so there is no window in which this
+    // can run after the component is gone.
     const stopWatching = watchStyleStatus((next) => {
-      if (!cancelled && next === 'failed') setState('fallback');
+      if (next === 'failed') setState('fallback');
+      if (next === 'ready') setState('live');
     });
     void ensureMap(containerRef.current).then((map) => {
       if (cancelled) return;
@@ -271,7 +296,13 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
    * which the map is half-moved.
    */
   useEffect(() => {
-    if (state !== 'live') return;
+    if (state !== 'live') {
+      // Nothing drives a scene that is not live. setAnimation is only
+      // reachable from this pass, so without this the rAF loop started
+      // by a previous route would run forever behind the plate.
+      setAnimation(null, false, []);
+      return;
+    }
 
     /*
      * The camera moves only when the camera changed.
@@ -281,8 +312,21 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
      * unconditional easeTo would answer each of those with a 600ms move
      * to where the camera already is. Everything below is a setter and
      * idempotent; a move is not.
+     *
+     * Compared by value, not by reference. forViewport, cameraAt and
+     * cameraForHover all build fresh objects, so on mobile every route
+     * change looked like two changes and fired a second easeTo to the
+     * place the first was already flying to.
+     *
+     * And a route whose centre only the page knows does not move at all
+     * until it has it: flying to the table's placeholder and re-aiming
+     * is two moves to the wrong place and back.
      */
-    if (target !== lastTarget.current) {
+    if (
+      !unresolved &&
+      (lastTarget.current === null ||
+        !sameCamera(target, lastTarget.current))
+    ) {
       const from = lastScene.current;
       lastScene.current = sceneId;
       lastTarget.current = target;
@@ -315,7 +359,16 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
       dashRuns(spec, reduced),
       [WORK_PATH_DASH],
     );
-  }, [state, target, spec, sets, palette, reduced, sceneId]);
+  }, [
+    state,
+    target,
+    spec,
+    sets,
+    palette,
+    reduced,
+    sceneId,
+    unresolved,
+  ]);
 
   return (
     <div
