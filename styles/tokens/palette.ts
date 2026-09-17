@@ -53,8 +53,17 @@ export type Palette = PaletteColors & {
   subInk: string;
   mutedInk: string;
   /**
-   * The repaint cache key. A still scene only redraws when this changes,
-   * which is exactly when the theme changed.
+   * The repaint cache key: every colour in the palette, in PALETTE_KEYS
+   * order. Two palettes share a key if and only if all nine tokens match,
+   * so a consumer that skips work while the key holds -- the scene's still
+   * canvases, and scene/theme.ts's LUT cache -- cannot miss a change.
+   *
+   * Design inventory 6.5 keys on accent|space|land alone. That is three of
+   * the nine, and buildLut alone reads five of them plus `light`: two
+   * themes differing only in --map-deep would have shared a key and
+   * produced different LUTs, and the cached one would never have
+   * rebuilt. The eight shipped themes do not collide, but a ninth, or an
+   * edit to --map-deep on an existing one, walks straight into it.
    */
   key: string;
 };
@@ -71,6 +80,15 @@ export const PALETTE_TOKENS: Record<keyof PaletteColors, string> = {
   sub: '--text-secondary',
   muted: '--text-muted',
 };
+
+/**
+ * The colours, in a fixed order. The cache key is built from this, so a
+ * token added to PALETTE_TOKENS joins the key without anyone remembering
+ * to widen it.
+ */
+export const PALETTE_KEYS = Object.keys(
+  PALETTE_TOKENS,
+) as (keyof PaletteColors)[];
 
 /**
  * #rgb, #rrggbb, or any rgb()/rgba() form -- the first three numbers win,
@@ -104,23 +122,37 @@ const rgb = (c: Rgb): string => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
 const rgba = (c: Rgb, alpha: number): string =>
   `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${alpha})`;
 
-/** Rec. 709 relative luminance, 0-1. */
-export const luminance = (c: Rgb): number =>
+/**
+ * Luma (Y'), 0-1: the Rec. 709 coefficients applied to GAMMA-ENCODED
+ * sRGB, straight off the token, with no linearisation.
+ *
+ * It is named `luma` and not `luminance` on purpose. The coefficients
+ * belong to relative luminance, but relative luminance linearises first
+ * and this does not, and the gap is not academic: mid grey is 0.502 here
+ * and 0.216 as relative luminance. Do not "correct" this.
+ *
+ *   - `light` splits on > 0.5, which is the mid-grey split on THIS scale.
+ *     Under relative luminance 0.5 is nowhere near the middle.
+ *   - lut.ts calibrates SOURCE_FLOOR and LAND_STOP against Mapbox
+ *     Standard's palette measured on this scale. Linearise and Standard's
+ *     water drops from 0.762 to 0.551, under the floor, so every water
+ *     pixel pins to the bottom anchor, the land beige falls off its stop,
+ *     and the share of the cube at the floor goes from 66.3% to 86.2%.
+ *     The basemap goes flat and the water disappears.
+ *
+ * Gamma-encoded is the right space for the job: this is picking
+ * perceptual tone steps out of an 8-bit palette, not adding light.
+ * test/styles-tokens.test.ts pins the mid-grey value, so the two spaces
+ * cannot be swapped silently.
+ */
+export const luma = (c: Rgb): number =>
   (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
 
 /** Wraps the nine numbers in everything derived from them. */
 export const makePalette = (colors: PaletteColors): Palette => {
-  const {
-    accent,
-    accent2,
-    space,
-    land,
-    body,
-    sub,
-    muted,
-    accentSmall,
-  } = colors;
-  const light = luminance(space) > 0.5;
+  const { accent, accent2, space, body, sub, muted, accentSmall } =
+    colors;
+  const light = luma(space) > 0.5;
   return {
     ...colors,
     light,
@@ -137,7 +169,7 @@ export const makePalette = (colors: PaletteColors): Palette => {
     bodyInk: rgb(body),
     subInk: rgb(sub),
     mutedInk: rgb(muted),
-    key: `${accent.join()}|${space.join()}|${land.join()}`,
+    key: PALETTE_KEYS.map((name) => colors[name].join()).join('|'),
   };
 };
 
