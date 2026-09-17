@@ -19,7 +19,8 @@ import {
   setAnimation,
 } from 'scene/mapbox/instance';
 import SceneRoot from 'scene/SceneRoot';
-import { resetLutCacheForTests } from 'scene/theme';
+import { DEFAULT_STYLE } from 'scene/mapbox/loader';
+import { BASEMAP_IMPORT, resetLutCacheForTests } from 'scene/theme';
 import { FakeMap, installMapboxStub } from 'test/fake-mapbox';
 
 vi.mock('next/router', () => ({
@@ -279,6 +280,113 @@ describe('mapbox failures after the style has loaded', () => {
   });
 });
 
+/*
+ * THE FAILURE THE USER SAW AND NO TEST COULD.
+ *
+ * Every tier of the theming is addressed to one import id, and mapbox-gl
+ * answers a call for an import that is not there by returning -- no
+ * throw, no warning, no error event. So a build pointed at any style
+ * that is not Standard-shaped (the site's own old
+ * `mapbox://styles/chiefkleef/...`, left behind in
+ * NEXT_PUBLIC_MAPBOX_STYLE on a deployment, is the concrete case) came up
+ * looking entirely healthy: the scene sent its LUT, mapbox decoded and
+ * accepted it, window.__SCENE__.errors() was empty, and the globe wore
+ * none of the eight themes.
+ *
+ * It is a configuration mistake rather than a broken map, so it must not
+ * take the scene down -- and it must not be quiet either.
+ */
+describe('a style that cannot be colour-themed', () => {
+  let uninstall: () => void;
+
+  beforeEach(() => {
+    uninstall = installMapboxStub({ basemap: false });
+  });
+
+  afterEach(() => {
+    uninstall();
+    delete window.__SCENE_DEBUG__;
+  });
+
+  it('names the style and the consequence, and keeps the scene up', async () => {
+    vi.stubEnv(
+      'NEXT_PUBLIC_MAPBOX_STYLE',
+      'mapbox://styles/chiefkleef/legacy',
+    );
+    const error = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    window.__SCENE_DEBUG__ = true;
+
+    await mount();
+
+    // The style by name, what it cannot do, and the one thing the owner
+    // can act on -- all three, because two of them are useless alone.
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining('mapbox://styles/chiefkleef/legacy'),
+    );
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining(`has no "${BASEMAP_IMPORT}" import`),
+    );
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining('NEXT_PUBLIC_MAPBOX_STYLE'),
+    );
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining(DEFAULT_STYLE),
+    );
+
+    // Readable from the outside, which is what lets the review tier fail
+    // on it instead of photographing a grey globe and calling it green.
+    const handle = window.__SCENE__;
+    expect(handle?.colorThemeSupported()).toBe(false);
+    expect(handle?.styleUrl()).toBe(
+      'mapbox://styles/chiefkleef/legacy',
+    );
+    expect(handle?.errors().join('\n')).toContain(
+      `has no "${BASEMAP_IMPORT}" import`,
+    );
+
+    // Degraded, not crashed: a basemap wearing the wrong colours is
+    // still a basemap, and the rest of the site is untouched.
+    expect(screen.getByTestId('scene-root')).toHaveAttribute(
+      'data-scene-state',
+      'live',
+    );
+    // And the LUT went nowhere, which is the fact the message asserts.
+    const map = FakeMap.last;
+    expect(map.calls.colorTheme).toEqual([]);
+    expect(map.calls.colorThemeDiscarded.length).toBeGreaterThan(0);
+  });
+
+  it('treats a style that cannot answer the probe as unthemeable', async () => {
+    const error = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    window.__SCENE_DEBUG__ = true;
+    // A style object old enough, or foreign enough, not to implement
+    // getConfigProperty at all. It is still a style this scene cannot
+    // theme, and still not a reason to take the tab down.
+    window.__MAPBOX_STUB__ = {
+      Map: class extends FakeMap {
+        getConfigProperty(): unknown {
+          throw new TypeError('getConfigProperty is not a function');
+        }
+      },
+    } as unknown as NonNullable<Window['__MAPBOX_STUB__']>;
+
+    await mount();
+
+    expect(window.__SCENE__?.colorThemeSupported()).toBe(false);
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining(`has no "${BASEMAP_IMPORT}" import`),
+    );
+    expect(screen.getByTestId('scene-root')).toHaveAttribute(
+      'data-scene-state',
+      'live',
+    );
+  });
+});
+
 describe('watching the camera without a map', () => {
   it('never fires, and unsubscribing is still safe', async () => {
     const seen: [number, number][] = [];
@@ -356,6 +464,14 @@ describe('the debug handle', () => {
     expect(handle).toBeDefined();
     expect(handle?.map).toBe(getMap());
     expect(handle?.styleStatus()).toBe('ready');
+    /*
+     * NEXT_PUBLIC_MAPBOX_STYLE is inlined at build time, so on a deployed
+     * preview this handle is the only way to find out which style the
+     * build is actually running -- and "which style" is the difference
+     * between a themeable globe and a silently un-themeable one.
+     */
+    expect(handle?.styleUrl()).toBe(DEFAULT_STYLE);
+    expect(handle?.colorThemeSupported()).toBe(true);
     /*
      * Compared against what the map actually received, not just matched
      * against a base64 shape. The handle reports the LUT the scene

@@ -16,7 +16,7 @@ import { subscribeTheme, THEME_EVENT } from 'styles/theme-bootstrap';
  * style, no style JSON to maintain. It happens in three tiers, cheapest
  * last:
  *
- *   1. map.setColorTheme({ data: buildLut(palette) })
+ *   1. map.setImportColorTheme('basemap', { data: buildLut(palette) })
  *      A 3D colour LUT that re-tints every basemap fill. This is the tier
  *      that makes the globe wear the theme. It is also the expensive one:
  *      mapbox-gl reloads every tile when the colour theme changes, BY
@@ -38,6 +38,54 @@ import { subscribeTheme, THEME_EVENT } from 'styles/theme-bootstrap';
  * MutationObserver on documentElement[data-theme] because the attribute
  * is the truth even when no event fires.
  */
+
+/*
+ * THE IMPORT EVERY ONE OF THOSE THREE TIERS HAS TO NAME, AND WHY.
+ *
+ * `mapbox://styles/mapbox/standard` is not a flat stylesheet. What the
+ * API serves is a thin root style whose whole content is one import --
+ * `{ id: 'basemap', url: ... }` -- and every layer the globe is made of
+ * lives inside that fragment, in its own scope. That is why Standard's
+ * knobs are addressed as setConfigProperty('basemap', ...) rather than
+ * as plain style properties.
+ *
+ * The colour theme has the same shape and it is much easier to get
+ * wrong, because the wrong call SUCCEEDS. In mapbox-gl 3.30:
+ *
+ *   map.setColorTheme(theme)
+ *     -> Style.setColorTheme, on the ROOT style. It stores the theme,
+ *        decodes the LUT, and then hands it to `this._layers` -- the
+ *        root style's own layers, which on Standard is only what WE
+ *        added. Painting reads style.getLut(layer.scope), and the
+ *        basemap's layers are in scope 'basemap', which still has no
+ *        LUT. No error, no warning, no event: the LUT is accepted, the
+ *        debug handle reports it, mapbox's own decode check passes, and
+ *        the globe keeps every colour Mapbox shipped it with.
+ *
+ *   map.setImportColorTheme('basemap', theme)
+ *     -> Style.setImportColorTheme, which resolves the fragment and sets
+ *        the theme ON IT. Its layers get the LUT and its tiles are
+ *        cleared, so the basemap is re-coloured. This is the call that
+ *        makes the globe wear the theme.
+ *
+ * That is the whole of the bug this constant exists to stop coming back:
+ * every tier of this file addresses the fragment by name, and
+ * scene/mapbox/instance.ts checks at style.load that the fragment is
+ * really there -- because a style without it cannot be themed at all,
+ * and used to say nothing about it.
+ */
+export const BASEMAP_IMPORT = 'basemap';
+
+/**
+ * The config key the scene probes to find out whether the configured
+ * style is Standard-shaped.
+ *
+ * getConfigProperty(BASEMAP_IMPORT, key) resolves the fragment and then
+ * its schema, so a non-null answer means both exist -- which is exactly
+ * the precondition setImportColorTheme and setConfigProperty share. It
+ * is a member of BasemapConfig so a rename cannot leave it behind.
+ */
+export const BASEMAP_PROBE_KEY: keyof BasemapConfig = 'lightPreset';
 
 /** Standard's sun position presets. */
 export type LightPreset = 'dawn' | 'day' | 'dusk' | 'night';

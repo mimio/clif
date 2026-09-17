@@ -922,6 +922,46 @@ describe('the persistent map', () => {
     }
   });
 
+  /*
+   * THE CALL, not just the payload.
+   *
+   * `map.setColorTheme(lut)` and `map.setImportColorTheme('basemap', lut)`
+   * are indistinguishable from every seam this project had: both succeed,
+   * both decode, both leave appliedLut() reporting a LUT and errors()
+   * empty. Only one of them re-tints the globe. Standard's layers live in
+   * the `basemap` fragment and take their LUT from that scope
+   * (scene/theme.ts's BASEMAP_IMPORT has mapbox-gl's side of it), so the
+   * root call themes the layers WE added and nothing else -- which is
+   * exactly the site the owner loaded and described as "not styled at all
+   * with a theme".
+   *
+   * So the fake records the two separately, and this asserts which one
+   * the scene makes.
+   */
+  it('themes the basemap import, and never the root style', async () => {
+    await mount();
+    const map = FakeMap.last;
+
+    expect(map.calls.colorTheme).toHaveLength(1);
+    expect(map.calls.colorThemeImports).toEqual([CONFIG_FRAGMENT]);
+    // The root style's colour theme is the one that quietly does
+    // nothing to the globe. Nothing in the app may reach for it.
+    expect(map.calls.rootColorTheme).toEqual([]);
+    // And nothing was addressed to an import the style does not have,
+    // which mapbox drops without a word.
+    expect(map.calls.colorThemeDiscarded).toEqual([]);
+
+    await act(async () => {
+      applyTheme('teal');
+      await settle();
+    });
+    expect(map.calls.colorThemeImports).toEqual([
+      CONFIG_FRAGMENT,
+      CONFIG_FRAGMENT,
+    ]);
+    expect(map.calls.rootColorTheme).toEqual([]);
+  });
+
   it('follows the attribute even when no event is dispatched', async () => {
     await mount();
     const map = FakeMap.last;
@@ -1467,6 +1507,8 @@ describe('the style lifecycle', () => {
     const map = new FakeMap({});
     const calls: Record<string, () => void> = {
       setColorTheme: () => map.setColorTheme({ data: 'x' }),
+      setImportColorTheme: () =>
+        map.setImportColorTheme('basemap', { data: 'x' }),
       setConfigProperty: () =>
         map.setConfigProperty('basemap', 'theme', 'faded'),
       setPaintProperty: () => map.setPaintProperty('l', 'p', 1),
@@ -1486,6 +1528,15 @@ describe('the style lifecycle', () => {
     // The camera is not guarded, in the fake or in mapbox-gl.
     expect(() => map.easeTo({ zoom: 2 })).not.toThrow();
     expect(() => map.setBearing(4)).not.toThrow();
+    /*
+     * Neither is getConfigProperty, in either. It resolves the fragment
+     * and reads its schema, so before style.load it answers null rather
+     * than throwing -- which is what makes it usable as the scene's
+     * "can this style be themed at all" probe.
+     */
+    expect(() =>
+      map.getConfigProperty('basemap', 'lightPreset'),
+    ).not.toThrow();
   });
 
   /*
@@ -1510,21 +1561,32 @@ describe('the style lifecycle', () => {
     }
 
     /*
-     * And the gap between the two lists is exactly one name, for exactly
-     * one reason. Style.setConfigProperty opens with
-     * getFragmentStyle(fragmentId) and returns when there is no fragment
-     * -- neither it nor getFragmentStyle calls _checkLoaded -- so before
-     * style.load the real call is a silent no-op, not a throw. The fake
-     * defers it anyway, which costs nothing and is documented on
+    /*
+     * And the gap between the two lists is exactly two names, for
+     * exactly one reason. Style.setConfigProperty and
+     * Style.setImportColorTheme both open with
+     * getFragmentStyle(fragmentId) and return when there is no fragment
+     * -- neither they nor getFragmentStyle call _checkLoaded -- so
+     * before style.load the real calls are silent no-ops, not throws.
+     * The fake defers both, which costs nothing and is documented on
      * STYLE_DEFERRED. What must not happen is STYLE_GUARDED quietly
-     * growing it back, so that the list claims mapbox throws where it
-     * silently does nothing.
+     * growing either back, so that the list claims mapbox throws where
+     * it silently does nothing.
+     *
+     * setColorTheme IS guarded, and stays on the guarded list -- it is
+     * the root style's, and the app must never call it. That is asserted
+     * where the theme is, not here.
      */
     const onlyDeferred = STYLE_DEFERRED.filter(
       (name) => !(STYLE_GUARDED as readonly string[]).includes(name),
     );
-    expect(onlyDeferred).toEqual(['setConfigProperty']);
+    expect(onlyDeferred).toEqual([
+      'setConfigProperty',
+      'setImportColorTheme',
+    ]);
     expect(guarded.has('setConfigProperty')).toBe(false);
+    expect(guarded.has('setImportColorTheme')).toBe(false);
+    expect(guarded.has('setColorTheme')).toBe(true);
   });
 
   it('drives the camera but touches nothing else before style.load', async () => {

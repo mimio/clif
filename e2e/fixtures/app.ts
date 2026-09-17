@@ -4,11 +4,30 @@ import {
   type Locator,
   type Page,
 } from '@playwright/test';
+import { BASEMAP_IMPORT } from 'scene/theme';
 import {
   THEME_IDS,
   THEME_STORAGE_KEY,
   type ThemeId,
 } from 'styles/theme-bootstrap';
+
+export { BASEMAP_IMPORT };
+
+/*
+ * The only style this app can be themed on, as a string.
+ *
+ * It is a HAND COPY of scene/mapbox/loader.ts's DEFAULT_STYLE and cannot
+ * be an import: loader.ts is where mapbox-gl is loaded, and the layer
+ * rule in eslint.config.mjs keeps scene/mapbox/** reachable from scene/
+ * and nowhere else.
+ *
+ * So it is guarded behaviourally instead, on every PR: the hermetic stub
+ * records the style URL the app actually constructed its map with, and
+ * e2e/hermetic/theme.spec.ts asserts that it is this. A copy compared
+ * against the running app is worth more than a copy compared against
+ * another copy, and this one cannot drift without that spec going red.
+ */
+export const THEMEABLE_STYLE = 'mapbox://styles/mapbox/standard';
 
 /*
  * What both tiers need to know about the app, in one place: which routes
@@ -202,23 +221,40 @@ export const MOBILE = { width: 390, height: 844 };
  * window.__SCENE__.errors() either. Watching for it at error level misses
  * it entirely.
  *
- * The second is worse, because it is the case where everything succeeds
- * and nothing happens: setColorTheme on a style that carries its own
- * `color-theme` override warns that the theme "won't be visible" and then
- * stores it anyway. appliedLut() would report the LUT, errors() would be
- * empty, the probe would see a clean decode, and the globe would still be
- * wearing Standard's colours. If Mapbox ever ships Standard with an
- * override, this line is the only thing that says so.
+ * The second fires when the STYLESHEET carries a colour theme mapbox
+ * cannot load: `Couldn't load color theme from the stylesheet: ${err}`,
+ * again through warnOnce. Different verb, different call site, same
+ * silence -- and the pattern above does not match it, because "load" is
+ * not "set".
  *
- * The third was missing until now, and it is the one that fires when the
- * STYLESHEET carries a colour theme mapbox cannot load:
- * `Couldn't load color theme from the stylesheet: ${err}`, again through
- * warnOnce. Different verb, different call site, same silence -- and the
- * two patterns above do not match it, because "load" is not "set" and
- * there is no "color-theme override" in it.
+ * A THIRD PATTERN USED TO BE HERE AND HAS BEEN REMOVED ON PURPOSE:
+ * /color-theme override/, which matches `Note: setColorTheme is called on
+ * a style with a color-theme override, the passed color-theme won't be
+ * visible.` It was watching for the case where everything succeeds and
+ * nothing happens, and it can no longer mean that here.
+ *
+ * The scene now themes the basemap with setImportColorTheme, which IS
+ * `fragmentStyle._styleColorTheme.colorThemeOverride = theme` -- so the
+ * override on the fragment is ours, it wins over anything Standard's own
+ * stylesheet or the import spec carries, and nothing in the app calls the
+ * root setColorTheme at all (asserted in the unit suite and in tier 1).
+ * The only remaining way for that line to be printed is mapbox-gl's own
+ * bookkeeping: Style.updateConfigDependencies() walks every fragment and
+ * re-sets a colour theme whose data does not match the LUT currently
+ * loaded, which is true for the few milliseconds between
+ * setImportColorTheme and the PNG finishing its decode. A
+ * setConfigProperty landing inside that window prints the note about a
+ * theme that is, in fact, perfectly visible.
+ *
+ * Keeping it would have made a tripwire that fires on a race rather than
+ * on a defect, which is the "assertion that cannot be made green" this
+ * suite is written to avoid. What replaces it is not a weaker check but a
+ * stronger one: readBasemapLut() reads the LUT off the scope the globe is
+ * painted from and e2e/review/scene.spec.ts requires it to be the one the
+ * scene sent, per route and per theme. That is the fact the warning was a
+ * proxy for.
  */
-const COLOUR_THEME_TROUBLE =
-  /Couldn't (set|load) color theme|color-theme override/i;
+const COLOUR_THEME_TROUBLE = /Couldn't (set|load) color theme/i;
 
 /**
  * Everything that means "Mapbox is unhappy", from four directions at once,
@@ -282,6 +318,20 @@ export const installSceneDebug = async (
 export type SceneReport = {
   styleStatus: 'loading' | 'ready' | 'failed';
   /**
+   * The style URL this build is running.
+   *
+   * NEXT_PUBLIC_MAPBOX_STYLE is inlined at build time and overrides the
+   * default, so on a deployed preview there is no other way to find out
+   * which style is in use -- and "which style" decides whether any of
+   * the theming works at all.
+   */
+  styleUrl: string;
+  /**
+   * Whether that style has the import the colour theme is addressed to.
+   * False means every theme change is a silent no-op on the basemap.
+   */
+  colorThemeSupported: boolean | null;
+  /**
    * The LUT the scene handed to setColorTheme, fingerprinted rather than
    * carried: it is about 175KB of base64 and all eight themes share a
    * prefix, so the hash is over the whole payload.
@@ -311,6 +361,8 @@ export const readScene = (page: Page): Promise<SceneReport> =>
     }
     return {
       styleStatus: scene.styleStatus(),
+      styleUrl: scene.styleUrl(),
+      colorThemeSupported: scene.colorThemeSupported(),
       lut:
         lut === null
           ? null
@@ -623,3 +675,199 @@ export const installLutProbe = async (page: Page): Promise<void> => {
 /** Reads back every LUT image mapbox-gl has decoded so far. */
 export const readLuts = (page: Page): Promise<LutImage[]> =>
   page.evaluate(() => window.__ONEGLOBE_LUT__ ?? []);
+
+/* ---- what the LIVE style is actually wearing ------------------------- */
+
+export type BasemapLut = {
+  /**
+   * 'ok'            the basemap scope holds a LUT;
+   * 'no-lut'        it holds none, which is the silent failure;
+   * 'no-style-api'  this build of mapbox-gl no longer answers the
+   *                 question the way this reader asks it.
+   */
+  outcome: 'ok' | 'no-lut' | 'no-style-api';
+  /** `${bytes}:${fnv}` over the LUT the basemap scope holds. */
+  fingerprint: string | null;
+  /** The same for the ROOT style's scope, which should hold none. */
+  root: string | null;
+};
+
+/*
+ * THE ONE READ THAT ANSWERS "IS THE GLOBE WEARING IT".
+ *
+ * Everything else this file offers reports the REQUEST: appliedLut() is
+ * what the scene sent, and the LUT probe is what mapbox decoded. Both
+ * were green on a deployment where the basemap wore none of the eight
+ * themes, because `map.setColorTheme()` succeeds, decodes and applies --
+ * to the ROOT style's layers. Standard's own layers live in the
+ * `basemap` import and are painted with `style.getLut(layer.scope)`, so
+ * the question that actually matters is which SCOPE holds a LUT.
+ *
+ * Style.getLut(scope) is how mapbox-gl itself asks it, and `map.style`
+ * is not public API -- so this reports what it found rather than
+ * throwing, and the spec asserts on the outcome. A mapbox-gl that no
+ * longer answers this way comes back as 'no-style-api' and fails the
+ * assertion with a message that says so, which is the right way for an
+ * internal read to break: loudly, and about itself.
+ */
+export const readBasemapLut = (page: Page): Promise<BasemapLut> =>
+  page.evaluate((importId) => {
+    const scene = window.__SCENE__;
+    if (!scene) {
+      throw new Error('window.__SCENE__ is not published');
+    }
+    type Lut = { data?: string } | null | undefined;
+    const style = (
+      scene.map as unknown as {
+        style?: { getLut?: (scope: string) => Lut };
+      }
+    ).style;
+    if (!style || typeof style.getLut !== 'function') {
+      return {
+        outcome: 'no-style-api' as const,
+        fingerprint: null,
+        root: null,
+      };
+    }
+    // The same FNV-1a over the same payload readScene() hashes, so the
+    // two fingerprints are comparable by construction.
+    const print = (lut: Lut): string | null => {
+      if (!lut || typeof lut.data !== 'string') return null;
+      let hash = 0x811c9dc5;
+      for (let i = 0; i < lut.data.length; i += 1) {
+        hash = Math.imul(hash ^ lut.data.charCodeAt(i), 0x01000193);
+      }
+      return `${lut.data.length}:${(hash >>> 0).toString(36)}`;
+    };
+    const basemap = print(style.getLut(importId));
+    return {
+      outcome:
+        basemap === null ? ('no-lut' as const) : ('ok' as const),
+      fingerprint: basemap,
+      // The root style's scope is the empty string in mapbox-gl.
+      root: print(style.getLut('')),
+    };
+  }, BASEMAP_IMPORT);
+
+/* ---- sampling what the basemap actually painted ---------------------- */
+
+/**
+ * The attribute that hides everything in front of the globe.
+ *
+ * The app is three siblings in z order -- SceneRoot, the route's
+ * foreground, the chrome -- so hiding the scene's two siblings leaves the
+ * map and nothing else. It is an attribute toggle rather than a style tag
+ * added and removed, because the theme lens lives in the chrome and a
+ * `visibility: hidden` lens cannot be clicked.
+ */
+export const BASEMAP_ONLY = 'data-basemap-only';
+
+/** Installs the rule the attribute switches on. Once per page. */
+export const installBasemapOnly = async (
+  page: Page,
+): Promise<void> => {
+  await page.addStyleTag({
+    content: `html[${BASEMAP_ONLY}] [data-testid="scene-root"] ~ * {
+      visibility: hidden !important;
+    }`,
+  });
+};
+
+/** Hides or restores everything in front of the globe. */
+export const showBasemapOnly = (
+  page: Page,
+  on: boolean,
+): Promise<void> =>
+  page.evaluate(
+    ([attribute, wanted]) =>
+      new Promise<void>((resolve) => {
+        document.documentElement.toggleAttribute(
+          attribute as string,
+          wanted as boolean,
+        );
+        // One frame, so the compositor has drawn the change before
+        // anything screenshots it.
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => resolve()),
+        );
+      }),
+    [BASEMAP_ONLY, on] as const,
+  );
+
+export type PixelStats = {
+  /** How many pixels the sample covered. Zero means the clip missed. */
+  pixels: number;
+  red: number;
+  green: number;
+  blue: number;
+  /**
+   * Mean red minus mean blue: the warm/cool axis, and the one the eight
+   * themes separate on. It is a DIFFERENCE of two channels of the same
+   * pixel, so exposure, the light preset and the fog -- which move all
+   * three channels together -- largely cancel out of it, while a
+   * basemap re-tinted from --map-land does not.
+   */
+  opponency: number;
+};
+
+/**
+ * Screenshots a region and reports its mean colour.
+ *
+ * The map is a WebGL canvas with preserveDrawingBuffer off, so nothing
+ * in the page can read its pixels back -- toDataURL on it returns an
+ * empty buffer. Playwright's screenshot is a real composite of what the
+ * compositor drew, which is the only honest way to see what the globe
+ * looks like; it comes back as a PNG, and Chromium is right there to
+ * decode it.
+ */
+export const samplePixels = async (
+  page: Page,
+  clip: { x: number; y: number; width: number; height: number },
+): Promise<PixelStats> => {
+  const shot = await page.screenshot({ clip });
+  return page.evaluate(
+    (encoded) =>
+      new Promise<PixelStats>((resolve, reject) => {
+        const image = new Image();
+        image.onerror = () =>
+          reject(new Error('the capture did not decode'));
+        image.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = image.naturalWidth;
+          canvas.height = image.naturalHeight;
+          const context = canvas.getContext('2d');
+          if (!context) {
+            reject(
+              new Error('no 2d context to decode the capture in'),
+            );
+            return;
+          }
+          context.drawImage(image, 0, 0);
+          const { data } = context.getImageData(
+            0,
+            0,
+            canvas.width,
+            canvas.height,
+          );
+          let red = 0;
+          let green = 0;
+          let blue = 0;
+          const pixels = data.length / 4;
+          for (let at = 0; at < data.length; at += 4) {
+            red += data[at];
+            green += data[at + 1];
+            blue += data[at + 2];
+          }
+          resolve({
+            pixels,
+            red: red / pixels,
+            green: green / pixels,
+            blue: blue / pixels,
+            opponency: (red - blue) / pixels,
+          });
+        };
+        image.src = `data:image/png;base64,${encoded}`;
+      }),
+    shot.toString('base64'),
+  );
+};

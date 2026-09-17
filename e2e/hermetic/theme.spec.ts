@@ -1,11 +1,19 @@
 import { expect, test } from '@playwright/test';
 import {
+  BASEMAP_IMPORT,
   collectProblems,
+  DESKTOP,
+  installBasemapOnly,
+  samplePixels,
+  showBasemapOnly,
   installLutProbe,
   openThemeLens,
   readLuts,
+  readScene,
+  installSceneDebug,
   THEME_IDS,
   THEME_SETTLE_MS,
+  THEMEABLE_STYLE,
   themeOption,
   themeOptions,
   waitForScene,
@@ -24,9 +32,13 @@ import {
  *
  *   1. picking a theme sets [data-theme] and survives a reload, which is
  *      localStorage plus the blocking bootstrap in _document;
- *   2. picking a theme reaches the map, once, with a different LUT -- the
- *      stub records every setColorTheme, so this is a fact rather than a
- *      colour sampled off a crossfade;
+ *   2. picking a theme reaches the map, once, with a different LUT, AND
+ *      it reaches it through setImportColorTheme on the `basemap`
+ *      fragment rather than through the root style's setColorTheme --
+ *      the stub records the two apart, so which call was made is a fact
+ *      rather than an assumption. That distinction is the whole of the
+ *      bug this spec now guards: both calls succeed, both decode, and
+ *      only one of them re-tints the globe;
  *   3. the LUT buildLut produced is one Mapbox will actually take. That is
  *      a 32-tall, 1024-wide PNG and nothing else: mapbox-gl rejects
  *      height > 32 or width !== height * height, and it rejects it inside a
@@ -72,6 +84,26 @@ test('a picked theme reaches the map and survives a reload', async ({
 
   const first = await readStub(page);
   expect(first.colorTheme.length).toBe(1);
+  /*
+   * THE CALL, and the style it was made against.
+   *
+   * `map.setColorTheme(lut)` and
+   * `map.setImportColorTheme('basemap', lut)` are indistinguishable from
+   * everything else this suite can see: both succeed, both decode, both
+   * leave appliedLut() reporting a LUT. Only the second re-tints
+   * Standard's own layers, which live in the `basemap` import and take
+   * their LUT from that scope.
+   *
+   * And the style URL: NEXT_PUBLIC_MAPBOX_STYLE overrides the default and
+   * is inlined at build time, so a stale value is invisible everywhere
+   * except here and on the deployed page itself. This is also the
+   * behavioural guard on THEMEABLE_STYLE, which e2e/fixtures/app.ts has
+   * to restate because scene/mapbox/** is out of reach.
+   */
+  expect(first.styleUrl).toBe(THEMEABLE_STYLE);
+  expect(first.colorThemeImports).toEqual([BASEMAP_IMPORT]);
+  expect(first.rootColorTheme).toEqual([]);
+  expect(first.colorThemeDiscarded).toEqual([]);
   await expect(page.locator('html')).toHaveAttribute(
     'data-theme',
     'yellow',
@@ -93,6 +125,11 @@ test('a picked theme reaches the map and survives a reload', async ({
   // that produced two would be a performance bug as well as a wrong one.
   expect(second.colorTheme.length).toBe(2);
   expect(second.colorTheme[1]).not.toBe(second.colorTheme[0]);
+  expect(second.colorThemeImports).toEqual([
+    BASEMAP_IMPORT,
+    BASEMAP_IMPORT,
+  ]);
+  expect(second.rootColorTheme).toEqual([]);
   // The camera holds through a theme change -- it is the one scene change
   // with no camera move.
   expect(second.easeTo.length).toBe(first.easeTo.length);
@@ -177,4 +214,109 @@ test('the colour-theme probe sees a LUT assignment', async ({
   expect(seen[0].ok).toBe(true);
   expect(seen[0].height).toBe(32);
   expect(seen[0].width).toBe(1024);
+});
+
+/*
+ * THE CONFIGURATION MISTAKE THAT REACHED THE OWNER.
+ *
+ * Every tier of the theming is addressed to one import id, and mapbox-gl
+ * answers a call for an import that is not there by returning --
+ * Style.setImportColorTheme and Style.setConfigProperty both open
+ * `const fragmentStyle = this.getFragmentStyle(id); if (!fragmentStyle)
+ * return;`. So pointing NEXT_PUBLIC_MAPBOX_STYLE at anything that is not
+ * Mapbox Standard produced a site where the theme lens worked, the LUT
+ * was built, sent, decoded and accepted, window.__SCENE__.errors() was
+ * empty -- and the globe wore none of the eight themes.
+ *
+ * It has to be loud and it has to be survivable, in that order.
+ */
+test('a style with no basemap import fails loudly and keeps the scene up', async ({
+  page,
+}) => {
+  await installSceneDebug(page);
+  // A second install, deliberately: installMapboxGl replaces
+  // window.__MAPBOX_STUB__ and window.__ONEGLOBE_STUB__ wholesale, and
+  // init scripts run in order, so this one wins over the beforeEach's.
+  await installMapboxGl(page, { basemap: false });
+
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+
+  await page.goto('/', { waitUntil: 'load' });
+  await waitForScene(page);
+
+  const scene = await readScene(page);
+  expect(scene.colorThemeSupported).toBe(false);
+  expect(scene.styleStatus).toBe('ready');
+  // The scene's own record, which is what tier 2 asserts on.
+  expect(scene.errors.join('\n')).toContain(
+    `has no "${BASEMAP_IMPORT}" import`,
+  );
+  // And the console, which is what a developer sees.
+  expect(
+    errors.join('\n'),
+    'nothing on the console named the style or the consequence',
+  ).toContain('NEXT_PUBLIC_MAPBOX_STYLE');
+
+  // Nothing reached the basemap, and nothing crashed.
+  const stub = await readStub(page);
+  expect(stub.colorTheme).toEqual([]);
+  expect(stub.colorThemeDiscarded.length).toBeGreaterThan(0);
+  await expect(
+    page.locator('[data-testid="scene-root"]'),
+  ).toHaveAttribute('data-scene-state', 'live');
+});
+
+/*
+ * THE OTHER INSTRUMENT TIER 2 LEANS ON, exercised where it can be checked.
+ *
+ * e2e/review/scene.spec.ts ends by photographing the globe under two
+ * themes and requiring the pixels to differ, and that argument only holds
+ * if the foreground really is out of the frame: the type, the scrims and
+ * the chrome are all themed too, and a whole-viewport comparison would
+ * register a theme change whether or not the basemap did. The hiding is
+ * therefore load-bearing, and it is an ordinary DOM fact -- so it is
+ * checked here, on every PR, rather than only in a job that runs on a
+ * deployment.
+ *
+ * What cannot be checked here is the picture itself: the stub paints
+ * nothing, so the only honest claim about the sample is that it decoded
+ * and covered the crop.
+ */
+test('the basemap-only switch hides the foreground and the sample decodes', async ({
+  page,
+}) => {
+  await page.goto('/', { waitUntil: 'load' });
+  await waitForScene(page);
+  await installBasemapOnly(page);
+
+  const lens = page.getByRole('button', { name: 'Theme' });
+  await expect(lens).toBeVisible();
+
+  await showBasemapOnly(page, true);
+  await expect(
+    lens,
+    'the chrome is still in front of the globe, so a pixel sample of ' +
+      'the map would be measuring the theme twice',
+  ).toBeHidden();
+  await expect(
+    page.locator('[data-testid="scene-root"]'),
+  ).toBeVisible();
+
+  const stats = await samplePixels(page, {
+    x: DESKTOP.width / 2 - 40,
+    y: DESKTOP.height / 2 - 40,
+    width: 80,
+    height: 80,
+  });
+  expect(stats.pixels).toBeGreaterThan(0);
+  for (const channel of [stats.red, stats.green, stats.blue]) {
+    expect(channel).toBeGreaterThanOrEqual(0);
+    expect(channel).toBeLessThanOrEqual(255);
+  }
+
+  await showBasemapOnly(page, false);
+  await expect(lens).toBeVisible();
 });

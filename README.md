@@ -184,8 +184,26 @@ Variables for Production, Preview and Development.
   empty container so the rest of the app is still workable. Restrict the
   token to the site's domain in the Mapbox dashboard. CI builds with a
   placeholder because the e2e suite answers every Mapbox request locally.
-- `NEXT_PUBLIC_MAPBOX_STYLE`, optional: defaults to
-  `mapbox://styles/mapbox/standard`.
+- `NEXT_PUBLIC_MAPBOX_STYLE`, optional, and **best left unset**. It defaults
+  to `mapbox://styles/mapbox/standard`, and Mapbox Standard is the only style
+  this site can theme.
+
+  The eight themes are applied at runtime rather than baked into a style, and
+  the whole of that mechanism is addressed to Standard's `basemap` import:
+  `setImportColorTheme('basemap', …)` for the colour LUT and
+  `setConfigProperty('basemap', …)` for the light preset and the label
+  toggles. mapbox-gl answers both calls on a style that has no such import by
+  returning — no throw, no warning, no error event — so a site pointed at any
+  other style comes up looking entirely healthy and wears none of its themes.
+
+  That is not hypothetical: this variable is inlined at build time, so a value
+  left on the Vercel project from the old hand-maintained
+  `mapbox://styles/chiefkleef/…` style is invisible everywhere except on the
+  deployed page. **If the deployed globe is not themed, remove
+  `NEXT_PUBLIC_MAPBOX_STYLE` from the Vercel project's Environment Variables
+  (Production, Preview and Development) and redeploy.** The scene now logs a
+  console error naming the style and the consequence when it detects one, and
+  `e2e/review/scene.spec.ts` fails the build on it.
 - `NEXT_PUBLIC_SITE_URL`, optional: the canonical origin, no trailing slash
   (e.g. `https://clif.mimio.io`). Every route emits a canonical link and
   `og:`/`twitter:` URLs; without this they stay root-relative, which resolves

@@ -152,8 +152,11 @@ test.describe('the debug handle', () => {
 
     expect(seen).not.toBeNull();
     expect(seen?.status).toBe('ready');
-    // The LUT the scene handed to setColorTheme, read from the scene
-    // rather than inferred from how mapbox decodes it.
+    // The LUT the scene handed to the map's colour-theme API, read from
+    // the scene rather than inferred from how mapbox decodes it. WHICH
+    // call it made, and which scope ended up wearing it, is
+    // e2e/hermetic/basemap-theme.spec.ts's -- that distinction is the
+    // whole of the bug this one cannot see.
     expect(seen?.lut).toMatch(/^[A-Za-z0-9+/]+$/);
     expect(seen?.lastAction).not.toBe('none');
     // Nothing should have gone wrong. If the real Mapbox ever rejects

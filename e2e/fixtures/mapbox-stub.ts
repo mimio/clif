@@ -25,7 +25,7 @@ import type { BrowserContext, Page } from '@playwright/test';
  * draws nothing and any assertion about drawn content would be a lie.
  * What tier 1 can settle is the app's own behaviour: that one map is
  * constructed and only one, that its canvas outlives a route change, that
- * a theme reaches setColorTheme with a LUT Mapbox will accept, that
+ * a theme reaches setImportColorTheme with a LUT Mapbox accepts, that
  * nothing is called before the style is ready. All of that is a recorded
  * fact here. What the real basemap looks like is tier 2's job, and only
  * tier 2's.
@@ -64,14 +64,46 @@ export type StubOptions = {
    *                   same shape that is routine a moment later.
    */
   style?: StubStyle;
+  /**
+   * Whether the stubbed style carries the `basemap` import.
+   *
+   * True is Mapbox Standard and the default. False is every other style,
+   * and it is not a hypothetical: NEXT_PUBLIC_MAPBOX_STYLE overrides the
+   * default, so a value left behind from an older deployment points this
+   * app at a style where `getConfigProperty` answers null and both
+   * `setConfigProperty` and `setImportColorTheme` return without a word.
+   * The scene is expected to notice and say so.
+   */
+  basemap?: boolean;
 };
 
 /** Everything the in-page stub records, read back with readStub(). */
 export type StubRecord = {
   /** How many maps were constructed. The whole rewrite rests on "one". */
   constructed: number;
-  /** Every LUT handed to setColorTheme, newest last. */
+  /**
+   * Every LUT handed to setImportColorTheme for the `basemap` fragment,
+   * newest last -- which is the only call that reaches the globe.
+   */
   colorTheme: string[];
+  /** The import id each entry in `colorTheme` was addressed to. */
+  colorThemeImports: string[];
+  /**
+   * LUTs addressed to an import the style does not have, which mapbox
+   * drops in silence. Empty is the healthy state.
+   */
+  colorThemeDiscarded: string[];
+  /**
+   * LUTs sent to the ROOT style's colour theme, which must stay empty.
+   *
+   * map.setColorTheme() succeeds and applies -- to the root style's own
+   * layers, which on Standard is only what the scene added itself. The
+   * basemap is an import and takes its LUT from that scope, so the root
+   * call themes everything except the globe, and says nothing about it.
+   */
+  rootColorTheme: string[];
+  /** The style URL the map was constructed with. */
+  styleUrl: string;
   /** Every setConfigProperty, as [key, value] on the basemap import. */
   config: [string, unknown][];
   /** Counts only: that they happened is the assertion, not their values. */
@@ -120,6 +152,10 @@ const stubScript = (options: StubOptions): void => {
   const record: NonNullable<Window['__ONEGLOBE_STUB__']> = {
     constructed: 0,
     colorTheme: [],
+    colorThemeImports: [],
+    colorThemeDiscarded: [],
+    rootColorTheme: [],
+    styleUrl: '',
     config: [],
     fog: 0,
     bearings: 0,
@@ -144,6 +180,8 @@ const stubScript = (options: StubOptions): void => {
     mapOptions: Record<string, unknown>,
   ): Record<string, unknown> {
     record.constructed += 1;
+    record.styleUrl = String(mapOptions.style ?? '');
+    const hasBasemap = options.basemap !== false;
 
     /*
      * The canvas is real, and it is in the container, because mapbox-gl's
@@ -345,16 +383,45 @@ const stubScript = (options: StubOptions): void => {
           spec === null ? null : (spec.exaggeration ?? 0),
         );
       },
+      /** The ROOT style's colour theme, which nothing may call. */
       setColorTheme: (theme: { data: string }): void => {
         guard();
+        record.rootColorTheme.push(theme.data);
+      },
+      /*
+       * The import's colour theme, which is the call that re-tints the
+       * basemap -- and which mapbox drops without a word when the
+       * import is not there.
+       */
+      setImportColorTheme: (
+        importId: string,
+        theme: { data: string },
+      ): void => {
+        guard();
+        if (importId !== 'basemap' || !hasBasemap) {
+          record.colorThemeDiscarded.push(importId);
+          return;
+        }
         record.colorTheme.push(theme.data);
+        record.colorThemeImports.push(importId);
+      },
+      /*
+       * Not guarded, in the stub or in mapbox-gl: Style.getConfigProperty
+       * resolves the fragment and reads its schema, so before style.load
+       * it answers null rather than throwing. That is what makes it the
+       * scene's probe for "is this style one I can theme at all".
+       */
+      getConfigProperty: (fragment: string, key: string): unknown => {
+        if (!hasBasemap || fragment !== 'basemap') return null;
+        return key === 'lightPreset' ? 'day' : true;
       },
       setConfigProperty: (
-        _fragment: string,
+        fragment: string,
         key: string,
         value: unknown,
       ): void => {
         guard();
+        if (!hasBasemap || fragment !== 'basemap') return;
         record.config.push([key, value]);
       },
     };
@@ -416,6 +483,7 @@ export const installMapboxGl = async (
 ): Promise<void> => {
   await page.addInitScript(stubScript, {
     style: options.style ?? 'auto',
+    basemap: options.basemap ?? true,
   });
 };
 
@@ -453,6 +521,10 @@ export const readStub = (page: Page): Promise<StubRecord> =>
     return {
       constructed: record.constructed,
       colorTheme: record.colorTheme.map(fingerprint),
+      colorThemeImports: record.colorThemeImports,
+      colorThemeDiscarded: record.colorThemeDiscarded,
+      rootColorTheme: record.rootColorTheme.map(fingerprint),
+      styleUrl: record.styleUrl,
       config: record.config,
       fog: record.fog,
       bearings: record.bearings,
@@ -513,22 +585,93 @@ export const measureRecordedLuts = (
     );
   });
 
-// A minimal style document, kept from the old smoke test. Nothing should
-// ask for it while the stub is installed; if something does, this is a
-// valid v8 style rather than a 403 from a blocked egress proxy.
+/*
+ * THE STUBBED STYLESHEET, AND WHY IT IS NOT FLAT.
+ *
+ * This used to be a single v8 document with one background layer, on the
+ * reasoning that nothing should ask for it. Two specs do -- scene-box and
+ * stress-nav drive the REAL mapbox-gl over this network stub -- and a
+ * flat style is not the shape of the style this app runs. Mapbox
+ * Standard is a thin root whose whole content is one import,
+ * `{ id: 'basemap' }`, and every layer the globe is made of lives inside
+ * that fragment, in its own scope. That shape is not cosmetic:
+ *
+ *   setConfigProperty('basemap', ...)  resolves the fragment by id, then
+ *                                      its `schema`. No fragment, or no
+ *                                      key in the schema, and it returns
+ *                                      without a word.
+ *   setImportColorTheme('basemap', …)  resolves the fragment by id and
+ *                                      sets the theme ON IT. That is
+ *                                      what re-tints the basemap;
+ *                                      map.setColorTheme() sets the
+ *                                      ROOT's, whose layers are only the
+ *                                      ones this app added.
+ *
+ * So a flat stub could not tell the working call from the broken one --
+ * and the broken one is what shipped. With the import here, the hermetic
+ * tier drives the real library through the real colour-theme path with
+ * no network at all, which is where that distinction is now pinned
+ * (e2e/hermetic/basemap-theme.spec.ts).
+ *
+ * `data` rather than `url`: Style._loadImports takes an inline fragment
+ * document as-is, so the fragment costs no second request and cannot
+ * recurse into the root's own route handler.
+ *
+ * The schema is Standard's seven configurable knobs -- the ones
+ * scene/theme.ts sends -- with types and defaults in the style-spec's
+ * `option` shape. It is deliberately exactly those seven: a key the
+ * scene sends that is missing here is dropped in silence by the real
+ * library, which is the failure e2e/hermetic/routes.spec.ts exists to
+ * catch.
+ */
+const BASEMAP_SCHEMA = {
+  lightPreset: {
+    type: 'string',
+    default: 'day',
+    values: ['dawn', 'day', 'dusk', 'night'],
+  },
+  theme: {
+    type: 'string',
+    default: 'default',
+    values: ['default', 'faded', 'monochrome'],
+  },
+  showRoadLabels: { type: 'boolean', default: true },
+  showPlaceLabels: { type: 'boolean', default: true },
+  showPointOfInterestLabels: { type: 'boolean', default: true },
+  showTransitLabels: { type: 'boolean', default: true },
+  show3dObjects: { type: 'boolean', default: true },
+};
+
 const LOCAL_STYLE = {
   version: 8,
   name: 'e2e-style',
   sources: {},
   glyphs:
     'https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf',
-  layers: [
+  imports: [
     {
-      id: 'background',
-      type: 'background',
-      paint: { 'background-color': '#101418' },
+      id: 'basemap',
+      url: '',
+      data: {
+        version: 8,
+        name: 'e2e-basemap',
+        fragment: true,
+        schema: BASEMAP_SCHEMA,
+        sources: {},
+        // The globe's own ground, in the fragment's scope -- so it is
+        // painted with style.getLut('basemap') and re-tinted by the
+        // import's colour theme, exactly as Standard's layers are.
+        layers: [
+          {
+            id: 'basemap-background',
+            type: 'background',
+            paint: { 'background-color': '#101418' },
+          },
+        ],
+      },
     },
   ],
+  layers: [],
 };
 
 /*
