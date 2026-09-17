@@ -1,12 +1,448 @@
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import type { Specimen } from 'pagesComponents/specimens/types';
+import {
+  type CameraSpec,
+  cameras,
+  type FogPreset,
+  fogPresets,
+  SCENE_HANDOFF,
+  SCENE_MOVE_LONG_MS,
+  SCENE_MOVE_MS,
+  type SceneId,
+} from 'content/cameras';
+import {
+  coordLabel,
+  forViewport,
+  moveDurationFor,
+  REDUCED_MOVE_MS,
+  SCENE_BY_PATH,
+  SCENE_REFRAME_MS,
+  terrainFor,
+} from 'scene/camera';
+import { layerSetsFor } from 'scene/layers/sets';
+import { basemapConfig, lutFor } from 'scene/theme';
+import { buildLut } from 'styles/tokens/lut';
+import { FALLBACK_PALETTE, readPalette } from 'styles/tokens/palette';
+import {
+  applyTheme,
+  THEME_IDS,
+  type ThemeId,
+} from 'styles/theme-bootstrap';
 
-// Placeholder slot. The owning lane replaces this file wholesale; the entry in
-// pages/specimens.tsx is pre-registered so no two lanes edit that shared file.
+/*
+ * Lane 5's section: the scene's decisions, without the scene.
+ *
+ * Everything the globe does is resolved by pure functions before anything
+ * touches mapbox-gl, so all of it can be printed. That is the point of
+ * this page: there is no Mapbox token in development, and even with one
+ * you cannot read a camera table off a screenshot of a planet.
+ *
+ * The LUT strip is the one thing here that has to be looked at rather
+ * than read. It is the 32 x 1024 cube the basemap is re-tinted with, and
+ * if it does not visibly change when the theme does then the globe does
+ * not retheme -- and nothing else on the page would say so.
+ */
+
+const PATH_BY_SCENE = Object.fromEntries(
+  Object.entries(SCENE_BY_PATH).map(([path, id]) => [id, path]),
+) as Record<SceneId, string | undefined>;
+
+const SCENE_ORDER: SceneId[] = [
+  'hello',
+  'projects',
+  'projectDetail',
+  'about',
+  'notFound',
+];
+
+const deg = (value: number): string => `${value}°`;
+
+const cell = 'px-3 py-2 align-top text-[11px] whitespace-nowrap';
+const head =
+  'px-3 pb-2 text-left text-[10px] tracking-[.2em] text-fg-5 uppercase';
+
+const Swatch = ({ color }: { color: string }) => (
+  <span
+    aria-hidden="true"
+    className="mr-2 inline-block h-3 w-3 rounded-[2px] border border-surface-3 align-[-1px]"
+    style={{ background: color }}
+  />
+);
+
+/* ---- the live theme --------------------------------------------------- */
+
+type Snapshot = { theme: string; lut: string };
+
+const SERVER: Snapshot = { theme: 'yellow', lut: '' };
+
+let snapshot: Snapshot = SERVER;
+
+const readSnapshot = (): Snapshot => {
+  const theme = document.documentElement.dataset.theme ?? 'yellow';
+  if (theme === snapshot.theme && snapshot.lut !== '') {
+    return snapshot;
+  }
+  snapshot = { theme, lut: lutFor(readPalette()) };
+  return snapshot;
+};
+
+const subscribe = (onChange: () => void): (() => void) => {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme'],
+  });
+  return () => observer.disconnect();
+};
+
+const useThemeSnapshot = (): Snapshot =>
+  useSyncExternalStore(subscribe, readSnapshot, () => SERVER);
+
+/* ---- sections --------------------------------------------------------- */
+
+const CameraTable = ({ mobile }: { mobile: boolean }) => (
+  <table className="w-full border-collapse">
+    <thead>
+      <tr className="border-b border-surface-3">
+        <th className={head}>scene</th>
+        <th className={head}>pathname</th>
+        <th className={head}>centre</th>
+        <th className={head}>zoom</th>
+        <th className={head}>pitch</th>
+        <th className={head}>bearing</th>
+        <th className={head}>terrain</th>
+        <th className={head}>fog</th>
+        <th className={head}>map</th>
+        <th className={head}>spin</th>
+        <th className={head}>move</th>
+      </tr>
+    </thead>
+    <tbody>
+      {SCENE_ORDER.map((id) => {
+        const spec: CameraSpec = forViewport(cameras[id], id, mobile);
+        const terrain = terrainFor(spec);
+        return (
+          <tr className="border-b border-surface-3" key={id}>
+            <td className={`${cell} text-fg`}>{id}</td>
+            <td className={`${cell} text-fg-4`}>
+              {PATH_BY_SCENE[id] ?? '(anything else)'}
+            </td>
+            <td className={`${cell} text-fg-3`}>
+              {spec.center[0].toFixed(3)}, {spec.center[1].toFixed(3)}
+            </td>
+            <td className={`${cell} text-fg-2`}>{spec.zoom}</td>
+            <td className={`${cell} text-fg-3`}>{deg(spec.pitch)}</td>
+            <td className={`${cell} text-fg-3`}>
+              {deg(spec.bearing)}
+            </td>
+            <td className={`${cell} text-fg-3`}>
+              {terrain === null ? 'off' : `${terrain}×`}
+            </td>
+            <td className={`${cell} text-accent-small uppercase`}>
+              {spec.fog}
+            </td>
+            <td className={`${cell} text-fg-3 uppercase`}>
+              {coordLabel(spec)}
+            </td>
+            <td className={`${cell} text-fg-4`}>
+              {spec.spin === null ? '—' : `${spec.spin}°/frame`}
+            </td>
+            <td className={`${cell} text-fg-4`}>
+              {moveDurationFor(null, id, false)}ms
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+);
+
+const FogTable = () => (
+  <table className="w-full border-collapse">
+    <thead>
+      <tr className="border-b border-surface-3">
+        <th className={head}>preset</th>
+        <th className={head}>range</th>
+        <th className={head}>colour</th>
+        <th className={head}>high (rim)</th>
+        <th className={head}>light preset</th>
+        <th className={head}>used by</th>
+      </tr>
+    </thead>
+    <tbody>
+      {(Object.keys(fogPresets) as FogPreset[]).map((id) => {
+        const fog = fogPresets[id];
+        const used = SCENE_ORDER.filter(
+          (scene) => cameras[scene].fog === id,
+        );
+        return (
+          <tr className="border-b border-surface-3" key={id}>
+            <td className={`${cell} text-fg uppercase`}>{id}</td>
+            <td className={`${cell} text-fg-3`}>
+              {fog.range.join(' ')}
+            </td>
+            <td className={`${cell} text-fg-3`}>
+              <Swatch color={fog.color} />
+              {fog.color}
+            </td>
+            <td className={`${cell} text-fg-3`}>
+              <Swatch color={fog.highColor} />
+              {fog.highColor}
+            </td>
+            <td className={`${cell} text-fg-4`}>
+              {basemapConfig(id, 1.6, false).lightPreset} / dark
+              {' · '}
+              {basemapConfig(id, 1.6, true).lightPreset} / light
+            </td>
+            <td className={`${cell} text-fg-4`}>{used.join(', ')}</td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+);
+
+const LayerTable = () => {
+  const noop = () => {};
+  return (
+    <table className="w-full border-collapse">
+      <thead>
+        <tr className="border-b border-surface-3">
+          <th className={head}>scene</th>
+          <th className={head}>layer set</th>
+          <th className={head}>layers</th>
+          <th className={head}>handlers</th>
+        </tr>
+      </thead>
+      <tbody>
+        {SCENE_ORDER.map((id) => {
+          const sets = layerSetsFor(id, {
+            palette: FALLBACK_PALETTE,
+            hover: null,
+            labels: true,
+            dash: true,
+            onHoverAnchor: noop,
+            onSelectAnchor: noop,
+          });
+          return (
+            <tr className="border-b border-surface-3" key={id}>
+              <td className={`${cell} text-fg`}>{id}</td>
+              <td className={`${cell} text-fg-3`}>
+                {sets.map((one) => one.id).join(', ') || '—'}
+              </td>
+              <td className="px-3 py-2 align-top text-[11px] text-fg-4">
+                {sets
+                  .flatMap((one) =>
+                    one.layers.map((entry) => entry.id),
+                  )
+                  .join(', ') || '—'}
+              </td>
+              <td className={`${cell} text-fg-4`}>
+                {sets
+                  .flatMap((one) =>
+                    one.interactions.map(
+                      (it) => `${it.type}@${it.layer ?? 'map'}`,
+                    ),
+                  )
+                  .join(', ') || '—'}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+};
+
+const Strip = ({ lut, label }: { lut: string; label: string }) => (
+  <div>
+    <div
+      aria-label={`Mapbox colour-theme LUT for ${label}`}
+      className="h-10 w-full rounded-sm border border-surface-3 bg-cover [image-rendering:pixelated]"
+      role="img"
+      style={{
+        backgroundImage: `url(data:image/png;base64,${lut})`,
+      }}
+    />
+    <code className="block text-[10px] text-fg-4">{label}</code>
+  </div>
+);
+
+/*
+ * Every theme's LUT at once.
+ *
+ * The themes.css selectors are plain attribute selectors, not :root
+ * rules, so a hidden div carrying data-theme="lime" resolves the lime
+ * token scope -- and readPalette takes the element to read. That is how
+ * eight palettes are read without ever touching the live theme, which is
+ * both a render side effect and a flash of seven wrong themes.
+ *
+ * If two of these strips look the same, the globe does not retheme
+ * between those two.
+ */
+const AllStrips = ({ active }: { active: string }) => {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [strips, setStrips] = useState<{ id: string; lut: string }[]>(
+    [],
+  );
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    setStrips(
+      THEME_IDS.map((id) => {
+        const probe = host.querySelector<HTMLElement>(
+          `[data-theme="${id}"]`,
+        );
+        return {
+          id,
+          lut: buildLut(
+            readPalette(probe ?? document.documentElement),
+          ),
+        };
+      }),
+    );
+  }, []);
+
+  return (
+    <>
+      <div aria-hidden="true" className="hidden" ref={hostRef}>
+        {THEME_IDS.map((id) => (
+          <div data-theme={id} key={id} />
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-3 max-tablet:grid-cols-1">
+        {strips.map((strip) => (
+          <Strip
+            key={strip.id}
+            label={
+              strip.id === active ? `${strip.id} (live)` : strip.id
+            }
+            lut={strip.lut}
+          />
+        ))}
+      </div>
+    </>
+  );
+};
+
+const Section = ({
+  title,
+  note,
+  children,
+}: {
+  title: string;
+  note?: string;
+  children: React.ReactNode;
+}) => (
+  <section className="mb-7">
+    <h3 className="mb-1 text-[12px] tracking-[.2em] text-fg uppercase">
+      {title}
+    </h3>
+    {note === undefined ? null : (
+      <p className="mb-2 text-[11px] text-fg-4">{note}</p>
+    )}
+    {children}
+  </section>
+);
+
+const Scene = () => {
+  const { theme, lut } = useThemeSnapshot();
+
+  return (
+    <div className="bg-surface p-4 text-fg-2">
+      <div className="mb-6 flex flex-wrap gap-2">
+        {THEME_IDS.map((id) => (
+          <button
+            className="rounded-sm border px-3 py-1 text-[11px] tracking-[.16em] uppercase transition-hue"
+            key={id}
+            onClick={() => applyTheme(id as ThemeId)}
+            style={{
+              borderColor:
+                id === theme
+                  ? 'var(--clif-accent)'
+                  : 'var(--border-neutral-color)',
+              backgroundColor:
+                id === theme
+                  ? 'var(--cta-fill)'
+                  : 'var(--cta-fill-ghost)',
+              color:
+                id === theme
+                  ? 'var(--text-on-accent)'
+                  : 'var(--text-body)',
+            }}
+            type="button"
+          >
+            {id}
+          </button>
+        ))}
+      </div>
+
+      <Section
+        note="One map instance. Every route change is an easeTo on cubic-bezier(.65,0,.35,1). SceneRoot resolves the pathname against this table; a page refines only the centre."
+        title="Cameras — desktop"
+      >
+        <CameraTable mobile={false} />
+      </Section>
+
+      <Section
+        note="Not separate scenes: the same fog, terrain flag and interactivity, reframed. Terrain exaggeration drops to 1.0 on every route that has terrain."
+        title="Cameras — below 650px"
+      >
+        <CameraTable mobile />
+      </Section>
+
+      <Section
+        note={`${SCENE_MOVE_MS}ms between routes · ${SCENE_MOVE_LONG_MS}ms into the detail and out of the 404 · ${SCENE_REFRAME_MS}ms for a reframe inside a route (a hover nudge, a selected stop) · ${REDUCED_MOVE_MS}ms under reduced motion, which is a crossfade rather than a move. The foreground starts entering at ${SCENE_HANDOFF * 100}% of the scene move.`}
+        title="Durations"
+      >
+        <p className="text-[11px] text-fg-3">
+          Hovering a project eases the camera 8% toward its anchor
+          city and lights that point; hovering out reverses.
+        </p>
+      </Section>
+
+      <Section
+        note="Each route names one preset. The light preset is Standard's own sun position, set through setConfigProperty — the cheap tier, no tile reload."
+        title="Fog presets"
+      >
+        <FogTable />
+      </Section>
+
+      <Section
+        note="SceneRoot diffs the active sets against the mounted ones. Every handler is registered through the set's registry, so teardown is total."
+        title="Layer sets"
+      >
+        <LayerTable />
+      </Section>
+
+      <Section
+        note="The 32 x 1024 cube strip handed to map.setColorTheme. It re-tints the whole Mapbox Standard basemap, which is how one style wears eight themes. This is the expensive tier: it reloads every tile, so it is debounced and skipped unless the palette key changed."
+        title="Colour-theme LUT — live"
+      >
+        {lut === '' ? null : <Strip label={theme} lut={lut} />}
+      </Section>
+
+      <Section
+        note="If two of these look the same, the globe does not retheme between those two."
+        title="Colour-theme LUT — all eight themes"
+      >
+        {lut === '' ? null : <AllStrips active={theme} />}
+      </Section>
+    </div>
+  );
+};
+
 export const scene: Specimen = {
   id: 'scene',
   title: 'Scene',
   note: 'Camera table, fog presets and the generated LUT strip.',
-  render: () => <p>Not implemented yet.</p>,
+  render: () => <Scene />,
 };
 
 export default scene;
