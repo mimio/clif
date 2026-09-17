@@ -214,7 +214,7 @@ export const Sheet = ({
       </Text>
       <Text
         as="h2"
-        className="text-[length:var(--type-heading2-size-mobile)] leading-[1.14] font-[200] text-fg-2 tablet:text-[length:var(--type-heading2-size)]"
+        className="text-[length:var(--type-heading2-size-mobile)] leading-[1.14] font-[number:var(--weight-light)] text-fg-2 tablet:text-[length:var(--type-heading2-size)]"
         variant="heading3"
       >
         {title}
