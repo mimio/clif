@@ -106,7 +106,11 @@ const TRANSITION = [
   'background 160ms ease-out',
 ].join(', ');
 
-/** The glyph and the expand mark grow on a spring, not on the cap's ease. */
+/**
+ * The expand mark grows on a spring, not on the cap's ease. The glyph
+ * springs on the same curve over the same 240ms, but declares it itself --
+ * Glyph owns its transform now, so it owns the transition with it.
+ */
 const SPRING = 'transform 240ms cubic-bezier(.34,1.56,.64,1)';
 
 /* The rest ink, as the fallback of the variable the state rules flip. Both
@@ -187,7 +191,6 @@ export const keycap: ButtonStyle = ({
 
       /* Operands the state rules point at. None is ever overridden, so none
          of them is in a specificity fight with a class. */
-      '--g-base': `${spec.glyph}`,
       '--k-skirt-hot': bump(spec.skirt, 1.3),
       '--k-edge-hot': bump(spec.skirt, 1.6),
       '--k-amb-hot': bump(spec.skirt, 2.3),
@@ -212,13 +215,28 @@ export const keycap: ButtonStyle = ({
       transition: TRANSITION,
     },
   },
+  /*
+   * THE SLOT IS LAYOUT ONLY; THE GLYPH DOES THE SCALING.
+   *
+   * It reserves the sculpture's 34x34 box and pulls it into the cap's
+   * padding, and that is all. The rest scale rides down as `scale`, which
+   * Glyph writes as its own --g-base and multiplies by whatever --g-mul
+   * this cap is currently declaring -- so the growth is applied ONCE, on
+   * one element, on the glyph's own spring.
+   *
+   * Scaling here as well was a factor of --g-mul SQUARED: the slot grew
+   * 1.3x and the glyph inside it grew another 1.3x, for 1.69x on hover
+   * against the 1.30x the design asks for. Glyph's contract is the right
+   * one -- an ancestor's multiplier COMPOSES with the instance's rest
+   * scale -- so the fix is for the cap to stop competing with it, which
+   * is also the prototype's own structure (Keycap.dc.html: the 34px div
+   * scales, the imported Glyph is a plain sculpture).
+   */
   glyph: {
-    className:
-      'h-[34px] w-[34px] flex-none origin-center will-change-transform',
+    className: 'h-[34px] w-[34px] flex-none',
+    scale: spec.glyph,
     style: {
       margin: px(spec.glyphMargin),
-      transform: 'scale(calc(var(--g-base) * var(--g-mul, 1)))',
-      transition: SPRING,
     },
   },
   expand: {

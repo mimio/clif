@@ -169,7 +169,7 @@ export const Button = ({
           data-slot="glyph"
           style={parts.glyph.style}
         >
-          <Glyph kind={glyph} />
+          <Glyph kind={glyph} scale={parts.glyph.scale} />
         </span>
       )}
       <span

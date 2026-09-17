@@ -5,13 +5,7 @@ import Altimeter from 'components/chrome/Altimeter';
 import ContactMouth from 'components/chrome/ContactMouth';
 import CoordPill from 'components/chrome/CoordPill';
 import ThemeEye from 'components/chrome/ThemeEye';
-import {
-  ABOUT,
-  HELLO,
-  PROJECTS,
-  routes,
-  type RouteId,
-} from 'content/routes';
+import { ABOUT, routes, type RouteId } from 'content/routes';
 import {
   cameraForHover,
   coordLabel,
@@ -41,29 +35,71 @@ import { cn } from 'utils/cn';
  * bottom sheet owns the bottom of the screen, so the coordinate pill yields
  * to it and the eye and mouth move to the upper right.
  */
-const ROUTE_BY_PATH: Record<string, RouteId> = {
-  '/': HELLO,
-  '/projects': PROJECTS,
-  '/about': ABOUT,
-};
-
-/** Next's pathname for the project detail route, which has no notch. */
-export const DETAIL_PATH = '/projects/[projectId]';
+const ROUTE_BY_PATH = Object.fromEntries(
+  routes.map((route) => [route.path, route.id]),
+) as Record<string, RouteId>;
 
 /**
- * The rail's active notch for a pathname, or null where the rail has no
- * notch to sit on -- the detail route, which uses an explicit indicator, and
- * /404.
+ * The sections that own a subtree, longest path first, so a nested path is
+ * claimed by the deepest section that could own it rather than by whichever
+ * one `routes` happens to list first. `/` is left out on purpose: it is a
+ * prefix of every path in the app, and matching it here would light the
+ * hello notch on every route that has no notch of its own.
  */
-export const routeIdForPath = (pathname: string): RouteId | null =>
-  ROUTE_BY_PATH[pathname] ?? null;
+const NESTING_ROUTES = routes
+  .filter((route) => route.path !== '/')
+  .sort((a, b) => b.path.length - a.path.length);
 
-/** 1d pins the detail route's indicator below the projects notch. */
-export const DETAIL_INDICATOR = 0.62;
+/** Next's pathname for the project detail route. It belongs to `projects`. */
+export const DETAIL_PATH = '/projects/[projectId]';
 
-/** The rail's position for a pathname, or null when a notch owns it. */
-export const indicatorForPath = (pathname: string): number | null =>
-  pathname === DETAIL_PATH ? DETAIL_INDICATOR : null;
+/*
+ * THE RAIL MATCHES A SECTION, NOT A PAGE.
+ *
+ * This was an exact lookup, so `/projects/[projectId]` -- the pathname Next
+ * hands the router on every project page -- resolved to null and the rail
+ * showed no active tab at all on the one route that is most obviously
+ * inside a section. A detail page IS the projects section, so it reads as
+ * projects, at rest, the way the rail does on /projects itself.
+ *
+ * The match is on a SEGMENT boundary rather than a bare prefix: a section
+ * owns `<path>/...` and nothing else, so a future `/aboutus` cannot be
+ * captured by `/about`. An exact hit still wins first, which keeps the
+ * three top-level paths a one-lookup answer and keeps `/` from being
+ * treated as a nesting parent.
+ *
+ * Nothing else owns a subtree today, so in practice this is `/projects`;
+ * it is written off `routes` rather than off DETAIL_PATH so that the next
+ * nested route needs no edit here.
+ */
+export const routeIdForPath = (pathname: string): RouteId | null => {
+  const exact = ROUTE_BY_PATH[pathname];
+  if (exact !== undefined) return exact;
+  const owner = NESTING_ROUTES.find((route) =>
+    pathname.startsWith(`${route.path}/`),
+  );
+  return owner?.id ?? null;
+};
+
+/*
+ * WHAT WENT WITH IT: `indicatorForPath` and DETAIL_INDICATOR = 0.62.
+ *
+ * The chrome used to pin the detail route's bead at 0.62 -- just below the
+ * projects notch -- and that is a real frame from artboard 1d. But it is a
+ * frame of a TRANSITION, not a resting state: Altimeter.d.ts documents
+ * `indicator` as "0-1 override for the mid-travel state; suppresses the
+ * active tab while the indicator moves", the component's prompt says "while
+ * the indicator travels there is no active tab and every label sits at
+ * muted grey", and board 1i labels its own indicator specimen "mid-travel
+ * -- 45%". Freezing it made the suppression permanent, which is exactly the
+ * missing active tab above.
+ *
+ * So the detail route hands the rail an `active` and no indicator, and
+ * ChromeRoot has no caller for a mid-travel override. The PROP stays --
+ * it is the component's, the specimens drive it, and whatever animates the
+ * bead between notches one day will want it -- but the two chrome-side
+ * helpers had nothing left to do and are gone rather than left dead.
+ */
 
 const PATH_BY_ROUTE = Object.fromEntries(
   routes.map((route) => [route.id, route.path]),
@@ -158,7 +194,6 @@ export const ChromeRoot = ({ className }: ChromeRootProps) => {
       <Altimeter
         active={active}
         className="pointer-events-auto absolute top-[48px] right-[48px] origin-top-right max-tablet:top-[44px] max-tablet:right-[20px] max-tablet:scale-[.78]"
-        indicator={indicatorForPath(pathname)}
         onNavigate={(id) => {
           void push(pathForRoute(id));
         }}

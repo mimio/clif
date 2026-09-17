@@ -110,9 +110,6 @@ export const flat: ButtonStyle = ({
         'var(--radius-control)',
       ),
 
-      /* The glyph still needs its resting scale; it does not spring here. */
-      '--g-base': `${spec.glyph}`,
-
       /* currentColor throughout, for the same reason as the marks below. */
       '--k-mark': 'currentColor',
       '--k-mark-2': 'currentColor',
@@ -123,11 +120,17 @@ export const flat: ButtonStyle = ({
     className: `${JUSTIFY[`${grow || center}`]} flex min-w-0 flex-auto items-center gap-(--b-gap)`,
     style: {},
   },
+  /*
+   * Layout only, like the keycap's: the slot reserves the 34x34 box and
+   * the rest scale rides down as `scale` for Glyph to apply once. The
+   * pill still does not spring -- nothing here ever declares --g-mul, so
+   * the glyph's transform never changes and its transition never runs.
+   */
   glyph: {
-    className: 'h-[34px] w-[34px] flex-none origin-center',
+    className: 'h-[34px] w-[34px] flex-none',
+    scale: spec.glyph,
     style: {
       margin: px(spec.glyphMargin),
-      transform: 'scale(var(--g-base))',
     },
   },
   expand: {

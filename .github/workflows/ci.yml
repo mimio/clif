@@ -48,7 +48,15 @@ jobs:
       # Coverage costs about half a second here.
       - run: pnpm test:coverage
 
+      # Tier 1 serves THIS build (PLAYWRIGHT_REUSE_BUILD below), and
+      # e2e/hermetic/keycap-glyph.spec.ts measures a rendered glyph at all
+      # three keycap sizes -- which only /specimens carries. The flag is
+      # set here rather than at job level so it reaches the build and
+      # nothing else; a deployment never sets it, which is the only place
+      # the harness has to stay out of.
       - run: pnpm build
+        env:
+          NEXT_PUBLIC_SPECIMENS: '1'
 
       # The browser build only changes when Playwright itself is bumped, so
       # key the cache on its version rather than the whole lockfile.

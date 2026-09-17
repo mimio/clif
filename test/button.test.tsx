@@ -23,6 +23,12 @@ const prop = (node: HTMLElement, name: string): string =>
 const plate = (): HTMLElement =>
   cap().querySelector<HTMLElement>('.clif-button-inner')!;
 
+/** The Glyph itself, inside the slot. It is the element that scales. */
+const sculpture = (): HTMLElement =>
+  cap().querySelector<HTMLElement>(
+    '[data-slot="glyph"] [data-glyph]',
+  )!;
+
 /**
  * The skirt the cap stands on at rest, read back out of the plate's own
  * box-shadow. The rest state is the FALLBACK of --k-skirt-y rather than a
@@ -334,9 +340,54 @@ describe('Button: layout and slots', () => {
       '[data-slot="glyph"]',
     )!;
     expect(slot.style.margin).toBe('-8px');
-    expect(slot.style.transform).toBe('scale(var(--g-base))');
-    expect(prop(cap(), '--g-base')).toBe(`${BUTTON_SIZES.sm.glyph}`);
+    // The pill's glyph rests at the table's scale and stays there: the
+    // slot is layout only, and nothing on a flat pill declares --g-mul.
+    expect(slot.style.transform).toBe('');
+    expect(prop(sculpture(), '--g-base')).toBe(
+      `${BUTTON_SIZES.sm.glyph}`,
+    );
   });
+
+  /*
+   * THE GROWTH IS APPLIED ONCE. Both the slot and the Glyph inside it used
+   * to multiply by the inherited --g-mul, which made a 1.30 hover render at
+   * 1.69. The slot carries no transform at all now, so there is exactly one
+   * element between the cap and the sculpture that --g-mul can reach. The
+   * RENDERED proof is e2e/hermetic/keycap-glyph.spec.ts, which measures the
+   * box; this is the structural half of it.
+   */
+  it.each(BUTTON_SIZE_ORDER)(
+    'multiplies the %s glyph by --g-mul exactly once',
+    (size: ButtonSize) => {
+      const { unmount } = render(
+        <Button glyph="home" size={size}>
+          a
+        </Button>,
+      );
+      const slot = cap().querySelector<HTMLElement>(
+        '[data-slot="glyph"]',
+      )!;
+
+      expect(slot.style.transform).toBe('');
+      expect(slot.style.transition).toBe('');
+      expect(prop(cap(), '--g-base')).toBe('');
+
+      // One transform, on the sculpture, off this size's rest scale.
+      expect(sculpture().style.transform).toBe(
+        'scale(calc(var(--g-base) * var(--g-mul, 1)))',
+      );
+      expect(prop(sculpture(), '--g-base')).toBe(
+        `${BUTTON_SIZES[size].glyph}`,
+      );
+      expect(
+        cap().querySelectorAll(
+          '[style*="var(--g-mul"], [style*="var(--g-mul,"]',
+        ),
+      ).toHaveLength(1);
+
+      unmount();
+    },
+  );
 
   it('springs the glyph and the expand mark on the keycap', () => {
     render(
@@ -344,16 +395,11 @@ describe('Button: layout and slots', () => {
         a
       </Button>,
     );
-    const glyph = cap().querySelector<HTMLElement>(
-      '[data-slot="glyph"]',
-    )!;
     const mark = cap().querySelector<SVGElement>(
       '[data-slot="expand"]',
     )!;
-    expect(glyph.style.transform).toBe(
-      'scale(calc(var(--g-base) * var(--g-mul, 1)))',
-    );
-    expect(glyph.style.transition).toContain('240ms');
+    expect(sculpture().style.transition).toContain('240ms');
+    expect(sculpture().style.transition).toContain('cubic-bezier');
     expect(mark.getAttribute('width')).toBe(
       `${BUTTON_SIZES.md.expand}`,
     );

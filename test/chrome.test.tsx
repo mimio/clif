@@ -32,9 +32,7 @@ import Altimeter, {
   TRAVEL_MS,
 } from 'components/chrome/Altimeter';
 import ChromeRoot, {
-  DETAIL_INDICATOR,
   DETAIL_PATH,
-  indicatorForPath,
   liveCamera,
   pathForRoute,
   routeIdForPath,
@@ -171,8 +169,8 @@ describe('Altimeter geometry', () => {
     expect(beadPosition(null, null)).toBe(ALTIMETER_NOTCHES[0]);
   });
 
-  it('lets an explicit indicator win, as the detail route does', () => {
-    expect(beadPosition('projects', DETAIL_INDICATOR)).toBeCloseTo(
+  it('lets a mid-travel indicator win over the active notch', () => {
+    expect(beadPosition('projects', 0.62)).toBeCloseTo(
       20 + 0.62 * 80,
     );
     expect(beadPosition(null, 0)).toBe(ALTIMETER_NOTCHES[0]);
@@ -912,13 +910,29 @@ describe('ChromeRoot', () => {
     expect(routeIdForPath('/')).toBe('hello');
     expect(routeIdForPath('/projects')).toBe('projects');
     expect(routeIdForPath('/about')).toBe('about');
-    expect(routeIdForPath(DETAIL_PATH)).toBeNull();
     expect(routeIdForPath('/404')).toBeNull();
   });
 
-  it('hands the detail route an indicator instead of a notch', () => {
-    expect(indicatorForPath(DETAIL_PATH)).toBe(DETAIL_INDICATOR);
-    expect(indicatorForPath('/projects')).toBeNull();
+  /*
+   * A detail page is INSIDE the projects section, so the rail reads
+   * projects there. It used to resolve to null and show no active notch
+   * at all -- see the note on routeIdForPath.
+   */
+  it('keeps a nested path on its section notch', () => {
+    expect(routeIdForPath(DETAIL_PATH)).toBe('projects');
+    // The URL as well as Next's pattern: both are inside /projects.
+    expect(routeIdForPath('/projects/haikumi')).toBe('projects');
+    expect(routeIdForPath('/projects/gopro/gallery')).toBe(
+      'projects',
+    );
+  });
+
+  it('matches a whole segment, so a longer word is not a child', () => {
+    // The trap a bare startsWith would fall into.
+    expect(routeIdForPath('/aboutus')).toBeNull();
+    expect(routeIdForPath('/projectsomething')).toBeNull();
+    // '/' is every path's prefix and must not claim any of them.
+    expect(routeIdForPath('/nowhere')).toBeNull();
   });
 
   it('knows where each route lives', () => {
@@ -964,7 +978,11 @@ describe('ChromeRoot', () => {
     // The camera is frozen there, so the caption says so rather than
     // leaving an unchanging coordinate under the word CAMERA.
     expect(screen.getByText('held')).toBeVisible();
-    expect(rail(/projects/)).toHaveAttribute('aria-current', 'false');
+    // ...and the rail still reads projects, because that is the section
+    // the page is in. The bead is on the notch, not stranded below it.
+    expect(rail(/projects/)).toHaveAttribute('aria-current', 'true');
+    expect(rail(/hello/)).toHaveAttribute('aria-current', 'false');
+    expect(rail(/about/)).toHaveAttribute('aria-current', 'false');
   });
 
   it('drives the router from the rail', async () => {

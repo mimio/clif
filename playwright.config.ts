@@ -308,6 +308,20 @@ export default defineConfig({
           NEXT_PUBLIC_MAPBOX_TOKEN:
             process.env.NEXT_PUBLIC_MAPBOX_TOKEN ??
             'pk.e2e-placeholder',
+          /*
+           * The harness is built here, and only here.
+           *
+           * e2e/hermetic/keycap-glyph.spec.ts measures a rendered glyph at
+           * all three keycap sizes, and /specimens is the only place all
+           * three carry one -- the site itself ships md. Tier 1 was never
+           * the production artefact in the first place (it builds against
+           * pk.e2e-placeholder, above), so the one thing the .harness.tsx
+           * extension actually guarantees -- that a DEPLOY has no
+           * /specimens route -- is untouched: Vercel does not set this.
+           * CI sets the same flag on its own `pnpm build` step, which is
+           * the build PLAYWRIGHT_REUSE_BUILD then serves.
+           */
+          NEXT_PUBLIC_SPECIMENS: '1',
         },
       },
 });

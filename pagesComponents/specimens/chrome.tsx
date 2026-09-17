@@ -105,8 +105,15 @@ export const chrome: Specimen = {
         <Stage className="w-[200px]" label="about">
           <Altimeter active="about" />
         </Stage>
-        <Stage className="w-[200px]" label="detail — indicator 0.62">
-          <Altimeter active="projects" indicator={0.62} />
+        <Stage className="w-[200px]" label="project detail">
+          {/* Inside the projects section, so it rests on the projects
+              notch like /projects itself. It used to be shown here as
+              indicator 0.62, which is a mid-travel frame from 1d and
+              suppresses the active tab for as long as it is set. */}
+          <Altimeter active="projects" />
+        </Stage>
+        <Stage className="w-[200px]" label="mid-travel — 62%">
+          <Altimeter indicator={0.62} />
         </Stage>
         <Stage className="w-[200px]" label="mid-travel — 45%">
           <Altimeter indicator={0.45} />

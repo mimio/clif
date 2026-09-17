@@ -19,12 +19,24 @@ import {
  * and the cast shadow from --eye-shadow, all of which the theme scope
  * redefines, so switching the eye relights all three objects at once.
  *
- * Growth is two multipliers on one transform: --g-base is this instance's
- * rest scale (the `scale` prop -- Button's SIZES, the altimeter's notch
- * states) and --g-mul is whatever an ancestor sets on hover or press. The
- * glyph never sets --g-mul itself, so a consumer driving it from its own
- * :hover composes rather than competes. The easing is always the design
- * system's back-out overshoot over 240ms (inventory 3.5).
+ * Growth is two multipliers on ONE transform, on ONE element -- this root.
+ * --g-base is this instance's rest scale (the `scale` prop: Button hands
+ * down its size table's glyph scale) and --g-mul is whatever an ancestor
+ * sets on hover or press. The glyph never sets --g-mul itself, so a
+ * consumer driving it from its own :hover composes rather than competes.
+ * The easing is always the design system's back-out overshoot over 240ms
+ * (inventory 3.5).
+ *
+ * A CONSUMER MUST NOT SCALE A WRAPPER AS WELL. Both transforms would see
+ * the same inherited --g-mul and multiply by it, so a 1.30 hover would
+ * render as 1.69. The keycap did exactly that and grew the glyph by half
+ * again as much as the design asks; its slot is layout only now. A
+ * consumer that wants its own resting size passes `scale` (or `size`) --
+ * the altimeter is the other case, and it drives its notch states from a
+ * wrapper that --g-mul never reaches.
+ *
+ * will-change is here rather than on any wrapper for the same reason: this
+ * is the element that moves.
  */
 export type { GlyphKind } from 'components/primitives/Glyph/layers';
 
@@ -75,7 +87,9 @@ export const Glyph = ({
         height: size,
         '--g-base': scale,
         transform: 'scale(calc(var(--g-base) * var(--g-mul, 1)))',
+        transformOrigin: 'center',
         transition: `transform 240ms ${GLYPH_EASE}`,
+        willChange: 'transform',
       } as CSSProperties
     }
   >

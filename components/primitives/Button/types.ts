@@ -88,6 +88,18 @@ export type ButtonSlotStyle = {
   style: ButtonVars;
 };
 
+/**
+ * The glyph slot, which is layout only and hands the sculpture the rest
+ * scale to apply for itself. It is a VALUE rather than a --g-base on the
+ * slot because Glyph is the element that transforms: an ancestor's
+ * --g-mul composes with the scale Glyph was given, and a slot that also
+ * scaled would multiply the hover growth by itself.
+ */
+export type ButtonGlyphSlotStyle = ButtonSlotStyle & {
+  /** This size's rest scale for the 34px glyph box (SIZES.glyph). */
+  scale: number;
+};
+
 /** Everything a style module is told about the button it is dressing. */
 export type ButtonStyleInput = {
   size: ButtonSize;
@@ -105,7 +117,7 @@ export type ButtonStyleParts = {
   wrapper: ButtonSlotStyle;
   /** The plate itself -- the thing that lifts, travels and holds the ink. */
   inner: ButtonSlotStyle;
-  glyph: ButtonSlotStyle;
+  glyph: ButtonGlyphSlotStyle;
   expand: ButtonSlotStyle;
   /** The lead and trail marks, which share one dressing. */
   mark: ButtonSlotStyle;

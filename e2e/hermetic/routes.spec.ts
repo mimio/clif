@@ -103,6 +103,60 @@ test('every route builds exactly one map, and only after its style is ready', as
   expect(problems).toEqual([]);
 });
 
+/*
+ * THE RAIL KEEPS THE SECTION IT IS IN.
+ *
+ * A project page used to show no active notch at all: ChromeRoot looked
+ * the pathname up exactly, `/projects/[projectId]` was not in the table,
+ * and the rail was handed a frozen mid-travel indicator instead -- which
+ * is the state that deliberately has no active tab. The notch is the
+ * rendered thing the visitor was missing, so the notch is what is
+ * asserted here, rather than what the lookup returns.
+ */
+test('a project page keeps the projects notch active', async ({
+  page,
+}) => {
+  const notch = (route: string) =>
+    page
+      .getByRole('navigation', { name: 'Sections' })
+      .locator(`[data-route="${route}"]`);
+
+  await page.goto('/projects/haikumi', { waitUntil: 'load' });
+  await waitForScene(page);
+
+  await expect(notch('projects')).toHaveAttribute(
+    'aria-current',
+    'true',
+  );
+  await expect(notch('hello')).toHaveAttribute(
+    'aria-current',
+    'false',
+  );
+  await expect(notch('about')).toHaveAttribute(
+    'aria-current',
+    'false',
+  );
+
+  // The section page itself is unchanged, and so is a sibling section.
+  await page.goto('/projects', { waitUntil: 'load' });
+  await waitForScene(page);
+  await expect(notch('projects')).toHaveAttribute(
+    'aria-current',
+    'true',
+  );
+
+  await page.goto('/about', { waitUntil: 'load' });
+  await waitForScene(page);
+  await expect(notch('about')).toHaveAttribute(
+    'aria-current',
+    'true',
+  );
+  await expect(notch('projects')).toHaveAttribute(
+    'aria-current',
+    'false',
+  );
+});
+
 test('/history redirects permanently to /about', async ({
   request,
 }) => {
