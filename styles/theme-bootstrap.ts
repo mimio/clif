@@ -50,6 +50,48 @@ export const applyTheme = (id: ThemeId): void => {
   }
 };
 
+/* ---- the theme-change contract ---------------------------------------
+ *
+ * One event name, one dispatcher, one subscriber, defined HERE because
+ * this module already owns theme identity and every layer may import it.
+ * They used to live twice over -- once in scene/theme.ts and once in
+ * components/chrome/ThemeEye.tsx -- and renaming the constant in either
+ * copy left the whole unit suite and every theme e2e test green. Nothing
+ * would have broken, which is the problem: the MutationObserver below is a
+ * complete second path, so a drifted event name does not stop repaints, it
+ * just turns a whole tier into dead code that no test misses.
+ */
+
+/** The event the theme lens dispatches when it swaps themes. */
+export const THEME_EVENT = 'oneglobe:theme';
+
+/** Tells every listener which theme is now live. */
+export const announceThemeEvent = (id: ThemeId): void => {
+  window.dispatchEvent(
+    new CustomEvent(THEME_EVENT, { detail: { id } }),
+  );
+};
+
+/**
+ * Two sources, because neither alone is complete: the lens dispatches
+ * THEME_EVENT, and the attribute is the truth even when something else --
+ * the bootstrap script, a devtools edit, the specimen harness -- sets it
+ * without an event. attributeFilter alone implies attributes: true.
+ */
+export const subscribeTheme = (
+  onChange: () => void,
+): (() => void) => {
+  window.addEventListener(THEME_EVENT, onChange);
+  const watcher = new MutationObserver(onChange);
+  watcher.observe(document.documentElement, {
+    attributeFilter: ['data-theme'],
+  });
+  return () => {
+    watcher.disconnect();
+    window.removeEventListener(THEME_EVENT, onChange);
+  };
+};
+
 /*
  * Runs synchronously in <head>, before any stylesheet resolves, so there is
  * no flash of the default theme. Kept to one expression and one try/catch:

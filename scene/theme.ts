@@ -5,6 +5,7 @@ import {
   type Palette,
   readPalette,
 } from 'styles/tokens/palette';
+import { subscribeTheme, THEME_EVENT } from 'styles/theme-bootstrap';
 
 /*
  * THEMING THE REAL BASEMAP
@@ -37,9 +38,6 @@ import {
  * MutationObserver on documentElement[data-theme] because the attribute
  * is the truth even when no event fires.
  */
-
-/** The event the theme lens dispatches when it swaps themes. */
-export const THEME_EVENT = 'oneglobe:theme';
 
 /** Standard's sun position presets. */
 export type LightPreset = 'dawn' | 'day' | 'dusk' | 'night';
@@ -147,28 +145,15 @@ export const resetLutCacheForTests = (): void => {
 export const livePalette = (): Palette =>
   typeof document === 'undefined' ? FALLBACK_PALETTE : readPalette();
 
-/* ---- watching for a theme change ------------------------------------- */
-
-/**
- * Two sources, because neither alone is complete: the lens dispatches
- * `oneglobe:theme`, and the attribute is the truth even when something
- * else -- devtools, the specimen harness, the bootstrap script -- sets it
- * without an event.
+/* ---- watching for a theme change -------------------------------------
+ *
+ * The event name and the subscription are ONE definition, in
+ * styles/theme-bootstrap.ts, which already owns theme identity and which
+ * every layer may import. They are re-exported here so the scene still has
+ * a single theme module, but there is nothing to keep in step: this is the
+ * same binding the theme lens dispatches through.
  */
-export const subscribeTheme = (
-  onChange: () => void,
-): (() => void) => {
-  const observer = new MutationObserver(onChange);
-  window.addEventListener(THEME_EVENT, onChange);
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['data-theme'],
-  });
-  return () => {
-    window.removeEventListener(THEME_EVENT, onChange);
-    observer.disconnect();
-  };
-};
+export { subscribeTheme, THEME_EVENT };
 
 /** Long enough to swallow a burst of lens clicks, short enough to feel
  *  immediate. A repaint costs every visible tile. */

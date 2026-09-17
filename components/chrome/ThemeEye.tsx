@@ -7,10 +7,12 @@ import {
 } from 'react';
 import usePopover from 'components/chrome/usePopover';
 import {
+  announceThemeEvent,
   applyTheme,
   DEFAULT_THEME,
   isThemeId,
   readStoredTheme,
+  subscribeTheme,
   THEME_IDS,
   type ThemeId,
 } from 'styles/theme-bootstrap';
@@ -58,8 +60,6 @@ import { cn } from 'utils/cn';
  * Nothing about the layout depends on the order -- the panel is absolutely
  * positioned and carries its own z-index.
  */
-export const THEME_EVENT = 'oneglobe:theme';
-
 export const EYE_SIZE = 34;
 export const PANEL_WIDTH = 318;
 export const SWATCH_SIZE = 18;
@@ -96,23 +96,6 @@ const PANEL_ENTER = {
  * two eyes on one page can never disagree and there is nothing to
  * reconcile on mount.
  */
-export const subscribeTheme = (
-  onChange: () => void,
-): (() => void) => {
-  window.addEventListener(THEME_EVENT, onChange);
-  // The event is how the lens announces a pick, but the attribute is the
-  // truth: watch it directly as well, so a theme set by anything else --
-  // the bootstrap, a devtools edit, a future route -- still shows here.
-  const watcher = new MutationObserver(onChange);
-  watcher.observe(document.documentElement, {
-    attributeFilter: ['data-theme'],
-  });
-  return () => {
-    watcher.disconnect();
-    window.removeEventListener(THEME_EVENT, onChange);
-  };
-};
-
 export const currentTheme = (): ThemeId => {
   const attribute = document.documentElement.dataset.theme;
   if (isThemeId(attribute)) return attribute;
@@ -122,12 +105,6 @@ export const currentTheme = (): ThemeId => {
 
 /** The server has no document and no storage; it renders the default. */
 export const serverTheme = (): ThemeId => DEFAULT_THEME;
-
-const tellListeners = (id: ThemeId): void => {
-  window.dispatchEvent(
-    new CustomEvent(THEME_EVENT, { detail: { id } }),
-  );
-};
 
 /**
  * Sets the attribute and tells every listener, WITHOUT recording a choice.
@@ -140,13 +117,13 @@ const tellListeners = (id: ThemeId): void => {
  */
 export const publishTheme = (id: ThemeId): void => {
   document.documentElement.dataset.theme = id;
-  tellListeners(id);
+  announceThemeEvent(id);
 };
 
 /** Sets the attribute, remembers the choice, and tells every listener. */
 export const announceTheme = (id: ThemeId): void => {
   applyTheme(id);
-  tellListeners(id);
+  announceThemeEvent(id);
 };
 
 export type ThemeEyeProps = {
