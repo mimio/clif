@@ -1,18 +1,31 @@
 /*
- * Tailwind entry point and the site's design tokens.
+ * Tailwind entry point.
  *
- * Tokens declared in @theme become CSS custom properties on :root and the
- * utilities that read them: --color-accent gives bg-accent, text-accent,
- * border-accent and so on, and --breakpoint-desktop gives desktop: and
- * max-desktop:. Rules that cannot be utilities (element defaults,
- * scrollbars) live in @layer base, and recurring declaration groups are
- * @utility classes so they take variants like any other utility.
+ * The design tokens are NOT declared here. They live in styles/tokens/*,
+ * ported from the design bundle, and this file only maps Tailwind's
+ * namespaces onto them. A token value is written exactly once in this
+ * codebase, in the token file that owns it.
+ *
+ * Import order matters: themes.css is LAST of the token files because it
+ * is the only one allowed to restate a token an earlier file sets, and
+ * where they collide it wins. Everything is pulled into @layer base so
+ * Tailwind's utilities still override the element defaults.
  */
 @import 'tailwindcss';
 
 /* Mapbox's stylesheet sits in the components layer, below utilities, so the
-   map overrides in pagesComponents/history/Map.tsx win without !important. */
+   map overrides in pagesComponents/about/Map.tsx win without !important. */
 @import 'mapbox-gl/dist/mapbox-gl.css' layer(components);
+
+@import './tokens/fonts.css' layer(base);
+@import './tokens/colors.css' layer(base);
+@import './tokens/typography.css' layer(base);
+@import './tokens/spacing.css' layer(base);
+@import './tokens/borders.css' layer(base);
+@import './tokens/motion.css' layer(base);
+@import './tokens/scene.css' layer(base);
+@import './tokens/themes.css' layer(base);
+@import './tokens/base.css' layer(base);
 
 /* Tailwind's own `hover:` applies only on devices that can hover. The site's
    CSS has always applied :hover everywhere (a tap sticks), and its arbitrary
@@ -24,96 +37,125 @@
    the scanner emit Tailwind's unused .container utility. */
 @source not inline('container');
 
+/*
+ * Literals. These three cannot be references: Tailwind bakes --spacing into
+ * every spacing utility at build time, and a media query cannot read a
+ * custom property, so the two widths have to be written out. They are the
+ * only token values in this file.
+ */
 @theme {
   /* The 4px grid behind every spacing utility: p-7 is 28px, w-96 is 384px.
      Pixels rather than the rem default so the grid stays exact whatever the
-     root font size. */
+     root font size. The same steps are named --space-1..28 in
+     tokens/spacing.css for the places that want the token. */
   --spacing: 4px;
 
   /* Device classes, named for the width at which each begins. Tailwind is
      mobile-first: `desktop:` applies from 1000px up and `max-desktop:`
-     below it. styles/breakpoints.ts carries the same numbers for the JS
-     side. */
+     below it. The design bundle calls these `mobile` and `tablet` -- the
+     same two numbers, shifted one class. */
   --breakpoint-*: initial;
   --breakpoint-tablet: 650px;
   --breakpoint-desktop: 1000px;
-
-  /* Palette: surfaces darkest first, foreground brightest first. The accent
-     takes opacity modifiers (border-accent/30) where the old theme kept
-     separate translucent entries. */
-  --color-*: initial;
-  --color-surface: #161616;
-  --color-surface-2: #202020;
-  --color-surface-3: #232323;
-  --color-backdrop: rgb(22 22 22 / 0.69);
-  --color-fg: #fff;
-  --color-fg-2: #ebebeb;
-  --color-fg-3: rgb(180 180 180);
-  --color-fg-4: #858585;
-  --color-fg-5: #474747;
-  --color-accent: #ffe520;
-  --color-on-accent: #161616;
-
-  /* Enter animations. slide-in reads --slide-in-from for its start offset,
-     so a component can pair animate-slide-in with [--slide-in-from:-16px]. */
-  --animate-slide-in: slide-in 0.6s ease-out forwards;
-  --animate-slide-in-fast: slide-in 0.22s linear forwards;
-  --animate-slide-in-stagger: slide-in 0.3s ease-in forwards;
-  --animate-zoom-in: zoom-in 0.4s ease-out forwards;
-
-  @keyframes slide-in {
-    from {
-      opacity: 0;
-      transform: translateY(var(--slide-in-from, -8px));
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes zoom-in {
-    from {
-      opacity: 0.3;
-      transform: scale(1.05);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
 }
 
-/* Families come from next/font (styles/fonts.ts); pages/_app.tsx sets these
-   variables on the app wrapper, a display: contents element inside #__next.
-   `inline` makes the utilities read them from the element rather than from
-   :root. */
+/*
+ * Everything else is `@theme inline`, and that is load-bearing, not a
+ * style preference.
+ *
+ * Plain @theme copies the value it is given into a static :root variable
+ * and points the utility at that, so `bg-accent` would resolve against
+ * :root -- the yellow theme -- no matter what [data-theme] is on <html>.
+ * `inline` drops the indirection and puts the raw var() into the utility
+ * itself, so it resolves at the element and the [data-theme] scope wins.
+ * Switching any of these to plain @theme silently freezes the whole app on
+ * yellow, and nothing fails until someone looks at a screenshot.
+ *
+ * OPACITY MODIFIERS: do not write bg-accent/12, border-accent/30 or the
+ * like over the ladder tokens. Tailwind implements /nn as
+ * color-mix(in oklab, <token> nn%, transparent), which MULTIPLIES into an
+ * alpha the token may already carry: --clif-yellow-30 is rgba(...,0.3),
+ * so bg-accent-30/40 paints at 0.12, not 0.4. The accent ladder is baked
+ * per theme (100/60/35/30/20/12/07) precisely so nothing has to compute
+ * it -- reach for accent-30 rather than accent/30. A step that is not on
+ * the ladder is a color-mix in the token file, not a modifier here.
+ */
 @theme inline {
-  --font-mono: var(--font-roboto-mono);
-  --font-display: var(--font-adder);
+  /* --color-* is wiped first, so text-gray-500 and friends do not exist:
+     only the names below. */
+  --color-*: initial;
+
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  /* surfaces, darkest first */
+  --color-surface: var(--surface-ground);
+  --color-surface-2: var(--surface-raised);
+  --color-surface-3: var(--border-color);
+  --color-surface-hover: var(--surface-hover);
+  --color-sheet: var(--surface-sheet);
+  --color-backdrop: var(--surface-control-backdrop);
+
+  /* foreground, brightest first */
+  --color-fg: var(--text-strong);
+  --color-fg-2: var(--text-body);
+  --color-fg-3: var(--text-secondary);
+  --color-fg-4: var(--text-muted);
+  --color-fg-5: var(--text-faint);
+
+  /* accents. -small is the ground-aware step for 9-11px type, picked per
+     theme as the first ladder step clearing 4.5:1. */
+  --color-accent: var(--clif-accent);
+  --color-accent-2: var(--clif-accent-2);
+  --color-accent-small: var(--text-accent-small);
+  --color-accent2-text: var(--accent2-text);
+  --color-accent2-line: var(--accent2-line);
+  --color-accent2-solid: var(--accent2-solid);
+  --color-on-accent: var(--text-on-accent);
+
+  /* the accent alpha ladder, baked per theme. See the opacity note above. */
+  --color-accent-60: var(--clif-yellow-60);
+  --color-accent-35: var(--clif-yellow-35);
+  --color-accent-30: var(--clif-yellow-30);
+  --color-accent-20: var(--clif-yellow-20);
+  --color-accent-12: var(--clif-yellow-12);
+  --color-accent-07: var(--clif-yellow-07);
+
+  /* keycap and tab ink */
+  --color-cap-ink: var(--cap-ink);
+  --color-cap-ink-2: var(--cap2-ink);
+  --color-cap-ink-hot: var(--cap-ink-hot);
+  --color-tab-fill: var(--tab-fill);
+  --color-tab-ink: var(--tab-ink);
+
+  /* terrain, for the foreground bits that have to sit on it */
+  --color-map-land: var(--map-land);
+  --color-map-deep: var(--map-deep);
+
+  /* families. tokens/fonts.css builds each stack around the next/font
+     variable pages/_app.tsx sets on the app wrapper -- another reason
+     these must be inline: the variable is on that wrapper, not on :root. */
+  --font-mono: var(--family-mono);
+  --font-display: var(--family-display);
+
+  /* the enter animations, as the design system's complete shorthands */
+  --animate-slide-in: var(--enter-page);
+  --animate-slide-in-card: var(--enter-card);
+  --animate-slide-in-sheet: var(--enter-sheet);
+  --animate-live-pulse: clif-live-pulse 1.6s ease-in-out infinite;
+
+  /* the two eases the scene choreography uses */
+  --ease-scene: var(--scene-ease);
+  --ease-fg: var(--fg-ease);
 }
 
-/* The two transition groups the old theme shared between components:
-   colour-like properties, and geometry. */
+/* The two transition groups the design system shares between components. */
 @utility transition-hue {
-  transition:
-    box-shadow 0.15s linear,
-    color 0.15s linear,
-    background-color 0.15s linear,
-    opacity 0.15s linear,
-    fill 0.15s linear,
-    border-color 0.15s linear;
+  transition: var(--transition-hue);
 }
 
 @utility transition-size {
-  transition:
-    transform 0.15s ease-out,
-    translate 0.15s ease-out,
-    scale 0.15s ease-out,
-    width 0.15s ease-out,
-    height 0.15s ease-out,
-    margin 0.15s ease-out,
-    border-width 0.15s ease-out;
+  transition: var(--transition-size);
 }
 
 @utility scrollbar-hidden {
@@ -127,24 +169,24 @@
    to the copy's container, since the links come from content. */
 @utility link-underline {
   & a {
-    color: var(--color-fg-2);
+    color: var(--text-body);
     text-decoration: none;
     background-image: linear-gradient(
       120deg,
-      color-mix(in srgb, var(--color-accent) 60%, transparent) 0%,
-      color-mix(in srgb, var(--color-accent) 60%, transparent) 100%
+      var(--cta-underline) 0%,
+      var(--cta-underline) 100%
     );
     background-repeat: no-repeat;
     background-size: 100% 1px;
     background-position: 0 100%;
-    transition: background-size 0.15s linear;
+    transition: background-size var(--speed-short) linear;
   }
   & a:hover {
-    color: var(--color-fg);
+    color: var(--text-strong);
     background-size: 100% 50%;
   }
   & a:active {
-    color: var(--color-fg);
+    color: var(--text-strong);
     background-size: 100% 30%;
   }
 }
@@ -160,19 +202,12 @@
     overflow: hidden;
   }
 
-  body {
-    background-color: var(--color-surface);
-  }
-
-  svg {
-    fill: currentColor;
-  }
-
   a *,
   button * {
     user-select: none;
   }
 
+  /* The custom scrollbars, on the themed thumb tokens. */
   ::-webkit-scrollbar {
     height: 12px;
     width: 12px;
@@ -191,27 +226,15 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    transition: background-color 0.15s linear;
-    background-color: color-mix(
-      in srgb,
-      var(--color-accent) 30%,
-      transparent
-    );
+    transition: var(--transition-hue);
+    background-color: var(--scroll-rest);
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background-color: color-mix(
-      in srgb,
-      var(--color-accent) 50%,
-      transparent
-    );
+    background-color: var(--scroll-hover);
   }
 
   ::-webkit-scrollbar-thumb:active {
-    background-color: color-mix(
-      in srgb,
-      var(--color-accent) 80%,
-      transparent
-    );
+    background-color: var(--scroll-active);
   }
 }
