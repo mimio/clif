@@ -10,7 +10,10 @@ import ProjectsPage, {
   toRow,
 } from 'pagesComponents/projects';
 import { FG_STAGGER_MS, foregroundHandoffMs } from 'scene/enter';
-import MapProvider, { useSceneViewValue } from 'scene/MapProvider';
+import MapProvider, {
+  useSceneHover,
+  useSceneViewValue,
+} from 'scene/MapProvider';
 import {
   MOBILE_QUERY,
   REDUCED_MOTION_QUERY,
@@ -209,6 +212,40 @@ describe('the hover channel', () => {
     await user.unhover(row);
     expect(row).toHaveAttribute('data-active', 'false');
     expect(onHoverProject).toHaveBeenLastCalledWith(null);
+  });
+
+  it('closes when the page goes, not only when a row does', async () => {
+    const user = userEvent.setup();
+    const Lit = () => {
+      const { hover } = useSceneHover();
+      return <span data-testid="lit">{hover ?? 'none'}</span>;
+    };
+    // MapProvider is mounted in _app and never unmounts, so whatever the
+    // channel is holding when a route leaves is what the next route gets.
+    const { rerender } = render(
+      <MapProvider>
+        <ProjectsPage projects={projectsList} />
+        <Lit />
+      </MapProvider>,
+    );
+
+    const row = screen
+      .getByRole('link', { name: /GoPro/ })
+      .closest('tr') as HTMLElement;
+    await user.hover(row);
+    expect(screen.getByTestId('lit')).toHaveTextContent('vail');
+
+    // Leaving the page with the pointer parked on the row: no mouseleave
+    // is synthesised for an element that was removed, so the only event
+    // that can end this is the unmount. A stale `vail` moves the about
+    // route's centre 1.30 degrees of longitude at zoom 10.5 -- which is
+    // empty ground, not Portland.
+    rerender(
+      <MapProvider>
+        <Lit />
+      </MapProvider>,
+    );
+    expect(screen.getByTestId('lit')).toHaveTextContent('none');
   });
 
   it('is a no-op outside a provider, and needs no callback', async () => {
