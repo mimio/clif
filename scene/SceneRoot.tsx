@@ -12,6 +12,7 @@ import {
   cameraForHover,
   dashRuns,
   forViewport,
+  frameCamera,
   moveDurationFor,
   resolveCamera,
   sameCamera,
@@ -47,7 +48,11 @@ import {
   livePalette,
   subscribeTheme,
 } from 'scene/theme';
-import { useIsMobile, useReducedMotion } from 'scene/useViewport';
+import {
+  useIsMobile,
+  useReducedMotion,
+  useViewportSize,
+} from 'scene/useViewport';
 import { showLabels } from 'scene/view';
 import type { Palette } from 'styles/tokens/palette';
 import { cn } from 'utils/cn';
@@ -157,6 +162,7 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
   const { hover, setHover } = useSceneHover();
   const view = useSceneViewValue();
   const isMobile = useIsMobile();
+  const viewport = useViewportSize();
   const reduced = useReducedMotion();
 
   const [state, setState] = useState<SceneState>('pending');
@@ -170,14 +176,25 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
 
   const sceneId = sceneIdForPath(pathname);
 
+  /*
+   * The whole camera pipeline, in the order the comment on liveCamera in
+   * components/chrome/ChromeRoot.tsx lists it: the route's camera, the
+   * breakpoint's variant, then the frame resolved against the box that is
+   * actually on screen. The last step is why a resize re-frames rather
+   * than leaving yesterday's pixels of padding behind -- `viewport` moves
+   * and this memo, the pass below and the easeTo all follow it.
+   */
   const spec = useMemo(
     () =>
-      forViewport(
-        resolveCamera(pathname, declared),
-        sceneId,
-        isMobile,
+      frameCamera(
+        forViewport(
+          resolveCamera(pathname, declared),
+          sceneId,
+          isMobile,
+        ),
+        viewport,
       ),
-    [pathname, declared, sceneId, isMobile],
+    [pathname, declared, sceneId, isMobile, viewport],
   );
 
   const target = useMemo(

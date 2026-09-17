@@ -205,6 +205,7 @@ const setStatus = (next: StyleStatus): void => {
  * as `number | null | undefined`.
  */
 type Desired = {
+  camera: { spec: CameraSpec; durationMs: number } | undefined;
   fog: { spec: CameraSpec; palette: Palette } | undefined;
   config: Map<string, unknown>;
   lut: string | undefined;
@@ -212,6 +213,7 @@ type Desired = {
 };
 
 const emptyDesired = (): Desired => ({
+  camera: undefined,
   fog: undefined,
   config: new Map(),
   lut: undefined,
@@ -634,7 +636,29 @@ const flushOnce = (): void => {
   const map = instance;
   if (!map || status !== 'ready') return;
 
-  // Config first: the light preset decides how the fog reads.
+  // The camera first, so the flight starts on the frame the route
+  // changed rather than behind a style operation that might stall.
+  if (desired.camera !== undefined) {
+    const { spec, durationMs } = desired.camera;
+    lastAction = `easeTo(z${spec.zoom.toFixed(3)})`;
+    map.easeTo({
+      center: spec.center,
+      zoom: spec.zoom,
+      pitch: spec.pitch,
+      bearing: spec.bearing,
+      // Sent on EVERY move, including the ones that want none. Padding
+      // is camera state: mapbox keeps whatever the last move set, so a
+      // route that left it out would inherit the previous route's
+      // offset and draw its globe off to one side.
+      padding: spec.padding,
+      duration: durationMs,
+      easing: ease,
+    });
+    // Cleared once it is on the map, like the fog below.
+    desired.camera = undefined;
+  }
+
+  // Config next: the light preset decides how the fog reads.
   if (desired.config.size > 0) {
     for (const [key, value] of desired.config) {
       lastAction = `setConfigProperty(${key})`;
@@ -927,25 +951,43 @@ export const ensureMap = async (
 /* ---- camera ---------------------------------------------------------- */
 
 /*
- * The camera is the one part of the scene with no style precondition:
- * easeTo only touches the transform. It is applied immediately and on
- * purpose -- deferring it would leave the map at its constructed default
- * of [0, 0] zoom 0 until the stylesheet arrived, and then swing visibly
- * to the route's camera as the first tiles painted.
+ * THE CAMERA WAITS FOR THE STYLE, like everything else, and the reason is
+ * not the one the rest of this module has.
+ *
+ * easeTo is not guarded by Style._checkLoaded, so it does not throw on a
+ * map that has no style yet. It does something worse: nothing, silently.
+ * An easeTo is not a write, it is an ANIMATION, and it advances only on
+ * the map's render frames -- of which a map with no stylesheet has none.
+ * The move sits at t=0 until the style arrives, and mapbox drops it on
+ * the way through: `isEasing()` goes false with the transform still at
+ * its constructed default.
+ *
+ * SceneRoot sets its state to 'live' when the map OBJECT exists, not when
+ * the style has loaded -- deliberately, so the scene is not gated on a
+ * network round trip -- so the first camera of the session races the
+ * stylesheet. Whichever way that race went decided whether the globe was
+ * where the route asked or sitting at [0, 0] zoom 0 for the life of the
+ * tab, and it went the wrong way often. Measured: an easeTo issued at
+ * 18ms against a style that arrived at 380ms ended with the zoom
+ * unchanged at 0 and nothing reported anywhere.
+ *
+ * This is the second of two independent ways the hello camera was being
+ * thrown away -- see the rotation loop's note below for the first -- and
+ * between them they are most of what "the map is too small and in the
+ * middle" was, underneath the framing this lane came to fix. Neither was
+ * visible to any check that read the CAMERA TABLE rather than the painted
+ * pixels, and every check there was read the table.
+ *
+ * Deferring costs nothing: flushOnce runs the move the instant the style
+ * reports ready, in the same tick, and the route's own easing carries it
+ * from the default the way it was always going to.
  */
 export const applyCamera = (
   spec: CameraSpec,
   durationMs: number,
 ): void => {
-  if (!instance) return;
-  instance.easeTo({
-    center: spec.center,
-    zoom: spec.zoom,
-    pitch: spec.pitch,
-    bearing: spec.bearing,
-    duration: durationMs,
-    easing: ease,
-  });
+  desired.camera = { spec, durationMs };
+  requestFlush();
 };
 
 const shade = (palette: Palette, k: number): string =>
@@ -1071,9 +1113,33 @@ let dashStep: number | null = null;
 const tick = (): void => {
   frame = 0;
   if (!instance) return;
-  // Both dials wait for a style. Spin did not, so a route with a
-  // rotating globe kept calling setBearing on a dead one for the life of
-  // the tab -- behind the fallback plate, where nothing showed it.
+  /*
+   * Both dials wait for a style. Spin did not, so a route with a
+   * rotating globe kept calling setBearing on a dead one for the life of
+   * the tab -- behind the fallback plate, where nothing showed it.
+   *
+   * AND SPIN WAITS FOR THE FLIGHT, which is the second half of the same
+   * mistake and by far the worse one. `setBearing` is `jumpTo({bearing})`
+   * and mapbox's `jumpTo` OPENS WITH `this.stop()` -- so every frame of
+   * the rotation cancelled whatever easeTo was in progress. On the two
+   * routes that spin, that is the route's own camera move: the hello
+   * globe was stopped about 8% into its 800ms flight by the first spin
+   * frame after it started, and sat for the life of the tab at zoom 0.18
+   * of the 2.2 it was flying to, drawn around a projection centre 38px
+   * into a 461px offset. Measured, either way, in
+   * e2e/hermetic/globe-frame.spec.ts.
+   *
+   * Nothing showed it because every local check falls through to the
+   * fallback plate, and because a globe stopped at the wrong zoom is
+   * still a globe. It reads as "the map is too small and in the middle",
+   * which is exactly what it was.
+   *
+   * Holding off while the camera is easing costs nothing: easeTo is
+   * animating the bearing to the route's own resting value anyway, so a
+   * rotation applied during the flight has no meaning. It also leaves a
+   * user's inertial pan alone, which went the same way for the same
+   * reason.
+   */
   if (spin !== null && status === 'ready' && !instance.isEasing()) {
     instance.setBearing(instance.getBearing() + spin);
   }

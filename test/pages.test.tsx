@@ -233,8 +233,12 @@ describe('pages', () => {
     );
     expect(screen.getByText('404')).toBeVisible();
     expect(declaredCamera()).toEqual(cameras.notFound);
-    // The furthest the globe ever gets, which is the point of the route.
-    expect(cameras.notFound.zoom).toBe(0.8);
+    // The furthest the globe ever gets, which is the point of the route:
+    // hello's framing, eight tenths of a zoom step back.
+    expect(cameras.notFound.zoom).toBeCloseTo(
+      cameras.hello.zoom - 0.8,
+      12,
+    );
   });
 
   it('/about serves the six stops statically', async () => {

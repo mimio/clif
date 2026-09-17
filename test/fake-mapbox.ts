@@ -671,6 +671,21 @@ export class FakeMap {
 
   /* ---- and everything that is not ---------------------------------- */
 
+  /*
+   * Whether a camera flight is in progress.
+   *
+   * The fake lands every easeTo in one step, so the honest answer after
+   * one is "no". It is settable because the scene's rotation loop asks:
+   * real mapbox's setBearing is jumpTo, and jumpTo STOPS an easeTo, so
+   * the loop must hold off while one is running. A test that wants to
+   * exercise that sets this; nothing else does.
+   */
+  easing = false;
+
+  isEasing(): boolean {
+    return this.easing;
+  }
+
   easeTo(options: Record<string, unknown>): void {
     this.calls.easeTo.push(options);
     // Real mapbox fires `move` throughout the flight; landing on the

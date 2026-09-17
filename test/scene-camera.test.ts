@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { anchors } from 'content/anchors';
 import {
+  ARTBOARD_DESKTOP,
+  ARTBOARD_MOBILE,
   type CameraSpec,
   cameras,
+  NO_PADDING,
+  NOT_FOUND_FRAME_MOBILE,
+  ORBIT_FRAME,
+  ORBIT_FRAME_MOBILE,
   SCENE_EASE,
   SCENE_MOVE_LONG_MS,
   SCENE_MOVE_MS,
@@ -15,13 +21,16 @@ import {
   coordLabel,
   dashRuns,
   forViewport,
+  frameCamera,
   HOVER_NUDGE,
   MOBILE_MAX_WIDTH,
   moveDurationFor,
   nudgeToward,
+  paddingFor,
   REDUCED_MOVE_MS,
   refinesCamera,
   resolveCamera,
+  sameCamera,
   SCENE_BY_PATH,
   SCENE_REFRAME_MS,
   sceneIdForPath,
@@ -138,7 +147,11 @@ describe('viewport', () => {
   });
 
   it('applies the mobile artboards', () => {
-    expect(forViewport(cameras.hello, 'hello', true).zoom).toBe(1.4);
+    // hello swaps the frame, not the zoom: 1f frames the globe off the
+    // WIDTH, about a different point, which no single zoom expresses.
+    expect(forViewport(cameras.hello, 'hello', true).frame).toBe(
+      ORBIT_FRAME_MOBILE,
+    );
     const projects = forViewport(cameras.projects, 'projects', true);
     expect(projects.zoom).toBe(2.2);
     expect(projects.pitch).toBe(20);
@@ -161,6 +174,205 @@ describe('viewport', () => {
 
   it('keeps the breakpoint where the tokens put it', () => {
     expect(MOBILE_MAX_WIDTH).toBe(650);
+  });
+});
+
+/* ---- the frame -------------------------------------------------------- */
+
+/*
+ * THE GUARD THAT KEEPS THE TABLE HONEST.
+ *
+ * content/cameras.ts states hello's and the 404's zoom and padding as
+ * literals, because they are what ships where there is no box to measure.
+ * They are also the frame resolved at the artboard, and nothing but this
+ * stops those two accounts drifting apart -- a hand-edited zoom would
+ * simply be overwritten by frameCamera on every real viewport, silently.
+ */
+describe('the artboard cameras are their frames', () => {
+  const cases: {
+    name: string;
+    spec: CameraSpec;
+    viewport: typeof ARTBOARD_DESKTOP;
+  }[] = [
+    {
+      name: 'hello on 1a',
+      spec: cameras.hello,
+      viewport: ARTBOARD_DESKTOP,
+    },
+    {
+      name: 'hello on 1f',
+      spec: forViewport(cameras.hello, 'hello', true),
+      viewport: ARTBOARD_MOBILE,
+    },
+    {
+      name: 'the 404 at desktop size',
+      spec: cameras.notFound,
+      viewport: ARTBOARD_DESKTOP,
+    },
+    {
+      name: 'the 404 at mobile size',
+      spec: forViewport(cameras.notFound, 'notFound', true),
+      viewport: ARTBOARD_MOBILE,
+    },
+  ];
+
+  cases.forEach(({ name, spec, viewport }) => {
+    it(`${name} is what its frame resolves to`, () => {
+      const resolved = frameCamera(spec, viewport);
+      // Everything but the two derived fields, exactly, so a field added
+      // to CameraSpec and forgotten here shows up as a difference.
+      expect({ ...resolved, zoom: 0, padding: NO_PADDING }).toEqual({
+        ...spec,
+        zoom: 0,
+        padding: NO_PADDING,
+      });
+      // The two derived fields to a thousandth of a pixel, which is as
+      // exact as a ratio of a viewport can be written down.
+      expect(resolved.zoom).toBeCloseTo(spec.zoom, 12);
+      (['top', 'right', 'bottom', 'left'] as const).forEach(
+        (side) => {
+          expect(resolved.padding[side]).toBeCloseTo(
+            spec.padding[side],
+            3,
+          );
+        },
+      );
+    });
+  });
+});
+
+describe('framing', () => {
+  it('leaves a camera with no frame alone', () => {
+    expect(frameCamera(cameras.projects, ARTBOARD_DESKTOP)).toBe(
+      cameras.projects,
+    );
+  });
+
+  it('leaves every camera alone where there is no layout', () => {
+    // The server, and jsdom. Any viewport here would be invented; the
+    // table already holds the artboard camera, so it ships as it is.
+    expect(frameCamera(cameras.hello, null)).toBe(cameras.hello);
+  });
+
+  it('puts the sphere where the artboard puts it', () => {
+    // 1a: centre at 0.66w, 0.5h. Padding moves the projection centre by
+    // half the difference between opposing sides.
+    const wide = frameCamera(cameras.hello, {
+      width: 1920,
+      height: 1080,
+    });
+    const centreX =
+      (1920 + wide.padding.left - wide.padding.right) / 2;
+    const centreY =
+      (1080 + wide.padding.top - wide.padding.bottom) / 2;
+    expect(centreX).toBeCloseTo(0.66 * 1920, 9);
+    expect(centreY).toBeCloseTo(0.5 * 1080, 9);
+    expect(wide.padding.top).toBe(0);
+    expect(wide.padding.right).toBe(0);
+  });
+
+  it('lifts the sphere and re-centres it on a phone', () => {
+    const phone = frameCamera(
+      forViewport(cameras.hello, 'hello', true),
+      { width: 430, height: 932 },
+    );
+    const centreX =
+      (430 + phone.padding.left - phone.padding.right) / 2;
+    const centreY =
+      (932 + phone.padding.top - phone.padding.bottom) / 2;
+    expect(centreX).toBeCloseTo(0.5 * 430, 9);
+    expect(centreY).toBeCloseTo(0.3 * 932, 9);
+    // Lifted, so the padding is on the BOTTOM and the other three are 0.
+    expect(phone.padding.bottom).toBeCloseTo(0.4 * 932, 9);
+    expect(phone.padding.left).toBe(0);
+    expect(phone.padding.top).toBe(0);
+  });
+
+  it('pads the far side when the frame asks for one', () => {
+    // Nothing in the table frames left or down; the arithmetic still has
+    // to, or a later artboard would silently get its sign flipped.
+    expect(paddingFor([0.25, 0.75], ARTBOARD_DESKTOP)).toEqual({
+      top: 0.5 * 900,
+      right: 0.5 * 1440,
+      bottom: 0,
+      left: 0,
+    });
+    expect(paddingFor([0.5, 0.5], ARTBOARD_DESKTOP)).toEqual(
+      NO_PADDING,
+    );
+  });
+
+  it('sizes the sphere off the axis the frame names', () => {
+    // Desktop is a fraction of the HEIGHT, so a wider window does not
+    // grow the globe; mobile is a fraction of the WIDTH, so it does.
+    const tall = frameCamera(cameras.hello, {
+      width: 2560,
+      height: 900,
+    });
+    expect(tall.zoom).toBeCloseTo(cameras.hello.zoom, 12);
+    const mobile = forViewport(cameras.hello, 'hello', true);
+    expect(
+      frameCamera(mobile, { width: 500, height: 844 }).zoom,
+    ).toBeGreaterThan(
+      frameCamera(mobile, { width: 390, height: 844 }).zoom,
+    );
+  });
+
+  it('keeps the 404 eight tenths of a step behind hello', () => {
+    const viewports = [
+      ARTBOARD_DESKTOP,
+      { width: 1280, height: 800 },
+      { width: 390, height: 844 },
+    ];
+    viewports.forEach((viewport) => {
+      const mobile = viewport.width < MOBILE_MAX_WIDTH;
+      const hello = frameCamera(
+        forViewport(cameras.hello, 'hello', mobile),
+        viewport,
+      );
+      const missing = frameCamera(
+        forViewport(cameras.notFound, 'notFound', mobile),
+        viewport,
+      );
+      expect(missing.zoom).toBeCloseTo(hello.zoom - 0.8, 12);
+      // And it is framed on the same point, which is all it inherits.
+      expect(missing.padding).toEqual(hello.padding);
+    });
+    expect(NOT_FOUND_FRAME_MOBILE.at).toEqual(ORBIT_FRAME_MOBILE.at);
+    expect(ORBIT_FRAME.zoomOffset).toBe(0);
+  });
+
+  it('tells a frame from no frame, and a padding from a stray value', () => {
+    /*
+     * sameCamera decides whether to issue an easeTo, and CameraSpec now
+     * carries two object fields. A comparison that only knew about
+     * primitives and arrays would call every pair of cameras equal in
+     * those fields -- including a framed one and an unframed one.
+     */
+    expect(sameCamera(cameras.hello, cameras.projects)).toBe(false);
+    const bent = (padding: unknown): CameraSpec =>
+      ({ ...cameras.projects, padding }) as CameraSpec;
+    expect(sameCamera(cameras.projects, bent(null))).toBe(false);
+    expect(sameCamera(cameras.projects, bent(0))).toBe(false);
+    expect(sameCamera(cameras.projects, bent([0, 0, 0, 0]))).toBe(
+      false,
+    );
+    expect(
+      sameCamera(cameras.projects, bent({ ...NO_PADDING, extra: 1 })),
+    ).toBe(false);
+    // And a rebuilt-but-equal padding is still the same camera, which is
+    // what stops a re-render turning into a camera move.
+    expect(
+      sameCamera(cameras.projects, bent({ ...NO_PADDING })),
+    ).toBe(true);
+  });
+
+  it("never resolves below the map's own minimum", () => {
+    // A box with no height frames a sphere of no size, which solves to
+    // minus infinity. easeTo must never see that.
+    expect(
+      frameCamera(cameras.notFound, { width: 0, height: 0 }).zoom,
+    ).toBe(0);
   });
 });
 

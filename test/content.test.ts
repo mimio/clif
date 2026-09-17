@@ -3,9 +3,11 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { anchorList, anchors, VAIL_VALLEY } from 'content/anchors';
 import {
+  ARTBOARD_DESKTOP,
   cameraAtAnchor,
   cameras,
   fogPresets,
+  NO_PADDING,
   SCENE_EASE,
   SCENE_HANDOFF,
   SCENE_MOVE_LONG_MS,
@@ -48,14 +50,45 @@ describe('anchors', () => {
 
 describe('cameras', () => {
   it('uses the artboard values for every scene', () => {
-    expect(cameras.hello.zoom).toBe(1.6);
+    // hello and the 404 state their size as a FRAME rather than a zoom;
+    // test/scene-camera.test.ts holds their zooms to it.
+    expect(cameras.hello.frame).toEqual({
+      at: [0.66, 0.5],
+      radius: 0.44,
+      of: 'height',
+      zoomOffset: 0,
+    });
     expect(cameras.hello.spin).toBeCloseTo(0.0015);
     expect(cameras.projects.center).toEqual([-98.0, 39.0]);
     expect(cameras.projects.zoom).toBe(2.6);
     expect(cameras.projects.pitch).toBe(25);
     expect(cameras.projects.bearing).toBe(-12);
     expect(cameras.about.zoom).toBe(10.5);
-    expect(cameras.notFound.zoom).toBe(0.8);
+    // The only thing on record about the 404: 1a settles "from zoom 0.8"
+    // against a hello the same card calls 1.6, so it sits eight tenths of
+    // a step back from whatever hello's frame resolves to.
+    expect(cameras.notFound.frame).toEqual({
+      ...cameras.hello.frame,
+      zoomOffset: -0.8,
+    });
+  });
+
+  it('gives every camera a padding, including the ones with none', () => {
+    // mapbox keeps the last padding it was given, so a camera that said
+    // nothing would wear the previous route's offset.
+    Object.values(cameras).forEach((camera) => {
+      expect(Object.keys(camera.padding).sort()).toEqual([
+        'bottom',
+        'left',
+        'right',
+        'top',
+      ]);
+    });
+    expect(cameras.projects.padding).toEqual(NO_PADDING);
+    expect(cameras.hello.padding.left).toBeCloseTo(
+      (2 * 0.66 - 1) * ARTBOARD_DESKTOP.width,
+      6,
+    );
   });
 
   it('holds the camera on the detail route', () => {

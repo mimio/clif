@@ -98,8 +98,15 @@ describe('the 404, interpolated from the system', () => {
       </MapProvider>,
     );
 
-    expect(screen.getByTestId('camera')).toHaveTextContent('0.8');
-    expect(cameras.notFound.zoom).toBe(0.8);
+    expect(screen.getByTestId('camera')).toHaveTextContent(
+      String(cameras.notFound.zoom),
+    );
+    // Eight tenths of a zoom step behind hello, which is all 1a says.
+    expect(cameras.notFound.frame?.zoomOffset).toBe(-0.8);
+    expect(cameras.notFound.zoom).toBeCloseTo(
+      cameras.hello.zoom - 0.8,
+      12,
+    );
     // Anything unmapped lands here, not only /404 itself.
     expect(sceneIdForPath('/nope')).toBe('notFound');
   });
