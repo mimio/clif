@@ -1383,14 +1383,38 @@
   );
 }
 
-/* theme crossfade: tokens change, the camera holds */
-[data-theme] {
+/*
+ * Theme crossfade: tokens change, the camera holds.
+ *
+ * The bundle's selector is a bare [data-theme], which is wrong twice over,
+ * and both halves were measured in Chromium before this was touched.
+ *
+ * It never reached the page. The only element carrying data-theme is the
+ * documentElement, whose background-color is rgba(0,0,0,0) in all eight
+ * themes -- so that half animates nothing -- and whose color is overridden
+ * by body one level down. body is where the ground and the ink actually
+ * live (tokens/base.css), body has no data-theme, so body snapped:
+ * rgb(22,22,22) to rgb(237,233,225) at t+0, with transition-duration 0s.
+ * The 400ms crossfade this file has always claimed, and that ThemeEye's
+ * comment points at, was not happening. body is named here so that it does.
+ *
+ * It did reach the theme lens's swatches. Each swatch span carries its own
+ * data-theme to re-scope the tokens inside it, which handed it a 400ms
+ * color transition its parent row does not have (140ms) -- measured
+ * lagging at rgb(174,173,173) 200ms after a switch that the row had
+ * already finished. Invisible today, only because no swatch draws text or
+ * uses currentColor. :root pins the rule to the documentElement, so a
+ * nested scope is a scope and nothing more.
+ */
+:root[data-theme],
+body {
   transition:
     background-color 400ms linear,
     color 400ms linear;
 }
 @media (prefers-reduced-motion: reduce) {
-  [data-theme] {
+  :root[data-theme],
+  body {
     transition: none;
   }
 }
