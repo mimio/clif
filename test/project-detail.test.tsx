@@ -8,13 +8,14 @@ import {
   vi,
 } from 'vitest';
 import projectsById from 'content/projects';
-import { SCENE_HANDOFF, SCENE_MOVE_LONG_MS } from 'content/cameras';
 import ProjectDetailPage, {
-  enterStyle,
-  FG_REDUCED_MS,
-  FG_STAGGER_MS,
   pagerLabel,
 } from 'pagesComponents/projectDetail';
+import {
+  FG_REDUCED_MS,
+  FG_STAGGER_MS,
+  foregroundHandoffMs,
+} from 'scene/enter';
 import { REDUCED_MOTION_QUERY } from 'scene/useViewport';
 
 const push = vi.hoisted(() => vi.fn());
@@ -178,33 +179,44 @@ describe('project detail (artboard 1d)', () => {
 });
 
 describe('foreground choreography', () => {
-  it('waits for the scene and then staggers', () => {
-    expect(enterStyle(0, false).animationDelay).toBe(
-      `${SCENE_MOVE_LONG_MS * SCENE_HANDOFF}ms`,
+  /*
+   * scene/enter.ts owns the shape of the enter and test/scene-enter.test.ts
+   * proves it. What belongs to this route is WHICH move it waits on -- the
+   * 900ms flight into a detail, not the 800ms everything else gets -- and
+   * that the steps come out in the artboard's order.
+   */
+  const animationOf = (el: Element | null | undefined) =>
+    (el as HTMLElement | null | undefined)?.style.animation ?? '';
+
+  it('waits on the detail move and steps 40ms apart', () => {
+    const { container } = render(
+      <ProjectDetailPage project={gopro} />,
     );
-    expect(enterStyle(3, false).animationDelay).toBe(
-      `${SCENE_MOVE_LONG_MS * SCENE_HANDOFF + 3 * FG_STAGGER_MS}ms`,
+    const handoff = foregroundHandoffMs('projectDetail');
+    expect(handoff).toBe(540);
+
+    expect(
+      animationOf(container.querySelector('h1')?.parentElement),
+    ).toContain(`${handoff}ms both`);
+    expect(animationOf(container.querySelector('h2'))).toContain(
+      `${handoff + FG_STAGGER_MS}ms both`,
     );
-    expect(enterStyle(1, false).animation).toContain('clif-slidein');
+    expect(
+      animationOf(container.querySelector('dl')?.parentElement),
+    ).toContain(`${handoff + 4 * FG_STAGGER_MS}ms both`);
   });
 
   it('crossfades in place under reduced motion', () => {
-    const style = enterStyle(4, true) as Record<string, string>;
-    expect(style.animation).toBe(
-      `clif-slidein ${FG_REDUCED_MS}ms linear both`,
-    );
-    expect(style['--slide-in-from']).toBe('0px');
-    expect(style.animationDelay).toBeUndefined();
-  });
-
-  it('reads the preference off the media query', () => {
     stubReducedMotion(true);
     const { container } = render(
       <ProjectDetailPage project={gopro} />,
     );
     const word = container.querySelector('h1')?.parentElement;
-    expect(word?.style.animation).toBe(
+    expect(animationOf(word)).toBe(
       `clif-slidein ${FG_REDUCED_MS}ms linear both`,
+    );
+    expect(word?.style.getPropertyValue('--slide-in-from')).toBe(
+      '0px',
     );
   });
 });

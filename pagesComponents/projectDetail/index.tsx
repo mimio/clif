@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Button from 'components/primitives/Button';
 import PageWord from 'components/primitives/PageWord';
@@ -8,10 +8,10 @@ import MetaGrid from 'components/composed/MetaGrid';
 import Pager from 'components/composed/Pager';
 import SceneStage from 'components/composed/SceneStage';
 import ScreenshotPlane from 'components/composed/ScreenshotPlane';
-import { SCENE_HANDOFF, SCENE_MOVE_LONG_MS } from 'content/cameras';
 import type { Project, RichText } from 'content/projects';
 import { projectsList } from 'content/projects';
 import { projectPath, PROJECTS } from 'content/routes';
+import { foregroundEnter } from 'scene/enter';
 import { useReducedMotion } from 'scene/useViewport';
 
 /*
@@ -98,37 +98,20 @@ export const pagerLabel = (projectId: string): string => {
 };
 
 /*
- * The foreground choreography, from the 1d and 1a motion notes: the column
- * waits until the scene is SCENE_HANDOFF through its 900ms fly, then each
- * block enters over --fg-enter on --fg-ease, 40ms apart.
+ * The foreground choreography is the shared one in scene/enter.ts: the
+ * column waits 60% of the move this route arrives on -- derived from the
+ * camera's own moveDurationFor, which is 900ms into a detail -- and then
+ * steps 40ms apart on --fg-enter / --fg-ease. 40ms is the default, and it
+ * is what 1d asks for, so nothing here passes a stagger. Reduced motion
+ * gets the system's 200ms crossfade in place, with no wait.
  *
- * Reduced motion gets the system's answer everywhere else -- a 200ms
- * crossfade, no travel and no wait. That is this same keyframe with its
- * distance set to zero, since clif-slidein reads --slide-in-from, rather
- * than a second keyframe styles/ would have to declare.
- *
- * THE PLANE IS NOT IN THIS LIST. It does not re-enter on the way into a
- * detail -- the same plane re-anchors right -- and an animation on its
- * wrapper would say otherwise the moment it did survive a navigation.
+ * The step order below is the artboard's reading order. THE PLANE IS NOT
+ * IN IT: it does not re-enter on the way into a detail -- the same plane
+ * re-anchors right -- and an animation on its wrapper would say otherwise
+ * the moment it did survive a navigation.
  */
-export const FG_STAGGER_MS = 40;
-export const FG_REDUCED_MS = 200;
-
-export const enterStyle = (
-  index: number,
-  reduced: boolean,
-): CSSProperties =>
-  reduced
-    ? ({
-        '--slide-in-from': '0px',
-        animation: `clif-slidein ${FG_REDUCED_MS}ms linear both`,
-      } as CSSProperties)
-    : {
-        animation: 'var(--fg-enter) var(--fg-ease) both clif-slidein',
-        animationDelay: `${
-          SCENE_MOVE_LONG_MS * SCENE_HANDOFF + index * FG_STAGGER_MS
-        }ms`,
-      };
+const enterStep = (step: number, reduced: boolean) =>
+  foregroundEnter(step, { reduced, scene: 'projectDetail' });
 
 export type ProjectDetailPageProps = {
   project: Project;
@@ -164,20 +147,20 @@ export const ProjectDetailPage = ({
       {/* The word rides the stagger with the rest of the column, so it is a
           child rather than SceneStage's `word` slot, whose wrapper this
           component cannot reach. */}
-      <div style={enterStyle(0, reduced)}>
+      <div style={enterStep(0, reduced)}>
         <PageWord size="lg">{project.id}</PageWord>
       </div>
       <Text
         as="h2"
         className="max-w-[560px] [text-wrap:balance]"
-        style={enterStyle(1, reduced)}
+        style={enterStep(1, reduced)}
         variant="heading3"
       >
         {project.title}
       </Text>
       <div
         className="flex flex-wrap gap-2"
-        style={enterStyle(2, reduced)}
+        style={enterStep(2, reduced)}
       >
         {project.roles.map((role, index) => (
           // The lead role takes the accent outline and the rest the neutral
@@ -191,7 +174,7 @@ export const ProjectDetailPage = ({
       </div>
       <div
         className="flex max-w-[470px] flex-col gap-4 link-underline [text-wrap:pretty]"
-        style={enterStyle(3, reduced)}
+        style={enterStep(3, reduced)}
       >
         {project.description.map((paragraph, index) => (
           // Paragraphs have no id and never reorder; the index is the key.
@@ -214,7 +197,7 @@ export const ProjectDetailPage = ({
           </Text>
         ))}
       </div>
-      <div style={enterStyle(4, reduced)}>
+      <div style={enterStep(4, reduced)}>
         <MetaGrid
           className="max-w-[560px]"
           items={[
@@ -224,7 +207,7 @@ export const ProjectDetailPage = ({
           ]}
         />
       </div>
-      <div style={enterStyle(5, reduced)}>
+      <div style={enterStep(5, reduced)}>
         <Pager
           className={PAGER_FIT}
           next={{
