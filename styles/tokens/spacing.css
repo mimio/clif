@@ -1,0 +1,44 @@
+/*
+ * The 4px grid and the stage insets (design inventory 1.4), ported
+ * verbatim.
+ *
+ * The bundle's --breakpoint-tablet/-mobile are NOT here. A media query
+ * cannot read a custom property, so the two widths have to be literals in
+ * Tailwind's @theme block; globals.css is the one place they are written,
+ * under Tailwind's naming (tablet 650px, desktop 1000px) rather than the
+ * bundle's one-class-shifted names.
+ */
+:root {
+  /* only these steps appear in the product */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-14: 56px;
+  --space-16: 64px;
+  --space-21: 84px;
+  --space-28: 112px;
+
+  /* stage insets */
+  --page-min-padding: 16px;
+  --foreground-left: 112px;
+  --foreground-left-tablet: 16px;
+  --foreground-right: 120px;
+  --foreground-right-tablet: 92px;
+  --foreground-right-mobile: 52px;
+  --foreground-top: 208px;
+  --foreground-top-tablet: 176px;
+  --foreground-top-mobile: 96px;
+  --foreground-bottom: 80px;
+  --foreground-bottom-mobile: 40px;
+
+  --popup-width: 384px;
+  --popup-max-height: 260px;
+
+  /* chrome is pinned 16px from the viewport corners */
+  --chrome-inset: 16px;
+}

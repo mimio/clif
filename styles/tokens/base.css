@@ -1,0 +1,55 @@
+/*
+ * Element defaults (design inventory 1.8), ported verbatim.
+ *
+ * globals.css imports this into @layer base, below Tailwind's utilities,
+ * so bg-*, text-* and fill-* still win over these without !important. The
+ * app's viewport shell (html/body/#__next sizing, overflow and the custom
+ * scrollbars) lives in globals.css, not here: it is Next's structure
+ * rather than the design system's.
+ */
+html {
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-ground);
+  color: var(--text-body);
+  font-family: var(--family-mono);
+  font-weight: var(--weight-regular);
+}
+
+a {
+  text-decoration: none;
+  color: var(--text-body);
+}
+
+a:hover {
+  color: var(--text-strong);
+}
+
+svg {
+  fill: currentColor;
+}
+
+ul {
+  padding: 0;
+  margin-right: 0;
+  list-style-type: none;
+}
+
+/* inlined brand glyphs (components/primitives/Icon.tsx) */
+[data-icon-inline] > svg,
+[data-icon] > svg,
+.ico > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  fill: currentColor;
+}

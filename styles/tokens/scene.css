@@ -1,0 +1,40 @@
+/*
+ * Scene geometry and the fog presets (design inventory 1.7), ported
+ * verbatim.
+ *
+ * --vignette-left and --vignette-night are NOT here. The bundle declares
+ * them in this file and again, with weaker alphas, in themes.css, which is
+ * imported later and wins -- design inventory 8 gap 12, "three sources,
+ * three answers". themes.css is the one source now, because it is the one
+ * that actually shipped and the only one that themes.
+ */
+:root {
+  /* the fog presets. Each route names one; nothing else tints the scene. */
+  --fog-space-range: 0.6 12; /* deep space -- hello */
+  --fog-space-color: #161616;
+  --fog-space-high: rgba(255, 229, 32, 0.2); /* atmosphere rim */
+
+  --fog-dusk-range: 0.4 6; /* projects -- type lives in the atmosphere */
+  --fog-dusk-color: #1b1a14;
+  --fog-dusk-high: rgba(255, 229, 32, 0.3);
+
+  --fog-night-range: 0.2 4; /* project detail + about -- terrain on */
+  --fog-night-color: #121212;
+  --fog-night-high: rgba(255, 229, 32, 0.12);
+
+  /* foreground protection over the atmosphere fog */
+  --vignette-atmosphere: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.45) 0%,
+    rgba(0, 0, 0, 0.3) 55%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+
+  /* scene geometry */
+  --globe-point-size: 3px;
+  --globe-path-width: 1px;
+  --globe-contour-interval: 15%;
+  --terrain-exaggeration: 1.4;
+  --terrain-exaggeration-mobile: 1;
+  --dpr-clamp: 1.5;
+}
