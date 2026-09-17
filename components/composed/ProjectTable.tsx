@@ -176,7 +176,7 @@ export const ProjectTable = ({
       {/* The second colour belongs to the table title, not to a page eyebrow. */}
       <div className="flex items-baseline gap-3.5 pb-3.5">
         <Text
-          className="[letter-spacing:var(--type-label-tracking)] text-accent2-text uppercase"
+          className="[letter-spacing:var(--type-caption-tracking)] text-accent2-text uppercase"
           variant="readout"
         >
           {eyebrow}
@@ -204,7 +204,7 @@ export const ProjectTable = ({
             {model.map((column) => (
               <th
                 className={cn(
-                  'text-left text-[length:var(--type-readout-size)] font-normal [letter-spacing:var(--type-label-tracking)] text-fg-5 uppercase',
+                  'text-left text-[length:var(--type-caption-size)] font-normal [letter-spacing:var(--type-label-tracking)] text-fg-5 uppercase',
                   CELL_VISIBILITY[column.key],
                 )}
                 key={column.key}
