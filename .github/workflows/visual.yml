@@ -13,16 +13,43 @@ name: Visual review
 # (deployment_status.environment_url). Watching `pull_request` instead
 # would mean polling Vercel for a URL that may not exist yet.
 #
+# THE TIER IS SPLIT, AND THAT SPLIT IS THE POINT.
+#
+#   e2e/review/scene.spec.ts    the hard gate. Fails the build. Asserts
+#                               facts: every route is live over the real
+#                               basemap, the colour-theme LUT reached the
+#                               map and mapbox decoded and accepted it,
+#                               every setConfigProperty key is one
+#                               Standard has, and nothing complained.
+#                               These are the two things nobody could
+#                               verify without a real Mapbox account, and
+#                               both fail silently in production.
+#
+#   e2e/review/capture.spec.ts  the soft record. Cannot fail. Photographs
+#                               the five routes at two sizes and the globe
+#                               under all eight themes, attaches every
+#                               capture, and records a baseline drift as
+#                               an annotation.
+#
+# The first version compared with toHaveScreenshot and every one of its
+# nineteen tests failed, because toHaveScreenshot captures until two
+# consecutive frames are identical and a live Mapbox canvas never delivers
+# that. An assertion that cannot be made green teaches its reader to
+# ignore the job, so the pictures stopped being assertions.
+#
 # THE SCREENSHOTS ARE UPLOADED ON EVERY RUN, not only on failure: they are
 # the thing the owner asked for, and a job that only produces them when it
 # is unhappy is a job whose output nobody sees.
 #
-# A NOTE ON THE FIRST RUN. There are no committed baselines yet, and none
-# can be produced anywhere but here. Playwright writes a missing baseline
-# and reports the test as failed, which is the correct outcome: a new
-# baseline is a change a human accepts, not one CI adopts silently. So the
-# first run is red, uploads every capture, and turns green once the
-# accepted images are committed under e2e/review/__screenshots__.
+# ACCEPTING A RUN'S CAPTURES AS BASELINES. Nothing here writes one --
+# playwright.config.ts sets updateSnapshots: 'none' -- so there is no way
+# for CI to adopt a baseline quietly. Every capture is mirrored into
+# test-results/review-captures under the exact path its baseline occupies,
+# so from the downloaded review-screenshots artifact:
+#
+#   cp -r test-results/review-captures/e2e .
+#
+# and commit what you agree with.
 
 on:
   deployment_status:
@@ -48,7 +75,7 @@ jobs:
       github.event.deployment_status.environment_url != '' &&
       github.event.deployment.environment != 'Production'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     env:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
@@ -134,20 +161,42 @@ jobs:
       # PREVIEW_URL is what switches playwright.config.ts to the review
       # tier: no local build, no webServer, and only the specs in
       # e2e/review. There is nothing to build here -- Vercel already did.
-      - name: Playwright (tier 2, review app)
-        run: pnpm exec playwright test
+      #
+      # The two files are two steps rather than one run, so the ordering
+      # is a guarantee rather than a hope: the gate finishes before a
+      # single photograph is taken, and the photographs are taken whatever
+      # the gate said. Each gets its own --output, because Playwright
+      # empties that directory when it starts and the second run would
+      # otherwise delete the first one's traces.
+      - name: Playwright (tier 2, hard gate)
+        run: >-
+          pnpm exec playwright test e2e/review/scene.spec.ts
+          --output=test-results/gate
         env:
           PREVIEW_URL: ${{ steps.preview.outputs.url }}
           PREVIEW_BYPASS_TOKEN: ${{ steps.origin.outputs.fork == 'false' && secrets.VERCEL_AUTOMATION_BYPASS_SECRET || '' }}
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/gate
 
-      # Everything below runs whether the comparison passed or not.
+      - name: Playwright (tier 2, captures)
+        if: always()
+        run: >-
+          pnpm exec playwright test e2e/review/capture.spec.ts
+          --output=test-results/captures
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+          PREVIEW_BYPASS_TOKEN: ${{ steps.origin.outputs.fork == 'false' && secrets.VERCEL_AUTOMATION_BYPASS_SECRET || '' }}
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/captures
+
+      # Everything below runs whether the gate passed or not.
       - name: Upload the screenshots
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: review-screenshots
-          # The accepted baselines, plus every -actual and -diff Playwright
-          # wrote for a comparison that did not match or did not exist.
+          # test-results/review-captures is every capture, laid out at the
+          # path its baseline occupies, so accepting a run is one copy.
+          # The rest is the committed baselines and the -expected/-actual/
+          # -diff triples Playwright wrote for anything that drifted.
           path: |
             e2e/review/__screenshots__
             test-results

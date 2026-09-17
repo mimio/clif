@@ -106,12 +106,30 @@ export default defineConfig({
   /*
    * Baselines live beside the specs that own them rather than under
    * test-results, because they are committed artefacts: the workflow
-   * uploads them on every run and the owner commits the ones they accept.
+   * uploads every capture and the owner commits the ones they accept.
    * They are platform-tagged because a Linux runner and a developer's
-   * laptop rasterise type differently, and only the runner's are the gate.
+   * laptop rasterise type differently, and only the runner's are usable.
    */
   snapshotPathTemplate:
     '{testDir}/__screenshots__/{projectName}/{platform}/{testFilePath}/{arg}{ext}',
+
+  /*
+   * NOTHING WRITES A BASELINE, and this one word is why the review job is
+   * green on a fresh checkout.
+   *
+   * Playwright's default is 'missing': a comparison with no baseline
+   * writes the file and attaches a SOFT ERROR, which does not throw and
+   * therefore cannot be caught -- the test is marked failed no matter how
+   * the call is wrapped. With eighteen captures and no committed
+   * baselines, that is eighteen red tests saying nothing about the site.
+   *
+   * 'none' makes a missing baseline an ordinary thrown assertion, which
+   * e2e/fixtures/capture.ts catches and turns into an annotation. Every
+   * capture is still written -- to test-results/review-captures, under
+   * the exact path its baseline would occupy -- so accepting a run is one
+   * copy out of the uploaded artifact.
+   */
+  updateSnapshots: 'none',
 
   use: {
     baseURL: REVIEW ? PREVIEW_URL : LOCAL_URL,
@@ -121,39 +139,36 @@ export default defineConfig({
   },
 
   /*
-   * THE SCREENSHOT TOLERANCE, AND WHY IT IS THIS LOOSE.
+   * THE COMPARISON TOLERANCE, AND WHY IT TIGHTENED.
    *
-   * A live basemap is not pixel-deterministic. Tiles arrive over the
-   * network and composite as they land; label placement shifts with which
-   * tiles are in hand; Standard's light preset moves a sun; text is
-   * rasterised by the runner's own font stack. A baseline compared at
-   * Playwright's defaults -- threshold 0.2 and any number of differing
-   * pixels -- would fail on every run, and the job would be a flake
-   * generator rather than a gate. A gate nobody trusts is worse than no
-   * gate, because it trains its reader to click through.
+   * This used to be threshold 0.3 / maxDiffPixelRatio 0.08, chosen so a
+   * nondeterministic basemap could not turn the job red. That reasoning
+   * belonged to a design where the comparison was the gate. It is not any
+   * more: e2e/review/scene.spec.ts is the gate and it asserts facts, while
+   * every comparison in e2e/review/capture.spec.ts is caught and recorded
+   * as an annotation. A soft signal calibrated not to fire tells nobody
+   * anything -- the failure mode reverses, and the loose number that was
+   * protecting the build is now just hiding drift from a human.
    *
-   * So `threshold` 0.3 is the per-pixel allowance, in YIQ distance, and
-   * absorbs the re-tinting and antialiasing a re-rendered tile produces.
-   * `maxDiffPixelRatio` 0.08 is the count, and it is the number that
-   * matters: 8% of the frame may differ outright, which covers a band of
-   * labels, a slice of terrain that arrived at a different zoom, or a
-   * cloud layer -- and still catches everything the suite is actually
-   * for. A theme that did not apply re-tints essentially the whole globe;
-   * a foreground that failed to render loses a whole column; a route that
-   * 500s is a blank page. All of those are far past 8%.
+   * So: Playwright's default 0.2 per pixel, and 0.02 of the frame. Two
+   * percent is still generous for a picture that is mostly terrain, and
+   * it is deliberately a STARTING POINT rather than a measurement. Nobody
+   * has ever compared two runs of this site against real Mapbox, so the
+   * honest number is whatever the first few runs' annotations show; the
+   * job exists partly to find that out. Waiting on the map's own `idle`
+   * event rather than on a clock should make the frames much closer to
+   * deterministic than the old number assumed -- tiles are all in by then
+   * -- but "should" is the word this branch has been wrong about before.
    *
-   * It is deliberately a coarse instrument. The fine instrument is the
-   * programmatic assertion in themes.visual.spec.ts, which reads back
-   * whether mapbox-gl actually decoded and accepted the LUT; the
-   * screenshots are for the owner to look at.
+   * These feed toMatchSnapshot rather than toHaveScreenshot, because
+   * toHaveScreenshot's stabilisation loop -- capture until two frames are
+   * identical -- can never converge on a live WebGL canvas. See
+   * e2e/fixtures/capture.ts.
    */
   expect: {
-    toHaveScreenshot: {
-      threshold: 0.3,
-      maxDiffPixelRatio: 0.08,
-      animations: 'disabled',
-      caret: 'hide',
-      scale: 'css',
+    toMatchSnapshot: {
+      threshold: 0.2,
+      maxDiffPixelRatio: 0.02,
     },
   },
 
@@ -162,16 +177,30 @@ export default defineConfig({
         {
           name: 'review',
           testDir: './e2e/review',
+          /*
+           * A network-backed map needs a proportionate budget. The 30s
+           * default was not one: a single route can spend most of it
+           * waiting for the style, the DEM and every visible tile, and
+           * the first version of this job spent its whole timeout inside
+           * settle() and then reported "Target page, context or browser
+           * has been closed" -- the shutdown, not the cause. The
+           * 180_000 elsewhere in this file is the webServer's and has
+           * never applied here; the review tier has no webServer at all.
+           */
+          timeout: 150_000,
           use: {
             ...devices['Desktop Chrome'],
             launchOptions,
             /*
-             * The hello and 404 cameras spin and the work path dashes: an
-             * animating globe never produces two identical frames, so
-             * toHaveScreenshot would wait out its timeout instead of
-             * settling. scene/camera.ts resolves both dials to off under
-             * reduced motion, which is the app's own switch for this and
-             * therefore the honest way to hold the frame still.
+             * The hello and 404 cameras spin and the work path dashes,
+             * and scene/camera.ts resolves both dials to off under
+             * reduced motion -- the app's own switch, so this is the
+             * honest way to stop them rather than a test-only freeze.
+             *
+             * It does NOT make the canvas still, and nothing can: tiles
+             * fade in and terrain refines under their own render loop.
+             * That is why the captures are single frames rather than
+             * stabilised comparisons.
              */
             reducedMotion: 'reduce',
           },

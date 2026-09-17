@@ -139,18 +139,38 @@ export const collectProblems = (
 export const DESKTOP = { width: 1440, height: 900 };
 export const MOBILE = { width: 390, height: 844 };
 
-/** How long a live basemap is given to stop fetching tiles. */
-export const TILE_SETTLE_MS = 2_500;
+/*
+ * TWO MESSAGES THAT ARE NOT ERRORS AND MATTER MORE THAN MOST ERRORS.
+ *
+ * mapbox-gl reports a refused colour theme through `warnOnce`, not through
+ * the map's error event: Style._reloadColorTheme() ends in
+ * `.catch(e => warnOnce("Couldn't set color theme: " + e))`. So a LUT that
+ * mapbox decodes but rejects -- wrong height, wrong width -- produces one
+ * console WARNING and nothing else. It does not reach `map.on('error')`,
+ * which means it does not reach scene/mapbox/instance.ts's reporter or
+ * window.__SCENE__.errors() either. Watching for it at error level misses
+ * it entirely.
+ *
+ * The second is worse, because it is the case where everything succeeds
+ * and nothing happens: setColorTheme on a style that carries its own
+ * `color-theme` override warns that the theme "won't be visible" and then
+ * stores it anyway. appliedLut() would report the LUT, errors() would be
+ * empty, the probe would see a clean decode, and the globe would still be
+ * wearing Standard's colours. If Mapbox ever ships Standard with an
+ * override, this line is the only thing that says so.
+ */
+const COLOUR_THEME_TROUBLE =
+  /Couldn't set color theme|color-theme override/i;
 
 /**
- * Everything that means "Mapbox is unhappy", from three directions at
- * once, because no one of them is complete.
+ * Everything that means "Mapbox is unhappy", from four directions at once,
+ * because no one of them is complete.
  *
- * The console alone is not enough: scene/mapbox/instance.ts registers an
- * `error` listener and drops every error that arrives after style.load,
- * and a Map WITH an error listener does not log to the console at all. So
- * a 401 on a tile is invisible to console watching -- hence the response
- * and requestfailed nets, which see it regardless.
+ * The console at error level is not enough, for the two reasons above and
+ * because mapbox-gl reports a 401 on a tile through the map's error event
+ * rather than the console. scene/mapbox/instance.ts now logs those, so
+ * they are visible again -- but the response and requestfailed nets see
+ * them whether or not it does.
  */
 export const collectMapboxFailures = (page: Page): string[] => {
   const failures: string[] = [];
@@ -158,9 +178,11 @@ export const collectMapboxFailures = (page: Page): string[] => {
 
   page.on('console', (message) => {
     const text = message.text();
-    // The one message the whole style lifecycle in instance.ts exists to
-    // prevent, whatever level it is reported at.
-    if (/Style is not done loading/.test(text)) {
+    // These two arrive as warnings, and are defects regardless.
+    if (
+      /Style is not done loading/.test(text) ||
+      COLOUR_THEME_TROUBLE.test(text)
+    ) {
       failures.push(`console: ${text}`);
       return;
     }
@@ -188,18 +210,154 @@ export const collectMapboxFailures = (page: Page): string[] => {
   return failures;
 };
 
-/**
- * Waits for a live basemap to stop arriving. `networkidle` is bounded and
- * swallowed rather than awaited outright: a map that is still streaming
- * telemetry never reaches it, and the fixed settle after it is what
- * actually matters. toHaveScreenshot then does its own stabilisation on
- * top, which is why this can be a wait rather than a poll.
+/* ---- the scene handle ------------------------------------------------ */
+
+/** Asks the scene to publish window.__SCENE__ before the app boots. */
+export const installSceneDebug = async (
+  page: Page,
+): Promise<void> => {
+  await page.addInitScript(() => {
+    window.__SCENE_DEBUG__ = true;
+  });
+};
+
+export type SceneReport = {
+  styleStatus: 'loading' | 'ready' | 'failed';
+  /**
+   * The LUT the scene handed to setColorTheme, fingerprinted rather than
+   * carried: it is about 175KB of base64 and all eight themes share a
+   * prefix, so the hash is over the whole payload.
+   */
+  lut: string | null;
+  /** Recent mapbox failures. Empty is the healthy state. */
+  errors: string[];
+  /** The last thing the scene asked the map to do; context for a failure. */
+  lastAction: string;
+};
+
+/** Reads the scene's own account of itself out of the page. */
+export const readScene = (page: Page): Promise<SceneReport> =>
+  page.evaluate(() => {
+    const scene = window.__SCENE__;
+    if (!scene) {
+      throw new Error(
+        'window.__SCENE__ is not published: installSceneDebug() has to run before the app boots',
+      );
+    }
+    const lut = scene.appliedLut();
+    let hash = 0x811c9dc5;
+    if (lut !== null) {
+      for (let i = 0; i < lut.length; i += 1) {
+        hash = Math.imul(hash ^ lut.charCodeAt(i), 0x01000193);
+      }
+    }
+    return {
+      styleStatus: scene.styleStatus(),
+      lut:
+        lut === null
+          ? null
+          : `${lut.length}:${(hash >>> 0).toString(36)}`,
+      errors: scene.errors(),
+      lastAction: scene.lastAction(),
+    };
+  });
+
+/*
+ * The seven knobs scene/theme.ts sends to the Standard import.
+ *
+ * These names are the second thing nobody could verify without a real
+ * Mapbox account, and they fail in the quietest way there is:
+ * Style.setConfigProperty() opens with `if (!schema || !schema[key])
+ * return` -- an unknown key is not an error, not a warning, not an event.
+ * It is a silent no-op, and the globe simply never gets the light preset
+ * the route asked for. Reading each one back is the only way to find out.
  */
-export const settle = async (page: Page): Promise<void> => {
-  await page
-    .waitForLoadState('networkidle', { timeout: 20_000 })
-    .catch(() => undefined);
-  await page.waitForTimeout(TILE_SETTLE_MS);
+export const BASEMAP_CONFIG_KEYS = [
+  'lightPreset',
+  'theme',
+  'showRoadLabels',
+  'showPlaceLabels',
+  'showPointOfInterestLabels',
+  'showTransitLabels',
+  'show3dObjects',
+] as const;
+
+/** What the Standard import reports for each key; null means unknown. */
+export const readBasemapConfig = (
+  page: Page,
+  keys: string[],
+): Promise<Record<string, unknown>> =>
+  page.evaluate((names) => {
+    const scene = window.__SCENE__;
+    if (!scene) {
+      throw new Error('window.__SCENE__ is not published');
+    }
+    const map = scene.map as unknown as {
+      getConfigProperty: (id: string, key: string) => unknown;
+    };
+    const out: Record<string, unknown> = {};
+    for (const name of names) {
+      try {
+        out[name] = map.getConfigProperty('basemap', name) ?? null;
+      } catch (error) {
+        out[name] = `threw: ${String(error)}`;
+      }
+    }
+    return out;
+  }, keys);
+
+/**
+ * Waits for the map's own `idle` event -- fired when it has finished
+ * rendering and has nothing pending -- rather than for a number of
+ * milliseconds someone guessed.
+ *
+ * Resolves true if the map said it was idle and false if it never did.
+ * Both are useful: the callers treat false as "carry on, and say so in
+ * the report" rather than as a failure, because a map that never goes
+ * idle is still worth photographing.
+ */
+export const MAP_IDLE_BUDGET_MS = 30_000;
+
+export const waitForMapIdle = (
+  page: Page,
+  timeout = MAP_IDLE_BUDGET_MS,
+): Promise<boolean> =>
+  page.evaluate((ms) => {
+    const scene = window.__SCENE__;
+    if (!scene) return Promise.resolve(false);
+    const map = scene.map as unknown as {
+      loaded?: () => boolean;
+      on: (type: string, handler: () => void) => unknown;
+      off: (type: string, handler: () => void) => unknown;
+    };
+    // Already settled: `idle` may not fire again for a long time.
+    if (map.loaded?.() === true) return Promise.resolve(true);
+    return new Promise<boolean>((resolve) => {
+      // Boxed so the two closures can reach each other without either
+      // being read before it is initialised.
+      const handler: { onIdle: () => void } = { onIdle: () => {} };
+      let timer = 0;
+      const finish = (idle: boolean): void => {
+        window.clearTimeout(timer);
+        map.off('idle', handler.onIdle);
+        resolve(idle);
+      };
+      handler.onIdle = () => finish(true);
+      timer = window.setTimeout(() => finish(false), ms);
+      map.on('idle', handler.onIdle);
+    });
+  }, timeout);
+
+/**
+ * Waits for the map to stop rendering, then gives the foreground a short
+ * tail: [data-theme] crossfades over 400ms and the enter animations are
+ * CSS, neither of which `idle` reports on. A map that never went idle is
+ * given longer, because it is the case where waiting might still help.
+ */
+export const settle = async (page: Page): Promise<boolean> => {
+  const idle = await waitForMapIdle(page);
+  await page.waitForTimeout(idle ? THEME_SETTLE_MS : 3_000);
+  return idle;
 };
 
 /** Waits for SceneRoot to report a live map rather than a pending one. */
