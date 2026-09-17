@@ -152,6 +152,12 @@ const stubScript = (options: StubOptions): void => {
     >();
     const sources = new Map<string, unknown>();
     const loadedSources = new Set<string>();
+    /**
+     * True from a setTerrain() until mapbox would next recalculate: the
+     * window in which style.terrain.properties does not exist and a
+     * removeSource re-running the terrain evaluation throws.
+     */
+    let terrainDirty = false;
     const layers = new Map<string, unknown>();
     const disabled = new Set<string>();
     let bearing = 0;
@@ -254,8 +260,22 @@ const stubScript = (options: StubOptions): void => {
         layers.set(entry.id, entry);
         sync();
       },
+      /*
+       * Map.removeSource re-runs the terrain evaluation, and
+       * Terrain.update reads style.terrain.properties, which does not
+       * exist between setTerrain() and mapbox's next recalculate. So
+       * removing any source with terrain attached throws from inside
+       * mapbox and takes the tree down. This stub let every removal
+       * through, which is part of why that shipped -- it models the
+       * invariant the scene has to hold instead.
+       */
       removeSource: (id: string): void => {
         guard();
+        if (terrainDirty) {
+          throw new Error(
+            `removeSource(${id}) in the same tick as setTerrain`,
+          );
+        }
         sources.delete(id);
         loadedSources.delete(id);
         sync();
@@ -274,6 +294,12 @@ const stubScript = (options: StubOptions): void => {
       },
       setTerrain: (spec: { exaggeration?: number } | null): void => {
         guard();
+        // Null dirties it too: on a globe, setTerrain(null) swaps in a
+        // fresh draping terrain rather than clearing it.
+        terrainDirty = true;
+        queueMicrotask(() => {
+          terrainDirty = false;
+        });
         record.terrain.push(
           spec === null ? null : (spec.exaggeration ?? 0),
         );
