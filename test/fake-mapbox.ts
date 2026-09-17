@@ -34,9 +34,10 @@ import type { MapboxModule } from 'scene/mapbox/loader';
  * installed library rather than against itself. A test that wants a
  * usable map has to let the style load, exactly as the app does.
  *
- * One method is refused here that mapbox does not refuse --
- * setConfigProperty, which silently does nothing instead. See
- * STYLE_DEFERRED for why the fake is the stricter of the two.
+ * Two methods are refused here that mapbox does not refuse --
+ * setConfigProperty and setImportColorTheme, which silently do nothing
+ * instead. See STYLE_DEFERRED for why the fake is the stricter of the
+ * two.
  *
  * The style loads on a microtask by default, which is the shape of the
  * real thing -- construct, then a round trip -- without the wait. Pass
@@ -53,8 +54,8 @@ import type { MapboxModule } from 'scene/mapbox/loader';
  * actually guards. A list a test compares to the same list is a fact
  * about the test.
  *
- * NOTE `setConfigProperty` is deliberately NOT here, though the fake
- * refuses it -- see STYLE_DEFERRED.
+ * NOTE `setConfigProperty` and `setImportColorTheme` are deliberately
+ * NOT here, though the fake refuses both -- see STYLE_DEFERRED.
  */
 export const STYLE_GUARDED = [
   'setColorTheme',
@@ -84,10 +85,21 @@ export const STYLE_GUARDED = [
  * The real hazard of setConfigProperty is not the lifecycle. It is that
  * an unknown fragment id or a key Standard's schema does not declare is
  * discarded without a word -- which is what `configDiscarded` models.
+ *
+ * `setImportColorTheme` is the same shape and the same hazard, and it is
+ * the one that shipped: `Style.setImportColorTheme(importId, theme)`
+ * opens `const fragmentStyle = this.getFragmentStyle(importId); if
+ * (!fragmentStyle) return;` and nothing else. A theme addressed to an
+ * import that is not there is dropped in silence, which is what
+ * `colorThemeDiscarded` models -- and the root-style `setColorTheme`,
+ * which succeeds and re-tints the wrong scope, is recorded separately as
+ * `rootColorTheme` so that calling it is a visible fact rather than an
+ * indistinguishable one.
  */
 export const STYLE_DEFERRED = [
   ...STYLE_GUARDED,
   'setConfigProperty',
+  'setImportColorTheme',
 ] as const;
 
 export const STYLE_NOT_LOADED = 'Style is not done loading';
@@ -172,6 +184,22 @@ export const STANDARD_CONFIG_SCHEMA = new Set([
   'colorBuildingSelect',
 ]);
 
+/**
+ * What the Standard import answers for the keys the scene reads back.
+ *
+ * Only the two non-boolean knobs need a value of their own; every other
+ * key in the schema is a toggle, and `true` is as good an answer as
+ * `false` for a caller that only asks whether the key exists. What
+ * matters is that an unknown key answers null, because that is the
+ * signal scene/mapbox/instance.ts uses to decide the style cannot be
+ * themed.
+ */
+const CONFIG_DEFAULTS: Record<string, unknown> = {
+  lightPreset: 'day',
+  theme: 'default',
+  font: 'DIN Pro',
+};
+
 /** Events the scene's own lifecycle owns, rather than a layer set. */
 const LIFECYCLE_EVENTS = [
   'style.load',
@@ -184,7 +212,29 @@ export type Recorded = {
   easeTo: Record<string, unknown>[];
   fog: Record<string, unknown>[];
   terrain: (Record<string, unknown> | null)[];
+  /**
+   * Every LUT handed to `setImportColorTheme` for the `basemap`
+   * fragment -- which is the only call that reaches the globe. Parallel
+   * to `colorThemeImports`, which carries the id each one went to.
+   */
   colorTheme: string[];
+  /** The import id each entry in `colorTheme` was addressed to. */
+  colorThemeImports: string[];
+  /**
+   * LUTs sent to an import that does not exist, which mapbox drops
+   * without a word. Empty is the healthy state.
+   */
+  colorThemeDiscarded: [string, string][];
+  /**
+   * LUTs sent to the ROOT style's colour theme.
+   *
+   * This must stay empty. `map.setColorTheme()` succeeds, decodes and
+   * applies -- to the root style's own layers, which on Standard is only
+   * what the scene added itself. The basemap lives in the `basemap`
+   * import and takes its LUT from that scope, so the root call themes
+   * everything except the globe and says nothing about it.
+   */
+  rootColorTheme: string[];
   config: [string, string, unknown][];
   /**
    * setConfigProperty calls the real library would have thrown away: an
@@ -219,6 +269,15 @@ export type FakeMapOptions = {
    *            fetch the style does.
    */
   style?: 'auto' | 'manual' | 'fail';
+  /**
+   * Whether the style has the `basemap` import.
+   *
+   * True is Mapbox Standard, and the default. False is every other
+   * style: `getConfigProperty` answers null, `setConfigProperty` and
+   * `setImportColorTheme` both drop what they are given, and the scene
+   * is expected to say so rather than carry on looking healthy.
+   */
+  basemap?: boolean;
 };
 
 let installed: FakeMapOptions = {};
@@ -243,6 +302,9 @@ export class FakeMap {
     fog: [],
     terrain: [],
     colorTheme: [],
+    colorThemeImports: [],
+    colorThemeDiscarded: [],
+    rootColorTheme: [],
     config: [],
     configDiscarded: [],
     paint: [],
@@ -262,6 +324,9 @@ export class FakeMap {
 
   /** False until style.load, exactly as Style._loaded is. */
   styleLoaded = false;
+
+  /** Whether this style carries the `basemap` import. */
+  readonly hasBasemap: boolean;
 
   /** The source terrain is draped on, or null when terrain is off. */
   terrainSource: string | null = null;
@@ -294,6 +359,7 @@ export class FakeMap {
 
   constructor(options: Record<string, unknown>) {
     this.options = options;
+    this.hasBasemap = installed.basemap ?? true;
     FakeMap.instances.push(this);
     for (const name of [
       'dragPan',
@@ -471,9 +537,53 @@ export class FakeMap {
     this.calls.terrain.push(options);
   }
 
+  /**
+   * The ROOT style's colour theme. Recorded apart from the import's,
+   * and nothing in the app may call it -- see `rootColorTheme`.
+   */
   setColorTheme(theme: { data: string }): void {
     this.requireStyle();
+    this.calls.rootColorTheme.push(theme.data);
+  }
+
+  /**
+   * The import's colour theme, which is the call that re-tints the
+   * basemap. As unforgiving as mapbox on the payload: an import id the
+   * style does not have is dropped on the floor with no error event, no
+   * console line and no return value.
+   */
+  setImportColorTheme(
+    importId: string,
+    theme: { data: string },
+  ): void {
+    this.requireStyle();
+    if (importId !== CONFIG_FRAGMENT || !this.hasBasemap) {
+      this.calls.colorThemeDiscarded.push([importId, theme.data]);
+      return;
+    }
     this.calls.colorTheme.push(theme.data);
+    this.calls.colorThemeImports.push(importId);
+  }
+
+  /**
+   * What the Standard import reports for a config key, and null for
+   * everything else.
+   *
+   * Not deferred, because `Style.getConfigProperty` carries no
+   * `_checkLoaded` either -- it resolves the fragment and reads its
+   * schema, so before style.load it simply answers null. The scene uses
+   * exactly that to find out whether the configured style is one it can
+   * theme at all.
+   */
+  getConfigProperty(fragment: string, key: string): unknown {
+    if (
+      !this.hasBasemap ||
+      fragment !== CONFIG_FRAGMENT ||
+      !STANDARD_CONFIG_SCHEMA.has(key)
+    ) {
+      return null;
+    }
+    return CONFIG_DEFAULTS[key] ?? true;
   }
 
   /**
@@ -489,6 +599,7 @@ export class FakeMap {
   ): void {
     this.requireStyle();
     if (
+      !this.hasBasemap ||
       fragment !== CONFIG_FRAGMENT ||
       !STANDARD_CONFIG_SCHEMA.has(key)
     ) {

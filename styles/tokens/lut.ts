@@ -5,7 +5,13 @@
  * The site drops its hand-maintained Mapbox style for Mapbox Standard and
  * themes it at runtime instead. Standard takes a 3D colour lookup table:
  *
- *   map.setColorTheme({ data: buildLut(readPalette()) });
+ *   map.setImportColorTheme('basemap', { data: buildLut(readPalette()) });
+ *
+ * The IMPORT's colour theme, not the root style's: Standard's layers
+ * live in the `basemap` fragment and take their LUT from that scope, so
+ * map.setColorTheme() re-tints only the layers WE added and leaves the
+ * globe alone -- silently. scene/theme.ts's BASEMAP_IMPORT has the
+ * whole of it.
  *
  * `data` is a base64 PNG with NO `data:` prefix (mapbox-gl adds one if it
  * is missing). mapbox-gl decodes it and uploads the raw bytes straight to
