@@ -15,8 +15,11 @@ import { cn } from 'utils/cn';
  *   featured  ##  project  client  year                 (1b, 28px 1fr 170px 52px)
  *   all       ##  project  client  city  year  users    (1c, 30px 1fr 180px 150px 54px 96px)
  *
- * Mobile (1g) folds client and year under the title so three columns still
- * fit 390px; the six-column set drops city and users first, at tablet.
+ * Mobile (1g) folds the client under the title so three columns -- ##,
+ * project, year -- still fit 390px; the six-column set drops city and users
+ * first, at tablet. The year is NOT folded: it keeps the third grid column,
+ * which is what the 42px track at mobile is for. It used to be printed in
+ * both places at once.
  *
  * Row states, from the 1c annotation: rest is body ink on bare wash over a
  * hairline; hover is accent-07 with the row sliding 3px right toward its own
@@ -26,6 +29,24 @@ import { cn } from 'utils/cn';
  *
  * Hovering a row also lights that city point and nudges the camera 8% toward
  * it, which is what onHoverRow is for.
+ *
+ * WHO COUNTS AS HOVERING, and why it is not simply `:hover`. The site
+ * redefines Tailwind's `hover` variant to bare `:hover`, with no
+ * `(hover: hover)` guard, so on a touch screen the tap that opens a project
+ * LEAVES the row washed and shifted until the next tap lands elsewhere --
+ * indistinguishable from `data-[active=true]`, which paints the same
+ * accent-07. Worse, the JS side latched with it: pointerenter fires on tap
+ * and the matching leave may never come, so the lit city point and the 8%
+ * camera nudge stayed put too. So both channels are gated on a fine
+ * pointer: the wash and the slide behind `pointer-fine:`, and onHoverRow
+ * behind the event's own pointerType.
+ *
+ * KEYBOARD GETS THE SAME CHANNEL. The row's feedback loop is the whole
+ * point of the route, and it used to be withheld from anyone who tabbed:
+ * focus and blur drive onHoverRow beside the pointer (the altimeter's
+ * notches already do this), and `focus-within` paints the same wash and
+ * slide, so the lit point and the camera answer a keyboard exactly as they
+ * answer a mouse.
  */
 export type ProjectTableColumns = 'featured' | 'all';
 
@@ -136,6 +157,16 @@ export type ProjectTableProps = {
   className?: string;
 };
 
+/*
+ * A pointerenter this row is willing to latch on. A finger fires
+ * pointerenter on tap and frequently never fires the matching leave, which
+ * is how a tapped row used to keep the camera nudged and its city point lit
+ * for the rest of the visit. A mouse is the only pointer whose enter really
+ * means "is over this now".
+ */
+export const isHoverPointer = (pointerType: string): boolean =>
+  pointerType === 'mouse';
+
 /** The em dash a missing city or user count falls back to. */
 export const EM_DASH = '—';
 
@@ -231,15 +262,24 @@ export const ProjectTable = ({
                 'relative cursor-pointer items-center rounded-[var(--radius-sm)] border-b border-surface-3 select-none',
                 'text-[length:var(--type-detail-size-mobile)] leading-[var(--type-detail-line-mobile)] tablet:text-[length:var(--type-detail-size)] tablet:leading-[var(--type-detail-line)]',
                 'transition-[background-color,transform] duration-[120ms] ease-out',
-                'hover:translate-x-[3px] hover:bg-accent-07',
+                'pointer-fine:hover:translate-x-[3px] pointer-fine:hover:bg-accent-07',
+                'focus-within:translate-x-[3px] focus-within:bg-accent-07',
                 'active:translate-x-px active:scale-[0.997] active:bg-accent-12',
                 'data-[active=true]:bg-accent-07',
               )}
               data-active={row.id === activeId}
               key={row.id}
+              onBlur={() => onHoverRow?.(null)}
               onClick={() => onSelectRow?.(row.id)}
-              onMouseEnter={() => onHoverRow?.(row.id)}
-              onMouseLeave={() => onHoverRow?.(null)}
+              onFocus={() => onHoverRow?.(row.id)}
+              onPointerEnter={(event) => {
+                if (isHoverPointer(event.pointerType))
+                  onHoverRow?.(row.id);
+              }}
+              onPointerLeave={(event) => {
+                if (isHoverPointer(event.pointerType))
+                  onHoverRow?.(null);
+              }}
               role="row"
             >
               {model.map((column) => (
@@ -269,7 +309,7 @@ export const ProjectTable = ({
                   )}
                   {column.key === 'title' ? (
                     <span className="block truncate text-[length:var(--type-readout-size)] text-fg-4 tablet:hidden">
-                      {row.client} · {row.year}
+                      {row.client}
                     </span>
                   ) : null}
                 </td>

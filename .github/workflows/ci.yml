@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   checks:
-    name: Lint, unit tests, build, e2e
+    name: Lint, unit tests + coverage, build, e2e
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -40,7 +40,13 @@ jobs:
       - run: pnpm typecheck
 
       # Unit tests are seconds, the build is minutes: fail on the cheap one.
-      - run: pnpm test:unit
+      #
+      # This is test:coverage, not test:unit, on purpose. The 100% thresholds
+      # in vitest.config.mts are the branch's headline guarantee, and until
+      # this step ran with --coverage nothing evaluated them automatically --
+      # the gate held only as long as someone remembered to type the command.
+      # Coverage costs about half a second here.
+      - run: pnpm test:coverage
 
       - run: pnpm build
 

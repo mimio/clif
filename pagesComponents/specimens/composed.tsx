@@ -370,7 +370,7 @@ export const composed: Specimen = {
         <SceneStage vignette="left">
           <div className="w-full max-w-[560px]">
             <Text
-              className="text-[length:var(--type-heading2-size)] leading-[1.22] font-[200] text-fg-2"
+              className="text-[length:var(--type-heading2-size)] leading-[1.22] font-[number:var(--weight-light)] text-fg-2"
               variant="heading2"
             >
               GoPro Mountain Games Event Map

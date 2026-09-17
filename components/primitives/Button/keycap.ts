@@ -1,4 +1,10 @@
-import { padFor, px } from './sizes';
+import {
+  BOX_VARS,
+  CASE_CLASS,
+  padFor,
+  px,
+  TYPE_CLASS,
+} from './sizes';
 import type { ButtonStyle, ButtonTone } from './types';
 
 /*
@@ -33,6 +39,24 @@ import type { ButtonStyle, ButtonTone } from './types';
  * travels. Fixed here.)
  *
  * All eight --cap-* tokens are themed, so the cap re-themes for free.
+ *
+ * WHAT A CALLER CAN AND CANNOT OVERRIDE. The plate's BOX -- padding,
+ * radius, gap, the type ramp, the case and the ink -- is written as
+ * utilities over custom properties (BOX_VARS in sizes.ts), so a caller
+ * reaching the plate through `plateClassName` can merge against every one
+ * of them. The plate's PHYSICS -- the face, the five-part shadow, the
+ * travel transform and the transition -- stays inline and is deliberately
+ * not overridable: those five declarations ARE the state machine, they are
+ * written in terms of variables the state rules flip, and a class that
+ * replaced one would either break the lift or lose to it silently. The
+ * wrapper, which `className` reaches, owns only the reserve and the
+ * operands.
+ *
+ * Hover is scoped to `pointer-fine:`. The site redefines Tailwind's
+ * `hover` to bare `:hover`, which on a touch screen latches: the tap that
+ * fires the cap leaves it lifted, hot-lipped and grown until the next tap
+ * lands somewhere else. A coarse pointer gets rest and press, which are the
+ * two states a finger can actually produce.
  */
 
 /**
@@ -85,24 +109,27 @@ const TRANSITION = [
 /** The glyph and the expand mark grow on a spring, not on the cap's ease. */
 const SPRING = 'transform 240ms cubic-bezier(.34,1.56,.64,1)';
 
+/* The rest ink, as the fallback of the variable the state rules flip. Both
+   are written out as whole class names because the scanner reads source
+   text, not the string this table is spliced into. */
 const INK: Record<ButtonTone, string> = {
-  primary: 'var(--cap-ink)',
-  secondary: 'var(--cap2-ink)',
+  primary: 'text-[color:var(--k-ink,var(--cap-ink))]',
+  secondary: 'text-[color:var(--k-ink,var(--cap2-ink))]',
 };
 
 /* Hover: the lip goes hot, the skirt and cast grow by the bump scalars and
    the whole cap rises 1px into the wrapper's reserved padding. */
 const HOVER = [
-  'hover:[--k-y:-1px]',
-  'hover:[--g-mul:1.3]',
-  'hover:[--k-face:var(--surface-hover)]',
-  'hover:[--k-lip:var(--cap-lip-hot)]',
-  'hover:[--k-ink:var(--cap-ink-hot)]',
-  'hover:[--k-skirt-y:var(--k-skirt-hot)]',
-  'hover:[--k-edge-y:var(--k-edge-hot)]',
-  'hover:[--k-amb-y:var(--k-amb-hot)]',
-  'hover:[--k-amb-blur:var(--k-amb-blur-hot)]',
-  'hover:[--k-amb-tint:rgba(0,0,0,.6)]',
+  'pointer-fine:hover:[--k-y:-1px]',
+  'pointer-fine:hover:[--g-mul:1.3]',
+  'pointer-fine:hover:[--k-face:var(--surface-hover)]',
+  'pointer-fine:hover:[--k-lip:var(--cap-lip-hot)]',
+  'pointer-fine:hover:[--k-ink:var(--cap-ink-hot)]',
+  'pointer-fine:hover:[--k-skirt-y:var(--k-skirt-hot)]',
+  'pointer-fine:hover:[--k-edge-y:var(--k-edge-hot)]',
+  'pointer-fine:hover:[--k-amb-y:var(--k-amb-hot)]',
+  'pointer-fine:hover:[--k-amb-blur:var(--k-amb-blur-hot)]',
+  'pointer-fine:hover:[--k-amb-tint:rgba(0,0,0,.6)]',
 ].join(' ');
 
 /* Press: travel == skirt, skirt collapsed to zero, cast pulled in tight and
@@ -147,11 +174,16 @@ export const keycap: ButtonStyle = ({
   padded,
 }) => ({
   wrapper: {
-    className: `${BOX[`${grow}`]} ${HOVER} ${PRESS} ${DISABLED} min-w-0 cursor-pointer select-none`,
+    className: `${BOX[`${grow}`]} ${HOVER} ${PRESS} ${DISABLED} min-w-0 cursor-pointer pb-(--k-reserve) select-none`,
     style: {
       /* Absorbs the 1px hover lift and the grown skirt, so nothing below the
-         cap moves when it rises. */
-      paddingBottom: px(spec.reserve),
+         cap moves when it rises. A property read by a utility rather than an
+         inline declaration, so a caller's own padding can merge with it. */
+      '--k-reserve': px(spec.reserve),
+
+      /* The plate's box travels down as properties; the plate's own classes
+         read them, and a plateClassName override merges against those. */
+      ...BOX_VARS(spec, padFor(spec, padded), px(spec.radius)),
 
       /* Operands the state rules point at. None is ever overridden, so none
          of them is in a specificity fight with a class. */
@@ -172,18 +204,10 @@ export const keycap: ButtonStyle = ({
     },
   },
   inner: {
-    className: `${JUSTIFY[`${grow || center}`]} flex min-w-0 flex-auto items-center`,
+    className: `${JUSTIFY[`${grow || center}`]} ${TYPE_CLASS} ${CASE_CLASS[spec.textTransform]} ${INK[tone]} flex min-w-0 flex-auto items-center gap-(--b-gap) rounded-(--b-radius) p-(--b-pad)`,
     style: {
-      gap: px(spec.gap),
-      padding: padFor(spec, padded),
-      borderRadius: px(spec.radius),
       background: face(),
       boxShadow: shadow(spec),
-      color: `var(--k-ink, ${INK[tone]})`,
-      fontSize: px(spec.fontSize),
-      lineHeight: px(spec.lineHeight),
-      letterSpacing: spec.tracking,
-      textTransform: spec.textTransform,
       transform: 'translateY(var(--k-y, 0px))',
       transition: TRANSITION,
     },

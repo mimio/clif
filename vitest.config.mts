@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
+import { svgrInclude, svgrOptions } from './svgr.config.mjs';
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -42,17 +43,31 @@ const srcDirs = [
 export default defineConfig({
   plugins: [
     react(),
-    // types/assets.d.ts declares `*.svg` as a default-exported component, so
-    // svgr has to match that rather than emit the named { ReactComponent }.
-    // `include` has to be widened too: the plugin only claims `*.svg?react`
-    // by default, and everything else falls through to Vite's asset handling
-    // as a data: URL -- which renders as an element whose tag name is the
-    // whole URL. next.config.ts's turbopack rule matches plain `*.svg`, so
-    // this is what keeps the two resolvers agreeing.
-    svgr({
-      include: '**/*.svg',
-      svgrOptions: { exportType: 'default' },
-    }),
+    /*
+     * The SVG pipeline, which has to match next.config.ts's turbopack rule
+     * component for component, because components/primitives/Icon.tsx
+     * imports all fifteen icons as modules and tests assert against what
+     * they render.
+     *
+     * Three things have to line up, and only the first two are obvious:
+     *
+     *   exportType, include and plugins -- all three live in
+     *   svgr.config.mjs, which the parity test reads, so the guard cannot
+     *   drift from what is guarded.
+     *
+     * Without that third line the two pipelines produced different output
+     * for all fifteen icons, eight of them differing in the root <svg> tag:
+     * under Vitest, molecule.svg and ufo.svg both kept the id="Capa_1" their
+     * source carries, so any document rendering both had duplicate DOM ids
+     * that the browser never sees, plus x/y attributes, a style object, and
+     * role and focusable attributes production strips. Every selector,
+     * snapshot and a11y assertion written against the test DOM was
+     * describing a document that does not ship.
+     *
+     * test/svgr-parity.test.ts diffs the two transforms over every icon and
+     * fails on any divergence, so this cannot drift again quietly.
+     */
+    svgr({ include: svgrInclude, svgrOptions }),
     glslRaw(),
   ],
   resolve: {
@@ -98,9 +113,11 @@ export default defineConfig({
         // next/font/local is a build-time Next construct, mocked in tests.
         'styles/fonts.ts',
         // Trivial Document shell; all its logic lives in theme-bootstrap.ts.
-        'pages/_document.tsx',
-        // Dev-only harness, never built into production.
-        'pages/specimens.tsx',
+        'pages/_document.page.tsx',
+        // Development harness. next.config.ts only counts `harness.tsx` as a
+        // page extension when NEXT_PUBLIC_SPECIMENS is set, so this file is
+        // not in a production build at all.
+        'pages/specimens.harness.tsx',
         // Dev-only harness sections, one file per lane.
         'pagesComponents/specimens/**',
         // Node build scripts, exercised by running them, not by unit tests.

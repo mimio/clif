@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cameras } from 'content/cameras';
+import { cameras, SCENE_MOVE_MS } from 'content/cameras';
 import { historyStops } from 'content/history';
 import AboutPage, {
   ABOUT_PATH,
@@ -25,6 +26,7 @@ import {
   foregroundHandoffMs,
 } from 'scene/enter';
 import MapProvider, { useScene } from 'scene/MapProvider';
+import { resetMapForTests } from 'scene/mapbox/instance';
 import { FakeMap, installMapboxStub } from 'test/fake-mapbox';
 
 /*
@@ -35,7 +37,14 @@ import { FakeMap, installMapboxStub } from 'test/fake-mapbox';
  * URL and to the camera.
  */
 
+/*
+ * The mock carries `isReady` because the route now depends on it: with a
+ * query string in the URL the real Next router starts NOT ready and fills
+ * its copy of the query a task later. `true` is the steady state that every
+ * test but the deep-link one is about.
+ */
 const router = vi.hoisted(() => ({
+  isReady: true,
   query: undefined as Record<string, string> | undefined,
   push: vi.fn(),
   pathname: '/about',
@@ -45,8 +54,18 @@ vi.mock('next/router', () => ({
   useRouter: () => router,
 }));
 
+/** The URL the browser is on, which the route reads before the router does. */
+const visit = (url: string): void =>
+  window.history.replaceState(null, '', url);
+
 afterEach(() => {
+  router.isReady = true;
   router.query = undefined;
+  visit('/about');
+  // Two tests here drive the real SceneRoot, and ensureMap caches its map
+  // for the life of the module: without this the second one inherits the
+  // first one's, and its recording.
+  resetMapForTests();
   vi.clearAllMocks();
 });
 
@@ -83,6 +102,35 @@ describe('the about route, 1e and 1h', () => {
       'top-[96px]',
       'desktop:right-[220px]',
     );
+  });
+
+  /*
+   * The stop -- the role, the dates, the prose and the pager -- is what
+   * this route is for, and it used to be rendered as a sibling of the
+   * stage. SceneStage IS the <main>, so the landmark held the page word
+   * and the scrubber and nothing else: "skip to main content" landed on
+   * the h1 and stopped there.
+   */
+  it('keeps the stop inside the page’s main landmark', () => {
+    const { container, rerender } = render(
+      <AboutPage stops={historyStops} />,
+    );
+
+    const inMain = () => {
+      const main = container.querySelector('main');
+      expect(main).toContainElement(sheet());
+      expect(main?.textContent).toContain(
+        historyStops[DEFAULT_STOP_INDEX].description,
+      );
+      // Pinned to the viewport rather than to the stage's column, whose
+      // own forwards enter animation would otherwise be the containing
+      // block for anything positioned inside it.
+      expect(sheet().parentElement).toHaveClass('fixed');
+    };
+
+    inMain();
+    rerender(<AboutPage mobile stops={historyStops} />);
+    inMain();
   });
 
   it('1h drops the sheet to the bottom edge, scrubber folded inside', () => {
@@ -310,7 +358,7 @@ describe('/about', () => {
   };
 
   const renderPage = async () => {
-    const about = await import('pages/about');
+    const about = await import('pages/about.page');
     render(
       <MapProvider>
         <about.default stops={historyStops} />
@@ -342,24 +390,106 @@ describe('/about', () => {
     expect(camera()).toBe(cameras.about.center.join());
   });
 
-  it('a deep-linked stop opens it and reframes the camera onto it', async () => {
-    router.query = { stop: 'salesforce' };
-    await renderPage();
+  /*
+   * A DEEP LINK, IN THE TWO PHASES A BROWSER ACTUALLY DOES IT.
+   *
+   * This test used to set router.query before the first render, which is
+   * the one thing a real deep link never does: the static HTML is built
+   * with no query, and with a query string in the URL the client router
+   * starts `isReady: false` and fills `query` a task later. Asserting the
+   * steady state after that handover passed whether or not the route read
+   * the URL any earlier than the router did -- which is exactly the bug it
+   * was named for.
+   *
+   * So both phases are driven here, against the real SceneRoot and the
+   * fake map, because the cost of getting this wrong is not a wrong
+   * pixel: it is a second camera move. The scene only ever moves when the
+   * camera it was handed changes, so "the sheet catches up later" and "the
+   * globe flies to the fit view and then reframes" are the same fact, and
+   * easeTo is where it is legible.
+   */
+  it('a deep link opens its stop on the first paint, for one camera move', async () => {
+    const uninstall = installMapboxStub();
+    visit('/about?stop=salesforce');
+    // Phase 1: hydration. The URL has a query; the router has not read it.
+    router.isReady = false;
+    router.query = {};
+
+    const about = await import('pages/about.page');
+    const tree = () => (
+      <MapProvider>
+        <SceneRoot />
+        <about.default stops={historyStops} />
+        <Camera />
+      </MapProvider>
+    );
+
+    let mounted: ReturnType<typeof render> | null = null;
+    await act(async () => {
+      mounted = render(tree());
+    });
 
     expect(
       screen.getByRole('heading', { name: 'Salesforce' }),
     ).toBeVisible();
     expect(screen.getByText('stop 06 / 06')).toBeVisible();
     expect(camera()).toBe(historyStops[5].coordinates.join());
+    // The globe's one live point is the linked stop, not the default one.
     expect(live()).toBe(String(historyStops[5].id));
-    // Only the centre moved, so the scene treats it as a refinement of the
-    // about camera and eases 600ms rather than ignoring it as stale.
+
+    // One move, straight to the stop: no 800ms flight to the fit view
+    // followed by a 600ms reframe off it.
+    const moves = () => FakeMap.last.calls.easeTo;
+    expect(moves()).toHaveLength(1);
+    expect(moves()[0]).toMatchObject({
+      center: historyStops[5].coordinates,
+      duration: SCENE_MOVE_MS,
+      zoom: cameras.about.zoom,
+    });
+
+    // Phase 2: the router catches up and takes the query over. It agrees
+    // with the URL, so nothing about the scene changes.
+    router.isReady = true;
+    router.query = { stop: 'salesforce' };
+    await act(async () => {
+      mounted?.rerender(tree());
+    });
+
+    expect(moves()).toHaveLength(1);
+    expect(camera()).toBe(historyStops[5].coordinates.join());
+    // Only the centre moved, so the scene treats a later stop change as a
+    // refinement of the about camera rather than ignoring it as stale.
     expect(
       refinesCamera(
         { ...cameras.about, center: historyStops[5].coordinates },
         cameras.about,
       ),
     ).toBe(true);
+
+    uninstall();
+  });
+
+  /*
+   * The trade the fix does NOT make. /about is getStaticProps, so one
+   * document answers all six deep links and the server snapshot carries no
+   * stop: a crawler and a no-JS reader get stop 04 whichever link they
+   * followed. That is why the route's canonical drops the query -- the six
+   * are one document, and are asked to be indexed as one.
+   */
+  it('serves one static document, whatever the query says', async () => {
+    visit('/about?stop=salesforce');
+    router.isReady = false;
+    router.query = {};
+    const about = await import('pages/about.page');
+
+    const html = renderToStaticMarkup(
+      <MapProvider>
+        <about.default stops={historyStops} />
+      </MapProvider>,
+    );
+
+    expect(html).toContain('stop 04 / 06');
+    expect(html).not.toContain('stop 06 / 06');
   });
 
   it('a tick pushes the stop into the URL, shallow', async () => {
@@ -391,7 +521,7 @@ describe('/about', () => {
    */
   it('hands the map the same stop the scrubber is showing', async () => {
     const uninstall = installMapboxStub();
-    const about = await import('pages/about');
+    const about = await import('pages/about.page');
     // A fresh element each time: React bails out of a rerender handed the
     // very same one, and this test is about what a re-render does.
     const tree = () => (

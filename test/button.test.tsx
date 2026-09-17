@@ -46,11 +46,9 @@ describe('Button: press travel', () => {
       expect(prop(node, '--k-skirt-press')).toBe(skirt);
       // And the press state spends exactly that on --k-y, rather than a
       // constant that could drift from the skirt.
-      expect(node.className).toContain(
-        'active:[--k-y:var(--k-skirt-press)]',
-      );
+      expect(node).toHaveClass('active:[--k-y:var(--k-skirt-press)]');
       // The skirt collapses to nothing as it lands: it is on the plate.
-      expect(node.className).toContain('active:[--k-skirt-y:0px]');
+      expect(node).toHaveClass('active:[--k-skirt-y:0px]');
       // And the plate reads the travel back, rather than moving on its own.
       expect(plate().style.transform).toBe(
         'translateY(var(--k-y, 0px))',
@@ -63,10 +61,11 @@ describe('Button: press travel', () => {
   it('reserves the hover lift so layout never shifts', () => {
     BUTTON_SIZE_ORDER.forEach((size) => {
       const { unmount } = render(<Button size={size}>go</Button>);
-      expect(cap().style.paddingBottom).toBe(
+      expect(prop(cap(), '--k-reserve')).toBe(
         `${BUTTON_SIZES[size].reserve}px`,
       );
-      expect(cap().className).toContain('hover:[--k-y:-1px]');
+      expect(cap()).toHaveClass('pb-(--k-reserve)');
+      expect(cap()).toHaveClass('pointer-fine:hover:[--k-y:-1px]');
       unmount();
     });
   });
@@ -92,23 +91,25 @@ describe('Button: the size table', () => {
   });
 
   it('widens the left padding for a left mark only', () => {
-    const inner = (): HTMLElement =>
-      cap().querySelector<HTMLElement>('.clif-button-inner')!;
+    // The padding rides down as a property the plate's own `p-` utility
+    // reads, so a caller's padding can merge with it; the wrapper is where
+    // it is declared, because the state rules resolve there.
     const { rerender } = render(<Button>plain</Button>);
-    expect(inner().style.padding).toBe(BUTTON_SIZES.md.padPlain);
+    expect(prop(cap(), '--b-pad')).toBe(BUTTON_SIZES.md.padPlain);
+    expect(plate()).toHaveClass('p-(--b-pad)');
 
     rerender(<Button glyph="home">glyph</Button>);
-    expect(inner().style.padding).toBe(BUTTON_SIZES.md.pad);
+    expect(prop(cap(), '--b-pad')).toBe(BUTTON_SIZES.md.pad);
 
     rerender(<Button expand>expand</Button>);
-    expect(inner().style.padding).toBe(BUTTON_SIZES.md.pad);
+    expect(prop(cap(), '--b-pad')).toBe(BUTTON_SIZES.md.pad);
 
     rerender(<Button lead="←">lead</Button>);
-    expect(inner().style.padding).toBe(BUTTON_SIZES.md.pad);
+    expect(prop(cap(), '--b-pad')).toBe(BUTTON_SIZES.md.pad);
 
     // The documented quirk, kept: a trail alone stays on padPlain.
     rerender(<Button trail="→">trail</Button>);
-    expect(inner().style.padding).toBe(BUTTON_SIZES.md.padPlain);
+    expect(prop(cap(), '--b-pad')).toBe(BUTTON_SIZES.md.padPlain);
   });
 });
 
@@ -123,14 +124,18 @@ describe('Button: variants', () => {
     expect(node).toHaveAttribute('data-grow', 'false');
     expect(node).toHaveAttribute('data-center', 'false');
     expect(node).toHaveAttribute('data-disabled', 'false');
-    expect(plate().style.color).toBe('var(--k-ink, var(--cap-ink))');
+    expect(plate()).toHaveClass(
+      'text-[color:var(--k-ink,var(--cap-ink))]',
+    );
     await userEvent.click(node);
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
   it('takes the secondary ink on the secondary tone', () => {
     render(<Button tone="secondary">about</Button>);
-    expect(plate().style.color).toBe('var(--k-ink, var(--cap2-ink))');
+    expect(plate()).toHaveClass(
+      'text-[color:var(--k-ink,var(--cap2-ink))]',
+    );
   });
 
   it('inverts to a solid accent fill on the flat pill', () => {
@@ -140,12 +145,10 @@ describe('Button: variants', () => {
     // The pill paints the wrapper, because that is the element that gets
     // :hover and [data-disabled]. On the plate the inversion would only
     // fire over the plate and disabled would never fire at all.
-    expect(cap().className).toContain('border-accent-30');
-    expect(cap().className).toContain('hover:bg-accent');
-    expect(cap().className).toContain('hover:text-on-accent');
-    expect(cap().className).toContain(
-      'data-[disabled=true]:opacity-50',
-    );
+    expect(cap()).toHaveClass('border-accent-30');
+    expect(cap()).toHaveClass('pointer-fine:hover:bg-accent');
+    expect(cap()).toHaveClass('pointer-fine:hover:text-on-accent');
+    expect(cap()).toHaveClass('data-[disabled=true]:opacity-50');
 
     // Both tones invert the same way; the tone separates them at rest.
     rerender(
@@ -153,8 +156,8 @@ describe('Button: variants', () => {
         contact
       </Button>,
     );
-    expect(cap().className).toContain('border-surface-3');
-    expect(cap().className).toContain('hover:bg-accent');
+    expect(cap()).toHaveClass('border-surface-3');
+    expect(cap()).toHaveClass('pointer-fine:hover:bg-accent');
     // No skirt, so no travel and nothing to reserve.
     expect(prop(cap(), '--k-skirt-press')).toBe('');
     expect(cap().className).not.toContain('active:[--k-y');
@@ -163,20 +166,86 @@ describe('Button: variants', () => {
   it('gives the flat pill its own box per size', () => {
     const { rerender } = render(<Button variant="flat">a</Button>);
     // 7 + the 18px md line + 7 is the §2.7 32px pill.
-    expect(cap().style.padding).toBe('7px 12px');
-    expect(cap().style.borderRadius).toBe('var(--radius-control)');
+    expect(prop(cap(), '--b-pad')).toBe('7px 12px');
+    expect(prop(cap(), '--b-radius')).toBe('var(--radius-control)');
+    expect(cap()).toHaveClass('p-(--b-pad)');
+    expect(cap()).toHaveClass('rounded-(--b-radius)');
 
     rerender(
       <Button lead="←" size="xs" variant="flat">
         a
       </Button>,
     );
-    expect(cap().style.padding).toBe('5px 9px 5px 7px');
+    expect(prop(cap(), '--b-pad')).toBe('5px 9px 5px 7px');
   });
+
+  /*
+   * THE BOX HAS TO BE OVERRIDABLE, and only the cascade can say whether it
+   * is. Both treatments used to stamp their padding and radius straight
+   * into the inline style, which kept a caller's class through the merge
+   * and then lost it in the cascade, because an inline declaration
+   * outranks any utility that is not `!`-flagged. So the assertion is not
+   * "the class is present" -- it always was -- but "nothing inline is
+   * competing with it".
+   */
+  it('lets a caller re-box the flat pill', () => {
+    render(
+      <Button className="rounded-none px-1" variant="flat">
+        a
+      </Button>,
+    );
+    expect(cap()).toHaveClass('rounded-none');
+    expect(cap()).toHaveClass('px-1');
+    // The merge keeps `p-(--b-pad)` beside `px-1` on purpose -- the
+    // vertical padding is still the pill's -- but the radius is replaced
+    // outright, and neither property is declared inline any more.
+    expect(cap().className).not.toContain('rounded-(--b-radius)');
+    expect(cap().style.padding).toBe('');
+    expect(cap().style.borderRadius).toBe('');
+  });
+
+  it('lets a caller re-box the keycap plate', () => {
+    render(<Button plateClassName="rounded-none p-1">a</Button>);
+    // className lands on the wrapper, which on a keycap paints nothing;
+    // the plate is what the cap actually is, and it has its own prop.
+    expect(plate()).toHaveClass('rounded-none');
+    expect(plate()).toHaveClass('p-1');
+    expect(plate().className).not.toContain('p-(--b-pad)');
+    expect(plate().className).not.toContain('rounded-(--b-radius)');
+    expect(plate().style.padding).toBe('');
+    expect(plate().style.borderRadius).toBe('');
+  });
+
+  /*
+   * The site redefines Tailwind's `hover` variant to bare `:hover`, with no
+   * `(hover: hover)` guard, so an unscoped hover utility LATCHES on a touch
+   * screen: the tap that fires the button leaves it lifted or inverted
+   * until the next tap somewhere else. Every hover state here is therefore
+   * behind `pointer-fine:`, and every press state is not -- a finger can
+   * produce a press and cannot produce a hover.
+   */
+  it.each(['keycap', 'flat'] as const)(
+    'scopes every %s hover to a fine pointer and leaves press alone',
+    (variant) => {
+      render(<Button variant={variant}>a</Button>);
+      const hovers = cap()
+        .className.split(' ')
+        .filter((name) => name.includes('hover:'));
+      expect(hovers.length).toBeGreaterThan(0);
+      hovers.forEach((name) =>
+        expect(name.startsWith('pointer-fine:hover:')).toBe(true),
+      );
+      expect(
+        cap()
+          .className.split(' ')
+          .some((name) => name.startsWith('active:')),
+      ).toBe(true);
+    },
+  );
 
   it('never lets its label be selected', () => {
     render(<Button>projects</Button>);
-    expect(cap().className).toContain('select-none');
+    expect(cap()).toHaveClass('select-none');
   });
 });
 
@@ -199,7 +268,9 @@ describe('Button: layout and slots', () => {
     );
     const node = screen.getByRole('button', { name: 'Browse all' });
     expect(node).toHaveAttribute('data-grow', 'true');
-    expect(node.className).toContain('x');
+    // toHaveClass, not toContain: RESET always contributes `text-left`, so
+    // a substring check for 'x' passed with the prop removed entirely.
+    expect(node).toHaveClass('x');
     expect(node.querySelector('[data-slot="lead"]')).not.toBeNull();
     expect(node.querySelector('[data-slot="trail"]')).not.toBeNull();
     expect(node.querySelector('[data-slot="expand"]')).not.toBeNull();
@@ -219,38 +290,38 @@ describe('Button: layout and slots', () => {
     const inner = (): Element | null =>
       cap().querySelector('.clif-button-inner');
     const { rerender } = render(<Button>a</Button>);
-    expect(inner()?.className).toContain('justify-start');
-    expect(cap().className).toContain('inline-flex');
+    expect(inner()).toHaveClass('justify-start');
+    expect(cap()).toHaveClass('inline-flex');
 
     rerender(<Button grow>a</Button>);
-    expect(inner()?.className).toContain('justify-center');
-    expect(cap().className).toContain('flex-1');
+    expect(inner()).toHaveClass('justify-center');
+    expect(cap()).toHaveClass('flex-1');
 
     rerender(<Button center>a</Button>);
-    expect(inner()?.className).toContain('justify-center');
-    expect(cap().className).toContain('flex-none');
+    expect(inner()).toHaveClass('justify-center');
+    expect(cap()).toHaveClass('flex-none');
   });
 
   it('centres the flat pill the same three ways', () => {
     const inner = (): Element | null =>
       cap().querySelector('.clif-button-inner');
     const { rerender } = render(<Button variant="flat">a</Button>);
-    expect(inner()?.className).toContain('justify-start');
+    expect(inner()).toHaveClass('justify-start');
 
     rerender(
       <Button grow variant="flat">
         a
       </Button>,
     );
-    expect(inner()?.className).toContain('justify-center');
-    expect(cap().className).toContain('flex-1');
+    expect(inner()).toHaveClass('justify-center');
+    expect(cap()).toHaveClass('flex-1');
 
     rerender(
       <Button center variant="flat">
         a
       </Button>,
     );
-    expect(inner()?.className).toContain('justify-center');
+    expect(inner()).toHaveClass('justify-center');
   });
 
   it('scales the glyph slot off the size table', () => {
@@ -286,8 +357,8 @@ describe('Button: layout and slots', () => {
     expect(mark.getAttribute('width')).toBe(
       `${BUTTON_SIZES.md.expand}`,
     );
-    expect(cap().className).toContain('hover:[--g-mul:1.3]');
-    expect(cap().className).toContain('active:[--g-mul:1.22]');
+    expect(cap()).toHaveClass('pointer-fine:hover:[--g-mul:1.3]');
+    expect(cap()).toHaveClass('active:[--g-mul:1.22]');
   });
 });
 
@@ -301,7 +372,7 @@ describe('Button: elements', () => {
     );
     const node = cap();
     expect(node).toHaveAttribute('data-disabled', 'true');
-    expect(node.className).toContain(
+    expect(node).toHaveClass(
       'data-[disabled=true]:pointer-events-none',
     );
     await userEvent.click(node);

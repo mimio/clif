@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useSyncExternalStore,
   type CSSProperties,
 } from 'react';
@@ -26,6 +27,17 @@ import { cn } from 'utils/cn';
  * 180ms cubic-bezier(.165,.84,.44,1) -- growth only; there is no colour
  * disc behind it.
  *
+ * THE PANEL IS A NAMED GROUP OF TOGGLES, not a listbox. It used to carry
+ * role="listbox" over role="option", which promises a keyboard model this
+ * widget does not have: no arrow keys, no aria-activedescendant, no roving
+ * tabindex, and no accessible name on the list either. The roles made it
+ * WORSE than the plain buttons underneath -- a screen reader switched into
+ * forms mode expecting arrows, and the arrows did nothing -- while Tab
+ * already reached all eight, because each row is a real button. So the
+ * roles are gone: a role="group" named by the panel's own visible caption,
+ * holding eight buttons that report aria-pressed. No aria-haspopup on the
+ * eye either; this is a disclosure, not a combobox.
+ *
  * Each of the panel's eight rows is an 18px MINIATURE OF THE EYE wearing
  * that theme's own iris, not a colour chip. It gets there for free: the
  * theme scopes in tokens/themes.css are plain [data-theme='x'] selectors,
@@ -36,7 +48,15 @@ import { cn } from 'utils/cn';
  * Picking does NOT close the panel: themes are meant to be compared back to
  * back, and the tokens crossfade over 400ms (tokens/themes.css) while the
  * camera holds position -- the one case where the scene changes without a
- * camera move.
+ * camera move. Escape closes it (usePopover).
+ *
+ * THE TRIGGER COMES FIRST IN THE DOM and the panel follows it, even though
+ * the panel is drawn above and to the left. Tab order is DOM order: with
+ * the panel first, tabbing forward off the eye left the component entirely
+ * and landed on the mouth, and the eight themes could only be reached by
+ * shift-tabbing backwards past the trigger that had just opened them.
+ * Nothing about the layout depends on the order -- the panel is absolutely
+ * positioned and carries its own z-index.
  */
 export const THEME_EVENT = 'oneglobe:theme';
 
@@ -44,9 +64,16 @@ export const EYE_SIZE = 34;
 export const PANEL_WIDTH = 318;
 export const SWATCH_SIZE = 18;
 
-/** Hover/press growth, shared with the mouth. */
-const BALL_MOTION =
-  'transition-transform duration-[180ms] ease-[cubic-bezier(.165,.84,.44,1)] hover:scale-[1.08] active:scale-[1.02] motion-reduce:transition-none';
+/*
+ * Hover/press growth, shared with the mouth. The growth is scoped to a fine
+ * pointer: the site's `hover` variant is bare `:hover` with no
+ * `(hover: hover)` guard, so on a touch screen the tap that opened the
+ * panel left the eye stuck 8% oversized until the next tap elsewhere -- and
+ * these two sit inside a wrapper that only scales BELOW 650px, which is
+ * exactly the touch viewport. Press still answers a finger.
+ */
+export const BALL_MOTION =
+  'transition-transform duration-[180ms] ease-[cubic-bezier(.165,.84,.44,1)] pointer-fine:hover:scale-[1.08] active:scale-[1.02] motion-reduce:transition-none';
 
 const SCLERA_FILL =
   'radial-gradient(circle at 32% 26%, #ffffff 0%, var(--sclera) 56%, var(--sclera-edge) 100%)';
@@ -96,12 +123,30 @@ export const currentTheme = (): ThemeId => {
 /** The server has no document and no storage; it renders the default. */
 export const serverTheme = (): ThemeId => DEFAULT_THEME;
 
-/** Sets the attribute, remembers the choice, and tells every listener. */
-export const announceTheme = (id: ThemeId): void => {
-  applyTheme(id);
+const tellListeners = (id: ThemeId): void => {
   window.dispatchEvent(
     new CustomEvent(THEME_EVENT, { detail: { id } }),
   );
+};
+
+/**
+ * Sets the attribute and tells every listener, WITHOUT recording a choice.
+ * This is what mount uses: the theme it is publishing is whatever the
+ * bootstrap already resolved, which for a first-time visitor is just
+ * DEFAULT_THEME. Writing that to storage would pin every first visit to
+ * today's default, so a later change to the constant would reach nobody who
+ * had ever loaded the site -- and applyTheme's own contract is that it
+ * remembers a CHOICE.
+ */
+export const publishTheme = (id: ThemeId): void => {
+  document.documentElement.dataset.theme = id;
+  tellListeners(id);
+};
+
+/** Sets the attribute, remembers the choice, and tells every listener. */
+export const announceTheme = (id: ThemeId): void => {
+  applyTheme(id);
+  tellListeners(id);
 };
 
 export type ThemeEyeProps = {
@@ -119,6 +164,9 @@ export const ThemeEye = ({
   className,
 }: ThemeEyeProps) => {
   const { open, toggle } = usePopover(defaultOpen);
+  // The panel's visible caption names the group, so the name a screen
+  // reader announces and the word on screen cannot drift apart.
+  const captionId = `clif-theme-${useId().replace(/:/g, '')}`;
   const held = useSyncExternalStore(
     subscribeTheme,
     currentTheme,
@@ -127,8 +175,9 @@ export const ThemeEye = ({
   const active = value ?? held;
 
   // Mount does not decide the theme -- the bootstrap already did -- but it
-  // does announce it, so the scene and any other lens start in step.
-  useEffect(() => announceTheme(currentTheme()), []);
+  // does publish it, so the scene and any other lens start in step. It does
+  // not persist it: nobody has chosen anything yet.
+  useEffect(() => publishTheme(currentTheme()), []);
 
   const pick = useCallback(
     (id: ThemeId) => {
@@ -143,6 +192,42 @@ export const ThemeEye = ({
       className={cn('relative select-none', className)}
       style={{ width: EYE_SIZE, height: EYE_SIZE }}
     >
+      <button
+        aria-expanded={open}
+        aria-label="Theme"
+        className={cn(
+          'relative block cursor-pointer rounded-full',
+          BALL_MOTION,
+        )}
+        onClick={toggle}
+        style={{
+          width: EYE_SIZE,
+          height: EYE_SIZE,
+          background: SCLERA_FILL,
+          boxShadow:
+            'inset -3px -4px 9px rgba(0,0,0,.30), inset 3px 3px 7px rgba(255,255,255,.42), var(--eye-shadow)',
+        }}
+        type="button"
+      >
+        <span
+          className="absolute top-[9px] h-[16px] w-[16px] overflow-hidden rounded-full transition-[left] duration-[180ms] ease-out motion-reduce:transition-none"
+          style={{
+            left: open ? 6 : 9,
+            background: IRIS_FILL,
+            boxShadow:
+              'inset 0 -2px 4px rgba(0,0,0,.45), inset 0 2px 3px rgba(255,255,255,.35), 0 0 0 1px var(--iris-rim)',
+          }}
+        >
+          <span
+            className="absolute inset-0 rounded-full opacity-50"
+            style={{ background: FIBRES }}
+          />
+          <span className="absolute top-[5px] left-[5px] h-[6px] w-[6px] rounded-full bg-[#0b0b0b] shadow-[0_0_3px_1px_rgba(0,0,0,.55)]" />
+        </span>
+        <span className="absolute top-[6px] left-[7px] h-[6px] w-[8px] rounded-full bg-[rgba(255,255,255,.92)] blur-[1.2px]" />
+        <span className="absolute right-[8px] bottom-[8px] h-[3px] w-[4px] rounded-full bg-[rgba(255,255,255,.4)] blur-[.8px]" />
+      </button>
+
       {open ? (
         <div
           className="absolute top-0 right-[56px] z-[9] box-border animate-slide-in-card rounded-[16px_6px_16px_16px] bg-surface-2 p-[13px] shadow-[var(--shadow-panel)] [border:var(--border-cta-soft)]"
@@ -154,6 +239,7 @@ export const ThemeEye = ({
           <div className="mb-[9px] flex items-baseline justify-between">
             <span
               className="text-fg-4 uppercase"
+              id={captionId}
               style={{
                 fontSize: 'var(--type-micro-size)',
                 letterSpacing: 'var(--type-micro-tracking)',
@@ -173,23 +259,23 @@ export const ThemeEye = ({
           </div>
 
           <div
+            aria-labelledby={captionId}
             className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-[6px] gap-y-[2px]"
-            role="listbox"
+            role="group"
           >
             {THEME_IDS.map((id) => {
               const on = id === active;
               return (
                 <button
-                  aria-selected={on}
+                  aria-pressed={on}
                   className={cn(
                     'flex cursor-pointer items-center gap-[9px] rounded-[var(--radius-sm)] px-[7px] py-[4px] transition-[background-color,color] duration-[140ms] ease-out motion-reduce:transition-none',
                     on
-                      ? 'bg-accent-12 hover:bg-accent-20'
-                      : 'hover:bg-accent-07',
+                      ? 'bg-accent-12 pointer-fine:hover:bg-accent-20'
+                      : 'pointer-fine:hover:bg-accent-07',
                   )}
                   key={id}
                   onClick={() => pick(id)}
-                  role="option"
                   type="button"
                 >
                   <span
@@ -240,42 +326,6 @@ export const ThemeEye = ({
           </div>
         </div>
       ) : null}
-
-      <button
-        aria-expanded={open}
-        aria-label="Theme"
-        className={cn(
-          'relative block cursor-pointer rounded-full',
-          BALL_MOTION,
-        )}
-        onClick={toggle}
-        style={{
-          width: EYE_SIZE,
-          height: EYE_SIZE,
-          background: SCLERA_FILL,
-          boxShadow:
-            'inset -3px -4px 9px rgba(0,0,0,.30), inset 3px 3px 7px rgba(255,255,255,.42), var(--eye-shadow)',
-        }}
-        type="button"
-      >
-        <span
-          className="absolute top-[9px] h-[16px] w-[16px] overflow-hidden rounded-full transition-[left] duration-[180ms] ease-out motion-reduce:transition-none"
-          style={{
-            left: open ? 6 : 9,
-            background: IRIS_FILL,
-            boxShadow:
-              'inset 0 -2px 4px rgba(0,0,0,.45), inset 0 2px 3px rgba(255,255,255,.35), 0 0 0 1px var(--iris-rim)',
-          }}
-        >
-          <span
-            className="absolute inset-0 rounded-full opacity-50"
-            style={{ background: FIBRES }}
-          />
-          <span className="absolute top-[5px] left-[5px] h-[6px] w-[6px] rounded-full bg-[#0b0b0b] shadow-[0_0_3px_1px_rgba(0,0,0,.55)]" />
-        </span>
-        <span className="absolute top-[6px] left-[7px] h-[6px] w-[8px] rounded-full bg-[rgba(255,255,255,.92)] blur-[1.2px]" />
-        <span className="absolute right-[8px] bottom-[8px] h-[3px] w-[4px] rounded-full bg-[rgba(255,255,255,.4)] blur-[.8px]" />
-      </button>
     </div>
   );
 };

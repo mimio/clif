@@ -38,16 +38,19 @@ test.beforeEach(async ({ context, page }) => {
   await installMapboxGl(page);
 });
 
+// The panel is a named group of toggles, not a listbox: the roles it used
+// to carry promised an arrow-key model it never had, and the eight rows
+// have always been ordinary buttons.
 const openPanel = async (page: Page) => {
   await page.getByRole('button', { name: 'Theme' }).click();
-  return page.getByRole('listbox');
+  return page.getByRole('group', { name: 'theme' });
 };
 
 test('the lens offers exactly the eight themes', async ({ page }) => {
   await page.goto('/', { waitUntil: 'load' });
   await waitForScene(page);
 
-  const options = (await openPanel(page)).getByRole('option');
+  const options = (await openPanel(page)).getByRole('button');
   await expect(options).toHaveCount(THEME_IDS.length);
   // e2e/fixtures/app.ts keeps its own copy of the ids; this is what stops
   // that copy drifting from styles/theme-bootstrap.ts.
@@ -73,7 +76,7 @@ test('a picked theme reaches the map and survives a reload', async ({
 
   const panel = await openPanel(page);
   await panel
-    .getByRole('option', { name: 'teal', exact: true })
+    .getByRole('button', { name: 'teal', exact: true })
     .click();
   await expect(page.locator('html')).toHaveAttribute(
     'data-theme',
@@ -119,7 +122,7 @@ test('every theme builds a LUT mapbox-gl will accept', async ({
   const panel = await openPanel(page);
   for (const id of THEME_IDS) {
     await panel
-      .getByRole('option', { name: id, exact: true })
+      .getByRole('button', { name: id, exact: true })
       .click();
     await page.waitForTimeout(THEME_SETTLE_MS);
   }

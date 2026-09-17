@@ -11,6 +11,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * Identity is a per-instance token object rather than a string id: two
  * altimeters or two eyes can be on screen at once (the specimen page has
  * several), and object identity is the only thing that stays unique.
+ *
+ * Escape closes whichever one is open. A popover that can only be dismissed
+ * by clicking its own trigger again is a trap for anyone driving the page
+ * from the keyboard, and the listener is only bound while something is
+ * actually open, so the page has no key handler at rest.
  */
 export const POPOVER_EVENT = 'oneglobe:popover';
 
@@ -38,6 +43,17 @@ export const usePopover = (defaultOpen: boolean): Popover => {
     window.addEventListener(POPOVER_EVENT, onOther);
     return () => window.removeEventListener(POPOVER_EVENT, onOther);
   }, []);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      openRef.current = false;
+      setOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
 
   const toggle = useCallback(() => {
     const next = !openRef.current;
