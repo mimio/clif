@@ -3,7 +3,7 @@ import Altimeter from 'components/chrome/Altimeter';
 import ContactMouth from 'components/chrome/ContactMouth';
 import CoordPill from 'components/chrome/CoordPill';
 import ThemeEye from 'components/chrome/ThemeEye';
-import { cameras } from 'content/cameras';
+import { cameras, type CameraSpec } from 'content/cameras';
 import {
   ABOUT,
   HELLO,
@@ -63,6 +63,20 @@ const PATH_BY_ROUTE = Object.fromEntries(
 export const pathForRoute = (id: RouteId): string =>
   PATH_BY_ROUTE[id];
 
+/**
+ * The coordinate pill's caption, read off the live camera rather than off
+ * the URL: on the detail route the camera is HELD, and a frozen coordinate
+ * under the word CAMERA reads as a bug.
+ *
+ * INTEGRATION: the scene lane owns this rule and ships it as `coordLabel`
+ * in scene/camera.ts. That module is not on this branch yet, so the same
+ * predicate lives here; when the two lanes meet on one-globe, delete this
+ * and import theirs -- the semantics are identical (`interactive` false, or
+ * no camera at all, means the caption is not `camera`).
+ */
+export const coordLabelFor = (spec: CameraSpec | null): string =>
+  spec !== null && !spec.interactive ? 'held' : 'camera';
+
 export type ChromeRootProps = {
   className?: string;
 };
@@ -103,7 +117,7 @@ export const ChromeRoot = ({ className }: ChromeRootProps) => {
         <ContactMouth />
         <CoordPill
           className={cn(sheeted && 'max-tablet:hidden')}
-          label={pathname === DETAIL_PATH ? 'held' : 'camera'}
+          label={coordLabelFor(camera)}
           lat={center[1]}
           lng={center[0]}
         />

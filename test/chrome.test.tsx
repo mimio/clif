@@ -33,6 +33,7 @@ import Altimeter, {
   TRAVEL_MS,
 } from 'components/chrome/Altimeter';
 import ChromeRoot, {
+  coordLabelFor,
   DETAIL_INDICATOR,
   DETAIL_PATH,
   indicatorForPath,
@@ -761,9 +762,23 @@ describe('ChromeRoot', () => {
     expect(rail(/about/)).toHaveAttribute('aria-current', 'true');
   });
 
+  it('captions the pill from the camera, not from the URL', () => {
+    expect(coordLabelFor(null)).toBe('camera');
+    expect(coordLabelFor(cameras.hello)).toBe('camera');
+    expect(coordLabelFor(cameras.projectDetail)).toBe('held');
+  });
+
   it('holds the camera on the detail route', () => {
     pathname.current = DETAIL_PATH;
-    render(<ChromeRoot />);
+    render(
+      <SceneContext.Provider
+        value={{ camera: cameras.projectDetail, setCamera: vi.fn() }}
+      >
+        <ChromeRoot />
+      </SceneContext.Provider>,
+    );
+    // The camera is frozen there, so the caption says so rather than
+    // leaving an unchanging coordinate under the word CAMERA.
     expect(screen.getByText('held')).toBeVisible();
     expect(rail(/projects/)).toHaveAttribute('aria-current', 'false');
   });
