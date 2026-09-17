@@ -668,6 +668,57 @@ const BASEMAP_SCHEMA = {
   show3dObjects: { type: 'boolean', default: true },
 };
 
+/*
+ * A TILED GROUND FOR THE BASEMAP, off by default.
+ *
+ * LOCAL_STYLE paints the globe with a background layer, which needs no
+ * tiles at all -- right for every spec that is about the app rather than
+ * about the map's own appetite. e2e/hermetic/globe-tiles.spec.ts is about
+ * exactly that appetite: the rotation walks the CENTRE MERIDIAN, so the
+ * question "does turning the globe fetch tiles for ever" cannot be asked
+ * of a style that fetches none.
+ *
+ * It goes inside the `basemap` fragment rather than beside it, because
+ * that is where Mapbox Standard's own tiled layers live, and because the
+ * import has to stay intact or the scene rightly reports a style it
+ * cannot theme.
+ *
+ * The host is deliberately not api.mapbox.com: the handlers below answer
+ * that whole domain, and a spec counting tiles wants its own pattern to
+ * register and its own 200s to serve.
+ */
+export const TILE_PROBE_HOST = 'https://tiles.probe.test';
+
+export const TILE_PROBE_TEMPLATE = `${TILE_PROBE_HOST}/{z}/{x}/{y}.png`;
+
+const TILED_SOURCES = {
+  probe: {
+    type: 'raster',
+    tiles: [TILE_PROBE_TEMPLATE],
+    // Mapbox's own vector and raster tiles are 512, so the covering
+    // zoom this source resolves to is the one Standard would resolve to
+    // at the same camera.
+    tileSize: 512,
+    minzoom: 0,
+    maxzoom: 8,
+  },
+};
+
+const TILED_LAYER = {
+  id: 'probe-raster',
+  type: 'raster',
+  source: 'probe',
+};
+
+export type NetworkOptions = {
+  /**
+   * Gives the basemap a tiled ground, so the style asks for tiles the
+   * way a real one does. Off by default: no other spec wants the
+   * traffic. See TILE_PROBE_HOST above.
+   */
+  tiled?: boolean;
+};
+
 const LOCAL_STYLE = {
   version: 8,
   name: 'e2e-style',
@@ -768,7 +819,26 @@ const DEM_TILE_PNG =
  */
 export const stubMapboxNetwork = async (
   context: BrowserContext,
+  options: NetworkOptions = {},
 ): Promise<void> => {
+  const style = options.tiled
+    ? {
+        ...LOCAL_STYLE,
+        imports: [
+          {
+            ...LOCAL_STYLE.imports[0],
+            data: {
+              ...LOCAL_STYLE.imports[0].data,
+              sources: TILED_SOURCES,
+              layers: [
+                ...LOCAL_STYLE.imports[0].data.layers,
+                TILED_LAYER,
+              ],
+            },
+          },
+        ],
+      }
+    : LOCAL_STYLE;
   await context.route(
     /https:\/\/(api|events)\.mapbox\.com\/.*/,
     (route) => route.fulfill({ status: 204, body: '' }),
@@ -779,7 +849,7 @@ export const stubMapboxNetwork = async (
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(LOCAL_STYLE),
+        body: JSON.stringify(style),
       }),
   );
   await context.route(

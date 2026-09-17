@@ -127,10 +127,45 @@ const cameraSubs = new Set<CameraSub>();
 
 const noop = (): void => {};
 
+/*
+ * AN UNCHANGED TRANSFORM IS NOT AN EVENT, and saying it is cost the app
+ * a permanent re-render loop.
+ *
+ * `move` is fired by every camera write, and the spin writes one per
+ * animation frame for the life of the tab -- `setCenter` is `jumpTo`, and
+ * `jumpTo` fires `move`. This used to hand every one of them a FRESHLY
+ * ALLOCATED pair, so a subscriber holding the value in React state was
+ * handed a new reference sixty times a second whether or not the camera
+ * had actually moved, and re-rendered on every one of them. Measured on
+ * the hermetic runner: 15 re-renders a second of the whole chrome
+ * subtree, for ever, on `/` and on the 404.
+ *
+ * So the last pair is kept and an identical one is not announced. That is
+ * the discipline scene/SceneRoot.tsx already keeps around setPalette --
+ * it hands back the CURRENT palette when the key is unchanged, rather
+ * than an equal-but-new object, precisely because a new reference re-runs
+ * everything downstream of it -- and it is worth as much here: `move`
+ * fires for a drag, for an ease and for every frame of a flight that has
+ * already arrived, and a great many of those carry a centre the map is
+ * already at.
+ *
+ * It is not the whole fix, and it cannot be: on a rotating globe the
+ * centre genuinely changes every frame. What it removes is the churn that
+ * was never about movement at all -- the allocation, and every `move`
+ * that reports the place the map is already sitting. The consumer's own
+ * half, quantising to the precision it PRINTS and committing on a frame
+ * rather than on an event, is in components/chrome/LiveCoordPill.tsx.
+ */
 const attachCamera = (map: MapboxMap, sub: CameraSub): void => {
+  let last: [number, number] | null = null;
   const onMove = (): void => {
     const { lng, lat } = map.getCenter();
-    sub.listener([wrapLng(lng), lat]);
+    const next: [number, number] = [wrapLng(lng), lat];
+    if (last !== null && last[0] === next[0] && last[1] === next[1]) {
+      return;
+    }
+    last = next;
+    sub.listener(next);
   };
   map.on('move', onMove);
   sub.detach = () => map.off('move', onMove);
