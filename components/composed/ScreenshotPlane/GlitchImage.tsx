@@ -4,6 +4,18 @@ import * as THREE from 'three';
 import vertexShader from './glsl/vertex.glsl';
 import fragmentShader from './glsl/fragment.glsl';
 
+/*
+ * The RGB-split wave shader, as a three.js plane. It lives beside
+ * ScreenshotPlane because that is its only consumer.
+ *
+ * IT MUST SURVIVE A ROUTE CHANGE. The plane does not re-enter on the way to a
+ * project detail -- the same plane re-anchors right -- so a new project has
+ * to arrive as a new `src` on a mounted component, never as a remount.
+ * componentDidUpdate swaps the texture in place for exactly that.
+ *
+ * Coverage-excluded (vitest.config.mts): it needs a real GL context, which
+ * jsdom has not got. Its no-WebGL fallback to next/image is covered by e2e.
+ */
 type GlitchImageProps = {
   src: string;
   alt: string;
@@ -65,6 +77,18 @@ class GlitchImage extends Component<
       this.disposeScene();
       this.setState({ fallback: true });
     }
+  }
+
+  componentDidUpdate(previous: GlitchImageProps) {
+    // A new project, not a new plane: swap the texture on the live material
+    // so the mounted mesh keeps waving through the route change.
+    if (previous.src === this.props.src) return;
+    if (!this.material) return;
+    const next = new THREE.TextureLoader().load(this.props.src);
+    next.minFilter = THREE.LinearFilter;
+    this.texture?.dispose();
+    this.texture = next;
+    this.material.uniforms.uTexture.value = next;
   }
 
   componentWillUnmount() {

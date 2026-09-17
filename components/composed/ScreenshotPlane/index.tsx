@@ -1,0 +1,96 @@
+import type { CSSProperties } from 'react';
+import Text from 'components/primitives/Text';
+import { cn } from 'utils/cn';
+import GlitchImage from './GlitchImage';
+
+/*
+ * The project capture, tilted in perspective over the held map. It is the one
+ * place the system uses a shadow (--shadow-plane, themed).
+ *
+ * The RGB-split wave shader lives in ./GlitchImage -- three.js against a real
+ * GL context, amplitude ~0.6px -- and falls back to a plain next/image when
+ * there is no WebGL. That file is coverage-excluded for exactly that reason;
+ * the fallback is covered by e2e.
+ *
+ * Tilt is -16deg when it flies in on a projects hover and -18deg on a detail
+ * route; moving to the detail route it does NOT re-enter -- the same plane
+ * re-anchors right. So THIS COMPONENT MUST NOT REMOUNT across the
+ * projects -> detail transition: keep it mounted above the route swap and
+ * change `src`, which GlitchImage swaps as a texture rather than a mount.
+ * Giving it a route-derived React key, or rendering it inside the page that
+ * unmounts, breaks the one transition it exists for.
+ */
+export type ScreenshotPlaneProps = {
+  src?: string;
+  alt?: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+  /** Degrees of rotateY. Negative tilts the right edge away. */
+  tilt?: number;
+  className?: string;
+};
+
+/*
+ * GlitchImage sizes its own container to a 12:5 canvas, which is its job on
+ * the old grid and wrong inside a fixed plane, so the wrapper overrides that
+ * inline height and stretches the canvas to fill.
+ */
+const SHADER_FILL =
+  'absolute inset-0 [&_canvas]:!h-full [&_canvas]:!w-full [&>div]:!h-full';
+
+/** The placeholder weave, for a plane with no capture yet. */
+const PLACEHOLDER =
+  'absolute inset-0 bg-[repeating-linear-gradient(118deg,var(--map-land)_0_8px,var(--map-deep)_8px_16px)]';
+
+export const ScreenshotPlane = ({
+  src,
+  alt = '',
+  caption,
+  width = 600,
+  height = 380,
+  tilt = -18,
+  className,
+}: ScreenshotPlaneProps) => {
+  const style: CSSProperties = {
+    width,
+    height,
+    transform: `perspective(1200px) rotateY(${tilt}deg) rotateX(5deg)`,
+  };
+
+  return (
+    <figure
+      className={cn(
+        'relative m-0 max-w-full overflow-hidden rounded-[var(--radius-control)] border border-accent-30 shadow-[var(--shadow-plane)]',
+        className,
+      )}
+      data-src={src}
+      style={style}
+    >
+      {src === undefined ? (
+        <span aria-label={alt} className={PLACEHOLDER} role="img" />
+      ) : (
+        <div className={SHADER_FILL}>
+          <GlitchImage alt={alt} src={src} />
+        </div>
+      )}
+      {/* The artboard's caption sits on a dark placeholder weave; a real
+          capture can be any colour, so the caption carries its own plate.
+          --surface-control-backdrop is the themed ground at 69%, which is
+          the one surface --text-body is guaranteed against in all eight
+          themes -- a wash cannot promise that over an arbitrary photo. */}
+      {caption === undefined ? null : (
+        <figcaption className="absolute inset-x-0 bottom-0 bg-backdrop p-[18px]">
+          <Text
+            className="[letter-spacing:var(--type-label-tracking)] text-fg-2 uppercase"
+            variant="readout"
+          >
+            {caption}
+          </Text>
+        </figcaption>
+      )}
+    </figure>
+  );
+};
+
+export default ScreenshotPlane;

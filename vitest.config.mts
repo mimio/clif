@@ -92,9 +92,9 @@ export default defineConfig({
         // Wraps mapbox-gl, WebGL and the network; covered by e2e instead.
         'scene/mapbox/**',
         // three.js against a real GL context, which jsdom does not have. It
-        // is moving into scene/ in a later lane and gets its unit coverage
-        // there; the e2e suite covers its no-WebGL image fallback.
-        'components/GlitchImage/**',
+        // moved in beside its only consumer, whose own index.tsx stays
+        // covered; the e2e suite covers the no-WebGL image fallback.
+        'components/composed/ScreenshotPlane/GlitchImage.tsx',
         // next/font/local is a build-time Next construct, mocked in tests.
         'styles/fonts.ts',
         // Trivial Document shell; all its logic lives in theme-bootstrap.ts.
