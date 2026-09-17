@@ -15,19 +15,26 @@ import {
   ALBANY,
   anchorFromEvent,
   HISTORY_LABELS,
+  HISTORY_LINE,
   HISTORY_POINTS,
+  HISTORY_RING,
   HISTORY_SET,
   layerSetsFor,
   type LayerSetOptions,
   PROJECT_SITES_SET,
   projectSites,
+  SITE_COUNTS,
   SITE_LABELS,
   SITE_POINTS,
+  WORK_CITY_POINTS,
+  WORK_HOME_POINT,
   WORK_PATH_DASH,
+  WORK_PATH_LINE,
   WORK_PATH_SET,
 } from 'scene/layers/sets';
 import type {
   LayerSet,
+  PaintPatch,
   SceneListener,
   SceneMap,
 } from 'scene/layers/types';
@@ -385,22 +392,58 @@ describe('the project sites', () => {
     expect(total).toBe(projectsList.length);
   });
 
-  it('lights the hovered anchor and nothing else', () => {
-    const rest = layerSetsFor('projects', options())[0];
-    const lit = layerSetsFor(
-      'projects',
-      options({ hover: 'cambridge' }),
-    )[0];
-    const colorOf = (one: typeof rest) =>
-      one
+  /*
+   * Hover lighting is fully invertible, and "they differ" cannot see it.
+   *
+   * The previous version of this checked that the rest and lit colours
+   * were not equal and that the lit expression mentioned the anchor. Both
+   * stay true if the `case` arms are swapped -- hovering then DIMS the
+   * city under the pointer and lights all the others -- and both stay true
+   * if the 8px halo is inverted onto every city except the hovered one.
+   * So the whole expression is read, arms and all.
+   */
+  it('lights the hovered anchor and dims nothing else', () => {
+    const paintOf = (
+      hover: LayerSetOptions['hover'],
+      property: string,
+    ) =>
+      layerSetsFor('projects', options({ hover }))[0]
         .paint(FALLBACK_PALETTE)
         .find(
           (patch) =>
             patch.layer === SITE_POINTS &&
-            patch.property === 'circle-color',
+            patch.property === property,
         )?.value;
-    expect(colorOf(rest)).not.toEqual(colorOf(lit));
-    expect(JSON.stringify(colorOf(lit))).toContain('cambridge');
+
+    // The lit arm is first, and it is the BRIGHTER of the two.
+    expect(paintOf('cambridge', 'circle-color')).toEqual([
+      'case',
+      ['==', ['get', 'anchor'], 'cambridge'],
+      'rgba(255, 229, 32, 1)',
+      'rgba(255, 229, 32, 0.6)',
+    ]);
+    // The halo lands ON the hovered city, not on all the others.
+    expect(paintOf('cambridge', 'circle-stroke-width')).toEqual([
+      'case',
+      ['==', ['get', 'anchor'], 'cambridge'],
+      8,
+      0,
+    ]);
+
+    // With nothing hovered the test matches no feature, so every city
+    // takes the resting arm and no city wears a halo.
+    expect(paintOf(null, 'circle-color')).toEqual([
+      'case',
+      ['==', ['get', 'anchor'], ''],
+      'rgba(255, 229, 32, 1)',
+      'rgba(255, 229, 32, 0.6)',
+    ]);
+    expect(paintOf(null, 'circle-stroke-width')).toEqual([
+      'case',
+      ['==', ['get', 'anchor'], ''],
+      8,
+      0,
+    ]);
   });
 
   it('drops the labels below the tablet breakpoint', () => {
@@ -479,11 +522,19 @@ describe('the work path and the history stops', () => {
     const patches = work.paint(FALLBACK_PALETTE);
     for (const entry of work.layers) {
       const paint = entry.paint as Record<string, unknown>;
-      for (const patch of patches.filter(
-        (one) => one.layer === entry.id,
-      )) {
-        expect(paint[patch.property]).toEqual(patch.value);
-      }
+      // Both directions. Deriving the expectation from the same array the
+      // layer was built from can only fail if `layer()` drops something,
+      // and its loop body is skipped entirely for a layer with no patches
+      // at all -- which is exactly what a patch aimed at the wrong id
+      // leaves behind. See "every patch lands on a layer that exists".
+      expect(paint).toEqual(
+        Object.fromEntries(
+          patches
+            .filter((one) => one.layer === entry.id)
+            .map((one) => [one.property, one.value]),
+        ),
+      );
+      expect(Object.keys(paint).length).toBeGreaterThan(0);
     }
   });
 
@@ -521,5 +572,246 @@ describe('the work path and the history stops', () => {
         )?.value;
     expect(opacity(true)).toBe(1);
     expect(opacity(false)).toBe(0);
+  });
+});
+
+/* ---- what the layers are actually painted with ------------------------ */
+
+/*
+ * A PaintPatch aimed at a layer that is not in the set is invisible.
+ *
+ * `repaint` skips a patch whose layer the map does not have, and `layer()`
+ * builds a layer's initial paint by filtering the same array -- so a patch
+ * retargeted at a typo'd id does not throw, does not warn and does not
+ * show up in any diff of one against the other. The line mounts with
+ * `paint: {}` and renders for ever as mapbox's default black hairline.
+ *
+ * Nor is "there is a patch for it" enough: dropping the city points'
+ * circle-radius leaves circle-color behind, and the points render at
+ * mapbox's default 5 instead of the artboard's 2. So the values are
+ * pinned, as values. These are the numbers the design carries, and they
+ * are the one thing about the scene no unit test could see -- a colour was
+ * only ever checked for having come out of palette.a or palette.b, never
+ * for what it came out as. `palette.a(0.6)` dropped to `palette.a(0.05)`
+ * is still "from palette.a", and is also an invisible line.
+ */
+const RESTING = {
+  work: [
+    {
+      layer: WORK_PATH_LINE,
+      property: 'line-color',
+      value: 'rgba(255, 229, 32, 0.6)',
+    },
+    { layer: WORK_PATH_LINE, property: 'line-width', value: 1 },
+    {
+      layer: WORK_PATH_DASH,
+      property: 'line-color',
+      value: 'rgba(255, 138, 43, 1)',
+    },
+    { layer: WORK_PATH_DASH, property: 'line-width', value: 1.5 },
+    { layer: WORK_PATH_DASH, property: 'line-opacity', value: 1 },
+    {
+      layer: WORK_PATH_DASH,
+      property: 'line-dasharray',
+      value: [0, 4, 3],
+    },
+    {
+      layer: WORK_CITY_POINTS,
+      property: 'circle-color',
+      value: 'rgba(255, 229, 32, 0.6)',
+    },
+    { layer: WORK_CITY_POINTS, property: 'circle-radius', value: 2 },
+    {
+      layer: WORK_HOME_POINT,
+      property: 'circle-color',
+      value: 'rgba(255, 229, 32, 1)',
+    },
+    { layer: WORK_HOME_POINT, property: 'circle-radius', value: 3.2 },
+    {
+      layer: WORK_HOME_POINT,
+      property: 'circle-stroke-color',
+      value: 'rgba(255, 229, 32, 0.35)',
+    },
+    {
+      layer: WORK_HOME_POINT,
+      property: 'circle-stroke-width',
+      value: 9,
+    },
+  ],
+  projects: [
+    {
+      layer: SITE_POINTS,
+      property: 'circle-radius',
+      value: ['min', 7, ['+', 2.6, ['*', ['get', 'count'], 0.7]]],
+    },
+    {
+      layer: SITE_POINTS,
+      property: 'circle-color',
+      value: [
+        'case',
+        ['==', ['get', 'anchor'], ''],
+        'rgba(255, 229, 32, 1)',
+        'rgba(255, 229, 32, 0.6)',
+      ],
+    },
+    {
+      layer: SITE_POINTS,
+      property: 'circle-stroke-color',
+      value: 'rgba(255, 229, 32, 0.35)',
+    },
+    {
+      layer: SITE_POINTS,
+      property: 'circle-stroke-width',
+      value: ['case', ['==', ['get', 'anchor'], ''], 8, 0],
+    },
+    {
+      layer: SITE_LABELS,
+      property: 'text-color',
+      value: 'rgb(193, 193, 193)',
+    },
+    { layer: SITE_LABELS, property: 'text-opacity', value: 1 },
+    {
+      layer: SITE_LABELS,
+      property: 'text-halo-color',
+      value: 'rgb(15.84, 15.84, 15.84)',
+    },
+    { layer: SITE_LABELS, property: 'text-halo-width', value: 1 },
+    {
+      layer: SITE_COUNTS,
+      property: 'text-color',
+      value: 'rgb(193, 193, 193)',
+    },
+    { layer: SITE_COUNTS, property: 'text-opacity', value: 1 },
+    {
+      layer: SITE_COUNTS,
+      property: 'text-halo-color',
+      value: 'rgb(15.84, 15.84, 15.84)',
+    },
+    { layer: SITE_COUNTS, property: 'text-halo-width', value: 1 },
+  ],
+  about: [
+    {
+      layer: HISTORY_LINE,
+      property: 'line-color',
+      value: 'rgba(255, 138, 43, 0.6)',
+    },
+    { layer: HISTORY_LINE, property: 'line-width', value: 1 },
+    {
+      layer: HISTORY_POINTS,
+      property: 'circle-radius',
+      value: ['case', ['==', ['get', 'id'], -1], 4.5, 3],
+    },
+    {
+      layer: HISTORY_POINTS,
+      property: 'circle-color',
+      value: [
+        'case',
+        ['==', ['get', 'id'], -1],
+        'rgba(255, 229, 32, 1)',
+        'rgba(255, 229, 32, 0.6)',
+      ],
+    },
+    {
+      layer: HISTORY_RING,
+      property: 'circle-radius',
+      value: ['case', ['==', ['get', 'id'], -1], 11, 0],
+    },
+    { layer: HISTORY_RING, property: 'circle-opacity', value: 0 },
+    {
+      layer: HISTORY_RING,
+      property: 'circle-stroke-color',
+      value: 'rgba(255, 229, 32, 0.6)',
+    },
+    {
+      layer: HISTORY_RING,
+      property: 'circle-stroke-width',
+      value: ['case', ['==', ['get', 'id'], -1], 1, 0],
+    },
+    {
+      layer: HISTORY_LABELS,
+      property: 'text-color',
+      value: 'rgb(193, 193, 193)',
+    },
+    { layer: HISTORY_LABELS, property: 'text-opacity', value: 1 },
+    {
+      layer: HISTORY_LABELS,
+      property: 'text-halo-color',
+      value: 'rgb(15.84, 15.84, 15.84)',
+    },
+    { layer: HISTORY_LABELS, property: 'text-halo-width', value: 1 },
+  ],
+} satisfies Record<string, PaintPatch[]>;
+
+/** The route states a set is built under, beyond the resting one. */
+const STATES: Partial<LayerSetOptions>[] = [
+  {},
+  { hover: 'cambridge' },
+  { hover: 'vail', labels: false },
+  { labels: false, dash: false },
+  { selectedStop: 1 },
+  { selectedStop: 4, labels: false, dash: false },
+];
+
+const SCENES = [
+  'hello',
+  'notFound',
+  'projects',
+  'about',
+  'projectDetail',
+] as const;
+
+describe('the paint the design actually asks for', () => {
+  it.each([
+    ['hello', RESTING.work],
+    ['projects', RESTING.projects],
+    ['about', RESTING.about],
+  ] as const)(
+    'pins every %s value, not just its source',
+    (scene, expected) => {
+      expect(
+        layerSetsFor(scene, options())[0].paint(FALLBACK_PALETTE),
+      ).toEqual(expected);
+    },
+  );
+
+  it('gives 404 the same work path hello has', () => {
+    expect(
+      layerSetsFor('notFound', options())[0].paint(FALLBACK_PALETTE),
+    ).toEqual(RESTING.work);
+  });
+
+  it('every patch lands on a layer that exists in its set', () => {
+    for (const scene of SCENES) {
+      for (const state of STATES) {
+        for (const set of layerSetsFor(scene, options(state))) {
+          const ids = new Set(set.layers.map((one) => one.id));
+          for (const patch of set.paint(FALLBACK_PALETTE)) {
+            expect(
+              ids.has(patch.layer),
+              `${scene}: ${patch.layer}/${patch.property}`,
+            ).toBe(true);
+          }
+        }
+      }
+    }
+  });
+
+  it('leaves no mounted layer with an empty paint', () => {
+    for (const scene of SCENES) {
+      for (const state of STATES) {
+        for (const set of layerSetsFor(scene, options(state))) {
+          for (const entry of set.layers) {
+            const paint = (entry.paint ?? {}) as Record<
+              string,
+              unknown
+            >;
+            expect(
+              Object.keys(paint),
+              `${scene}: ${entry.id}`,
+            ).not.toHaveLength(0);
+          }
+        }
+      }
+    }
   });
 });

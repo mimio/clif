@@ -39,6 +39,7 @@ import {
   HISTORY_RING,
   SITE_LABELS,
   SITE_POINTS,
+  WORK_PATH_DASH,
   WORK_PATH_LINE,
 } from 'scene/layers/sets';
 import MapProvider, {
@@ -64,11 +65,15 @@ import {
 } from 'scene/useViewport';
 import { applyTheme, THEME_IDS } from 'styles/theme-bootstrap';
 import {
+  CONFIG_FRAGMENT,
   FakeMap,
   installMapboxStub,
+  STANDARD_CONFIG_SCHEMA,
+  STYLE_DEFERRED,
   STYLE_GUARDED,
   STYLE_NOT_LOADED,
   stubThemedStyles,
+  styleMethodsGuardedInMapboxGl,
 } from 'test/fake-mapbox';
 import { themeBlock } from 'test/theme-css';
 
@@ -91,23 +96,63 @@ const settle = async (ms = 200): Promise<void> => {
   });
 };
 
-/** jsdom has no matchMedia; `truthy` is the set of queries that match. */
-const matchMediaStub = (truthy: string[]) =>
-  vi.fn((query: string) => {
-    const listeners = new Set<() => void>();
-    return {
-      matches: truthy.includes(query),
-      media: query,
-      onchange: null,
-      addEventListener: (_: string, fn: () => void) =>
-        listeners.add(fn),
-      removeEventListener: (_: string, fn: () => void) =>
-        listeners.delete(fn),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    };
+/** One animation frame, which is a 16ms timer in jsdom. */
+const frame = (): Promise<void> =>
+  new Promise((done) => {
+    requestAnimationFrame(() => done());
   });
+
+/**
+ * jsdom has no matchMedia. `truthy` is the set of queries that match to
+ * begin with -- and, unlike the stub this replaces, the listeners it hands
+ * out can be counted and fired.
+ *
+ * That second half is not decoration. A media query is a live subscription
+ * in the browser: rotating a phone and toggling the OS reduced-motion
+ * switch both arrive as `change` events on an existing MediaQueryList,
+ * long after mount. A stub that records listeners and never calls one can
+ * only ever test the mount-time read, which leaves the whole subscription
+ * -- and its teardown -- unexercised.
+ */
+const matchMediaStub = (truthy: string[]) => {
+  const live = new Set(truthy);
+  const listeners = new Map<string, Set<(event: unknown) => void>>();
+  const forQuery = (query: string) => {
+    const found = listeners.get(query);
+    if (found) return found;
+    const made = new Set<(event: unknown) => void>();
+    listeners.set(query, made);
+    return made;
+  };
+
+  const stub = vi.fn((query: string) => ({
+    // A getter, so a snapshot read after a change sees the new answer.
+    get matches() {
+      return live.has(query);
+    },
+    media: query,
+    onchange: null,
+    addEventListener: (_: string, fn: (event: unknown) => void) =>
+      forQuery(query).add(fn),
+    removeEventListener: (_: string, fn: (event: unknown) => void) =>
+      forQuery(query).delete(fn),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+
+  return Object.assign(stub, {
+    /** How many live `change` listeners a query is carrying. */
+    listeners: (query: string): number => forQuery(query).size,
+    /** Flips a query and dispatches `change`, as the browser does. */
+    fire: (query: string, matches: boolean): void => {
+      if (matches) live.add(query);
+      else live.delete(query);
+      for (const fn of [...forQuery(query)])
+        fn({ matches, media: query });
+    },
+  });
+};
 
 beforeEach(() => {
   pathname.current = '/';
@@ -262,12 +307,55 @@ describe('the viewport and motion reads', () => {
     );
   });
 
-  it('unsubscribes from both queries on unmount', () => {
+  /*
+   * The change half. Both reads are live subscriptions, and the events
+   * that drive them -- a phone rotating past the tablet breakpoint, the OS
+   * reduced-motion switch being thrown -- arrive long after mount. The
+   * suite used to populate the stub's listener set and never call one, so
+   * a `watch` that subscribed to nothing read exactly the same.
+   */
+  it('follows a query that changes after it was first read', async () => {
+    const stub = matchMediaStub([]);
+    vi.stubGlobal('matchMedia', stub);
+    render(<Viewport />);
+    expect(screen.getByText('desktop/full')).toBeVisible();
+
+    await act(async () => {
+      stub.fire(MOBILE_QUERY, true);
+    });
+    expect(screen.getByText('mobile/full')).toBeVisible();
+
+    await act(async () => {
+      stub.fire(REDUCED_MOTION_QUERY, true);
+    });
+    expect(screen.getByText('mobile/reduced')).toBeVisible();
+
+    // And back: a rotation is not a one-way door.
+    await act(async () => {
+      stub.fire(MOBILE_QUERY, false);
+    });
+    expect(screen.getByText('desktop/reduced')).toBeVisible();
+  });
+
+  it('removes both listeners on unmount, and leaks none per mount', () => {
     const stub = matchMediaStub([]);
     vi.stubGlobal('matchMedia', stub);
     const { unmount } = render(<Viewport />);
-    expect(() => unmount()).not.toThrow();
-    expect(stub).toHaveBeenCalled();
+    expect(stub.listeners(MOBILE_QUERY)).toBe(1);
+    expect(stub.listeners(REDUCED_MOTION_QUERY)).toBe(1);
+
+    unmount();
+    expect(stub.listeners(MOBILE_QUERY)).toBe(0);
+    expect(stub.listeners(REDUCED_MOTION_QUERY)).toBe(0);
+
+    // SceneRoot is mounted once per tab, but useIsMobile is not: a
+    // teardown that forgets one listener per mount is a leak that grows
+    // with the session rather than a bug that shows up at once.
+    for (let mounted = 0; mounted < 4; mounted += 1) {
+      render(<Viewport />).unmount();
+    }
+    expect(stub.listeners(MOBILE_QUERY)).toBe(0);
+    expect(stub.listeners(REDUCED_MOTION_QUERY)).toBe(0);
   });
 });
 
@@ -293,6 +381,34 @@ describe('the no-token fallback', () => {
     expect(node).toHaveClass('clif-scene', 'x');
     expect(screen.getByTestId('scene-fallback')).toBeInTheDocument();
     expect(getMap()).toBeNull();
+  });
+
+  /*
+   * The container's box is a precondition of constructing the map, not
+   * styling: mapbox-gl measures clientWidth/clientHeight at construction,
+   * and a box of zero height gets a 300px canvas and a strip rather than a
+   * globe -- which is exactly what shipped, for months, because
+   * .clif-scene was referenced and never defined.
+   *
+   * SceneRoot's comment says inline style "makes it the one form a jsdom
+   * test can actually read back, so the precondition is asserted rather
+   * than assumed". jsdom computes no layout, so this is that assertion:
+   * the element's own style attribute, read back. The real geometry is the
+   * e2e suite's job; this is the claim in the comment being true.
+   */
+  it('gives the map a full-viewport box to measure', async () => {
+    await act(async () => {
+      render(
+        <MapProvider>
+          <SceneRoot />
+        </MapProvider>,
+      );
+    });
+    const box = screen.getByTestId('scene-root').style;
+    expect(box.position).toBe('fixed');
+    expect(box.inset).toBe('0px');
+    expect(box.zIndex).toBe('0');
+    expect(box.overflow).toBe('hidden');
   });
 
   it('never resolves the container into a map', async () => {
@@ -530,6 +646,16 @@ describe('the persistent map', () => {
     await navigate('/');
     expect(FakeMap.last.getLayer(HISTORY_POINTS)).toBeUndefined();
     expect(FakeMap.last.getLayer(WORK_PATH_LINE)).toBeDefined();
+
+    /*
+     * And nothing was unbound twice. Real mapbox-gl ignores an `off` with
+     * no matching `on`, so this fake does too -- but it counts them, and a
+     * registry that has lost track of what it bound shows up here rather
+     * than nowhere. test/scene-layers.test.ts's local map throws on one;
+     * this is the same regression caught through the forgiving fake, which
+     * is the one that behaves like the library.
+     */
+    expect(FakeMap.last.calls.strayOff).toEqual([]);
   });
 
   it('sends the basemap config, and only what changed after that', async () => {
@@ -643,6 +769,192 @@ describe('the persistent map', () => {
     expect(FakeMap.last.calls.easeTo[0].zoom).toBe(1.4);
   });
 
+  /*
+   * The two environment reads again, but as CHANGES.
+   *
+   * Every test above this point sets a media query before mounting, which
+   * only ever exercises the mount-time read. The scene is mounted once per
+   * tab and never unmounted, so the mount-time read is the least
+   * interesting of the two: a phone rotating, a tablet being turned, an OS
+   * reduced-motion switch thrown mid-session all arrive as `change` on a
+   * MediaQueryList that already exists. A subscription that is never
+   * called leaves the camera, the terrain, the labels and the rotation
+   * stale for the rest of the session, and nothing remounts to correct it.
+   */
+  it('re-frames when the viewport crosses the breakpoint mid-session', async () => {
+    const media = matchMediaStub([]);
+    vi.stubGlobal('matchMedia', media);
+    await mount();
+    const map = FakeMap.last;
+    expect(map.calls.easeTo.at(-1)?.zoom).toBe(cameras.hello.zoom);
+
+    await act(async () => {
+      media.fire(MOBILE_QUERY, true);
+    });
+    // The mobile artboard, on the same map: a rotation is not a remount.
+    expect(map.calls.easeTo.at(-1)?.zoom).toBe(1.4);
+    expect(FakeMap.instances).toHaveLength(1);
+
+    await act(async () => {
+      media.fire(MOBILE_QUERY, false);
+    });
+    expect(map.calls.easeTo.at(-1)?.zoom).toBe(cameras.hello.zoom);
+  });
+
+  it('stops the globe when reduced motion is turned on mid-session', async () => {
+    const media = matchMediaStub([]);
+    vi.stubGlobal('matchMedia', media);
+    await mount();
+    const map = FakeMap.last;
+    await act(async () => {
+      await frame();
+    });
+    expect(map.calls.bearing.length).toBeGreaterThan(0);
+
+    await act(async () => {
+      media.fire(REDUCED_MOTION_QUERY, true);
+    });
+    const spun = map.calls.bearing.length;
+    await act(async () => {
+      await frame();
+      await frame();
+    });
+    // The rotation stopped, and the travelling dash with it.
+    expect(map.calls.bearing).toHaveLength(spun);
+    const dashOpacity = map.calls.paint
+      .filter(
+        ([layer, property]) =>
+          layer === WORK_PATH_DASH && property === 'line-opacity',
+      )
+      .at(-1)?.[2];
+    expect(dashOpacity).toBe(0);
+  });
+
+  /*
+   * The dash loop itself, driven to completion rather than left to
+   * whichever frame happens to land inside an `act`. It is also the one
+   * branch in scene/mapbox/instance.ts whose coverage moved between two
+   * identical runs, because nothing forced a frame while the style was
+   * ready and the dash layer mounted.
+   */
+  it('walks the dash along the work path, three steps and no more', async () => {
+    await mount();
+    const map = FakeMap.last;
+    const dashes = () =>
+      map.calls.paint.filter(
+        ([layer, property]) =>
+          layer === WORK_PATH_DASH && property === 'line-dasharray',
+      );
+
+    await act(async () => {
+      for (
+        let spent = 0;
+        spent < 20 && dashes().length === 0;
+        spent += 1
+      ) {
+        await frame();
+      }
+    });
+
+    expect(dashes().length).toBeGreaterThan(0);
+    for (const [, , value] of dashes()) {
+      expect([
+        [0, 4, 3],
+        [0, 3, 4],
+        [0, 2, 5],
+      ]).toContainEqual(value);
+    }
+  });
+
+  it('skips a dash layer the style dropped underneath the loop', async () => {
+    await mount();
+    const map = FakeMap.last;
+    const dashes = () =>
+      map.calls.paint.filter(
+        ([layer, property]) =>
+          layer === WORK_PATH_DASH && property === 'line-dasharray',
+      );
+    await act(async () => {
+      for (
+        let spent = 0;
+        spent < 20 && dashes().length === 0;
+        spent += 1
+      ) {
+        await frame();
+      }
+    });
+    expect(dashes().length).toBeGreaterThan(0);
+
+    // A style reload drops our layers; the loop outlives them, because it
+    // is owned by the route rather than by the style.
+    map.removeLayer(WORK_PATH_DASH);
+    const painted = map.calls.paint.length;
+    const spun = map.calls.bearing.length;
+    await act(async () => {
+      await frame();
+      await frame();
+    });
+
+    // Still turning, and not writing a paint property to a layer that is
+    // not there -- which is the call that throws in real mapbox-gl.
+    expect(map.calls.bearing.length).toBeGreaterThan(spun);
+    expect(map.calls.paint).toHaveLength(painted);
+  });
+
+  /*
+   * The hazard setConfigProperty actually carries.
+   *
+   * It is not the style lifecycle -- mapbox does not guard that call at
+   * all. It is that `Style.setConfigProperty` looks its fragment up by id
+   * and returns if there is none, then looks the key up in the import's
+   * schema and returns if there is none: an unknown fragment or a
+   * mistyped knob is discarded with no throw, no error event and no
+   * console line. The LUT and these keys are the two things nobody can
+   * verify without a real Mapbox account, so they are the two that most
+   * need a test.
+   */
+  it('drops an unknown config key or fragment in silence, as mapbox does', async () => {
+    await mount();
+    const map = FakeMap.last;
+    expect(() =>
+      map.setConfigProperty('basemap', 'showPoiLabels', false),
+    ).not.toThrow();
+    expect(() =>
+      map.setConfigProperty('basemaps', 'lightPreset', 'dawn'),
+    ).not.toThrow();
+
+    expect(map.calls.configDiscarded).toEqual([
+      ['basemap', 'showPoiLabels', false],
+      ['basemaps', 'lightPreset', 'dawn'],
+    ]);
+    expect(map.calls.config).not.toContainEqual([
+      'basemap',
+      'showPoiLabels',
+      false,
+    ]);
+  });
+
+  it('sends no config key Standard would discard, on any route', async () => {
+    await mount();
+    const map = FakeMap.last;
+    for (const path of [
+      '/projects',
+      '/about',
+      '/projects/[projectId]',
+      '/',
+    ]) {
+      await navigate(path);
+    }
+
+    expect(map.calls.configDiscarded).toEqual([]);
+    // Not vacuous: it did hold a conversation.
+    expect(map.calls.config.length).toBeGreaterThan(0);
+    for (const [fragment, key] of map.calls.config) {
+      expect(fragment).toBe(CONFIG_FRAGMENT);
+      expect([...STANDARD_CONFIG_SCHEMA]).toContain(key);
+    }
+  });
+
   it('changes what the scene shows without moving the camera', async () => {
     pathname.current = '/projects';
     const Browsing = ({ open }: { open: boolean }) => {
@@ -701,7 +1013,21 @@ describe('the persistent map', () => {
             layer === HISTORY_POINTS && property === 'circle-radius',
         )
         .at(-1)?.[2];
-    expect(JSON.stringify(radius())).toContain('2');
+    /*
+     * The whole expression, not a substring of it.
+     *
+     * `JSON.stringify(...).toContain('5')` was true for every selection
+     * and for none: the '5' it found came out of the literal 4.5. Reading
+     * the parsed expression is what makes this see a re-selection at all,
+     * and it pins which arm carries the live radius -- swapping 4.5 and 3
+     * shrinks the selected stop and passes any substring check.
+     */
+    expect(radius()).toEqual([
+      'case',
+      ['==', ['get', 'id'], 2],
+      4.5,
+      3,
+    ]);
 
     await act(async () => {
       view.rerender(
@@ -711,7 +1037,12 @@ describe('the persistent map', () => {
         </MapProvider>,
       );
     });
-    expect(JSON.stringify(radius())).toContain('5');
+    expect(radius()).toEqual([
+      'case',
+      ['==', ['get', 'id'], 5],
+      4.5,
+      3,
+    ]);
     // Selecting a stop repaints; the camera move to that stop is the
     // about route's own business, through useSceneCamera.
     expect(map.calls.easeTo).toHaveLength(moves);
@@ -817,7 +1148,7 @@ describe('the style lifecycle', () => {
     return view!;
   };
 
-  it('the fake refuses every guarded call before style.load', () => {
+  it('the fake refuses every deferred call before style.load', () => {
     const map = new FakeMap({});
     const calls: Record<string, () => void> = {
       setColorTheme: () => map.setColorTheme({ data: 'x' }),
@@ -831,9 +1162,8 @@ describe('the style lifecycle', () => {
       removeSource: () => map.removeSource('s'),
       removeLayer: () => map.removeLayer('l'),
     };
-    // Every method mapbox-gl guards, and no others.
     expect(Object.keys(calls).sort()).toEqual(
-      [...STYLE_GUARDED].sort(),
+      [...STYLE_DEFERRED].sort(),
     );
     for (const [name, call] of Object.entries(calls)) {
       expect(() => call(), name).toThrow(STYLE_NOT_LOADED);
@@ -841,6 +1171,45 @@ describe('the style lifecycle', () => {
     // The camera is not guarded, in the fake or in mapbox-gl.
     expect(() => map.easeTo({ zoom: 2 })).not.toThrow();
     expect(() => map.setBearing(4)).not.toThrow();
+  });
+
+  /*
+   * ...and the list itself, checked against the library rather than
+   * against a copy of itself.
+   *
+   * Nothing in this repo imports mapbox-gl -- scene/mapbox/loader.ts
+   * loads it dynamically and every test resolves the stub instead -- so
+   * "the methods mapbox-gl guards" was, until now, a claim no test could
+   * fail. The installed dev bundle is unminified, so the Style class body
+   * can simply be read.
+   */
+  it('names the Style methods mapbox-gl really guards', () => {
+    const guarded = styleMethodsGuardedInMapboxGl();
+    // The extraction found a class, not an empty file it could not parse.
+    expect(guarded.size).toBeGreaterThan(20);
+    expect(guarded).toContain('addLayer');
+
+    // Everything the list claims mapbox guards, mapbox guards.
+    for (const name of STYLE_GUARDED) {
+      expect(guarded.has(name), name).toBe(true);
+    }
+
+    /*
+     * And the gap between the two lists is exactly one name, for exactly
+     * one reason. Style.setConfigProperty opens with
+     * getFragmentStyle(fragmentId) and returns when there is no fragment
+     * -- neither it nor getFragmentStyle calls _checkLoaded -- so before
+     * style.load the real call is a silent no-op, not a throw. The fake
+     * defers it anyway, which costs nothing and is documented on
+     * STYLE_DEFERRED. What must not happen is STYLE_GUARDED quietly
+     * growing it back, so that the list claims mapbox throws where it
+     * silently does nothing.
+     */
+    const onlyDeferred = STYLE_DEFERRED.filter(
+      (name) => !(STYLE_GUARDED as readonly string[]).includes(name),
+    );
+    expect(onlyDeferred).toEqual(['setConfigProperty']);
+    expect(guarded.has('setConfigProperty')).toBe(false);
   });
 
   it('drives the camera but touches nothing else before style.load', async () => {

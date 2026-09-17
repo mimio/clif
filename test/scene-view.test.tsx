@@ -235,46 +235,140 @@ const patchFor = (
 describe('the live history stop', () => {
   const current = historyStops.find((stop) => stop.end === null);
 
+  /*
+   * `toContain(String(selected.id))` could not see this at all.
+   *
+   * The selected id here is 2, and '2' is in `255`, `229` and `32`, which
+   * every colour in the set is made of -- so the assertion held for every
+   * selection and for none, which is the opposite of what a test named
+   * "is the selected stop, not the current job" is for. The expression is
+   * read whole instead, arms and all: which id the test names, and which
+   * arm carries the live value. Swapping the ring's 11 and 0 hides the
+   * ring on the selected stop and draws it on the other five, and a
+   * substring check cannot tell the two apart.
+   */
   it('is the selected stop, not the current job', () => {
     const selected = historyStops[1];
     expect(current).toBeDefined();
     expect(selected.id).not.toBe(current?.id);
 
     const patches = historyPaint(selected.id);
-    // Both the point and the ring name the selected id, and nothing in
-    // the set names the current job.
-    for (const property of ['circle-radius', 'circle-stroke-width']) {
-      expect(
-        JSON.stringify(patchFor(patches, HISTORY_RING, property)),
-      ).toContain(String(selected.id));
-    }
+    const live = ['==', ['get', 'id'], selected.id];
+
+    expect(patchFor(patches, HISTORY_RING, 'circle-radius')).toEqual([
+      'case',
+      live,
+      11,
+      0,
+    ]);
     expect(
-      JSON.stringify(
-        patchFor(patches, HISTORY_POINTS, 'circle-color'),
-      ),
-    ).toContain(String(selected.id));
+      patchFor(patches, HISTORY_RING, 'circle-stroke-width'),
+    ).toEqual(['case', live, 1, 0]);
+    expect(
+      patchFor(patches, HISTORY_POINTS, 'circle-radius'),
+    ).toEqual(['case', live, 4.5, 3]);
+    expect(patchFor(patches, HISTORY_POINTS, 'circle-color')).toEqual(
+      ['case', live, FALLBACK_PALETTE.a(1), FALLBACK_PALETTE.a(0.6)],
+    );
+
+    // And nothing in the set names the current job.
+    const named = new Set<unknown>();
+    for (const patch of patches) {
+      const found = /\["get","id"\],(-?\d+)\]/.exec(
+        JSON.stringify(patch.value),
+      );
+      if (found) named.add(Number(found[1]));
+    }
+    expect([...named]).toEqual([selected.id]);
+    expect(named.has(current?.id)).toBe(false);
   });
 
   /*
-   * The selection may not live in a layer `filter`. A filter is read once,
-   * at addLayer time, and sync() never remounts a set that is already
-   * mounted -- so a filter that names the selection is a no-op from the
-   * second selection onwards. That is the shape of the bug that left the
-   * ring stuck on whichever stop the route was entered on.
+   * The invariant, rather than the one symptom of it that shipped.
+   *
+   * scene/layers/types.ts states it for the whole LayerEntry: "This is
+   * STRUCTURE, and it is read exactly once -- at mount. `sync` skips a set
+   * whose id is already mounted, so nothing here is ever re-applied while
+   * the route lives." A `filter` is the slot the ring bug used, but
+   * `layout`, `minzoom`, `maxzoom` and `source` are read once too, and the
+   * sources are added once as well. Putting the selection in
+   * HISTORY_LABELS's layout['text-field'] makes a stop's label read "LIVE"
+   * for ever -- the same bug, in a slot a filter-shaped assertion cannot
+   * see.
+   *
+   * So: build every route's sets under a spread of route states, and
+   * assert the static half is byte-for-byte the same object every time.
+   * Only `paint` -- which `repaint` re-applies on every route, hover,
+   * selection and theme change -- is allowed to move.
    */
-  it('keeps the selection out of every layer filter', () => {
-    for (const selectedStop of [null, 1, 4]) {
-      for (const set of layerSetsFor(
-        'about',
-        options({ selectedStop }),
-      )) {
-        for (const entry of set.layers) {
-          expect(JSON.stringify(entry.filter ?? null)).not.toContain(
-            '"id"',
-          );
-        }
+  const STATES: Partial<LayerSetOptions>[] = [
+    {},
+    { selectedStop: 1 },
+    { selectedStop: 4, labels: false },
+    { hover: 'cambridge' },
+    { hover: 'vail', labels: false, dash: false },
+    {
+      selectedStop: 2,
+      hover: 'portland',
+      labels: false,
+      dash: false,
+    },
+  ];
+
+  const SCENES = [
+    'hello',
+    'notFound',
+    'projects',
+    'about',
+    'projectDetail',
+  ] as const;
+
+  /**
+   * Everything mount() reads once: the sources it adds, each layer minus
+   * its paint, and the shape of each binding. The handlers themselves are
+   * closures over the callbacks a route hands in, so only their (type,
+   * layer) is structure.
+   */
+  const staticHalf = (sets: ReturnType<typeof layerSetsFor>) =>
+    sets.map((set) => ({
+      id: set.id,
+      sources: set.sources,
+      layers: set.layers.map((entry) =>
+        Object.fromEntries(
+          Object.entries(entry).filter(([key]) => key !== 'paint'),
+        ),
+      ),
+      interactions: set.interactions.map(({ type, layer }) => ({
+        type,
+        layer,
+      })),
+    }));
+
+  it.each(SCENES)(
+    'keeps every route-varying value out of %s s static half',
+    (scene) => {
+      const first = staticHalf(
+        layerSetsFor(scene, options(STATES[0])),
+      );
+      for (const state of STATES.slice(1)) {
+        expect(
+          staticHalf(layerSetsFor(scene, options(state))),
+          JSON.stringify(state),
+        ).toEqual(first);
       }
-    }
+    },
+  );
+
+  it('still has a static half worth comparing', () => {
+    // Not vacuous: /about declares four layers, one of them with a layout
+    // block, and two sources -- so the comparison above has something to
+    // compare. A set that stopped declaring layers would pass it silently.
+    const [stops] = layerSetsFor('about', options());
+    expect(stops.layers).toHaveLength(4);
+    expect(stops.sources).toHaveLength(2);
+    expect(
+      stops.layers.find((one) => one.id === HISTORY_LABELS)?.layout,
+    ).toMatchObject({ 'text-field': ['get', 'company'] });
   });
 
   it('carries a stop id on every point, so the paint can find it', () => {

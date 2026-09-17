@@ -1,3 +1,5 @@
+import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 import { vi } from 'vitest';
 import type { MapboxModule } from 'scene/mapbox/loader';
 
@@ -28,8 +30,13 @@ import type { MapboxModule } from 'scene/mapbox/loader';
  * way of not finding out. `new mapboxgl.Map()` returns before the style
  * exists, and everything behind Style._checkLoaded() throws until
  * style.load -- so it throws here too, with the same message, from the
- * same methods. A test that wants a usable map has to let the style load,
- * exactly as the app does.
+ * same methods, and test/scene.test.tsx checks that list against the
+ * installed library rather than against itself. A test that wants a
+ * usable map has to let the style load, exactly as the app does.
+ *
+ * One method is refused here that mapbox does not refuse --
+ * setConfigProperty, which silently does nothing instead. See
+ * STYLE_DEFERRED for why the fake is the stricter of the two.
  *
  * The style loads on a microtask by default, which is the shape of the
  * real thing -- construct, then a round trip -- without the wait. Pass
@@ -37,10 +44,20 @@ import type { MapboxModule } from 'scene/mapbox/loader';
  * { style: 'fail' } for the stylesheet a bad token cannot fetch.
  */
 
-/** The methods mapbox-gl guards with Style._checkLoaded(). */
+/**
+ * The methods mapbox-gl really guards with `Style._checkLoaded()`.
+ *
+ * This list is not written from memory and is not checked against itself:
+ * `styleMethodsGuardedInMapboxGl()` below reads the installed library and
+ * test/scene.test.tsx asserts that every name here is one the library
+ * actually guards. A list a test compares to the same list is a fact
+ * about the test.
+ *
+ * NOTE `setConfigProperty` is deliberately NOT here, though the fake
+ * refuses it -- see STYLE_DEFERRED.
+ */
 export const STYLE_GUARDED = [
   'setColorTheme',
-  'setConfigProperty',
   'setPaintProperty',
   'setFog',
   'setTerrain',
@@ -50,7 +67,110 @@ export const STYLE_GUARDED = [
   'removeLayer',
 ] as const;
 
+/**
+ * What the FAKE refuses before style.load, which is one entry longer.
+ *
+ * `Style.setConfigProperty` carries no `_checkLoaded()` in mapbox-gl v3:
+ * it opens `const fragmentStyle = this.getFragmentStyle(fragmentId); if
+ * (!fragmentStyle) return;`, and `getFragmentStyle` has no check either,
+ * so before style.load the real call is a SILENT NO-OP rather than a
+ * throw. Silently doing nothing is the worse of the two failures -- the
+ * config would simply never arrive -- so the fake is stricter than the
+ * library here on purpose. Being stricter than the thing you stand for
+ * only costs a deferral, and scene/mapbox/instance.ts defers the config
+ * with everything else anyway; being more forgiving is what hid the
+ * outage this whole file was rewritten for.
+ *
+ * The real hazard of setConfigProperty is not the lifecycle. It is that
+ * an unknown fragment id or a key Standard's schema does not declare is
+ * discarded without a word -- which is what `configDiscarded` models.
+ */
+export const STYLE_DEFERRED = [
+  ...STYLE_GUARDED,
+  'setConfigProperty',
+] as const;
+
 export const STYLE_NOT_LOADED = 'Style is not done loading';
+
+/**
+ * Reads the installed mapbox-gl and returns the names of every `Style`
+ * method whose body calls `this._checkLoaded()`.
+ *
+ * The dev bundle is unminified and one method per `  name(...) {` at two
+ * spaces of indent, so the class body can be walked directly. If a future
+ * mapbox-gl ships in a shape this cannot parse, the empty set it returns
+ * fails the test that uses it rather than passing quietly.
+ */
+export const styleMethodsGuardedInMapboxGl = (): Set<string> => {
+  const require_ = createRequire(import.meta.url);
+  const source = readFileSync(
+    require_.resolve('mapbox-gl/dist/mapbox-gl-dev.js'),
+    'utf8',
+  ).split('\n');
+
+  const opens = source.findIndex((line) =>
+    line.startsWith('class Style extends'),
+  );
+  if (opens < 0) throw new Error('mapbox-gl: no Style class found');
+  let closes = opens + 1;
+  while (closes < source.length && !source[closes].startsWith('}')) {
+    closes += 1;
+  }
+
+  const body = source.slice(opens + 1, closes);
+  const guarded = new Set<string>();
+  for (let at = 0; at < body.length; at += 1) {
+    const named = /^ {2}([A-Za-z_$][\w$]*)\(/.exec(body[at]);
+    if (!named) continue;
+    let end = at + 1;
+    while (end < body.length && !/^ {2}\}/.test(body[end])) end += 1;
+    const method = body.slice(at + 1, end).join('\n');
+    if (method.includes('this._checkLoaded()')) guarded.add(named[1]);
+  }
+  return guarded;
+};
+
+/**
+ * The `basemap` import is the only fragment the Standard style declares,
+ * and `setConfigProperty` resolves its fragment by id before anything
+ * else. Any other id gets `undefined` back and the call returns.
+ */
+export const CONFIG_FRAGMENT = 'basemap';
+
+/**
+ * The Standard config keys this scene is allowed to send.
+ *
+ * `Style.setConfigProperty` reads `fragmentStyle.stylesheet.schema` and
+ * returns -- silently, with no error event -- when the key is not in it.
+ * The schema lives in the style JSON on Mapbox's servers, so there is
+ * nothing in the package to derive this from; it is the documented
+ * Standard configuration surface, and it is here so that a typo in
+ * scene/theme.ts is a test failure rather than a knob that stops working
+ * in production with nothing said.
+ */
+export const STANDARD_CONFIG_SCHEMA = new Set([
+  'lightPreset',
+  'theme',
+  'font',
+  'showPlaceLabels',
+  'showRoadLabels',
+  'showPointOfInterestLabels',
+  'showTransitLabels',
+  'show3dObjects',
+  'showPedestrianRoads',
+  'showAdminBoundaries',
+  'showRoadsAndTransit',
+  'showLandmarkIcons',
+  'colorMotorways',
+  'colorTrunks',
+  'colorRoads',
+  'colorPlaceLabels',
+  'colorGreenspace',
+  'colorWater',
+  'colorAdminBoundaries',
+  'colorBuildingHighlight',
+  'colorBuildingSelect',
+]);
 
 /** Events the scene's own lifecycle owns, rather than a layer set. */
 const LIFECYCLE_EVENTS = ['style.load', 'error', 'sourcedata'];
@@ -61,8 +181,23 @@ export type Recorded = {
   terrain: (Record<string, unknown> | null)[];
   colorTheme: string[];
   config: [string, string, unknown][];
+  /**
+   * setConfigProperty calls the real library would have thrown away: an
+   * unknown fragment id, or a key Standard's schema does not declare.
+   * Empty is the healthy state, and it is the ONLY place such a call
+   * shows up -- mapbox says nothing about one, and neither does this.
+   */
+  configDiscarded: [string, string, unknown][];
   paint: [string, string, unknown][];
   bearing: number[];
+  /**
+   * `off` calls that matched no live binding.
+   *
+   * Real mapbox-gl ignores one, so this fake does too -- but it counts
+   * them, because a double-off is the registry losing track of what it
+   * bound, and a stub that both forgives and forgets cannot tell anyone.
+   */
+  strayOff: string[];
 };
 
 type Listener = (payload?: unknown) => void;
@@ -104,8 +239,10 @@ export class FakeMap {
     terrain: [],
     colorTheme: [],
     config: [],
+    configDiscarded: [],
     paint: [],
     bearing: [],
+    strayOff: [],
   };
 
   readonly sources = new Map<string, unknown>();
@@ -247,11 +384,15 @@ export class FakeMap {
         ...current.slice(found + 1),
       ]);
     }
-    const at = this.bound.indexOf(args.map(String).join('|'));
+    const entry = args.map(String).join('|');
+    const at = this.bound.indexOf(entry);
+    // Real mapbox-gl ignores an off with no matching on; so do we, but
+    // it is recorded rather than swallowed.
     if (at >= 0) this.bound.splice(at, 1);
+    else this.calls.strayOff.push(entry);
   }
 
-  /* ---- everything behind Style._checkLoaded() ---------------------- */
+  /* ---- everything the fake defers until style.load ----------------- */
 
   setFog(options: Record<string, unknown>): void {
     this.requireStyle();
@@ -268,12 +409,25 @@ export class FakeMap {
     this.calls.colorTheme.push(theme.data);
   }
 
+  /**
+   * Stricter than mapbox on the lifecycle and exactly as unforgiving as
+   * mapbox on the payload: a fragment that is not `basemap`, or a key
+   * outside Standard's schema, is dropped on the floor without an error
+   * event, a console line or a return value. See STYLE_DEFERRED.
+   */
   setConfigProperty(
     fragment: string,
     key: string,
     value: unknown,
   ): void {
     this.requireStyle();
+    if (
+      fragment !== CONFIG_FRAGMENT ||
+      !STANDARD_CONFIG_SCHEMA.has(key)
+    ) {
+      this.calls.configDiscarded.push([fragment, key, value]);
+      return;
+    }
     this.calls.config.push([fragment, key, value]);
   }
 

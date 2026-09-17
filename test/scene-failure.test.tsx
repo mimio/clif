@@ -47,9 +47,78 @@ beforeEach(() => {
 afterEach(() => {
   resetMapForTests();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
   vi.doUnmock('scene/mapbox/loader');
+  vi.doUnmock('mapbox-gl');
   vi.resetModules();
+});
+
+/*
+ * The branch production actually takes.
+ *
+ * Every other test in the suite resolves loadMapboxGl through the injected
+ * stub or through the no-token early return, so `pending = import(
+ * 'mapbox-gl')` -- the one line that loads the library in a real browser
+ * -- had never run. scene/mapbox is excluded from the coverage report, so
+ * it could not even show up as a gap: it was simply untested.
+ *
+ * The memoisation is the part worth pinning. mapbox-gl is a dynamic chunk
+ * and the promise, not the resolved module, is what is cached: React 19
+ * double-invokes effects, so the second call lands while the first import
+ * is still in flight, and caching only the result would fetch the chunk
+ * twice and build two libraries.
+ */
+describe('loading mapbox-gl for real', () => {
+  const withToken = async () => {
+    const mapboxgl = { Map: class Fake {} };
+    const imported = vi.fn(() => ({ default: mapboxgl }));
+    vi.doMock('mapbox-gl', imported);
+    vi.stubEnv('NEXT_PUBLIC_MAPBOX_TOKEN', 'pk.test');
+    vi.resetModules();
+    const loader = await import('scene/mapbox/loader');
+    return { imported, loader, mapboxgl };
+  };
+
+  it('imports the library once and hands the same promise back', async () => {
+    const { imported, loader, mapboxgl } = await withToken();
+    delete window.__MAPBOX_STUB__;
+
+    // Concurrent, as StrictMode's double-invoked effects are.
+    const [first, second] = await Promise.all([
+      loader.loadMapboxGl(),
+      loader.loadMapboxGl(),
+    ]);
+    const third = await loader.loadMapboxGl();
+
+    expect(first).toBe(mapboxgl);
+    expect(second).toBe(first);
+    expect(third).toBe(first);
+    // One chunk, not three.
+    expect(imported).toHaveBeenCalledTimes(1);
+  });
+
+  it('prefers an injected stub over the library, token or not', async () => {
+    const { imported, loader } = await withToken();
+    const stub = { Map: class Stubbed {} };
+    window.__MAPBOX_STUB__ = stub as never;
+
+    await expect(loader.loadMapboxGl()).resolves.toBe(stub);
+    expect(imported).not.toHaveBeenCalled();
+    delete window.__MAPBOX_STUB__;
+  });
+
+  it('never imports it at all without a token', async () => {
+    const imported = vi.fn(() => ({ default: {} }));
+    vi.doMock('mapbox-gl', imported);
+    vi.stubEnv('NEXT_PUBLIC_MAPBOX_TOKEN', '');
+    vi.resetModules();
+    const loader = await import('scene/mapbox/loader');
+    delete window.__MAPBOX_STUB__;
+
+    await expect(loader.loadMapboxGl()).resolves.toBeNull();
+    expect(imported).not.toHaveBeenCalled();
+  });
 });
 
 const mount = async () => {
