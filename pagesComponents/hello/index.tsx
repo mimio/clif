@@ -3,7 +3,7 @@ import PageWord from 'components/primitives/PageWord';
 import Text from 'components/primitives/Text';
 import SceneStage from 'components/composed/SceneStage';
 import { ABOUT, PROJECTS } from 'content/routes';
-import { foregroundEnter } from 'pagesComponents/hello/enter';
+import { FG_STAGGER_CARD_MS, foregroundEnter } from 'scene/enter';
 import { useReducedMotion } from 'scene/useViewport';
 
 /*
@@ -44,6 +44,23 @@ export const HELLO_BODY_WIDE =
 export const HelloPage = () => {
   const reduced = useReducedMotion();
 
+  /*
+   * The shared handoff: each step waits out 60% of the move the camera
+   * makes arriving here, then runs --fg-enter on --fg-ease. The stagger is
+   * passed rather than defaulted -- scene/enter's default is the 40ms row
+   * step, and 1a is the board that walks its three foreground steps on
+   * --stagger-card's 80ms.
+   *
+   * `from` is left unset, which is the direct load 1a annotates: the page
+   * cannot see the route the camera came from, and only SceneRoot can.
+   */
+  const enter = (step: number) =>
+    foregroundEnter(step, {
+      scene: 'hello',
+      reduced,
+      stagger: FG_STAGGER_CARD_MS,
+    });
+
   return (
     <SceneStage vignette="left">
       {/* 1f's two offsets past the stage's mobile insets: 120px up from
@@ -55,13 +72,13 @@ export const HelloPage = () => {
         {/* The word gets its own box: PageWord is w-fit so its clipped
             gradient samples the word itself, and the step's animation
             belongs to the box rather than to the glyphs. */}
-        <div style={foregroundEnter(0, reduced)}>
+        <div style={enter(0)}>
           <PageWord>hello.</PageWord>
         </div>
         <Text
           as="p"
           className="m-0 max-w-[520px] text-pretty"
-          style={foregroundEnter(1, reduced)}
+          style={enter(1)}
           variant="body"
         >
           {HELLO_BODY}{' '}
@@ -71,7 +88,7 @@ export const HelloPage = () => {
             keycap already reserves the room its skirt travels into. */}
         <div
           className="flex gap-3.5 max-tablet:gap-3"
-          style={foregroundEnter(2, reduced)}
+          style={enter(2)}
         >
           <Button glyph="projects" href={`/${PROJECTS}`}>
             projects

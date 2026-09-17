@@ -5,18 +5,27 @@ import HelloPage, {
   HELLO_BODY,
   HELLO_BODY_WIDE,
 } from 'pagesComponents/hello';
-import {
-  FG_HANDOFF_MS,
-  FG_STAGGER_MS,
-  foregroundEnter,
-} from 'pagesComponents/hello/enter';
 import { REDUCED_MOVE_MS } from 'scene/camera';
+import {
+  FG_STAGGER_CARD_MS,
+  FG_STAGGER_MS,
+  foregroundHandoffMs,
+} from 'scene/enter';
 
 /*
  * Lane 7 -- the hello route (artboards 1a and 1f). The shared route suite in
- * pages.test.tsx already asserts that the word and the two links exist; what
- * is here is this route's own geometry and its share of the scene handoff.
+ * pages.test.tsx already asserts that the word and the two links exist, and
+ * scene-enter.test.ts owns the handoff helper itself; what is here is this
+ * route's own geometry and the arguments it hands that helper.
  */
+
+/** 60% of hello's 800ms arrival, which is where step 0 starts. */
+const HANDOFF_MS = foregroundHandoffMs('hello');
+
+const stepDelay = (step: number) =>
+  `animation: clif-slidein var(--fg-enter) var(--fg-ease) ${
+    HANDOFF_MS + step * FG_STAGGER_CARD_MS
+  }ms both;`;
 
 const stubMotion = (reduce: boolean) => {
   vi.stubGlobal(
@@ -37,31 +46,6 @@ const stubMotion = (reduce: boolean) => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
-});
-
-describe('the foreground handoff', () => {
-  it('waits for the camera to be 60% through, then staggers', () => {
-    expect(FG_HANDOFF_MS).toBe(SCENE_MOVE_MS * SCENE_HANDOFF);
-
-    expect(foregroundEnter(0, false).animation).toBe(
-      `clif-slidein var(--fg-enter) var(--fg-ease) ${FG_HANDOFF_MS}ms both`,
-    );
-    expect(foregroundEnter(2, false).animation).toBe(
-      `clif-slidein var(--fg-enter) var(--fg-ease) ${
-        FG_HANDOFF_MS + 2 * FG_STAGGER_MS
-      }ms both`,
-    );
-  });
-
-  it('collapses to the specified crossfade under reduced motion', () => {
-    const style = foregroundEnter(2, true);
-
-    // No delay, no travel: the same keyframe with --slide-in-from zeroed.
-    expect(style.animation).toBe(
-      `clif-slidein ${REDUCED_MOVE_MS}ms linear both`,
-    );
-    expect(style['--slide-in-from']).toBe('0px');
-  });
 });
 
 describe('the hello route', () => {
@@ -94,7 +78,7 @@ describe('the hello route', () => {
     );
   });
 
-  it('runs the three steps on the scene-handoff stagger', () => {
+  it('runs the three steps on the card stagger, not the row default', () => {
     stubMotion(false);
     const { container } = render(<HelloPage />);
     const steps = [
@@ -102,10 +86,18 @@ describe('the hello route', () => {
     ];
 
     expect(steps.map((step) => step.getAttribute('style'))).toEqual([
-      `animation: clif-slidein var(--fg-enter) var(--fg-ease) ${FG_HANDOFF_MS}ms both;`,
-      `animation: clif-slidein var(--fg-enter) var(--fg-ease) ${FG_HANDOFF_MS + FG_STAGGER_MS}ms both;`,
-      `animation: clif-slidein var(--fg-enter) var(--fg-ease) ${FG_HANDOFF_MS + 2 * FG_STAGGER_MS}ms both;`,
+      stepDelay(0),
+      stepDelay(1),
+      stepDelay(2),
     ]);
+
+    // The handoff is the camera's own number, and 1a's step is 80ms.
+    expect(HANDOFF_MS).toBe(SCENE_MOVE_MS * SCENE_HANDOFF);
+    expect(FG_STAGGER_CARD_MS).not.toBe(FG_STAGGER_MS);
+    // Taking scene/enter's default would silently retime this route.
+    expect(steps[2].getAttribute('style')).not.toContain(
+      `${HANDOFF_MS + 2 * FG_STAGGER_MS}ms`,
+    );
   });
 
   it('honours prefers-reduced-motion', () => {
