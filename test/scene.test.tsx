@@ -55,6 +55,7 @@ import {
   resetMapForTests,
   syncLayers,
 } from 'scene/mapbox/instance';
+import { watchCamera } from 'scene/liveCamera';
 import { loadMapboxGl } from 'scene/mapbox/loader';
 import SceneRoot from 'scene/SceneRoot';
 import { resetLutCacheForTests, THEME_EVENT } from 'scene/theme';
@@ -884,6 +885,41 @@ describe('the persistent map', () => {
       filter?: unknown;
     };
     expect(mounted.filter).toBeUndefined();
+  });
+
+  /*
+   * The coordinate readout can derive where the camera is GOING, from
+   * the same pure functions SceneRoot uses. What it cannot derive is
+   * where the camera IS mid-flight, because easeTo does not interpolate
+   * lng/lat linearly. So it reads the transform back instead.
+   */
+  it('reports the map s centre on every move', async () => {
+    const seen: [number, number][] = [];
+    const stop = watchCamera((center) => seen.push(center));
+    await mount();
+
+    // Fired once for the map's creation, with its current transform...
+    expect(seen.length).toBeGreaterThan(0);
+    // ...and again for the route's camera move.
+    expect(seen.at(-1)).toEqual(cameras.hello.center);
+
+    await navigate('/projects');
+    expect(seen.at(-1)).toEqual(cameras.projects.center);
+
+    const settled = seen.length;
+    stop();
+    await navigate('/about');
+    expect(seen).toHaveLength(settled);
+  });
+
+  it('starts a subscriber that arrives after the map on the live value', async () => {
+    await mount();
+    const seen: [number, number][] = [];
+    const stop = watchCamera((center) => seen.push(center));
+    // Immediately, without waiting for a move: a pill that mounts
+    // mid-flight still has somewhere to start.
+    expect(seen).toEqual([cameras.hello.center]);
+    stop();
   });
 
   it('fogs the scene from the route preset', async () => {

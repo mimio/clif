@@ -79,6 +79,62 @@ const DEM_SPEC = {
 
 export const getMap = (): MapboxMap | null => instance;
 
+/* ---- reading the camera back ----------------------------------------- */
+
+export type CameraListener = (center: [number, number]) => void;
+
+type CameraSub = { listener: CameraListener; detach: () => void };
+
+const cameraSubs = new Set<CameraSub>();
+
+const noop = (): void => {};
+
+const attachCamera = (map: MapboxMap, sub: CameraSub): void => {
+  const onMove = (): void => {
+    const { lng, lat } = map.getCenter();
+    sub.listener([lng, lat]);
+  };
+  map.on('move', onMove);
+  sub.detach = () => map.off('move', onMove);
+  // The current transform, not the next move: a subscriber that arrives
+  // mid-flight still needs somewhere to start.
+  onMove();
+};
+
+/**
+ * Follows the map's actual centre, for anything that has to agree with
+ * the globe rather than predict it.
+ *
+ * The coordinate pill can derive where the camera is *going* -- it
+ * applies resolveCamera, forViewport and cameraForHover to the same
+ * inputs SceneRoot does, all of them pure. What it cannot derive is
+ * where the camera *is* during the 800-900ms flight, because easeTo does
+ * not interpolate lng/lat linearly and a second implementation of the
+ * ease would be wrong in a new way. So it reads the transform instead.
+ *
+ * Fires immediately when there is a map, on every `move`, and once when
+ * the map is first created -- that last clause is the one getMap()
+ * cannot serve, because the chrome mounts before ensureMap resolves and
+ * nothing else announces the creation. watchStyleStatus does not cover
+ * it either: with no token the status stays 'loading' for ever.
+ *
+ * Subscribing before the map exists is normal and costs nothing; the
+ * subscription simply attaches when the map arrives. Callers that never
+ * get a map -- no token, the fallback plate, unit tests -- never hear
+ * anything and fall back to their derived value.
+ */
+export const watchCamera = (
+  listener: CameraListener,
+): (() => void) => {
+  const sub: CameraSub = { listener, detach: noop };
+  cameraSubs.add(sub);
+  if (instance) attachCamera(instance, sub);
+  return () => {
+    sub.detach();
+    cameraSubs.delete(sub);
+  };
+};
+
 /* ---- the style lifecycle --------------------------------------------- */
 
 export type StyleStatus = 'loading' | 'ready' | 'failed';
@@ -237,6 +293,9 @@ const SCENE_ERROR_LIMIT = 20;
 /** The last thing flush() asked of the map; context for a failure. */
 let lastAction = 'none';
 
+/** Completed scene passes. Read by the debug handle; see SceneDebug. */
+let passes = 0;
+
 /** Recent failures, newest last. Read by the debug handle. */
 const sceneErrors: string[] = [];
 
@@ -286,6 +345,15 @@ export type SceneDebug = {
   errors: () => string[];
   /** The last thing the scene asked the map to do. */
   lastAction: () => string;
+  /**
+   * How many scene passes have completed.
+   *
+   * The honest signal for "the scene has finished reacting to the route
+   * change". A test that navigates and then sleeps is guessing; one that
+   * waits for this to move is not. It only advances on a pass that ran
+   * to the end, so a pass that throws never counts.
+   */
+  passes: () => number;
 };
 
 /*
@@ -305,6 +373,7 @@ const publishDebugHandle = (map: MapboxMap): void => {
     appliedLut: () => appliedLut,
     errors: () => [...sceneErrors],
     lastAction: () => lastAction,
+    passes: () => passes,
   };
 };
 
@@ -365,12 +434,12 @@ const flush = (): void => {
   }
   flushing = true;
   try {
-    let passes = 0;
+    let pass = 0;
     do {
       flushAgain = false;
       flushOnce();
-      passes += 1;
-    } while (flushAgain && passes < MAX_FLUSH_PASSES);
+      pass += 1;
+    } while (flushAgain && pass < MAX_FLUSH_PASSES);
   } finally {
     flushing = false;
   }
@@ -446,6 +515,7 @@ const flushOnce = (): void => {
   }
 
   reconcileTerrain(map);
+  passes += 1;
 };
 
 /**
@@ -535,6 +605,9 @@ const create = async (
   }
 
   instance = map;
+  // Everything that subscribed before the map existed, including the
+  // first read of the transform.
+  for (const sub of [...cameraSubs]) attachCamera(map, sub);
 
   map.once('style.load', () => {
     setStatus('ready');
@@ -763,11 +836,14 @@ export const resetMapForTests = (): void => {
   flushing = false;
   flushAgain = false;
   terrainDirty = false;
+  for (const sub of [...cameraSubs]) sub.detach();
+  cameraSubs.clear();
   appliedLut = null;
   wantedTerrain = null;
   appliedTerrain = null;
   waitingForDem = false;
   lastAction = 'none';
+  passes = 0;
   sceneErrors.length = 0;
   if (typeof window !== 'undefined') delete window.__SCENE__;
 };

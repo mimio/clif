@@ -97,16 +97,18 @@ export type ChromeRootProps = {
  * is the whole reason the chrome can apply them: this derives the same
  * value from the same inputs rather than keeping a second copy of it.
  *
- * WHAT IT STILL CANNOT SEE is the flight. applyCamera hands mapbox an
- * easeTo of 800-900ms; this snaps to the destination on the frame the route
- * changes, so for the length of every move the pill is ahead of the globe.
- * Closing that needs the map's live transform, and scene/mapbox/instance.ts
- * publishes no camera-change seam (getMap() exists, but there is nothing to
- * subscribe to and no notification when the map is first created, and the
- * chrome may not reach into scene/mapbox/** anyway). Interpolating the ease
- * here would be a second implementation of the flight, wrong in a different
- * way. So the pill reads the camera's DESTINATION exactly, and the gap that
- * is left is a whole-frame one rather than a silently wrong decimal.
+ * WHAT IT CANNOT SEE is the flight. applyCamera hands mapbox an easeTo of
+ * 800-900ms; this snaps to the destination on the frame the route changes,
+ * so for the length of every move it is ahead of the globe. Interpolating
+ * the ease here would be a second implementation of the flight, wrong in a
+ * different way, since easeTo does not move lng/lat linearly.
+ *
+ * `watchCamera` in scene/liveCamera.ts closes that: it reports the map's
+ * real transform on every move, and fires once when the map is first
+ * created, which is the moment getMap() cannot serve because the chrome
+ * mounts before ensureMap resolves. This stays as the fallback for every
+ * case where there is no map to read -- no token, the fallback plate, unit
+ * tests -- and as the destination the flight is heading for.
  */
 export const liveCamera = (
   pathname: string,

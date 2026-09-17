@@ -152,6 +152,9 @@ export class FakeMap {
 
   private bearing = 0;
 
+  /** The transform's centre, as easeTo leaves it. */
+  private center: [number, number] = [0, 0];
+
   constructor(options: Record<string, unknown>) {
     this.options = options;
     FakeMap.instances.push(this);
@@ -359,6 +362,16 @@ export class FakeMap {
 
   easeTo(options: Record<string, unknown>): void {
     this.calls.easeTo.push(options);
+    // Real mapbox fires `move` throughout the flight; landing on the
+    // destination in one step is enough to prove the seam is wired.
+    if (Array.isArray(options.center)) {
+      this.center = [...options.center] as [number, number];
+    }
+    this.fire('move');
+  }
+
+  getCenter(): { lng: number; lat: number } {
+    return { lng: this.center[0], lat: this.center[1] };
   }
 
   getBearing(): number {

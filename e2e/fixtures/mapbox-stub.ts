@@ -158,6 +158,7 @@ const stubScript = (options: StubOptions): void => {
      * removeSource re-running the terrain evaluation throws.
      */
     let terrainDirty = false;
+    let center: [number, number] = [0, 0];
     const layers = new Map<string, unknown>();
     const disabled = new Set<string>();
     let bearing = 0;
@@ -226,7 +227,20 @@ const stubScript = (options: StubOptions): void => {
           zoom: spec.zoom as number,
           duration: spec.duration as number,
         });
+        // scene/liveCamera.ts follows `move` so the coordinate readout
+        // can show where the globe IS rather than where it is going.
+        // Without this the subscription is silent and the chrome falls
+        // back to its derived value, which is the case this tier is
+        // least able to notice.
+        if (Array.isArray(spec.center)) {
+          center = [...spec.center] as [number, number];
+        }
+        fire('move');
       },
+      getCenter: (): { lng: number; lat: number } => ({
+        lng: center[0],
+        lat: center[1],
+      }),
       getBearing: (): number => bearing,
       setBearing: (next: number): void => {
         bearing = next;
