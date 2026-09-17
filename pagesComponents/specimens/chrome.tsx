@@ -9,7 +9,7 @@ import { cn } from 'utils/cn';
 /*
  * Lane D's section: the persistent chrome, out of the scene and on a bench.
  *
- * The real ChromeRoot is already pinned over this page by pages/_app.tsx, so
+ * The real ChromeRoot is already pinned over this page by pages/_app.page.tsx, so
  * placement is verified by just looking at the corners. What is here instead
  * is every piece at a size you can inspect: the rail's four states from
  * artboard 1i, a live rail to click, the rail magnified for the 1px ticks

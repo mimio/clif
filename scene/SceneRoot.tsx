@@ -30,6 +30,7 @@ import {
   applyFog,
   applyInteractivity,
   applyTerrain,
+  batchScene,
   ensureMap,
   getStyleStatus,
   setAnimation,
@@ -50,7 +51,7 @@ import type { Palette } from 'styles/tokens/palette';
 import { cn } from 'utils/cn';
 
 /*
- * The globe. One instance, mounted once in pages/_app.tsx behind everything
+ * The globe. One instance, mounted once in pages/_app.page.tsx behind everything
  * else at z-index 0, and never unmounted -- that is the whole point of the
  * rewrite. Route changes move the camera; they do not rebuild the map.
  *
@@ -93,7 +94,7 @@ type SceneState = 'pending' | 'live' | 'fallback';
  * lives with it. Inline also makes it the one form a jsdom test can
  * actually read back, so the precondition is asserted rather than assumed.
  * .clif-scene stays as a hook for anything styles/ wants to add later;
- * z-0 is the order pages/_app.tsx documents, under the page at z-10 and
+ * z-0 is the order pages/_app.page.tsx documents, under the page at z-10 and
  * the chrome at z-40.
  */
 const SCENE_BOX: CSSProperties = {
@@ -288,17 +289,26 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
       applyCamera(target, moveDurationFor(from, sceneId, reduced));
     }
 
-    applyFog(spec, palette);
-    applyTerrain(terrainFor(spec));
-    applyInteractivity(spec.interactive);
+    /*
+     * One pass, one flush. These are wants, not commands: batching them
+     * lets the scene apply them in the order mapbox needs rather than
+     * the order they are written -- specifically, every layer removal
+     * ahead of every setTerrain, because doing those two out of order in
+     * one tick throws from inside mapbox and takes the tree down.
+     */
+    batchScene(() => {
+      applyFog(spec, palette);
+      applyTerrain(terrainFor(spec));
+      applyInteractivity(spec.interactive);
 
-    // Tier 2: only the properties that actually changed.
-    const next = basemapConfig(spec.fog, spec.zoom, palette.light);
-    applyBasemapConfig(configChanges(next, lastConfig.current));
-    lastConfig.current = next;
+      // Tier 2: only the properties that actually changed.
+      const next = basemapConfig(spec.fog, spec.zoom, palette.light);
+      applyBasemapConfig(configChanges(next, lastConfig.current));
+      lastConfig.current = next;
 
-    // Tier 3 rides along with the layer diff.
-    syncLayers(sets, palette);
+      // Tier 3 rides along with the layer diff.
+      syncLayers(sets, palette);
+    });
 
     setAnimation(
       spinRateFor(spec, reduced),

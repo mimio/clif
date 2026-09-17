@@ -7,6 +7,7 @@ import {
   it,
   vi,
 } from 'vitest';
+import { watchCamera } from 'scene/liveCamera';
 import MapProvider from 'scene/MapProvider';
 import {
   getMap,
@@ -271,6 +272,22 @@ describe('mapbox failures after the style has loaded', () => {
       'data-scene-state',
       'live',
     );
+  });
+});
+
+describe('watching the camera without a map', () => {
+  it('never fires, and unsubscribing is still safe', async () => {
+    const seen: [number, number][] = [];
+    const stop = watchCamera((center) => seen.push(center));
+    await mount();
+    // No token means no map, so there is no transform to report. The
+    // chrome falls back to the camera it derives for itself.
+    expect(screen.getByTestId('scene-root')).toHaveAttribute(
+      'data-scene-state',
+      'fallback',
+    );
+    expect(seen).toEqual([]);
+    expect(() => stop()).not.toThrow();
   });
 });
 

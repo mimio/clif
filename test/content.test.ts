@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { anchorList, anchors, VAIL_VALLEY } from 'content/anchors';
 import {
@@ -142,11 +144,37 @@ describe('projects', () => {
     });
   });
 
+  /*
+   * "Exists" used to mean "matches a regex", which is a claim about the
+   * shape of a string and not about the repository: pointing a project at
+   * /gopro_skinny.webp -- a file this branch deleted, and a perfectly
+   * well-shaped path -- left all eighteen tests green. Both fields are
+   * paths under public/ that a route renders as a URL, so what is worth
+   * asserting is that the bytes are there. The shape checks stay: they are
+   * what keeps a path servable (rooted, lowercase, no query).
+   */
+  const inPublic = (src: string): string =>
+    path.join(process.cwd(), 'public', src);
+
   it('gives every project an anchor and an icon that exists', () => {
     projectsList.forEach((project) => {
       expect(anchors[project.anchor]).toBeDefined();
       expect(project.iconSrc).toMatch(/^\/icons\/[a-z-]+\.svg$/);
       expect(project.imgSrc).toMatch(/^\/[a-z_]+\.webp$/);
+      // As one object, so a failure names the project rather than
+      // reporting that false is not true, twenty-eight paths in.
+      expect({
+        icon: existsSync(inPublic(project.iconSrc)),
+        id: project.id,
+        image: existsSync(inPublic(project.imgSrc)),
+      }).toEqual({ icon: true, id: project.id, image: true });
     });
+  });
+
+  it('would notice a path that only looks right', () => {
+    // The deleted file the regexes are perfectly happy with, which is what
+    // made the old check unfalsifiable.
+    expect('/gopro_skinny.webp').toMatch(/^\/[a-z_]+\.webp$/);
+    expect(existsSync(inPublic('/gopro_skinny.webp'))).toBe(false);
   });
 });

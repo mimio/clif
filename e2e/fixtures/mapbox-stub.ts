@@ -152,6 +152,13 @@ const stubScript = (options: StubOptions): void => {
     >();
     const sources = new Map<string, unknown>();
     const loadedSources = new Set<string>();
+    /**
+     * True from a setTerrain() until mapbox would next recalculate: the
+     * window in which style.terrain.properties does not exist and a
+     * removeSource re-running the terrain evaluation throws.
+     */
+    let terrainDirty = false;
+    let center: [number, number] = [0, 0];
     const layers = new Map<string, unknown>();
     const disabled = new Set<string>();
     let bearing = 0;
@@ -220,7 +227,20 @@ const stubScript = (options: StubOptions): void => {
           zoom: spec.zoom as number,
           duration: spec.duration as number,
         });
+        // scene/liveCamera.ts follows `move` so the coordinate readout
+        // can show where the globe IS rather than where it is going.
+        // Without this the subscription is silent and the chrome falls
+        // back to its derived value, which is the case this tier is
+        // least able to notice.
+        if (Array.isArray(spec.center)) {
+          center = [...spec.center] as [number, number];
+        }
+        fire('move');
       },
+      getCenter: (): { lng: number; lat: number } => ({
+        lng: center[0],
+        lat: center[1],
+      }),
       getBearing: (): number => bearing,
       setBearing: (next: number): void => {
         bearing = next;
@@ -254,8 +274,22 @@ const stubScript = (options: StubOptions): void => {
         layers.set(entry.id, entry);
         sync();
       },
+      /*
+       * Map.removeSource re-runs the terrain evaluation, and
+       * Terrain.update reads style.terrain.properties, which does not
+       * exist between setTerrain() and mapbox's next recalculate. So
+       * removing any source with terrain attached throws from inside
+       * mapbox and takes the tree down. This stub let every removal
+       * through, which is part of why that shipped -- it models the
+       * invariant the scene has to hold instead.
+       */
       removeSource: (id: string): void => {
         guard();
+        if (terrainDirty) {
+          throw new Error(
+            `removeSource(${id}) in the same tick as setTerrain`,
+          );
+        }
         sources.delete(id);
         loadedSources.delete(id);
         sync();
@@ -274,6 +308,12 @@ const stubScript = (options: StubOptions): void => {
       },
       setTerrain: (spec: { exaggeration?: number } | null): void => {
         guard();
+        // Null dirties it too: on a globe, setTerrain(null) swaps in a
+        // fresh draping terrain rather than clearing it.
+        terrainDirty = true;
+        queueMicrotask(() => {
+          terrainDirty = false;
+        });
         record.terrain.push(
           spec === null ? null : (spec.exaggeration ?? 0),
         );

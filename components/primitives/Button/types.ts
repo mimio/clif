@@ -59,7 +59,19 @@ export type ButtonProps = {
   href?: string;
   onClick?: () => void;
   ariaLabel?: string;
+  /**
+   * Utilities for the WRAPPER -- the interactive element. That is where
+   * layout lives (margins, width, position) and, on the flat pill, the
+   * whole visible box, so `rounded-none px-1` merges and wins there.
+   */
   className?: string;
+  /**
+   * Utilities for the PLATE -- the cap inside the wrapper, which is what
+   * the keycap actually paints. Its padding, radius, gap, type ramp, case
+   * and ink are utilities, so they merge; its face, cast, travel and
+   * transition are the state machine and are not overridable.
+   */
+  plateClassName?: string;
 };
 
 /**

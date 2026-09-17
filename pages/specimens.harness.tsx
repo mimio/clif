@@ -10,9 +10,14 @@ import tokens from 'pagesComponents/specimens/tokens';
 import type { Specimen } from 'pagesComponents/specimens/types';
 
 /*
- * The design harness. It is not part of the site: getStaticProps 404s unless
- * NEXT_PUBLIC_SPECIMENS is '1', which only `pnpm specimens` sets, so the
- * route never exists in a production build.
+ * The design harness, reachable at /specimens under `pnpm specimens`.
+ *
+ * The `.harness.tsx` extension is what keeps it out of the site. Next only
+ * counts it as a page when NEXT_PUBLIC_SPECIMENS is set, because that is
+ * when next.config.ts puts `harness.tsx` in pageExtensions; with the flag
+ * off the file is not a page, so it is never compiled into the build. The
+ * getStaticProps guard below is the second line of defence, for a build that
+ * enables the harness and is then deployed by accident.
  *
  * To add a section: create pagesComponents/specimens/<lane>.tsx exporting a
  * Specimen, then add it to SECTIONS below. That is the only shared line.

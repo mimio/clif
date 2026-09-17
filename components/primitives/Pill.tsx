@@ -12,11 +12,18 @@ import { cn } from 'utils/cn';
  * `7px 16px / 12px / .14em`, 1e's controls `6px 14px / 11px / .16em`. The
  * two font sizes are exactly --type-label-size and --type-readout-size, so
  * the class table reads them from the tokens and PILL_SIZES keeps the
- * geometry the tokens have no name for. Padding and tracking are stamped
- * inline from that table rather than restated as classes, so the numbers
- * live in one place; a caller who needs other padding passes className and
- * gets it, since the utility beats the inline style only if it is
- * `!`-flagged -- reach for a different size first.
+ * geometry the tokens have no name for.
+ *
+ * THE BOX IS OVERRIDABLE, and the mechanism is why the numbers can still
+ * live in one place. Padding and tracking used to be stamped straight into
+ * the inline `style`, which made a caller's `px-1` silently inert: an
+ * inline declaration outranks any utility that is not `!`-flagged, so the
+ * class was kept by the merge and then lost the cascade. They are now
+ * handed to the element as two custom properties and READ BACK by real
+ * utilities, so a caller's padding or tracking merges and wins like every
+ * other class here. The values are still written once, in PILL_SIZES --
+ * they have to be, because the scanner cannot see a class name that is
+ * built at render time from a table.
  */
 export type PillTone = 'accent' | 'neutral';
 export type PillSize = 'md' | 'sm';
@@ -36,9 +43,13 @@ const SIZE_CLASS: Record<PillSize, string> = {
 
 const TONE_CLASS: Record<PillTone, string> = {
   accent:
-    'border-accent-30 bg-accent-07 text-fg-2 hover:bg-accent-12',
-  neutral: 'border-surface-3 text-fg-3 hover:bg-accent-07',
+    'border-accent-30 bg-accent-07 text-fg-2 pointer-fine:hover:bg-accent-12',
+  neutral:
+    'border-surface-3 text-fg-3 pointer-fine:hover:bg-accent-07',
 };
+
+/** The box, read back out of the two properties the element carries. */
+const BOX_CLASS = 'p-(--pill-pad) tracking-(--pill-track)';
 
 export type PillProps = {
   children?: ReactNode;
@@ -48,6 +59,11 @@ export type PillProps = {
   vertical?: boolean;
   href?: string;
   onClick?: () => void;
+  /**
+   * Utilities layered over the pill's own. The box is included: padding,
+   * tracking, radius and border all merge, so `px-1` or `rounded-none`
+   * takes effect. Reach for the other size first.
+   */
   className?: string;
 };
 
@@ -63,7 +79,8 @@ export const Pill = ({
   const spec = PILL_SIZES[size];
   const shared = {
     className: cn(
-      'inline-flex items-center justify-center gap-2 rounded-[var(--radius-pill)] border font-mono [font-weight:var(--weight-regular)] uppercase transition-hue',
+      'inline-flex items-center justify-center gap-2 rounded-[var(--radius-pill)] border font-mono font-[number:var(--weight-regular)] uppercase transition-hue',
+      BOX_CLASS,
       'flex-row data-[vertical=true]:flex-col',
       SIZE_CLASS[size],
       TONE_CLASS[tone],
@@ -73,8 +90,8 @@ export const Pill = ({
     'data-size': size,
     'data-vertical': vertical,
     style: {
-      padding: spec.padding,
-      letterSpacing: spec.tracking,
+      '--pill-pad': spec.padding,
+      '--pill-track': spec.tracking,
     } as CSSProperties,
   };
 

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 /*
  * One lane, one file. A lane adds pagesComponents/specimens/<lane>.tsx and
- * one line to the SECTIONS array in pages/specimens.tsx, so no two lanes
+ * one line to the SECTIONS array in pages/specimens.harness.tsx, so no two lanes
  * ever edit the same specimen file.
  */
 export type Specimen = {

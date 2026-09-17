@@ -25,7 +25,6 @@ import Altimeter, {
   JIGGLE_EASE,
   JIGGLE_MS,
   playBead,
-  prefersReducedMotion,
   RAIL_BOTTOM,
   RAIL_TOP,
   ROUTE_EVENT,
@@ -36,6 +35,7 @@ import ChromeRoot, {
   DETAIL_INDICATOR,
   DETAIL_PATH,
   indicatorForPath,
+  liveCamera,
   pathForRoute,
   routeIdForPath,
 } from 'components/chrome/ChromeRoot';
@@ -51,10 +51,18 @@ import CoordPill, {
 import ThemeEye, {
   announceTheme,
   currentTheme,
+  publishTheme,
   serverTheme,
 } from 'components/chrome/ThemeEye';
 import { POPOVER_EVENT } from 'components/chrome/usePopover';
-import { coordLabel } from 'scene/camera';
+import type { AnchorId } from 'content/anchors';
+import { prefersReducedMotion } from 'scene/budget';
+import {
+  cameraForHover,
+  coordLabel,
+  forViewport,
+  resolveCamera,
+} from 'scene/camera';
 import { cameras } from 'content/cameras';
 import { SceneContext } from 'scene/MapProvider';
 import {
@@ -247,6 +255,9 @@ describe('playBead', () => {
   it('stands still when the visitor asked for less motion', () => {
     installAnimate();
     reduceMotion(true);
+    // B6: one reduced-motion read for the whole app -- scene/budget.ts's,
+    // which scene/useViewport.ts subscribes to as well. The rail used to
+    // carry a byte-for-byte copy of it.
     expect(prefersReducedMotion()).toBe(true);
     const element = document.createElement('span');
     expect(
@@ -441,6 +452,20 @@ describe('Altimeter behaviour', () => {
   });
 });
 
+/*
+ * The panel is a NAMED GROUP of toggles now, not a listbox of options. The
+ * roles it used to carry promised a keyboard model it did not have -- no
+ * arrows, no aria-activedescendant, no roving tabindex -- and the list had
+ * no accessible name either, so a screen reader announced "list box, 8
+ * items" and then switched into a mode whose keys did nothing. Each row was
+ * always a real button; the ARIA was the only thing making it worse.
+ */
+const themePanel = (): HTMLElement =>
+  screen.getByRole('group', { name: 'theme' });
+
+const queryThemePanel = (): HTMLElement | null =>
+  screen.queryByRole('group', { name: 'theme' });
+
 describe('ThemeEye', () => {
   it('opens, applies a theme and stays open for comparison', async () => {
     const onChange = vi.fn();
@@ -449,22 +474,22 @@ describe('ThemeEye', () => {
       screen.getByRole('button', { name: 'Theme' }),
     );
     await userEvent.click(
-      screen.getByRole('option', { name: 'teal' }),
+      screen.getByRole('button', { name: 'teal' }),
     );
 
     expect(document.documentElement.dataset.theme).toBe('teal');
     expect(onChange).toHaveBeenCalledWith('teal');
-    expect(screen.getByRole('listbox')).toBeVisible();
+    expect(themePanel()).toBeVisible();
     expect(
-      screen.getByRole('option', { name: 'teal' }),
-    ).toHaveAttribute('aria-selected', 'true');
+      screen.getByRole('button', { name: 'teal' }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('remembers the pick, and reads it back on the next visit', async () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem');
     render(<ThemeEye defaultOpen />);
     await userEvent.click(
-      screen.getByRole('option', { name: 'pink' }),
+      screen.getByRole('button', { name: 'pink' }),
     );
 
     expect(setItem).toHaveBeenCalledWith(THEME_STORAGE_KEY, 'pink');
@@ -488,48 +513,113 @@ describe('ThemeEye', () => {
     document.documentElement.dataset.theme = 'chalk';
     render(<ThemeEye defaultOpen />);
     expect(
-      screen.getByRole('option', { name: 'chalk' }),
-    ).toHaveAttribute('aria-selected', 'true');
+      screen.getByRole('button', { name: 'chalk' }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('follows a pick made by another lens on the page', () => {
     render(<ThemeEye defaultOpen />);
     act(() => announceTheme('rust'));
     expect(
-      screen.getByRole('option', { name: 'rust' }),
-    ).toHaveAttribute('aria-selected', 'true');
+      screen.getByRole('button', { name: 'rust' }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('follows the attribute even when nothing announced', async () => {
     render(<ThemeEye defaultOpen />);
     document.documentElement.dataset.theme = 'lime';
-    await screen.findByRole('option', {
+    await screen.findByRole('button', {
       name: 'lime',
-      selected: true,
+      pressed: true,
     });
   });
 
   it('can be pinned to a value it does not own', async () => {
     render(<ThemeEye className="x" defaultOpen value="lime" />);
     expect(
-      screen.getByRole('option', { name: 'lime' }),
-    ).toHaveAttribute('aria-selected', 'true');
+      screen.getByRole('button', { name: 'lime' }),
+    ).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(
-      screen.getByRole('option', { name: 'cream' }),
+      screen.getByRole('button', { name: 'cream' }),
     );
     expect(document.documentElement.dataset.theme).toBe('cream');
     expect(
-      screen.getByRole('option', { name: 'lime' }),
-    ).toHaveAttribute('aria-selected', 'true');
+      screen.getByRole('button', { name: 'lime' }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('closes on a second click of the eye', async () => {
     render(<ThemeEye defaultOpen />);
-    expect(screen.getByRole('listbox')).toBeVisible();
+    expect(themePanel()).toBeVisible();
     await userEvent.click(
       screen.getByRole('button', { name: 'Theme' }),
     );
-    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(queryThemePanel()).toBeNull();
+  });
+
+  it('does not remember a theme nobody chose', () => {
+    // applyTheme's contract is that it remembers a CHOICE. Mount is not
+    // one: it publishes whatever the bootstrap already resolved, which for
+    // a first visit is just DEFAULT_THEME. Writing that to storage pinned
+    // every first-time visitor to today's default for good.
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    render(<ThemeEye />);
+    expect(setItem).not.toHaveBeenCalled();
+    expect(document.documentElement.dataset.theme).toBe(
+      DEFAULT_THEME,
+    );
+
+    // A pick is a choice, and is remembered.
+    publishTheme('teal');
+    expect(setItem).not.toHaveBeenCalled();
+    announceTheme('teal');
+    expect(setItem).toHaveBeenCalledWith(THEME_STORAGE_KEY, 'teal');
+  });
+
+  it('puts the panel after the trigger, where Tab will find it', async () => {
+    render(<ThemeEye />);
+    const eye = screen.getByRole('button', { name: 'Theme' });
+    eye.focus();
+    await userEvent.click(eye);
+    // Tabbing forward off the eye used to leave the component entirely --
+    // in the real chrome stack it landed on the mouth -- because the panel
+    // was rendered before the trigger and tab order is DOM order.
+    await userEvent.tab();
+    expect(
+      screen.getByRole('button', { name: 'yellow' }),
+    ).toHaveFocus();
+    expect(themePanel()).toContainElement(
+      document.activeElement as HTMLElement,
+    );
+  });
+
+  it('closes on Escape', async () => {
+    render(<ThemeEye defaultOpen />);
+    expect(themePanel()).toBeVisible();
+    await userEvent.keyboard('{Escape}');
+    expect(queryThemePanel()).toBeNull();
+    // Any other key leaves it alone.
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Theme' }),
+    );
+    await userEvent.keyboard('{ArrowDown}');
+    expect(themePanel()).toBeVisible();
+  });
+
+  it('scopes the eye and its rows to a fine pointer', () => {
+    render(<ThemeEye defaultOpen />);
+    [
+      screen.getByRole('button', { name: 'Theme' }),
+      screen.getByRole('button', { name: 'yellow' }),
+      screen.getByRole('button', { name: 'teal' }),
+    ].forEach((node) =>
+      node.className
+        .split(' ')
+        .filter((name) => name.includes('hover:'))
+        .forEach((name) =>
+          expect(name.startsWith('pointer-fine:hover:')).toBe(true),
+        ),
+    );
   });
 
   it('survives storage that refuses to answer', () => {
@@ -561,7 +651,7 @@ describe('the dense labels sit on the micro steps', () => {
       letterSpacing: 'var(--type-micro-tracking)',
     });
     expect(
-      screen.getByRole('option', { name: 'teal' }).lastElementChild,
+      screen.getByRole('button', { name: 'teal' }).lastElementChild,
     ).toHaveStyle({ fontSize: 'var(--type-micro-size)' });
   });
 
@@ -636,36 +726,93 @@ describe('ContactMouth', () => {
     Reflect.deleteProperty(document, 'execCommand');
   });
 
-  it('says copied for 1600ms without moving the row', async () => {
+  /*
+   * The label flip is a PICTURE of the state, and it used to be the only
+   * record of it: no aria-live, no role="status", and an accessible name
+   * that rewrote itself on a focused control -- announced inconsistently
+   * across screen readers and then reverted in silence. The button's name
+   * is fixed now and says what it copies; the confirmation is a live
+   * region beside it.
+   */
+  it('says copied for 1600ms without moving the row, and announces it', async () => {
     vi.useFakeTimers();
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
     });
     const { unmount } = render(<ContactMouth defaultOpen />);
-    const button = screen.getByRole('button', { name: 'copy' });
+    const button = screen.getByRole('button', {
+      name: 'Copy clif@mimio.io',
+    });
     const width = button.style.width;
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent('');
 
     await act(async () => {
       fireEvent.click(button);
     });
-    expect(
-      screen.getByRole('button', { name: 'copied' }),
-    ).toHaveStyle({ width });
+    expect(button).toHaveTextContent('copied');
+    expect(button).toHaveStyle({ width });
+    expect(status).toHaveTextContent(
+      'clif@mimio.io copied to clipboard',
+    );
+    // The name never moved, so nothing was announced by changing it.
+    expect(button).toHaveAccessibleName('Copy clif@mimio.io');
 
     act(() => {
       vi.advanceTimersByTime(COPIED_MS);
     });
-    expect(
-      screen.getByRole('button', { name: 'copy' }),
-    ).toBeVisible();
+    expect(button).toHaveTextContent('copy');
+    expect(status).toHaveTextContent('');
 
     // A second copy restarts the clock rather than stacking timers.
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'copy' }));
+      fireEvent.click(button);
     });
     unmount();
     Reflect.deleteProperty(navigator, 'clipboard');
+  });
+
+  it('puts the panel after the lips, where Tab will find it', async () => {
+    render(<ContactMouth />);
+    const mouth = screen.getByRole('button', { name: 'Contact' });
+    mouth.focus();
+    await userEvent.click(mouth);
+    await userEvent.tab();
+    expect(screen.getByRole('link')).toHaveFocus();
+  });
+
+  it('closes on Escape', async () => {
+    render(<ContactMouth defaultOpen />);
+    expect(screen.getByRole('link')).toBeVisible();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('leaves the address selectable, as the copy fallback assumes', () => {
+    // The wrapper is select-none so a drag across the lips cannot select
+    // them; that inherited into the panel and made the last-resort "the
+    // address is on screen and selectable anyway" untrue.
+    render(<ContactMouth defaultOpen />);
+    expect(
+      screen.getByRole('link').closest('[class*="select-text"]'),
+    ).not.toBeNull();
+  });
+
+  it('scopes the mouth and its actions to a fine pointer', () => {
+    render(<ContactMouth defaultOpen />);
+    [
+      screen.getByRole('button', { name: 'Contact' }),
+      screen.getByRole('link'),
+      screen.getByRole('button', { name: /^Copy / }),
+    ].forEach((node) =>
+      node.className
+        .split(' ')
+        .filter((name) => name.includes('hover:'))
+        .forEach((name) =>
+          expect(name.startsWith('pointer-fine:hover:')).toBe(true),
+        ),
+    );
   });
 });
 
@@ -680,19 +827,19 @@ describe('popover exclusion', () => {
     await userEvent.click(
       screen.getByRole('button', { name: 'Theme' }),
     );
-    expect(screen.getByRole('listbox')).toBeVisible();
+    expect(themePanel()).toBeVisible();
 
     await userEvent.click(
       screen.getByRole('button', { name: 'Contact' }),
     );
-    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(queryThemePanel()).toBeNull();
     expect(screen.getByRole('link')).toBeVisible();
 
     await userEvent.click(
       screen.getByRole('button', { name: 'Theme' }),
     );
     expect(screen.queryByRole('link')).toBeNull();
-    expect(screen.getByRole('listbox')).toBeVisible();
+    expect(themePanel()).toBeVisible();
   });
 
   it('leaves a popover alone when something else announces', async () => {
@@ -705,7 +852,7 @@ describe('popover exclusion', () => {
         new CustomEvent(POPOVER_EVENT, { detail: {} }),
       );
     });
-    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(queryThemePanel()).toBeNull();
   });
 });
 
@@ -824,5 +971,88 @@ describe('ChromeRoot', () => {
     render(<ChromeRoot />);
     await userEvent.click(rail(/projects/));
     expect(push).toHaveBeenCalledWith('/projects');
+  });
+});
+
+/*
+ * B1. The pill is a readout of the map, so what it reads has to be what
+ * the map was driven to -- which is the camera a route DECLARED put
+ * through scene/SceneRoot's three transforms, not the declaration itself.
+ */
+describe('the coordinate pill reads the driven camera', () => {
+  const pill = (): string =>
+    screen.getByText(/-?\d+\.\d{3}, -?\d+\.\d{3}/).textContent ?? '';
+
+  const chrome = (
+    camera: (typeof cameras)[keyof typeof cameras] | null,
+    hover: AnchorId | null = null,
+  ) =>
+    render(
+      <SceneContext.Provider
+        value={{
+          camera,
+          hover,
+          setCamera: vi.fn(),
+          setHover: vi.fn(),
+        }}
+      >
+        <ChromeRoot />
+      </SceneContext.Provider>,
+    );
+
+  it('is the composition SceneRoot drives the map with, in its order', () => {
+    // Not "a camera like the scene's": the same three functions, applied
+    // to the same four inputs, in the order scene/SceneRoot applies them.
+    for (const isMobile of [false, true]) {
+      for (const hover of [null, 'portland'] as const) {
+        expect(
+          liveCamera('/about', cameras.about, isMobile, hover),
+        ).toEqual(
+          cameraForHover(
+            forViewport(
+              resolveCamera('/about', cameras.about),
+              'about',
+              isMobile,
+            ),
+            hover,
+          ),
+        );
+      }
+    }
+  });
+
+  it('follows a hovered row, which moves the map two degrees', () => {
+    pathname.current = '/projects';
+    chrome(cameras.projects, 'portland');
+
+    // The measurement: for as long as a pointer rests on a project row the
+    // pill used to read the untouched centre -- to three decimals, which
+    // is a claim of about a hundred metres -- while the map sat half a
+    // degree of latitude and near two of longitude away.
+    expect(pill()).toBe('39.522, -99.974');
+    expect(pill()).not.toBe('39.000, -98.000');
+  });
+
+  it('does not show the previous route while the next one is flying', () => {
+    // SceneRoot's effect runs before the page's, so on every navigation
+    // the raw context value is briefly the route the visitor just left.
+    // resolveCamera is what tells a refinement from a leftover, and the
+    // scene has always applied it; the readout had not.
+    pathname.current = '/about';
+    chrome(cameras.projects);
+
+    expect(pill()).toBe('45.512, -122.658');
+  });
+
+  it('still answers before any route has declared a camera', () => {
+    pathname.current = '/projects';
+    chrome(null);
+    expect(pill()).toBe('39.000, -98.000');
+  });
+
+  it('captions the detail route held, declared or not', () => {
+    pathname.current = DETAIL_PATH;
+    chrome(null);
+    expect(screen.getByText('held')).toBeVisible();
   });
 });

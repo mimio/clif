@@ -24,7 +24,25 @@ import { cn } from 'utils/cn';
  * lorem ipsum.
  *
  * The copy button is a fixed 58px and its label is centred, so `copy`
- * flipping to `copied` for 1600ms cannot shift the row.
+ * flipping to `copied` for 1600ms cannot shift the row. The flip itself is
+ * only a picture: the button's accessible name says WHAT it copies and does
+ * not change, and the confirmation is announced from a role="status" beside
+ * it. A name that silently rewrites itself on a focused control is
+ * announced inconsistently across screen readers and then reverts with no
+ * announcement at all.
+ *
+ * THE TRIGGER COMES FIRST IN THE DOM and the panel follows, even though the
+ * panel is drawn above it. Tab order is DOM order, and with the panel first
+ * a keyboard visitor tabbing forward off the lips left the component
+ * entirely -- in the real chrome stack they landed on the eye -- and could
+ * only reach the address by shift-tabbing backwards past the trigger that
+ * had just opened it. The panel is absolutely positioned, so nothing about
+ * the layout depends on the order.
+ *
+ * Growth is scoped to a fine pointer for the same reason as the eye's: the
+ * site's `hover` variant is bare `:hover`, so on a touch screen the tap
+ * that opened the panel left the mouth stuck 8% oversized. Escape closes
+ * the panel (usePopover).
  */
 export const COPIED_MS = 1600;
 
@@ -92,67 +110,10 @@ export const ContactMouth = ({
       className={cn('relative select-none', className)}
       style={{ width: MOUTH_WIDTH, height: MOUTH_HEIGHT }}
     >
-      {open ? (
-        <div
-          className="absolute right-[58px] bottom-[2px] z-[9] box-border animate-slide-in-card rounded-[16px_16px_6px_16px] bg-surface-2 p-[15px] shadow-[var(--shadow-panel)] [border:var(--border-cta-soft)]"
-          style={{ ...PANEL_ENTER, width: PANEL_WIDTH }}
-        >
-          <span className="absolute right-[-11px] bottom-[8px] h-0 w-0 border-y-[7px] border-l-[11px] border-y-transparent border-l-accent-30" />
-          <span className="absolute right-[-9px] bottom-[9px] h-0 w-0 border-y-[6px] border-l-[10px] border-y-transparent border-l-surface-2" />
-
-          <p
-            className="mb-[9px] text-fg-4 uppercase"
-            style={{
-              fontSize: 'var(--type-micro-size)',
-              letterSpacing: 'var(--type-micro-tracking)',
-            }}
-          >
-            lorem ipsum
-          </p>
-          <p
-            className="mb-[13px] text-fg-2"
-            style={{
-              fontWeight: 'var(--weight-regular)',
-              fontSize: 'var(--type-detail-size)',
-              lineHeight: 'var(--type-detail-line)',
-            }}
-          >
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-            Sed do eiusmod tempor incididunt ut labore.
-          </p>
-          <div className="flex items-center gap-[8px]">
-            <a
-              className="flex-1 rounded-full border border-accent bg-accent-12 px-[12px] py-[9px] text-center text-fg-2 no-underline transition-[background-color] duration-[140ms] ease-out hover:bg-accent-20 motion-reduce:transition-none"
-              href={MAILTO}
-              style={{
-                fontSize: 'var(--type-label-size)',
-                letterSpacing: '.06em',
-              }}
-            >
-              {email}
-            </a>
-            <button
-              className="box-border flex-none cursor-pointer rounded-full border border-[var(--border-neutral-color)] py-[9px] text-center whitespace-nowrap text-fg-3 transition-[color] duration-[140ms] ease-out hover:text-fg-2 motion-reduce:transition-none"
-              onClick={() => {
-                void copy();
-              }}
-              style={{
-                width: COPY_WIDTH,
-                fontSize: 'var(--type-label-size)',
-                letterSpacing: '.06em',
-              }}
-              type="button"
-            >
-              {copied ? 'copied' : 'copy'}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
       <button
         aria-expanded={open}
         aria-label="Contact"
-        className="absolute top-[5px] left-0 block h-[24px] w-[34px] cursor-pointer overflow-hidden transition-transform duration-[180ms] ease-[cubic-bezier(.165,.84,.44,1)] hover:scale-[1.08] active:scale-[1.02] motion-reduce:transition-none"
+        className="absolute top-[5px] left-0 block h-[24px] w-[34px] cursor-pointer overflow-hidden transition-transform duration-[180ms] ease-[cubic-bezier(.165,.84,.44,1)] active:scale-[1.02] motion-reduce:transition-none pointer-fine:hover:scale-[1.08]"
         data-open={open}
         onClick={toggle}
         style={{
@@ -182,6 +143,69 @@ export const ContactMouth = ({
         <span className="absolute top-[3px] left-[7px] h-[4px] w-[9px] rounded-full bg-[rgba(255,255,255,.55)] blur-[1.1px]" />
         <span className="absolute right-[6px] bottom-[3px] h-[3px] w-[6px] rounded-full bg-[rgba(255,255,255,.3)] blur-[1px]" />
       </button>
+
+      {open ? (
+        <div
+          className="absolute right-[58px] bottom-[2px] z-[9] box-border animate-slide-in-card rounded-[16px_16px_6px_16px] bg-surface-2 p-[15px] shadow-[var(--shadow-panel)] select-text [border:var(--border-cta-soft)]"
+          style={{ ...PANEL_ENTER, width: PANEL_WIDTH }}
+        >
+          <span className="absolute right-[-11px] bottom-[8px] h-0 w-0 border-y-[7px] border-l-[11px] border-y-transparent border-l-accent-30" />
+          <span className="absolute right-[-9px] bottom-[9px] h-0 w-0 border-y-[6px] border-l-[10px] border-y-transparent border-l-surface-2" />
+
+          <p
+            className="mb-[9px] text-fg-4 uppercase"
+            style={{
+              fontSize: 'var(--type-micro-size)',
+              letterSpacing: 'var(--type-micro-tracking)',
+            }}
+          >
+            lorem ipsum
+          </p>
+          <p
+            className="mb-[13px] text-fg-2"
+            style={{
+              fontWeight: 'var(--weight-regular)',
+              fontSize: 'var(--type-detail-size)',
+              lineHeight: 'var(--type-detail-line)',
+            }}
+          >
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+            Sed do eiusmod tempor incididunt ut labore.
+          </p>
+          <div className="flex items-center gap-[8px]">
+            <a
+              className="flex-1 rounded-full border border-accent bg-accent-12 px-[12px] py-[9px] text-center text-fg-2 no-underline transition-[background-color] duration-[140ms] ease-out motion-reduce:transition-none pointer-fine:hover:bg-accent-20"
+              href={MAILTO}
+              style={{
+                fontSize: 'var(--type-label-size)',
+                letterSpacing: '.06em',
+              }}
+            >
+              {email}
+            </a>
+            <button
+              aria-label={`Copy ${email}`}
+              className="box-border flex-none cursor-pointer rounded-full border border-[var(--border-neutral-color)] py-[9px] text-center whitespace-nowrap text-fg-3 transition-[color] duration-[140ms] ease-out motion-reduce:transition-none pointer-fine:hover:text-fg-2"
+              onClick={() => {
+                void copy();
+              }}
+              style={{
+                width: COPY_WIDTH,
+                fontSize: 'var(--type-label-size)',
+                letterSpacing: '.06em',
+              }}
+              type="button"
+            >
+              {copied ? 'copied' : 'copy'}
+            </button>
+            {/* The button's own label is a picture of the state; this is
+                the part a screen reader is actually told about. */}
+            <span className="sr-only" role="status">
+              {copied ? `${email} copied to clipboard` : ''}
+            </span>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

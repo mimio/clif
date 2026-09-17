@@ -173,7 +173,12 @@ export const STANDARD_CONFIG_SCHEMA = new Set([
 ]);
 
 /** Events the scene's own lifecycle owns, rather than a layer set. */
-const LIFECYCLE_EVENTS = ['style.load', 'error', 'sourcedata'];
+const LIFECYCLE_EVENTS = [
+  'style.load',
+  'error',
+  'sourcedata',
+  'render',
+];
 
 export type Recorded = {
   easeTo: Record<string, unknown>[];
@@ -258,6 +263,19 @@ export class FakeMap {
   /** False until style.load, exactly as Style._loaded is. */
   styleLoaded = false;
 
+  /** The source terrain is draped on, or null when terrain is off. */
+  terrainSource: string | null = null;
+
+  /**
+   * True from a setTerrain() until mapbox would next recalculate.
+   *
+   * This is the window in which style.terrain.properties does not exist
+   * yet, and it is the whole hazard: a removeSource inside it re-runs
+   * the terrain evaluation and throws. Cleared on a microtask, which is
+   * the closest thing here to "the next frame".
+   */
+  terrainDirty = false;
+
   /**
    * Which sources have resolved their TileJSON.
    *
@@ -270,6 +288,9 @@ export class FakeMap {
   private listeners = new Map<string, Listener[]>();
 
   private bearing = 0;
+
+  /** The transform's centre, as easeTo leaves it. */
+  private center: [number, number] = [0, 0];
 
   constructor(options: Record<string, unknown>) {
     this.options = options;
@@ -401,6 +422,21 @@ export class FakeMap {
 
   setTerrain(options: Record<string, unknown> | null): void {
     this.requireStyle();
+    this.terrainSource =
+      options === null ? null : String(options.source ?? '');
+    /*
+     * Null dirties it too. On a globe, Style.setTerrain(null) does not
+     * clear terrain -- the projection requiresDraping, so mapbox swaps
+     * in a fresh draping-only terrain, which is just as un-recalculated
+     * as an elevated one.
+     */
+    this.terrainDirty = true;
+    // mapbox populates style.terrain.properties during the render that
+    // follows, and setTerrain always schedules one.
+    queueMicrotask(() => {
+      this.terrainDirty = false;
+      this.fire('render');
+    });
     this.calls.terrain.push(options);
   }
 
@@ -450,8 +486,24 @@ export class FakeMap {
     this.layers.set(entry.id, entry);
   }
 
+  /*
+   * Map.removeSource re-runs the whole terrain evaluation, and
+   * Terrain.update reads style.terrain.properties -- which does not
+   * exist between setTerrain() and mapbox's next recalculate. So a
+   * removeSource in that window throws "Cannot read properties of
+   * undefined (reading 'get')" from inside mapbox and takes the tree
+   * down.
+   *
+   * This stub used to let every removal through, which is a large part
+   * of why it shipped: the unit suite could not see the ordering at all.
+   */
   removeSource(id: string): void {
     this.requireStyle();
+    if (this.terrainDirty) {
+      throw new Error(
+        `removeSource(${id}) in the same tick as setTerrain`,
+      );
+    }
     this.sources.delete(id);
   }
 
@@ -464,6 +516,16 @@ export class FakeMap {
 
   easeTo(options: Record<string, unknown>): void {
     this.calls.easeTo.push(options);
+    // Real mapbox fires `move` throughout the flight; landing on the
+    // destination in one step is enough to prove the seam is wired.
+    if (Array.isArray(options.center)) {
+      this.center = [...options.center] as [number, number];
+    }
+    this.fire('move');
+  }
+
+  getCenter(): { lng: number; lat: number } {
+    return { lng: this.center[0], lat: this.center[1] };
   }
 
   getBearing(): number {
