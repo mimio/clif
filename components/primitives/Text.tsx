@@ -71,6 +71,8 @@ const TAGS: Record<TextVariant, ElementType> = {
  *                                       only 3:1 at that size)
  *   body2 (18), detail2 (14)            --text-accent-body
  *   9-11px, by hand                     text-accent-small
+ * subheader2 is the one variant that crosses the line mid-scale and so takes
+ * two of them -- see its entry below.
  * --text-accent-body is the full accent on six themes and the darkened step
  * on paper and chalk, whose near-white grounds put the full accent at 3.79:1
  * and 4.41:1 -- both under AA for copy. It cannot be a blanket switch to
@@ -89,8 +91,17 @@ const VARIANTS: Record<TextVariant, string> = {
     'm-0 text-[length:var(--type-heading2-size)] leading-[1.2] [font-weight:var(--weight-light)] text-fg max-desktop:text-[length:var(--type-heading2-size-tablet)] max-tablet:text-[length:var(--type-heading2-size-mobile)]',
   subheader:
     'text-[length:var(--type-subheader-size)] leading-[var(--type-subheader-line)] [font-weight:var(--weight-regular)] text-fg max-desktop:text-[length:var(--type-subheader-size-tablet)] max-desktop:leading-[var(--type-subheader-line-tablet)] max-tablet:text-[length:var(--type-subheader-size-mobile)] max-tablet:leading-[var(--type-subheader-line-mobile)]',
+  /*
+   * The ink steps here because the SIZE steps past a threshold, not because
+   * anyone wanted two colours. WCAG lets large text -- 24px and up -- sit at
+   * 3:1, and this variant is 29.3px by default and 24px at max-desktop, so
+   * full-strength accent is fine on both. Its max-tablet step is 18.7px,
+   * which is no longer large text and so owes the full 4.5:1, and on paper
+   * and chalk full strength only reaches 3.79:1 and 4.41:1. So the last
+   * breakpoint -- and only the last -- hands the colour to the copy ink.
+   */
   subheader2:
-    'text-[length:var(--type-subheader-size)] leading-[var(--type-subheader-line)] [font-weight:var(--weight-regular)] text-accent max-desktop:text-[length:var(--type-subheader-size-tablet)] max-desktop:leading-[var(--type-subheader-line-tablet)] max-tablet:text-[length:var(--type-subheader-size-mobile)] max-tablet:leading-[var(--type-subheader-line-mobile)]',
+    'text-[length:var(--type-subheader-size)] leading-[var(--type-subheader-line)] [font-weight:var(--weight-regular)] text-accent max-desktop:text-[length:var(--type-subheader-size-tablet)] max-desktop:leading-[var(--type-subheader-line-tablet)] max-tablet:text-[length:var(--type-subheader-size-mobile)] max-tablet:leading-[var(--type-subheader-line-mobile)] max-tablet:text-[color:var(--text-accent-body)]',
   body: 'text-[length:var(--type-body-size)] leading-[var(--type-body-line)] [font-weight:var(--weight-light)] text-fg-2 max-tablet:text-[length:var(--type-body-size-mobile)] max-tablet:leading-[var(--type-body-line-mobile)]',
   body2:
     'text-[length:var(--type-body-size)] leading-[var(--type-body-line)] [font-weight:var(--weight-regular)] text-[color:var(--text-accent-body)] max-tablet:text-[length:var(--type-body-size-mobile)] max-tablet:leading-[var(--type-body-line-mobile)]',

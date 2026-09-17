@@ -33,6 +33,11 @@ const VARIANTS: TextVariant[] = [
 
 const SIZES: PageWordSize[] = ['xl', 'lg', 'md', 'sm'];
 
+/** The rendered class list as exact names, for assertions that must not
+ *  pass on a substring of a longer class. */
+const classesOf = (text: string): string[] =>
+  screen.getByText(text).className.split(' ');
+
 describe('Text', () => {
   it.each(VARIANTS)('%s reads its size from a token', (variant) => {
     render(<Text variant={variant}>{variant}</Text>);
@@ -52,7 +57,9 @@ describe('Text', () => {
     '%s paints copy-sized accent with the ground-aware ink',
     (variant) => {
       render(<Text variant={variant}>{variant}</Text>);
-      expect(screen.getByText(variant).className).toContain(
+      // Split rather than substring-match: "text-accent" is a substring of
+      // "--text-accent-body", so a loose check passes on the wrong class.
+      expect(classesOf(variant)).toContain(
         'text-[color:var(--text-accent-body)]',
       );
     },
@@ -62,11 +69,31 @@ describe('Text', () => {
     '%s keeps the accent at full strength',
     (variant) => {
       render(<Text variant={variant}>{variant}</Text>);
-      expect(screen.getByText(variant).className).toContain(
-        'text-accent',
-      );
+      expect(classesOf(variant)).toContain('text-accent');
     },
   );
+
+  /*
+   * subheader2 is 29.3px by default and 24px at max-desktop -- both large
+   * text, which AA lets sit at 3:1 -- but 18.7px at max-tablet, which is
+   * not, and on paper and chalk full-strength accent only reaches 3.79:1
+   * and 4.41:1 there. The colour steps because the size steps; without this
+   * the smallest subheader2 is the one place accent type falls under AA.
+   */
+  it('deepens subheader2 at the width where it stops being large text', () => {
+    render(<Text variant="subheader2">subheader2</Text>);
+    const classes = classesOf('subheader2');
+    expect(classes).toContain(
+      'max-tablet:text-[color:var(--text-accent-body)]',
+    );
+    expect(classes).toContain(
+      'max-tablet:text-[length:var(--type-subheader-size-mobile)]',
+    );
+    // ...and nowhere above it.
+    expect(classes).not.toContain(
+      'max-desktop:text-[color:var(--text-accent-body)]',
+    );
+  });
 });
 
 describe('PageWord', () => {
