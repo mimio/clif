@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
+  BASEMAP_CONFIG_KEYS,
   collectProblems,
   ROUTES,
   waitForScene,
@@ -31,7 +32,7 @@ for (const route of ROUTES) {
     page,
   }) => {
     const problems = collectProblems(page, {
-      documentStatus: route.status,
+      document: route,
     });
 
     const response = await page.goto(route.path, {
@@ -75,6 +76,30 @@ test('every route builds exactly one map, and only after its style is ready', as
   expect(record.colorTheme.length).toBeGreaterThan(0);
   expect(record.config.length).toBeGreaterThan(0);
   expect(record.fog).toBeGreaterThan(0);
+
+  /*
+   * THE DRIFT GUARD ON BASEMAP_CONFIG_KEYS, and it belongs here rather
+   * than in tier 2.
+   *
+   * e2e/fixtures/app.ts hand-copies the seven keys of BasemapConfig
+   * (scene/theme.ts) so that tier 2 can read each one back off the real
+   * Standard import. Nothing checked that copy. Everywhere else the same
+   * shape is drift-proof by construction -- scene/theme.ts's
+   * configChanges() sends Object.keys(next), and test/scene-theme.test.ts
+   * counts Object.keys(config).length -- so an eighth field added to
+   * BasemapConfig would reach the map, be counted by the unit suite, and
+   * be the ONE thing tier 2 never asked Standard about. An unknown key is
+   * a silent no-op in mapbox (Style.setConfigProperty opens
+   * `if (!schema || !schema[key]) return`), so a key that Standard does
+   * not have is exactly the failure BASEMAP_CONFIG_KEYS exists to catch,
+   * and a key missing from the list is never even tried.
+   *
+   * The stub records every [key, value] the scene sent, so the check is
+   * free: what the app sends must be exactly what tier 2 reads back.
+   */
+  const sent = [...new Set(record.config.map(([key]) => key))].sort();
+  expect(sent).toEqual([...BASEMAP_CONFIG_KEYS].sort());
+
   expect(problems).toEqual([]);
 });
 
