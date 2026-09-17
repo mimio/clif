@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { StrictMode } from 'react';
 import {
   act,
@@ -182,6 +184,36 @@ describe('budget', () => {
     expect(clampDpr(3)).toBe(DPR_CLAMP);
     expect(clampDpr(1)).toBe(1);
     expect(clampDpr(3, 2)).toBe(2);
+  });
+
+  /*
+   * The helper is only worth having if something calls it, and for a
+   * while nothing did -- the file claimed "DPR is clamped to 1.5
+   * everywhere" while the only production read of devicePixelRatio was
+   * unclamped. It lives in utils/ so the screenshot plane's shader can
+   * reach it across the layer rule, and that is the surface that applies
+   * it.
+   *
+   * The map cannot: mapbox-gl 3.30 exposes no pixel-ratio option and no
+   * setter, and reads window.devicePixelRatio through a getter of its
+   * own. That is recorded rather than worked around.
+   */
+  it('is the dial the shader actually reaches for', async () => {
+    const shader = await readFile(
+      resolve(
+        process.cwd(),
+        'components/composed/ScreenshotPlane/GlitchImage.tsx',
+      ),
+      'utf8',
+    );
+    expect(shader).toContain(
+      'setPixelRatio(clampDpr(window.devicePixelRatio))',
+    );
+    expect(shader).toContain("from 'utils/dpr'");
+    // And nothing reads the raw value straight into a renderer.
+    expect(shader).not.toContain(
+      'setPixelRatio(window.devicePixelRatio)',
+    );
   });
 
   it('self-tunes the repaint interval from the last paint', () => {
@@ -524,8 +556,24 @@ describe('the persistent map', () => {
     expect(typeof move.easing).toBe('function');
   });
 
-  it('flies 900ms into the detail and keeps the page centre', async () => {
-    pathname.current = '/projects/[projectId]';
+  /*
+   * NAVIGATED, not mounted. Mounting at the detail route cannot see this
+   * at all: the scene is still 'pending' while the stale pass runs, so
+   * only one move is ever issued and any assertion reading easeTo[0] and
+   * easeTo.at(-1) passes on a two-move sequence too.
+   *
+   * On a real navigation SceneRoot's effect runs before the page's, so
+   * the first pass sees the PREVIOUS route's camera. Rejecting it is not
+   * the same as having the right one, and the table's detail entry is a
+   * placeholder -- gopro's -- so every project used to fly 900ms to
+   * Colorado and then re-aim over 600ms.
+   */
+  it('flies once into the detail, to the page s own centre', async () => {
+    pathname.current = '/projects';
+    await mount();
+    const map = FakeMap.last;
+    const before = map.calls.easeTo.length;
+
     const cambridge = cameraAt(
       cameras.projectDetail,
       [-71.11, 42.37],
@@ -534,17 +582,34 @@ describe('the persistent map', () => {
       useSceneCamera(cambridge);
       return null;
     };
-    await mount(
+    await navigate(
+      '/projects/[projectId]',
       <>
         <SceneRoot />
         <Detail />
       </>,
     );
-    const last = FakeMap.last.calls.easeTo.at(-1);
-    expect(last?.center).toEqual(cambridge.center);
-    expect(FakeMap.last.calls.easeTo[0].duration).toBe(
-      SCENE_MOVE_LONG_MS,
-    );
+
+    const moves = map.calls.easeTo.slice(before);
+    expect(moves).toHaveLength(1);
+    expect(moves[0].center).toEqual(cambridge.center);
+    expect(moves[0].duration).toBe(SCENE_MOVE_LONG_MS);
+    // Never the table's placeholder, not even for gopro, whose real
+    // anchor is a different coordinate from it.
+    for (const move of moves) {
+      expect(move.center).not.toEqual(cameras.projectDetail.center);
+    }
+  });
+
+  it('waits rather than flying to a placeholder it will have to leave', async () => {
+    pathname.current = '/projects';
+    await mount();
+    const map = FakeMap.last;
+    const before = map.calls.easeTo.length;
+
+    // A detail route that declares nothing: the scene holds where it is.
+    await navigate('/projects/[projectId]');
+    expect(map.calls.easeTo.slice(before)).toEqual([]);
   });
 
   it('holds the map on the detail route and hands it back after', async () => {
@@ -702,6 +767,25 @@ describe('the persistent map', () => {
     // ...and gone once mapbox has rendered.
     await act(async () => {});
     expect(map.getLayer(HISTORY_POINTS)).toBeUndefined();
+  });
+
+  /*
+   * terrainExaggeration's mobile branch had no guarantee through the
+   * hooks: the unit test called it directly, and nothing asserted that a
+   * mobile /about actually drapes at 1.0 rather than the desktop 1.4.
+   */
+  it('flattens terrain to 1.0 below the breakpoint', async () => {
+    vi.stubGlobal('matchMedia', matchMediaStub([MOBILE_QUERY]));
+    pathname.current = '/about';
+    await mount();
+    const map = FakeMap.last;
+    await act(async () => {
+      map.loadSource('mapbox-dem');
+    });
+    expect(map.calls.terrain.at(-1)).toEqual({
+      source: 'mapbox-dem',
+      exaggeration: 1,
+    });
   });
 
   it('drops a parked terrain want when the route leaves terrain', async () => {
@@ -878,6 +962,25 @@ describe('the persistent map', () => {
     vi.stubGlobal('matchMedia', matchMediaStub([MOBILE_QUERY]));
     await mount();
     expect(FakeMap.last.calls.easeTo[0].zoom).toBe(1.4);
+  });
+
+  /*
+   * forViewport builds a fresh object for every mobile camera, so the
+   * identity guard saw two different cameras for one destination and
+   * fired a second easeTo into the first one's flight. Desktop hid it,
+   * because there forViewport hands back the same reference.
+   */
+  it('moves once per route change on mobile, not twice', async () => {
+    vi.stubGlobal('matchMedia', matchMediaStub([MOBILE_QUERY]));
+    await mount();
+    const map = FakeMap.last;
+    const before = map.calls.easeTo.length;
+
+    await navigate('/projects');
+    const moves = map.calls.easeTo.slice(before);
+    expect(moves).toHaveLength(1);
+    expect(moves[0].duration).toBe(SCENE_MOVE_MS);
+    expect(moves[0].zoom).toBe(2.2);
   });
 
   /*

@@ -25,6 +25,16 @@ import { moveDurationFor, REDUCED_MOVE_MS } from 'scene/camera';
  *             blocks and scrubber ticks (1b, 1d, 1e) and --stagger-card's
  *             80ms for hello's three foreground steps (1a).
  *
+ * It does NOT take where the camera is coming from. moveDurationFor does,
+ * and uses it -- arriving at hello out of the 404 is a 900ms move. But a
+ * page cannot know its predecessor without a seam built for this one
+ * case, every call site omitted the parameter, and an API that advertises
+ * a derivation it never performs is worse than one that does less. The
+ * consequence is bounded and recorded: the 404's "take me home" waits
+ * 480ms of a 900ms flight, 53% rather than 60%. If that ever shows, the
+ * fix is to publish the previous scene, not to reinstate a parameter
+ * nothing passes.
+ *
  * Reduced motion is the system's answer everywhere: a 200ms crossfade,
  * no travel and no wait -- there is no camera flight left to wait for.
  * It reuses the one enter keyframe with its distance set to zero, since
@@ -51,18 +61,13 @@ export type EnterStyle = CSSProperties &
  * How long the foreground waits before its first step: 60% of the camera
  * move this route arrives on.
  */
-export const foregroundHandoffMs = (
-  scene: SceneId,
-  from: SceneId | null = null,
-): number =>
-  Math.round(moveDurationFor(from, scene, false) * SCENE_HANDOFF);
+export const foregroundHandoffMs = (scene: SceneId): number =>
+  Math.round(moveDurationFor(null, scene, false) * SCENE_HANDOFF);
 
 export type ForegroundEnterOptions = {
   /** The route being arrived at, which decides the move to wait on. */
   scene: SceneId;
   reduced: boolean;
-  /** Where the camera is coming from, where the route knows it. */
-  from?: SceneId | null;
   /** Between steps; defaults to the system's 40ms. */
   stagger?: number;
 };
@@ -73,12 +78,7 @@ export type ForegroundEnterOptions = {
  */
 export const foregroundEnter = (
   step: number,
-  {
-    scene,
-    reduced,
-    from = null,
-    stagger = FG_STAGGER_MS,
-  }: ForegroundEnterOptions,
+  { scene, reduced, stagger = FG_STAGGER_MS }: ForegroundEnterOptions,
 ): EnterStyle =>
   reduced
     ? {
@@ -87,7 +87,7 @@ export const foregroundEnter = (
       }
     : {
         animation: `clif-slidein var(--fg-enter) var(--fg-ease) ${
-          foregroundHandoffMs(scene, from) + step * stagger
+          foregroundHandoffMs(scene) + step * stagger
         }ms both`,
       };
 
