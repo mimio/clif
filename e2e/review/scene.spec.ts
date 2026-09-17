@@ -6,6 +6,7 @@ import {
   DESKTOP,
   installLutProbe,
   installSceneDebug,
+  openThemeLens,
   readBasemapConfig,
   readLuts,
   readScene,
@@ -14,6 +15,7 @@ import {
   settle,
   THEME_IDS,
   THEME_SETTLE_MS,
+  themeOption,
   waitForScene,
 } from '../fixtures/app';
 
@@ -71,7 +73,7 @@ for (const route of ROUTES) {
     page,
   }) => {
     const problems = collectProblems(page, {
-      documentStatus: route.status,
+      document: route,
     });
     const mapbox = collectMapboxFailures(page);
 
@@ -175,20 +177,25 @@ test('all eight themes repaint the live basemap', async ({
   await waitForScene(page, 'live');
   await settle(page);
 
-  await page.getByRole('button', { name: 'Theme' }).click();
-  const panel = page.getByRole('listbox');
-
   /*
    * Driven through the lens rather than eight page loads: this is the
    * path a visitor actually takes, it is the one that calls
    * setColorTheme on a map that is already rendering, and it costs one
    * navigation instead of eight.
+   *
+   * openThemeLens and themeOption are e2e/fixtures/app.ts's, and are the
+   * SAME accessors e2e/hermetic/theme.spec.ts drives on every PR. This
+   * spec used to spell out page.getByRole('listbox') / 'option' itself,
+   * and went on doing it for weeks after ThemeEye dropped those roles --
+   * the review tier only runs on a deployment_status event, so nothing
+   * that runs on a PR could see it. Writing the locators out here again
+   * would rebuild exactly that trap.
    */
+  const panel = await openThemeLens(page);
+
   const seen = new Set<string>();
   for (const theme of THEME_IDS) {
-    await panel
-      .getByRole('option', { name: theme, exact: true })
-      .click();
+    await themeOption(panel, theme).click();
     await expect(page.locator('html')).toHaveAttribute(
       'data-theme',
       theme,
