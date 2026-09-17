@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
   collectProblems,
-  TILE_SETTLE_MS,
+  settle,
   waitForScene,
 } from '../fixtures/app';
 import { stubMapboxNetwork } from '../fixtures/mapbox-stub';
@@ -51,7 +51,10 @@ test('survives repeated navigation through terrain routes', async ({
 
   await page.goto('/', { waitUntil: 'load' });
   await waitForScene(page, 'live');
-  await page.waitForTimeout(TILE_SETTLE_MS);
+  // The crash needs a map that has already settled -- navigating straight
+  // away does not reproduce it. settle() waits on mapbox's own idle event
+  // rather than a clock, which is what replaced the fixed tile sleep.
+  await settle(page);
 
   for (let step = 0; step < CYCLE.length * LAPS; step += 1) {
     const to = CYCLE[step % CYCLE.length];
