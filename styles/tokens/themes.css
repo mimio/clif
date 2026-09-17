@@ -89,8 +89,23 @@
   --text-faint: rgb(194, 194, 194);
   --text-accent: #ffe520;
   --text-on-accent: #161616;
-  /* ground-aware: the 60% step fails 4.5:1 for 9–11px text on several accents */
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
   --text-accent-small: rgb(255, 229, 32);
+  /*
+   * Accent ink for running copy -- Text's body2 (18px) and detail2 (14px).
+   * Declared once here and inherited by every theme, because on six of the
+   * eight the full-strength accent already clears 4.5:1 at those sizes and
+   * darkening it would cost the brand colour for nothing: on rust and pink
+   * --text-accent-small is a PASTEL lift for legibility against a dark
+   * ground, and running copy painted with it would go washed out.
+   *
+   * Only the two paper-white grounds restate it, below. The three accent
+   * inks, tightest first: -small (9-11px), -body (14-18px), plain
+   * --text-accent (24px and up, where AA only asks 3:1).
+   */
+  --text-accent-body: var(--text-accent);
   /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
   --tab-fill: #ffe520;
   --tab-ink: #161616;
@@ -255,7 +270,9 @@
   --text-faint: rgb(193, 194, 192);
   --text-accent: #c8f04b;
   --text-on-accent: #121410;
-  /* ground-aware: the 60% step fails 4.5:1 for 9–11px text on several accents */
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
   --text-accent-small: rgb(200, 240, 75);
   /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
   --tab-fill: #c8f04b;
@@ -421,7 +438,9 @@
   --text-faint: rgb(194, 192, 188);
   --text-accent: #e2764a;
   --text-on-accent: #17120f;
-  /* ground-aware: the 60% step fails 4.5:1 for 9–11px text on several accents */
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
   --text-accent-small: rgb(240, 182, 159);
   /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
   --tab-fill: #e2764a;
@@ -587,7 +606,9 @@
   --text-faint: rgb(190, 194, 196);
   --text-accent: #63e0ce;
   --text-on-accent: #0f1417;
-  /* ground-aware: the 60% step fails 4.5:1 for 9–11px text on several accents */
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
   --text-accent-small: rgb(99, 224, 206);
   /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
   --tab-fill: #63e0ce;
@@ -753,7 +774,9 @@
   --text-faint: rgb(194, 191, 194);
   --text-accent: #ff5ca8;
   --text-on-accent: #141014;
-  /* ground-aware: the 60% step fails 4.5:1 for 9–11px text on several accents */
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
   --text-accent-small: rgb(255, 159, 204);
   /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
   --tab-fill: #ff5ca8;
@@ -919,7 +942,9 @@
   --text-faint: rgb(201, 200, 195);
   --text-accent: #f5d9a8;
   --text-on-accent: #1a1714;
-  /* ground-aware: the 60% step fails 4.5:1 for 9–11px text on several accents */
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
   --text-accent-small: rgb(245, 217, 168);
   /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
   --tab-fill: #f5d9a8;
@@ -1088,8 +1113,12 @@
   --text-faint: rgb(81, 78, 71);
   --text-accent: #d4402e;
   --text-on-accent: #ede9e1;
-  /* ground-aware: the 60% step fails 4.5:1 for 9–11px text on several accents */
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
   --text-accent-small: rgb(146, 44, 32);
+  /* #d4402e on this ground is 3.79:1 -- the darkened step carries copy here */
+  --text-accent-body: var(--text-accent-small);
   /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
   --tab-fill: #1a1815;
   --tab-ink: #ede9e1;
@@ -1256,8 +1285,12 @@
   --text-faint: rgb(75, 79, 82);
   --text-accent: #0e7c8b;
   --text-on-accent: #f1f3f4;
-  /* ground-aware: the 60% step fails 4.5:1 for 9–11px text on several accents */
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
   --text-accent-small: rgb(10, 86, 96);
+  /* #0e7c8b on this ground is 4.41:1 -- the darkened step carries copy here */
+  --text-accent-body: var(--text-accent-small);
   /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
   --tab-fill: #12181b;
   --tab-ink: #f1f3f4;

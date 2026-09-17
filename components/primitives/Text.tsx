@@ -62,10 +62,23 @@ const TAGS: Record<TextVariant, ElementType> = {
 
 /*
  * Colours, in the words of the inventory's table: strong -> text-fg,
- * body -> text-fg-2, secondary -> text-fg-3, muted -> text-fg-4,
- * accent -> text-accent. `label` and `readout` are muted rather than accent
- * on purpose; the 11px accent step is --color-accent-small, and a caller
- * that wants it passes `text-accent-small` in className.
+ * body -> text-fg-2, secondary -> text-fg-3, muted -> text-fg-4. `label` and
+ * `readout` are muted rather than accent on purpose; a caller that wants the
+ * 9-11px accent ink passes `text-accent-small` in className.
+ *
+ * ACCENT INK COMES IN THREE STEPS, by size, and the variant picks one:
+ *   heading, subheader2   24px and up   text-accent (full strength; AA asks
+ *                                       only 3:1 at that size)
+ *   body2 (18), detail2 (14)            --text-accent-body
+ *   9-11px, by hand                     text-accent-small
+ * --text-accent-body is the full accent on six themes and the darkened step
+ * on paper and chalk, whose near-white grounds put the full accent at 3.79:1
+ * and 4.41:1 -- both under AA for copy. It cannot be a blanket switch to
+ * -small: on rust and pink that token is a pastel lift for a dark ground,
+ * and running copy in it would read washed out. It is reached for as an
+ * arbitrary value because --text-* is deliberately not mapped into a
+ * Tailwind namespace (the names collide); if styles/globals.css ever maps it
+ * as --color-accent-body, these two become `text-accent-body`.
  */
 const VARIANTS: Record<TextVariant, string> = {
   heading:
@@ -80,11 +93,11 @@ const VARIANTS: Record<TextVariant, string> = {
     'text-[length:var(--type-subheader-size)] leading-[var(--type-subheader-line)] [font-weight:var(--weight-regular)] text-accent max-desktop:text-[length:var(--type-subheader-size-tablet)] max-desktop:leading-[var(--type-subheader-line-tablet)] max-tablet:text-[length:var(--type-subheader-size-mobile)] max-tablet:leading-[var(--type-subheader-line-mobile)]',
   body: 'text-[length:var(--type-body-size)] leading-[var(--type-body-line)] [font-weight:var(--weight-light)] text-fg-2 max-tablet:text-[length:var(--type-body-size-mobile)] max-tablet:leading-[var(--type-body-line-mobile)]',
   body2:
-    'text-[length:var(--type-body-size)] leading-[var(--type-body-line)] [font-weight:var(--weight-regular)] text-accent max-tablet:text-[length:var(--type-body-size-mobile)] max-tablet:leading-[var(--type-body-line-mobile)]',
+    'text-[length:var(--type-body-size)] leading-[var(--type-body-line)] [font-weight:var(--weight-regular)] text-[color:var(--text-accent-body)] max-tablet:text-[length:var(--type-body-size-mobile)] max-tablet:leading-[var(--type-body-line-mobile)]',
   detail:
     'text-[length:var(--type-detail-size)] leading-[var(--type-detail-line)] [font-weight:var(--weight-light)] text-fg-3 max-tablet:text-[length:var(--type-detail-size-mobile)] max-tablet:leading-[var(--type-detail-line-mobile)]',
   detail2:
-    'text-[length:var(--type-detail-size)] leading-[var(--type-detail-line)] [font-weight:var(--weight-regular)] text-accent max-tablet:text-[length:var(--type-detail-size-mobile)] max-tablet:leading-[var(--type-detail-line-mobile)]',
+    'text-[length:var(--type-detail-size)] leading-[var(--type-detail-line)] [font-weight:var(--weight-regular)] text-[color:var(--text-accent-body)] max-tablet:text-[length:var(--type-detail-size-mobile)] max-tablet:leading-[var(--type-detail-line-mobile)]',
   detail3:
     'text-[length:var(--type-detail-size)] leading-[var(--type-detail-line)] [font-weight:var(--weight-regular)] text-fg-4 max-tablet:text-[length:var(--type-detail-size-mobile)] max-tablet:leading-[var(--type-detail-line-mobile)]',
   label:

@@ -40,6 +40,33 @@ describe('Text', () => {
     expect(node.className).toContain('text-[length:var(--type-');
     expect(node.className).toContain('transition-hue');
   });
+
+  /*
+   * The accent ink is picked by size, and getting it wrong is invisible on
+   * the six dark themes and illegible on paper and chalk, where the full
+   * accent measures 3.79:1 and 4.41:1 against the ground. Copy takes
+   * --text-accent-body, which is the full accent everywhere it already
+   * clears AA and the darkened step on those two.
+   */
+  it.each(['body2', 'detail2'] as TextVariant[])(
+    '%s paints copy-sized accent with the ground-aware ink',
+    (variant) => {
+      render(<Text variant={variant}>{variant}</Text>);
+      expect(screen.getByText(variant).className).toContain(
+        'text-[color:var(--text-accent-body)]',
+      );
+    },
+  );
+
+  it.each(['heading', 'subheader2'] as TextVariant[])(
+    '%s keeps the accent at full strength',
+    (variant) => {
+      render(<Text variant={variant}>{variant}</Text>);
+      expect(screen.getByText(variant).className).toContain(
+        'text-accent',
+      );
+    },
+  );
 });
 
 describe('PageWord', () => {

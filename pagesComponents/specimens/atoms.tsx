@@ -107,7 +107,30 @@ const Row = ({ variant }: { variant: TextVariant }) => {
     };
     measure();
     window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+
+    /*
+     * A theme swap changes the colour but not the markup, so without this
+     * the strip keeps printing the old theme's rgb() and quietly lies --
+     * which is worse than printing nothing. The wait is for the crossfade:
+     * [data-theme] eases colour over 400ms and every Text carries
+     * transition-hue on top, so measuring on the mutation itself reads a
+     * blend of the two themes rather than either one.
+     */
+    let settle: ReturnType<typeof setTimeout>;
+    const observer = new MutationObserver(() => {
+      clearTimeout(settle);
+      settle = setTimeout(measure, 500);
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+
+    return () => {
+      window.removeEventListener('resize', measure);
+      observer.disconnect();
+      clearTimeout(settle);
+    };
   }, []);
 
   return (
@@ -127,6 +150,10 @@ const Row = ({ variant }: { variant: TextVariant }) => {
 const Scale = ({ raised }: { raised: boolean }) => (
   <div
     className={`rounded-[var(--radius-card)] p-5 ${raised ? 'bg-surface-2' : 'bg-surface'}`}
+    // The hook a contrast sweep scopes itself to: the section's own headings
+    // and notes are Text too, and without this a script measuring
+    // `[data-variant]` reads the chrome instead of the scale.
+    data-scale={raised ? 'raised' : 'ground'}
   >
     <Text className="mb-4 block" variant="readout">
       {raised ? 'on the raised surface' : 'on the ground'}
@@ -140,7 +167,7 @@ const Scale = ({ raised }: { raised: boolean }) => (
 const Atoms = () => (
   <div className="bg-surface p-4">
     <Section
-      note="Twelve variants, every size a var(--type-*) reference. Read both columns: the left is the ground, the right is the raised surface, and every step has to hold on both. Narrow the window past 1000 and 650 to watch the responsive steps fire."
+      note="Twelve variants, every size a var(--type-*) reference. Read both columns: the left is the ground, the right is the raised surface, and every step has to hold on both. Narrow the window past 1000 and 650 to watch the responsive steps fire. Accent ink comes in three steps by size — full strength at 24px and up, --text-accent-body for body2 and detail2, --text-accent-small for 9-11px — so switch to paper or chalk and watch the two copy rows darken while the heading does not."
       title="Type scale"
     >
       <div className="grid grid-cols-2 gap-4 max-tablet:grid-cols-1">
