@@ -10,6 +10,7 @@ import AboutPage, {
   stopIndexFor,
 } from 'pagesComponents/about';
 import { cameraAt } from 'scene/camera';
+import { useSceneView } from 'scene/MapProvider';
 import { useSceneCamera } from 'scene/useSceneCamera';
 import { useIsMobile, useReducedMotion } from 'scene/useViewport';
 
@@ -25,6 +26,13 @@ import { useIsMobile, useReducedMotion } from 'scene/useViewport';
  * that camera to the stop's own coordinate and nothing else, which is what
  * scene/camera's refinement rule looks for; it arrives as the 600ms
  * reframe because the route has not changed.
+ *
+ * The map's one live element is the same stop the sheet and the scrubber
+ * are showing -- 1e's yellow budget allows exactly one, and on this route
+ * it is the selected point. It is declared even in the fit view, because
+ * the fit view IS 1e: the resting centre with Ubiquiti lit. The scene
+ * takes the stop's id, not the slug the URL carries, so it is read off the
+ * stop rather than passed through from the query.
  */
 
 type AboutProps = {
@@ -39,6 +47,7 @@ const About = ({ stops }: AboutProps) => {
   // `query` is empty on the static render and filled on hydration, so a
   // deep-linked stop arrives one paint after the fit view.
   const selected = stopIndexFor(stops, router.query?.stop);
+  const selectedIndex = selected ?? DEFAULT_STOP_INDEX;
 
   const camera = useMemo(
     () =>
@@ -48,6 +57,7 @@ const About = ({ stops }: AboutProps) => {
     [selected, stops],
   );
   useSceneCamera(camera);
+  useSceneView({ selectedStop: stops[selectedIndex].id });
 
   const select = useCallback(
     (index: number) => {
@@ -70,7 +80,7 @@ const About = ({ stops }: AboutProps) => {
       onFit={fit}
       onSelectStop={select}
       reduced={reduced}
-      selectedIndex={selected ?? DEFAULT_STOP_INDEX}
+      selectedIndex={selectedIndex}
       stops={stops}
     />
   );

@@ -8,6 +8,11 @@ import Scrubber, {
 import Sheet from 'components/composed/Sheet';
 import type { HistoryStop } from 'content/history';
 import { timeline } from 'content/history';
+import {
+  FG_REDUCED_MS,
+  foregroundEnter,
+  type ForegroundEnterOptions,
+} from 'scene/enter';
 import { cn } from 'utils/cn';
 
 /*
@@ -24,10 +29,10 @@ import { cn } from 'utils/cn';
  * points at, and 1h's is the viewport edge itself; neither is a position
  * Sheet could have chosen for itself, which is why it does not try.
  *
- * `mobile` and `reduced` arrive as props rather than as hooks: the layer
- * rule keeps scene/ out of pagesComponents, and a component that reads no
- * media query of its own is one both artboards can be rendered from at
- * either size.
+ * `mobile` and `reduced` arrive as props rather than as hooks, so the
+ * component reads no media query of its own and both artboards can be
+ * rendered from it at either size -- which is what lets one test render 1h
+ * beside 1e.
  */
 
 /*
@@ -42,42 +47,40 @@ export const DEFAULT_STOP_INDEX = 3;
 /*
  * The sheet's two motions, and why they are on two different elements.
  *
- * ARRIVING is travel: 1e slides the sheet in over 240ms ease-out-quart from
- * a 40px offset, 1h rises it over 280ms. SWAPPING STOPS IS NOT THAT -- both
- * boards crossfade the copy in 160ms and leave the sheet where it is, "so
- * the route keeps this mounted and changes its children".
+ * ARRIVING is the shared foreground handoff: the type waits out 60% of the
+ * camera move and then the steps enter 40ms apart, which scene/enter.ts
+ * derives from the move this route actually arrives on rather than from a
+ * number transcribed off the board. The three steps are 1e's, in its
+ * order: the word, the sheet, the scrubber.
  *
- * So the travel belongs to the pinned wrapper, which mounts once with the
- * route, and the crossfade to the Sheet, which is keyed on the stop: a new
- * key is a new element, and only an animation runs on entry. Neither needs
- * to know whether the other has happened. `--slide-in-from` is what the
- * shared enter keyframe translates by, so setting it to 0 turns that same
- * keyframe into a crossfade -- opacity alone, no travel -- which is exactly
- * what reduced motion asks for, at the motion card's 200ms, on both.
+ * SWAPPING STOPS IS NOT THAT. Both boards crossfade the copy in 160ms and
+ * leave the sheet where it is -- "the route keeps this mounted and changes
+ * its children" -- and a swap is not an arrival, so it must not inherit
+ * the handoff wait. So the arrival belongs to the pinned wrapper, which
+ * mounts once with the route and holds its finished state afterwards, and
+ * the crossfade to the Sheet, which is keyed on the stop: a new key is a
+ * new element, and only an animation runs on entry. Neither has to know
+ * whether the other has happened.
  *
- * Every one is a literal class string because Tailwind cannot scan a
- * computed one. The `!` on the crossfade is not decoration: tailwind-merge
- * knows Tailwind's own animation names and no others, so it leaves the
- * sheet's `animate-slide-in-sheet` in place beside this one, and which of
- * the two won would otherwise come down to the order the stylesheet
- * happened to emit them in.
+ * `--slide-in-from` is what the shared enter keyframe travels by, so
+ * setting it to 0 turns that same keyframe into a crossfade -- opacity
+ * alone -- which is what reduced motion asks for, at the same 200ms the
+ * scene uses when there is no flight left to wait for.
+ *
+ * The crossfades are literal class strings because Tailwind cannot scan a
+ * computed one, and the `!` is not decoration: tailwind-merge knows
+ * Tailwind's own animation names and no others, so it leaves the sheet's
+ * `animate-slide-in-sheet` in place beside this one, and which of the two
+ * won would otherwise come down to the order the stylesheet happened to
+ * emit them in.
  */
 export const STOP_CROSSFADE_MS = 160;
-export const REDUCED_CROSSFADE_MS = 200;
+export const REDUCED_CROSSFADE_MS = FG_REDUCED_MS;
 
 const CROSSFADE = {
   stop: 'animate-[clif-slidein_160ms_linear_forwards]! [--slide-in-from:0px]',
   reduced:
     'animate-[clif-slidein_200ms_linear_forwards]! [--slide-in-from:0px]',
-};
-
-const ENTER = {
-  right:
-    'animate-[clif-slidein_240ms_var(--fg-ease)_forwards] [--slide-in-from:40px]',
-  bottom:
-    'animate-[clif-slidein_280ms_var(--fg-ease)_forwards] [--slide-in-from:40px]',
-  reduced:
-    'animate-[clif-slidein_200ms_linear_forwards] [--slide-in-from:0px]',
 };
 
 /** `ubiquiti`, `new-york-state-parks`: the stop's name in a URL. */
@@ -167,6 +170,13 @@ export const AboutPage = ({
   const prev = stops[selectedIndex - 1];
   const next = stops[selectedIndex + 1];
 
+  /*
+   * 1e's three foreground steps, in its order: the word, the sheet, the
+   * scrubber. The wait in front of them is the about move's own, so it
+   * cannot drift from the camera.
+   */
+  const enter: ForegroundEnterOptions = { scene: 'about', reduced };
+
   const scrubber = (
     <Scrubber
       // 1e ends the track 420px short of the right edge, so it reads as the
@@ -211,17 +221,25 @@ export const AboutPage = ({
     <>
       <SceneStage
         align="top"
-        footer={mobile ? undefined : scrubber}
+        footer={
+          mobile ? undefined : (
+            // The scrubber's own ticks stagger 40ms inside this step; the
+            // step is when the whole rail is allowed to arrive.
+            <div style={foregroundEnter(2, enter)}>{scrubber}</div>
+          )
+        }
         vignette="night"
         word={
           // 1e puts the word at top 64, 1h at top 52; the stage's column
-          // supplies the left inset and the word pins itself inside it.
-          <PageWord
+          // supplies the left inset and this box pins it inside it. The
+          // box also carries the step, because PageWord is w-fit so its
+          // clipped gradient samples the word itself.
+          <div
             className="absolute top-[52px] tablet:top-[64px]"
-            size="lg"
+            style={foregroundEnter(0, enter)}
           >
-            about
-          </PageWord>
+            <PageWord size="lg">about</PageWord>
+          </div>
         }
       />
       <div
@@ -230,12 +248,8 @@ export const AboutPage = ({
           mobile
             ? 'inset-x-0 bottom-0'
             : 'top-[96px] right-[var(--foreground-right-tablet)] desktop:right-[220px]',
-          reduced
-            ? ENTER.reduced
-            : mobile
-              ? ENTER.bottom
-              : ENTER.right,
         )}
+        style={foregroundEnter(1, enter)}
       >
         <Sheet
           className={reduced ? CROSSFADE.reduced : CROSSFADE.stop}

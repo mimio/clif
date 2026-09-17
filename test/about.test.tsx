@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cameras } from 'content/cameras';
@@ -17,7 +17,15 @@ import AboutPage, {
   toScrubberStops,
 } from 'pagesComponents/about';
 import { refinesCamera } from 'scene/camera';
+import { HISTORY_POINTS } from 'scene/layers/sets';
+import SceneRoot from 'scene/SceneRoot';
+import {
+  FG_REDUCED_MS,
+  FG_STAGGER_MS,
+  foregroundHandoffMs,
+} from 'scene/enter';
 import MapProvider, { useScene } from 'scene/MapProvider';
+import { FakeMap, installMapboxStub } from 'test/fake-mapbox';
 
 /*
  * Artboards 1e (About / Ubiquiti selected / Desktop 1440x900) and 1h
@@ -180,13 +188,18 @@ describe('the about route, 1e and 1h', () => {
     };
     render(<Harness />);
 
-    // Arriving is travel, and it belongs to the pinned wrapper: 1e's 240ms
-    // from a 40px offset. Swapping is the sheet's own 160ms crossfade,
-    // important because tailwind-merge cannot drop the class it overrides.
+    // Arriving is the shared handoff and it belongs to the pinned wrapper,
+    // which waits out 60% of the about move before its step. Swapping is
+    // the sheet's own 160ms crossfade, important because tailwind-merge
+    // cannot drop the class it overrides -- and with no wait in front of
+    // it, because a swap is not an arrival.
     const pinned = sheet().parentElement;
     const before = sheet();
-    expect(pinned).toHaveClass('[--slide-in-from:40px]');
-    expect(pinned?.className).toContain('clif-slidein_240ms');
+    expect(pinned?.style.animation).toBe(
+      `clif-slidein var(--fg-enter) var(--fg-ease) ${
+        foregroundHandoffMs('about') + FG_STAGGER_MS
+      }ms both`,
+    );
     expect(before.className).toContain(
       `animate-[clif-slidein_${STOP_CROSSFADE_MS}ms_linear_forwards]!`,
     );
@@ -201,21 +214,39 @@ describe('the about route, 1e and 1h', () => {
     expect(sheet().parentElement).toBe(pinned);
   });
 
-  it('1h rises the sheet from the bottom edge, 280ms', () => {
-    render(<AboutPage mobile stops={historyStops} />);
-    expect(sheet().parentElement?.className).toContain(
-      'clif-slidein_280ms',
+  it('staggers 1e\u2019s three steps behind the camera, 40ms apart', () => {
+    const { container } = render(<AboutPage stops={historyStops} />);
+    const steps = [...container.querySelectorAll('[style]')]
+      .map((el) => (el as HTMLElement).style.animation)
+      .filter((animation) => animation.startsWith('clif-slidein'))
+      .sort();
+
+    // The word, the sheet and the scrubber -- 1e's three foreground steps,
+    // each waiting out 60% of the move this route arrives on.
+    expect(foregroundHandoffMs('about')).toBe(480);
+    expect(steps).toEqual(
+      [0, 1, 2]
+        .map(
+          (step) =>
+            `clif-slidein var(--fg-enter) var(--fg-ease) ${
+              foregroundHandoffMs('about') + step * FG_STAGGER_MS
+            }ms both`,
+        )
+        .sort(),
     );
   });
 
-  it('reduced motion is a 200ms crossfade and no travel', () => {
+  it('reduced motion is a 200ms crossfade, no travel and no wait', () => {
     render(<AboutPage reduced stops={historyStops} />);
     expect(sheet().className).toContain(
       `animate-[clif-slidein_${REDUCED_CROSSFADE_MS}ms_linear_forwards]!`,
     );
-    expect(sheet().parentElement).toHaveClass(
-      `animate-[clif-slidein_${REDUCED_CROSSFADE_MS}ms_linear_forwards]`,
-      '[--slide-in-from:0px]',
+    const pinned = sheet().parentElement;
+    expect(pinned?.style.animation).toBe(
+      `clif-slidein ${FG_REDUCED_MS}ms linear both`,
+    );
+    expect(pinned?.style.getPropertyValue('--slide-in-from')).toBe(
+      '0px',
     );
   });
 });
@@ -267,11 +298,14 @@ describe('the about route as data', () => {
 
 describe('/about', () => {
   const Camera = () => {
-    const { camera } = useScene();
+    const { camera, view } = useScene();
     return (
-      <span data-testid="camera">
-        {camera === null ? 'none' : camera.center.join()}
-      </span>
+      <>
+        <span data-testid="camera">
+          {camera === null ? 'none' : camera.center.join()}
+        </span>
+        <span data-testid="live">{view?.selectedStop ?? 'none'}</span>
+      </>
     );
   };
 
@@ -288,6 +322,10 @@ describe('/about', () => {
 
   const camera = (): string =>
     screen.getByTestId('camera').textContent ?? '';
+
+  /** The stop the map draws live, which 1e says is the selected one. */
+  const live = (): string =>
+    screen.getByTestId('live').textContent ?? '';
 
   it('serves the six stops statically', async () => {
     const about = await renderPage();
@@ -313,6 +351,7 @@ describe('/about', () => {
     ).toBeVisible();
     expect(screen.getByText('stop 06 / 06')).toBeVisible();
     expect(camera()).toBe(historyStops[5].coordinates.join());
+    expect(live()).toBe(String(historyStops[5].id));
     // Only the centre moved, so the scene treats it as a refinement of the
     // about camera and eases 600ms rather than ignoring it as stale.
     expect(
@@ -341,5 +380,51 @@ describe('/about', () => {
     expect(router.push).toHaveBeenCalledWith(ABOUT_PATH, undefined, {
       shallow: true,
     });
+  });
+
+  /*
+   * The whole point of the scene's selectedStop channel: the map's one
+   * live element has to be the stop the sheet and the scrubber are
+   * showing. Driven through the real SceneRoot against the fake map,
+   * because the route's declaration is only half of it -- this is the
+   * half that proves the declaration arrives.
+   */
+  it('hands the map the same stop the scrubber is showing', async () => {
+    const uninstall = installMapboxStub();
+    const about = await import('pages/about');
+    // A fresh element each time: React bails out of a rerender handed the
+    // very same one, and this test is about what a re-render does.
+    const tree = () => (
+      <MapProvider>
+        <SceneRoot />
+        <about.default stops={historyStops} />
+      </MapProvider>
+    );
+
+    let mounted: ReturnType<typeof render> | null = null;
+    await act(async () => {
+      mounted = render(tree());
+    });
+
+    /** The id the points' colour expression is currently lighting. */
+    const lit = (): string =>
+      JSON.stringify(
+        FakeMap.last.calls.paint
+          .filter(
+            ([layer, property]) =>
+              layer === HISTORY_POINTS && property === 'circle-color',
+          )
+          .at(-1),
+      );
+
+    expect(lit()).toContain(`"id"],${historyStops[3].id}]`);
+
+    router.query = { stop: 'nike' };
+    await act(async () => {
+      mounted?.rerender(tree());
+    });
+    expect(lit()).toContain(`"id"],${historyStops[2].id}]`);
+
+    uninstall();
   });
 });
