@@ -57,6 +57,38 @@
   --breakpoint-*: initial;
   --breakpoint-tablet: 650px;
   --breakpoint-desktop: 1000px;
+
+  /* The radii (design inventory 1.5). These are the one group of design
+     tokens declared here rather than in styles/tokens/, and it is the
+     namespace collision that put them here. Tailwind owns --radius-*:
+     declaring --radius-sm: 8px in tokens/borders.css, which is imported
+     into @layer base and so outranks Tailwind's @layer theme, silently
+     redefined Tailwind's own rounded-sm from 4px to 8px, and rounded-xs
+     from 2px to 4px. Nobody asked for that and nothing said it.
+
+     There were two honest ways out: rename the tokens away from the
+     namespace, as tokens/fonts.css does with --family-*, or hand Tailwind
+     the namespace. Renaming would have touched every
+     rounded-[var(--radius-card)] in the tree; this costs nothing and buys
+     more. Wiping the defaults first means a bare rounded-md or rounded-lg
+     no longer exists rather than resolving to a number the design never
+     chose, the seven radii below become real utilities (rounded-card,
+     rounded-pill, rounded-circle...), Tailwind still emits each one as a
+     :root variable so every existing rounded-[var(--radius-*)] keeps
+     working, and rounded-full and rounded-none are static utilities that
+     survive the wipe.
+
+     Unlike the colours, none of this is themed: a radius is the same
+     number in all eight scopes, so there is no [data-theme] hazard in
+     resolving these against :root. */
+  --radius-*: initial;
+  --radius-card: 20px;
+  --radius-control: 16px;
+  --radius-pill: 999px;
+  --radius-sm: 8px;
+  --radius-xs: 4px;
+  --radius-circle: 50%;
+  --radius-control-bar: 28px;
 }
 
 /*
@@ -70,6 +102,23 @@
  * itself, so it resolves at the element and the [data-theme] scope wins.
  * Switching any of these to plain @theme silently freezes the whole app on
  * yellow, and nothing fails until someone looks at a screenshot.
+ *
+ * NEVER WRITE var(--color-*). `inline` governs what the UTILITY contains,
+ * not whether the variable exists: Tailwind still emits every --color-*
+ * the scanner sees into :root, in @layer theme, as
+ * `--color-accent: var(--clif-accent)` -- resolved once, against :root.
+ * Read it back by hand from anywhere and you get the root theme, which is
+ * wrong wherever [data-theme] sits on something other than <html>: the
+ * theme lens does exactly that, previewing each theme on its own swatch.
+ * So reach for the utility (text-accent-body), or for the underlying
+ * token (var(--text-accent-body)), and never for the --color-* alias.
+ * test/styles-tokens.test.ts fails the build if this file or a token file
+ * does.
+ *
+ * The scanner reads COMMENTS too. A sentence that merely mentions a token
+ * name is enough to emit the :root variable and the matching utility --
+ * that is how --color-accent-body got into the stylesheet before anything
+ * used it. Name a token in prose only where you mean it to exist.
  *
  * OPACITY MODIFIERS: do not write bg-accent/12, border-accent/30 or the
  * like over the ladder tokens. Tailwind implements /nn as

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Button from 'components/primitives/Button';
 import PageWord from 'components/primitives/PageWord';
 import Text from 'components/primitives/Text';
@@ -36,7 +36,14 @@ import { cn } from 'utils/cn';
  *     unless the column above it is a bounded flex column -- so the stack
  *     is `flex-1 min-h-0` inside the stage and the table grows into it.
  *   - the hover channel: a row lights its city point and nudges the camera
- *     8% toward it, which is scene/MapProvider's `setHover`.
+ *     8% toward it, which is scene/MapProvider's `setHover`. Closing it is
+ *     this page's job too, and is not the same thing as ProjectTable's
+ *     onMouseLeave: nothing synthesises a mouseleave for an element that
+ *     was removed, and MapProvider lives in _app and never unmounts -- so
+ *     leaving /projects with the pointer parked on a row used to carry
+ *     that row's city into every route after it. On /about, at zoom 10.5,
+ *     a stale `vail` nudge is 1.30 degrees of longitude: the route points
+ *     at empty ground instead of Portland.
  *   - the map's own type. Browse-all is a state of this page rather than
  *     of the viewport, so the scene cannot derive it; the route declares
  *     it through useSceneView and the scene vetoes on either input.
@@ -192,6 +199,14 @@ export const ProjectsPage = ({
     },
     [onHoverProject, projects, setHover],
   );
+
+  /*
+   * The hover channel is this page's to close. It is opened by a pointer
+   * and the pointer does not report leaving a page -- only a row -- so the
+   * only event that can end it is this one. setHover is stable, so this
+   * runs on unmount and not on every hover.
+   */
+  useEffect(() => () => setHover(null), [setHover]);
 
   return (
     <SceneStage

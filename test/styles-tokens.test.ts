@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   FALLBACK_PALETTE,
-  luminance,
+  luma,
   makePalette,
+  PALETTE_KEYS,
   PALETTE_TOKENS,
   parseRgb,
   type PaletteColors,
@@ -10,14 +11,11 @@ import {
   readPalette,
 } from 'styles/tokens/palette';
 import {
+  styleSheets,
   THEMES_CSS,
   THEME_SELECTORS,
   themeBlock,
 } from 'test/theme-css';
-
-const PALETTE_KEYS = Object.keys(
-  PALETTE_TOKENS,
-) as (keyof PaletteColors)[];
 
 const DARK: PaletteColors = {
   accent: [255, 229, 32],
@@ -87,10 +85,28 @@ describe('parseRgb', () => {
   });
 });
 
-describe('luminance', () => {
+describe('luma', () => {
   it('is 0 at black and 1 at white', () => {
-    expect(luminance([0, 0, 0])).toBe(0);
-    expect(luminance([255, 255, 255])).toBeCloseTo(1, 10);
+    expect(luma([0, 0, 0])).toBe(0);
+    expect(luma([255, 255, 255])).toBeCloseTo(1, 10);
+  });
+
+  /*
+   * The endpoints alone do not pin the colour space: luma, relative
+   * luminance, a plain average and max() all give 0 and 1 there. Mid grey
+   * is where they separate, and lut.ts's whole calibration rides on this
+   * being the gamma-encoded one. A linearising implementation returns
+   * 0.2159 and fails here instead of silently flattening the basemap.
+   */
+  it('is gamma-encoded luma, not relative luminance', () => {
+    expect(luma([128, 128, 128])).toBeCloseTo(0.501961, 6);
+    expect(luma([128, 128, 128])).toBeGreaterThan(0.4);
+  });
+
+  it('weights green over red over blue', () => {
+    expect(luma([0, 255, 0])).toBeCloseTo(0.7152, 6);
+    expect(luma([255, 0, 0])).toBeCloseTo(0.2126, 6);
+    expect(luma([0, 0, 255])).toBeCloseTo(0.0722, 6);
   });
 });
 
@@ -127,10 +143,36 @@ describe('makePalette', () => {
     expect(pal.mutedInk).toBe('rgb(193, 193, 193)');
   });
 
-  it('keys the repaint cache on accent, ground and terrain', () => {
+  /*
+   * The key is a cache key: scene/theme.ts skips rebuilding the Mapbox
+   * LUT while it holds, and the still canvases skip repainting. So the
+   * assertion that matters is the invariant, not the literal string --
+   * change any colour the palette carries and the key has to move. The
+   * design bundle keyed on accent|space|land, which is three of nine and
+   * misses --map-deep, a colour buildLut reads.
+   */
+  it('changes when any one of the nine colours changes', () => {
+    const base = makePalette(DARK);
+    for (const name of PALETTE_KEYS) {
+      const nudged = makePalette({
+        ...DARK,
+        [name]: [DARK[name][0] + 1, DARK[name][1], DARK[name][2]],
+      });
+      expect(nudged.key, `${name} is missing from the key`).not.toBe(
+        base.key,
+      );
+    }
+  });
+
+  it('carries every colour, in PALETTE_KEYS order', () => {
+    expect(PALETTE_KEYS).toHaveLength(9);
+    expect(makePalette(DARK).key.split('|')).toHaveLength(9);
     expect(makePalette(DARK).key).toBe(
-      '255,229,32|22,22,22|89,75,64',
+      PALETTE_KEYS.map((name) => DARK[name].join()).join('|'),
     );
+  });
+
+  it('separates two different palettes', () => {
     expect(makePalette(LIGHT).key).not.toBe(makePalette(DARK).key);
   });
 });
@@ -210,4 +252,28 @@ describe('every theme scope', () => {
   it('is eight scopes and no more', () => {
     expect(THEME_SELECTORS).toHaveLength(8);
   });
+});
+
+/*
+ * Tailwind's `inline` governs what a utility contains, not whether the
+ * variable exists: every --color-* the scanner sees is still emitted into
+ * :root, in @layer theme, already resolved against :root. Reading one back
+ * by hand therefore pins it to the root theme, which is wrong anywhere
+ * [data-theme] sits below <html> -- the theme lens previews each theme on
+ * its own swatch and would show eight copies of the current one.
+ *
+ * globals.css spends a paragraph saying so. This makes it enforceable for
+ * the files this lane owns.
+ */
+describe('the --color-* aliases', () => {
+  // Comments are stripped first: globals.css's own warning spells the
+  // pattern out, and `var(--color-*)` with a literal star is not a token
+  // Tailwind can emit anything for. It is the declarations that matter.
+  it.each(styleSheets())(
+    '%s reaches for the token, not the alias',
+    (_file, css) => {
+      const declarations = css.replace(/\/\*[\s\S]*?\*\//g, '');
+      expect(declarations.match(/var\(\s*--color-/g)).toBeNull();
+    },
+  );
 });

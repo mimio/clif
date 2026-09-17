@@ -1,5 +1,5 @@
 /*
- * Borders and radii (design inventory 1.5), ported verbatim.
+ * Borders (design inventory 1.5), ported verbatim.
  *
  * --border-cta-soft, --border-neutral, --border-content and --shadow-plane
  * are themed in themes.css and are not restated here.
@@ -9,17 +9,17 @@
  * back to transparent. It is the colour half of --border-neutral, for the
  * places that need the colour on its own (a box-shadow spread, a
  * border-color transition).
+ *
+ * The RADII are not here. Tailwind owns the --radius-* namespace, and
+ * declaring them in this file -- which globals.css imports into
+ * @layer base, above Tailwind's @layer theme -- silently redefined
+ * Tailwind's own rounded-sm and rounded-xs as the design's 8px and 4px.
+ * They live in globals.css's @theme block now, which makes that
+ * redefinition deliberate and gives every radius a real utility. See the
+ * note there.
  */
 :root {
   --border-width: 1px;
   --border-cta: var(--border-width) solid var(--clif-accent);
   --border-neutral-color: var(--border-color);
-
-  --radius-card: 20px;
-  --radius-control: 16px;
-  --radius-pill: 999px;
-  --radius-sm: 8px;
-  --radius-xs: 4px;
-  --radius-circle: 50%;
-  --radius-control-bar: 28px;
 }
