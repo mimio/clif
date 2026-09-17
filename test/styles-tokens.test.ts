@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   FALLBACK_PALETTE,
   luma,
@@ -10,11 +10,22 @@ import {
   type Rgb,
   readPalette,
 } from 'styles/tokens/palette';
+import { announceTheme } from 'components/chrome/ThemeEye';
+import {
+  subscribeTheme as sceneSubscribeTheme,
+  THEME_EVENT as sceneThemeEvent,
+} from 'scene/theme';
+import {
+  subscribeTheme,
+  THEME_EVENT,
+  THEME_IDS,
+} from 'styles/theme-bootstrap';
 import {
   styleSheets,
   THEMES_CSS,
   THEME_SELECTORS,
   themeBlock,
+  themeScopes,
 } from 'test/theme-css';
 
 const DARK: PaletteColors = {
@@ -238,19 +249,47 @@ describe('FALLBACK_PALETTE against themes.css', () => {
   });
 });
 
+/*
+ * The theme scopes, read off the stylesheet.
+ *
+ * This used to assert that the test file's own hardcoded selector list had
+ * eight entries, which is a property of the test and of nothing else.
+ * Nothing compared themes.css against the ids the app ships, so a ninth
+ * [data-theme='cobalt'] block that omitted --map-deep passed every test
+ * there was. At runtime that hole is expensive and silent: readPalette
+ * reads '' for the missing token, parseRgb hands back yellow's
+ * [53, 46, 39], and the LUT is then cached under a key built from a
+ * palette it did not paint -- so the map keeps a wrong basemap and never
+ * rebuilds it, because the key never changes again.
+ *
+ * Both halves now come from a source of truth. The ids come from
+ * THEME_IDS, which the bootstrap script and the theme lens use; the
+ * scopes come from parsing the CSS.
+ */
 describe('every theme scope', () => {
-  it.each(THEME_SELECTORS)(
-    '%s defines all nine tokens',
-    (selector) => {
-      const block = themeBlock(selector);
+  const scopes = themeScopes();
+
+  it('declares exactly the themes the app ships', () => {
+    expect([...scopes.keys()].sort()).toEqual([...THEME_IDS].sort());
+  });
+
+  it.each([...scopes.keys()])(
+    '%s defines every palette token',
+    (id) => {
+      const block = scopes.get(id) as Record<string, string>;
       for (const key of PALETTE_KEYS) {
-        expect(block[PALETTE_TOKENS[key]]).toBeDefined();
+        expect(
+          block[PALETTE_TOKENS[key]],
+          `[data-theme='${id}'] is missing ${PALETTE_TOKENS[key]}`,
+        ).toBeDefined();
       }
     },
   );
 
-  it('is eight scopes and no more', () => {
-    expect(THEME_SELECTORS).toHaveLength(8);
+  it('gives every id a block the palette can be read from', () => {
+    for (const selector of THEME_SELECTORS) {
+      expect(() => themeBlock(selector)).not.toThrow();
+    }
   });
 });
 
@@ -276,4 +315,60 @@ describe('the --color-* aliases', () => {
       expect(declarations.match(/var\(\s*--color-/g)).toBeNull();
     },
   );
+});
+
+/*
+ * The theme-change contract, end to end.
+ *
+ * THEME_EVENT and subscribeTheme used to be written out twice, in
+ * scene/theme.ts and in components/chrome/ThemeEye.tsx. Renaming the
+ * constant in either copy left all 649 unit tests and all four hermetic
+ * theme e2e tests green, because subscribeTheme also watches
+ * documentElement[data-theme] and that second path is complete on its own:
+ * repaints kept working while an entire tier quietly became dead code.
+ *
+ * So the assertion cannot be "the two constants are equal" -- that is what
+ * two drifting copies look like right up until one changes. It runs the
+ * real path: the lens's dispatcher, into the scene's subscriber.
+ */
+describe('the theme event contract', () => {
+  afterEach(() => {
+    delete document.documentElement.dataset.theme;
+    window.localStorage.clear();
+  });
+
+  it('is one definition, not two copies that agree today', () => {
+    expect(sceneThemeEvent).toBe(THEME_EVENT);
+    expect(sceneSubscribeTheme).toBe(subscribeTheme);
+  });
+
+  it('carries a lens pick to a scene subscriber', () => {
+    const onChange = vi.fn();
+    const stop = sceneSubscribeTheme(onChange);
+
+    announceTheme('teal');
+
+    /*
+     * Synchronously, and exactly once. window.dispatchEvent is
+     * synchronous; a MutationObserver callback is a microtask that has
+     * not run yet. Asserting here isolates the EVENT path from the
+     * attribute path -- and the attribute path is precisely what made the
+     * old duplication invisible, because it would have carried this
+     * callback on its own however far the event name drifted.
+     */
+    expect(onChange).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  it('still hears a theme set without an event', async () => {
+    const onChange = vi.fn();
+    const stop = subscribeTheme(onChange);
+
+    document.documentElement.dataset.theme = 'pink';
+    expect(onChange).not.toHaveBeenCalled();
+    await Promise.resolve();
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    stop();
+  });
 });
