@@ -96,22 +96,22 @@ export const chrome: Specimen = {
         note="The prototype geometry, not the 1i annotation column: 120x120, notches at 20/60/100, a 7x21 rounded bead on 340ms cubic-bezier(.22,1,.36,1). Hover a notch for its label; click the one the bead is on for the jiggle."
         title="Altimeter — states"
       >
-        <Stage label="hello">
+        <Stage className="w-[200px]" label="hello">
           <Altimeter active="hello" />
         </Stage>
-        <Stage label="projects">
+        <Stage className="w-[200px]" label="projects">
           <Altimeter active="projects" />
         </Stage>
-        <Stage label="about">
+        <Stage className="w-[200px]" label="about">
           <Altimeter active="about" />
         </Stage>
-        <Stage label="detail — indicator 0.62">
+        <Stage className="w-[200px]" label="detail — indicator 0.62">
           <Altimeter active="projects" indicator={0.62} />
         </Stage>
-        <Stage label="mid-travel — 45%">
+        <Stage className="w-[200px]" label="mid-travel — 45%">
           <Altimeter indicator={0.45} />
         </Stage>
-        <Stage label="live — click it">
+        <Stage className="w-[200px]" label="live — click it">
           <Altimeter active="hello" />
         </Stage>
       </Bench>
@@ -120,13 +120,19 @@ export const chrome: Specimen = {
         note="Both rails are literally 1px. Every element on the notch line is odd-sized so it straddles a 1px hairline symmetrically: 3px dots, a 7px bead. Magnified 4x here; screenshot the unscaled rails above to check the real raster."
         title="Altimeter — rail detail"
       >
-        <Stage className="overflow-hidden" label="rest — 4x">
-          <span className="origin-center scale-[4]">
+        <Stage
+          className="h-[440px] w-[170px] overflow-hidden"
+          label="rest — 4x"
+        >
+          <span className="absolute top-[10px] right-[20px] block origin-top-right scale-[4]">
             <Altimeter active="projects" />
           </span>
         </Stage>
-        <Stage className="overflow-hidden" label="mid-travel — 4x">
-          <span className="origin-center scale-[4]">
+        <Stage
+          className="h-[440px] w-[170px] overflow-hidden"
+          label="mid-travel — 4x"
+        >
+          <span className="absolute top-[10px] right-[20px] block origin-top-right scale-[4]">
             <Altimeter indicator={0.45} />
           </span>
         </Stage>
@@ -136,16 +142,28 @@ export const chrome: Specimen = {
         note="A real eyeball whose iris carries the theme, and a mouth from the same family. Each panel row is an 18px miniature of the eye wearing that theme's own iris. Picking a theme leaves the panel open so they can be compared back to back; opening one panel closes the other."
         title="Theme eye and contact mouth"
       >
-        <Stage label="eye — shut">
+        <Stage
+          className="h-[300px] items-end pb-[40px]"
+          label="eye — shut"
+        >
           <ThemeEye />
         </Stage>
-        <Stage label="mouth — shut">
+        <Stage
+          className="h-[300px] items-end pb-[40px]"
+          label="mouth — shut"
+        >
           <ContactMouth />
         </Stage>
-        <Stage className="w-[420px] justify-end" label="eye — open">
+        <Stage
+          className="h-[300px] w-[420px] items-end justify-end pb-[40px]"
+          label="eye — open"
+        >
           <ThemeEye defaultOpen />
         </Stage>
-        <Stage className="w-[360px] justify-end" label="mouth — open">
+        <Stage
+          className="h-[300px] w-[360px] items-end justify-end pb-[40px]"
+          label="mouth — open"
+        >
           <ContactMouth defaultOpen />
         </Stage>
       </Bench>

@@ -73,7 +73,17 @@ export const subscribeTheme = (
   onChange: () => void,
 ): (() => void) => {
   window.addEventListener(THEME_EVENT, onChange);
-  return () => window.removeEventListener(THEME_EVENT, onChange);
+  // The event is how the lens announces a pick, but the attribute is the
+  // truth: watch it directly as well, so a theme set by anything else --
+  // the bootstrap, a devtools edit, a future route -- still shows here.
+  const watcher = new MutationObserver(onChange);
+  watcher.observe(document.documentElement, {
+    attributeFilter: ['data-theme'],
+  });
+  return () => {
+    watcher.disconnect();
+    window.removeEventListener(THEME_EVENT, onChange);
+  };
 };
 
 export const currentTheme = (): ThemeId => {

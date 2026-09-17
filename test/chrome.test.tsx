@@ -499,6 +499,15 @@ describe('ThemeEye', () => {
     ).toHaveAttribute('aria-selected', 'true');
   });
 
+  it('follows the attribute even when nothing announced', async () => {
+    render(<ThemeEye defaultOpen />);
+    document.documentElement.dataset.theme = 'lime';
+    await screen.findByRole('option', {
+      name: 'lime',
+      selected: true,
+    });
+  });
+
   it('can be pinned to a value it does not own', async () => {
     render(<ThemeEye className="x" defaultOpen value="lime" />);
     expect(
