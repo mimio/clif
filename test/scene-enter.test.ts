@@ -12,7 +12,6 @@ import {
   foregroundEnter,
   foregroundHandoffMs,
 } from 'scene/enter';
-import { foregroundEnter as helloEnter } from 'pagesComponents/hello/enter';
 
 /** CSSProperties types `animation` as a union, so read it as text. */
 const animationOf = (style: EnterStyle): string =>
@@ -113,23 +112,5 @@ describe('foregroundEnter', () => {
         }),
       ),
     ).toBe(540);
-  });
-});
-
-describe('the hello shim', () => {
-  it('still produces exactly what 1a had before the lift', () => {
-    for (const step of [0, 1, 2]) {
-      expect(helloEnter(step, false)).toEqual(
-        foregroundEnter(step, {
-          scene: 'hello',
-          reduced: false,
-          stagger: FG_STAGGER_CARD_MS,
-        }),
-      );
-      expect(delayOf(helloEnter(step, false))).toBe(480 + step * 80);
-    }
-    expect(helloEnter(0, true)).toEqual(
-      foregroundEnter(0, { scene: 'hello', reduced: true }),
-    );
   });
 });
