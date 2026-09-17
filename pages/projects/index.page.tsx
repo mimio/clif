@@ -2,7 +2,7 @@ import type { GetStaticProps } from 'next';
 import { cameras } from 'content/cameras';
 import { projectsList, type Project } from 'content/projects';
 import ProjectsPage from 'pagesComponents/projects';
-import { PageMeta } from 'pages/_app';
+import { PageMeta } from 'pages/_app.page';
 import { useSceneCamera } from 'scene/useSceneCamera';
 
 type ProjectsProps = {

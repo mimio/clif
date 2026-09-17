@@ -415,7 +415,7 @@ describe('/about', () => {
     router.isReady = false;
     router.query = {};
 
-    const about = await import('pages/about');
+    const about = await import('pages/about.page');
     const tree = () => (
       <MapProvider>
         <SceneRoot />
@@ -480,7 +480,7 @@ describe('/about', () => {
     visit('/about?stop=salesforce');
     router.isReady = false;
     router.query = {};
-    const about = await import('pages/about');
+    const about = await import('pages/about.page');
 
     const html = renderToStaticMarkup(
       <MapProvider>

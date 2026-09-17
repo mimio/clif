@@ -9,7 +9,7 @@ import { projectPath } from 'content/routes';
 import ProjectDetailPage, {
   richTextToString,
 } from 'pagesComponents/projectDetail';
-import { metaDescription, PageMeta } from 'pages/_app';
+import { metaDescription, PageMeta } from 'pages/_app.page';
 import { useSceneCamera } from 'scene/useSceneCamera';
 
 type ProjectPageProps = {

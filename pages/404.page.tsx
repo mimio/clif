@@ -1,6 +1,6 @@
 import { cameras } from 'content/cameras';
 import NotFoundPage from 'pagesComponents/notFound';
-import { PageMeta } from 'pages/_app';
+import { PageMeta } from 'pages/_app.page';
 import { useSceneCamera } from 'scene/useSceneCamera';
 
 const NotFound = () => {

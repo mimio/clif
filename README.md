@@ -186,6 +186,12 @@ Variables for Production, Preview and Development.
   placeholder because the e2e suite answers every Mapbox request locally.
 - `NEXT_PUBLIC_MAPBOX_STYLE`, optional: defaults to
   `mapbox://styles/mapbox/standard`.
+- `NEXT_PUBLIC_SITE_URL`, optional: the canonical origin, no trailing slash
+  (e.g. `https://clif.mimio.io`). Every route emits a canonical link and
+  `og:`/`twitter:` URLs; without this they stay root-relative, which resolves
+  correctly against the document that served them — right on localhost and on
+  every preview, but it means the deployed site publishes no absolute
+  canonical. Set it on the production environment.
 - `NEXT_PUBLIC_GA_MEASUREMENT_ID`, optional: a Google Analytics 4 measurement
   id. Analytics is a no-op when it is unset.
 

@@ -336,11 +336,11 @@ describe('page metadata', () => {
   it('titles every route in its own words, and no two the same', async () => {
     const [hello, projects, about, detail, notFound] =
       await Promise.all([
-        import('pages/index'),
-        import('pages/projects/index'),
-        import('pages/about'),
-        import('pages/projects/[projectId]'),
-        import('pages/404'),
+        import('pages/index.page'),
+        import('pages/projects/index.page'),
+        import('pages/about.page'),
+        import('pages/projects/[projectId].page'),
+        import('pages/404.page'),
       ]);
 
     const titles = [
@@ -363,7 +363,7 @@ describe('page metadata', () => {
   });
 
   it('gives a shared project link a card of its own', async () => {
-    const detail = await import('pages/projects/[projectId]');
+    const detail = await import('pages/projects/[projectId].page');
     render(
       <MapProvider>
         <detail.default projectId="gopro" />
@@ -404,7 +404,7 @@ describe('page metadata', () => {
   });
 
   it('counts the projects rather than spelling them out', async () => {
-    const projects = await import('pages/projects/index');
+    const projects = await import('pages/projects/index.page');
     render(
       <MapProvider>
         <projects.default projects={projectsList} />
@@ -423,7 +423,7 @@ describe('page metadata', () => {
   });
 
   it('canonicalises a deep-linked stop to /about itself', async () => {
-    const about = await import('pages/about');
+    const about = await import('pages/about.page');
     render(
       <MapProvider>
         <about.default stops={historyStops} />
@@ -437,7 +437,7 @@ describe('page metadata', () => {
   });
 
   it('keeps the 404 out of the index', async () => {
-    const { default: NotFound } = await import('pages/404');
+    const { default: NotFound } = await import('pages/404.page');
     render(
       <MapProvider>
         <NotFound />
@@ -448,13 +448,13 @@ describe('page metadata', () => {
   });
 
   it('is relative until a deployment names its origin', async () => {
-    const app = await import('pages/_app');
+    const app = await import('pages/_app.page');
     expect(app.SITE_ORIGIN).toBe('');
     expect(app.siteUrl('/projects/gopro')).toBe('/projects/gopro');
 
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://example.com/');
     vi.resetModules();
-    const configured = await import('pages/_app');
+    const configured = await import('pages/_app.page');
     expect(configured.siteUrl('/projects/gopro')).toBe(
       'https://example.com/projects/gopro',
     );
@@ -463,7 +463,7 @@ describe('page metadata', () => {
 
   it('flattens and clamps prose to the unfurl budget', async () => {
     const { metaDescription, META_DESCRIPTION_MAX } =
-      await import('pages/_app');
+      await import('pages/_app.page');
     expect(metaDescription(' one\n\ntwo  three ')).toBe(
       'one two three',
     );
