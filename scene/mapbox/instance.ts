@@ -113,7 +113,6 @@ const setStatus = (next: StyleStatus): void => {
  */
 type Desired = {
   fog: { spec: CameraSpec; palette: Palette } | undefined;
-  terrain: number | null | undefined;
   config: Map<string, unknown>;
   lut: string | undefined;
   layers: { sets: LayerSet[]; palette: Palette } | undefined;
@@ -121,13 +120,39 @@ type Desired = {
 
 const emptyDesired = (): Desired => ({
   fog: undefined,
-  terrain: undefined,
   config: new Map(),
   lut: undefined,
   layers: undefined,
 });
 
 let desired: Desired = emptyDesired();
+
+/*
+ * Terrain is the one thing held as want-versus-applied rather than as a
+ * one-shot want, because the scene has to be able to take it off the map
+ * without forgetting that the route still wants it.
+ *
+ * mapbox's Map.removeSource re-runs the whole terrain evaluation, and
+ * Terrain.update reads style.terrain.properties -- which does not exist
+ * between setTerrain() and mapbox's next recalculate. So setTerrain
+ * followed by removeSource in the same tick throws "Cannot read
+ * properties of undefined (reading 'get')" from inside mapbox and takes
+ * the tree with it.
+ *
+ * That is exactly a navigation into a detail route from projects: attach
+ * terrain, then unmount the projects layer set. It needed a SECOND visit
+ * to show up, because on the first the DEM has not loaded yet, terrain
+ * parks itself, and nothing is attached when the sources go. Every
+ * single-navigation test we had therefore passed.
+ *
+ * So: terrain comes off before any source is removed, and goes back on
+ * afterwards from `wantedTerrain`. One frame of flat ground in the
+ * middle of an 800ms camera move is not perceptible, and it is not worth
+ * trading for a rule like "only detach when mapbox has not recalculated
+ * yet", which is unobservable from out here and would rot.
+ */
+let wantedTerrain: number | null = null;
+let appliedTerrain: number | null = null;
 
 /**
  * The LUT currently on the map.
@@ -142,6 +167,32 @@ let appliedLut: string | null = null;
 
 /** True while a terrain want is parked waiting for the DEM to resolve. */
 let waitingForDem = false;
+
+/*
+ * True from a setTerrain() until mapbox has next rendered.
+ *
+ * This is the window in which style.terrain exists but its `properties`
+ * do not: they are populated during the render that follows. A
+ * removeSource inside it re-runs the terrain evaluation and throws
+ * "Cannot read properties of undefined (reading 'get')" from inside
+ * Terrain.update, taking the tree with it.
+ *
+ * Ordering within a pass is not enough to avoid it, because a later pass
+ * in the SAME frame can still remove a source after an earlier pass set
+ * terrain. `render` is the exact signal that mapbox has recalculated, so
+ * that is what clears it -- and setTerrain always schedules a repaint,
+ * so the event is guaranteed to come.
+ */
+let terrainDirty = false;
+
+const markTerrainDirty = (map: MapboxMap): void => {
+  terrainDirty = true;
+  map.once('render', () => {
+    terrainDirty = false;
+    // Whatever was held back is now safe to apply.
+    flush();
+  });
+};
 
 /*
  * WHY THIS FILE TALKS.
@@ -257,8 +308,75 @@ const publishDebugHandle = (map: MapboxMap): void => {
   };
 };
 
-/** Applies everything still wanted. A no-op until the style is ready. */
+/*
+ * FLUSH IS NOT RE-ENTRANT, and enforcing that is load-bearing.
+ *
+ * mapbox fires events synchronously from inside its own operations --
+ * `sourcedata` arrives during addSource and removeSource, among others.
+ * The scene listens for one of those to know when the DEM has resolved,
+ * so a flush could re-enter itself from the middle of registry.sync:
+ * the outer pass took terrain off before removing sources, the nested
+ * pass saw terrain missing and dutifully put it back, and the outer pass
+ * then carried on removing sources with terrain attached -- which is the
+ * crash this guard exists to prevent. It survived five navigations and
+ * died on the sixth.
+ *
+ * A re-entrant call therefore asks for another pass instead of running
+ * one. The loop converges because every pass either applies a want and
+ * clears it, or finds nothing to do.
+ */
+let flushing = false;
+let flushAgain = false;
+
+/*
+ * While a batch is open the apply* calls only record. One scene pass is
+ * one flush, which is what keeps every removal ahead of every
+ * setTerrain in a given tick.
+ */
+let batching = false;
+
+/** Records every want in `run`, then applies them in one ordered pass. */
+export const batchScene = (run: () => void): void => {
+  if (batching) {
+    run();
+    return;
+  }
+  batching = true;
+  try {
+    run();
+  } finally {
+    batching = false;
+  }
+  flush();
+};
+
+const requestFlush = (): void => {
+  if (batching) return;
+  flush();
+};
+
+/** Enough for a pass to settle; more would mean a want that re-arms. */
+const MAX_FLUSH_PASSES = 5;
+
 const flush = (): void => {
+  if (flushing) {
+    flushAgain = true;
+    return;
+  }
+  flushing = true;
+  try {
+    let passes = 0;
+    do {
+      flushAgain = false;
+      flushOnce();
+      passes += 1;
+    } while (flushAgain && passes < MAX_FLUSH_PASSES);
+  } finally {
+    flushing = false;
+  }
+};
+
+const flushOnce = (): void => {
   const map = instance;
   if (!map || status !== 'ready') return;
 
@@ -297,77 +415,95 @@ const flush = (): void => {
     });
   }
 
-  if (desired.terrain !== undefined) {
-    const exaggeration = desired.terrain;
-    if (exaggeration === null) {
-      desired.terrain = undefined;
-      lastAction = 'setTerrain(off)';
-      map.setTerrain(null);
-    } else {
-      if (!map.getSource(DEM_SOURCE)) {
-        map.addSource(DEM_SOURCE, DEM_SPEC);
-      }
-      /*
-       * Terrain waits for its own source.
-       *
-       * Adding a raster-dem source and draping on it in the same tick
-       * works on a fresh style, because the source resolves before the
-       * first frame that uses it. It does not work once the map has been
-       * rendering for a while: mapbox's Terrain.update reaches into the
-       * DEM's tile cache on the very next frame and throws "Cannot read
-       * properties of undefined" when the TileJSON has not come back
-       * yet. That is a navigation from hello into about -- the one path
-       * where terrain is switched on late -- and it took the whole tree
-       * down every time.
-       *
-       * So the want stays on the record, and the sourcedata handler
-       * flushes again when the DEM is ready. If the route leaves the
-       * terrain view while we are waiting, the want is simply overwritten
-       * with null and the wait resolves into a no-op.
-       */
-      if (map.isSourceLoaded(DEM_SOURCE)) {
-        desired.terrain = undefined;
-        lastAction = `setTerrain(${exaggeration})`;
-        map.setTerrain({ source: DEM_SOURCE, exaggeration });
-      } else if (!waitingForDem) {
-        waitingForDem = true;
-        const onData = (event: { sourceId?: string }): void => {
-          if (event.sourceId !== DEM_SOURCE) return;
-          if (!map.isSourceLoaded(DEM_SOURCE)) return;
-          map.off('sourcedata', onData);
-          waitingForDem = false;
-          flush();
-        };
-        map.on('sourcedata', onData);
-      }
-    }
-  }
-
-  if (desired.layers !== undefined) {
+  /*
+   * LAYERS BEFORE TERRAIN, ALWAYS, AND NEVER BOTH OUT OF ORDER.
+   *
+   * Map.removeSource re-runs the terrain evaluation, and Terrain.update
+   * reads style.terrain.properties -- which does not exist between a
+   * setTerrain() and mapbox's next recalculate. So a setTerrain followed
+   * by a removeSource in the same tick throws from inside mapbox and
+   * takes the tree down.
+   *
+   * The trap is that you cannot avoid it by turning terrain off first.
+   * On a globe, Style.setTerrain(null) does NOT clear terrain: the
+   * projection requiresDraping, so mapbox immediately calls
+   * setTerrainForDraping() and installs a fresh draping-only terrain --
+   * equally un-recalculated, and equally fatal to the next removeSource.
+   * Detaching first makes it worse, not better.
+   *
+   * What works is order: remove first, set terrain afterwards. That is
+   * why syncLayers runs here and reconcileTerrain runs last, and why the
+   * whole scene pass is coalesced into a single flush -- six separate
+   * apply calls each flushing would put applyTerrain's setTerrain before
+   * syncLayers' removals, which is exactly the crash.
+   */
+  if (desired.layers !== undefined && !terrainDirty) {
     const { sets, palette } = desired.layers;
     desired.layers = undefined;
     lastAction = `syncLayers(${sets.map((set) => set.id).join()})`;
     registry.sync(asSceneMap(map), sets);
     registry.repaint(asSceneMap(map), sets, palette);
   }
+
+  reconcileTerrain(map);
 };
 
 /**
- * Builds the map, or resolves null if it cannot be built.
+ * Brings what the map is wearing back in line with what the route wants.
  *
- * NEVER REJECTS, and callers depend on that. `import('mapbox-gl')` is a
- * dynamic chunk: it rejects on a 404 against a stale deploy or on a
- * flaky network, and the constructor itself throws when there is no
- * WebGL context to be had. A rejection here used to leave SceneRoot's
- * promise unhandled, which stranded the scene at 'pending' for ever --
- * no map, and no fallback plate either, because the plate only renders
- * once the scene knows it has failed. The one failure the fallback
- * exists for was the one it did not cover.
- *
- * So every way of not getting a map resolves to the same null the
- * missing-token path resolves to, and the status goes to 'failed' so the
- * watchers hear about it too.
+ * The DEM is added once and never removed -- it is the same source on
+ * every terrain route, so re-adding it per route would buy nothing and
+ * would put another removeSource on the hazardous path.
  */
+const reconcileTerrain = (map: MapboxMap): void => {
+  if (wantedTerrain === appliedTerrain) return;
+  if (wantedTerrain === null) {
+    lastAction = 'setTerrain(off)';
+    appliedTerrain = null;
+    map.setTerrain(null);
+    markTerrainDirty(map);
+    return;
+  }
+
+  if (!map.getSource(DEM_SOURCE)) {
+    map.addSource(DEM_SOURCE, DEM_SPEC);
+  }
+
+  /*
+   * Terrain waits for its own source. Adding a raster-dem source and
+   * draping on it in the same tick works on a fresh style and not on a
+   * map that has been rendering for a while: mapbox reaches into the
+   * DEM's tile cache on the next frame and throws. So the want stays on
+   * the record and the sourcedata handler reconciles again when the DEM
+   * is ready; leaving the terrain view meanwhile just makes that a
+   * no-op.
+   */
+  if (!map.isSourceLoaded(DEM_SOURCE)) {
+    if (waitingForDem) return;
+    waitingForDem = true;
+    const onData = (event: { sourceId?: string }): void => {
+      if (event.sourceId !== DEM_SOURCE) return;
+      if (!map.isSourceLoaded(DEM_SOURCE)) return;
+      map.off('sourcedata', onData);
+      waitingForDem = false;
+      // Off the mapbox call stack entirely. The re-entrancy guard above
+      // already makes this safe, but scene work has no business running
+      // inside whatever mapbox operation happened to emit the event.
+      queueMicrotask(flush);
+    };
+    map.on('sourcedata', onData);
+    return;
+  }
+
+  lastAction = `setTerrain(${wantedTerrain})`;
+  appliedTerrain = wantedTerrain;
+  map.setTerrain({
+    source: DEM_SOURCE,
+    exaggeration: wantedTerrain,
+  });
+  markTerrainDirty(map);
+};
+
 const create = async (
   container: HTMLElement,
 ): Promise<MapboxMap | null> => {
@@ -490,12 +626,12 @@ export const applyFog = (
   palette: Palette,
 ): void => {
   desired.fog = { spec, palette };
-  flush();
+  requestFlush();
 };
 
 export const applyTerrain = (exaggeration: number | null): void => {
-  desired.terrain = exaggeration;
-  flush();
+  wantedTerrain = exaggeration;
+  requestFlush();
 };
 
 /*
@@ -532,7 +668,7 @@ export const applyInteractivity = (interactive: boolean): void => {
  */
 export const applyColorTheme = (lut: string): void => {
   desired.lut = lut;
-  flush();
+  requestFlush();
 };
 
 /** Tier 2: the Standard import's own knobs. No tile reload. */
@@ -544,7 +680,7 @@ export const applyBasemapConfig = (
   // still waiting carries only what changed since it. Dropping the
   // earlier one would lose those keys for good.
   for (const [key, value] of changes) desired.config.set(key, value);
-  flush();
+  requestFlush();
 };
 
 /* ---- layers ---------------------------------------------------------- */
@@ -559,7 +695,7 @@ export const syncLayers = (
   palette: Palette,
 ): void => {
   desired.layers = { sets, palette };
-  flush();
+  requestFlush();
 };
 
 /* ---- the animation loop ---------------------------------------------- */
@@ -624,7 +760,12 @@ export const resetMapForTests = (): void => {
   status = 'loading';
   watchers.clear();
   desired = emptyDesired();
+  flushing = false;
+  flushAgain = false;
+  terrainDirty = false;
   appliedLut = null;
+  wantedTerrain = null;
+  appliedTerrain = null;
   waitingForDem = false;
   lastAction = 'none';
   sceneErrors.length = 0;
