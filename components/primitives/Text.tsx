@@ -7,23 +7,29 @@ import {
 import { cn } from 'utils/cn';
 
 /*
- * The type scale. Sizes, weights and colours are design tokens and belong to
- * the stylesheet, not to this file: the component's whole job is to pick the
- * right tag and stamp the variant onto the element so CSS can reach it.
+ * The type scale (design inventory 2.8). Twelve variants, one class string
+ * each, and every size is a `var(--type-*)` reference: the numbers live in
+ * styles/tokens/typography.css and are written there exactly once. The scale
+ * used to be duplicated in this header as a comment -- that copy is gone on
+ * purpose, because a comment cannot be wrong loudly.
  *
- * Scale (design inventory §2.8), for whoever writes the CSS:
- *   heading    52pt/1   w700 display, lowercase   accent
- *   heading2   36px/1.2 w400                      strong
- *   heading3   36px/1.2 w200                      strong
- *   subheader  22pt/24pt w300                     strong
- *   subheader2 22pt/24pt w300                     accent
- *   body       18px/28px w200                     body
- *   body2      18px/28px w300                     accent
- *   detail     14px/18px w200                     secondary
- *   detail2    14px/18px w300                     accent
- *   detail3    14px/18px w300                     muted
- *   label      12px/1.4 w300 .2em uppercase       muted
- *   readout    11px/1.5 w300 .18em                muted
+ * What a variant is allowed to set: family, size, line height, weight,
+ * tracking, colour, case. Nothing else. Layout -- margins, widths, max-width,
+ * text-wrap -- belongs to the caller, which is why only the headings carry
+ * `m-0` (they are h1/h2 and would otherwise inherit a UA margin).
+ *
+ * Responsive steps come from the tokens' own -tablet/-mobile values. The
+ * design bundle's breakpoints are shifted one class against Tailwind's here:
+ * the bundle's "tablet" step is <1000px, which is `max-desktop:`, and its
+ * "mobile" step is <650px, which is `max-tablet:`. body/detail have no
+ * tablet step in the token file, so they hold until 650px and then drop.
+ *
+ * Weights are set as an arbitrary font-weight property over the --weight
+ * tokens rather than with font-light/font-normal, so the three named weights
+ * stay a token lookup; `heading` is the one literal 700, which is the
+ * display face's only cut. (Spelling one of those classes out in a comment
+ * is not free: Tailwind scans comments too, and a wildcard inside one
+ * compiles to a rule Lightning CSS then refuses.)
  */
 export type TextVariant =
   | 'heading'
@@ -54,6 +60,39 @@ const TAGS: Record<TextVariant, ElementType> = {
   readout: 'span',
 };
 
+/*
+ * Colours, in the words of the inventory's table: strong -> text-fg,
+ * body -> text-fg-2, secondary -> text-fg-3, muted -> text-fg-4,
+ * accent -> text-accent. `label` and `readout` are muted rather than accent
+ * on purpose; the 11px accent step is --color-accent-small, and a caller
+ * that wants it passes `text-accent-small` in className.
+ */
+const VARIANTS: Record<TextVariant, string> = {
+  heading:
+    'm-0 font-display text-[length:var(--type-heading-size)] leading-none font-bold break-words text-accent lowercase max-desktop:text-[length:var(--type-heading-size-tablet)] max-tablet:text-[length:var(--type-heading-size-mobile)]',
+  heading2:
+    'm-0 text-[length:var(--type-heading2-size)] leading-[1.2] [font-weight:var(--weight-bold)] text-fg max-desktop:text-[length:var(--type-heading2-size-tablet)] max-tablet:text-[length:var(--type-heading2-size-mobile)]',
+  heading3:
+    'm-0 text-[length:var(--type-heading2-size)] leading-[1.2] [font-weight:var(--weight-light)] text-fg max-desktop:text-[length:var(--type-heading2-size-tablet)] max-tablet:text-[length:var(--type-heading2-size-mobile)]',
+  subheader:
+    'text-[length:var(--type-subheader-size)] leading-[var(--type-subheader-line)] [font-weight:var(--weight-regular)] text-fg max-desktop:text-[length:var(--type-subheader-size-tablet)] max-desktop:leading-[var(--type-subheader-line-tablet)] max-tablet:text-[length:var(--type-subheader-size-mobile)] max-tablet:leading-[var(--type-subheader-line-mobile)]',
+  subheader2:
+    'text-[length:var(--type-subheader-size)] leading-[var(--type-subheader-line)] [font-weight:var(--weight-regular)] text-accent max-desktop:text-[length:var(--type-subheader-size-tablet)] max-desktop:leading-[var(--type-subheader-line-tablet)] max-tablet:text-[length:var(--type-subheader-size-mobile)] max-tablet:leading-[var(--type-subheader-line-mobile)]',
+  body: 'text-[length:var(--type-body-size)] leading-[var(--type-body-line)] [font-weight:var(--weight-light)] text-fg-2 max-tablet:text-[length:var(--type-body-size-mobile)] max-tablet:leading-[var(--type-body-line-mobile)]',
+  body2:
+    'text-[length:var(--type-body-size)] leading-[var(--type-body-line)] [font-weight:var(--weight-regular)] text-accent max-tablet:text-[length:var(--type-body-size-mobile)] max-tablet:leading-[var(--type-body-line-mobile)]',
+  detail:
+    'text-[length:var(--type-detail-size)] leading-[var(--type-detail-line)] [font-weight:var(--weight-light)] text-fg-3 max-tablet:text-[length:var(--type-detail-size-mobile)] max-tablet:leading-[var(--type-detail-line-mobile)]',
+  detail2:
+    'text-[length:var(--type-detail-size)] leading-[var(--type-detail-line)] [font-weight:var(--weight-regular)] text-accent max-tablet:text-[length:var(--type-detail-size-mobile)] max-tablet:leading-[var(--type-detail-line-mobile)]',
+  detail3:
+    'text-[length:var(--type-detail-size)] leading-[var(--type-detail-line)] [font-weight:var(--weight-regular)] text-fg-4 max-tablet:text-[length:var(--type-detail-size-mobile)] max-tablet:leading-[var(--type-detail-line-mobile)]',
+  label:
+    'text-[length:var(--type-label-size)] leading-[1.4] [font-weight:var(--weight-regular)] tracking-[var(--type-label-tracking)] text-fg-4 uppercase',
+  readout:
+    'text-[length:var(--type-readout-size)] leading-[1.5] [font-weight:var(--weight-regular)] tracking-[var(--type-readout-tracking)] text-fg-4',
+};
+
 export type TextProps = {
   variant?: TextVariant;
   /** Overrides the variant's default tag. */
@@ -73,7 +112,13 @@ export const Text = ({
   createElement(
     as ?? TAGS[variant],
     {
-      className: cn('clif-text', className),
+      // The variant comes after the base, and className after both, so a
+      // caller's `font-display` or `text-accent-small` wins the merge.
+      className: cn(
+        'font-mono transition-hue',
+        VARIANTS[variant],
+        className,
+      ),
       'data-variant': variant,
       style,
     },

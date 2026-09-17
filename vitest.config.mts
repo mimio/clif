@@ -44,7 +44,15 @@ export default defineConfig({
     react(),
     // types/assets.d.ts declares `*.svg` as a default-exported component, so
     // svgr has to match that rather than emit the named { ReactComponent }.
-    svgr({ svgrOptions: { exportType: 'default' } }),
+    // `include` has to be widened too: the plugin only claims `*.svg?react`
+    // by default, and everything else falls through to Vite's asset handling
+    // as a data: URL -- which renders as an element whose tag name is the
+    // whole URL. next.config.ts's turbopack rule matches plain `*.svg`, so
+    // this is what keeps the two resolvers agreeing.
+    svgr({
+      include: '**/*.svg',
+      svgrOptions: { exportType: 'default' },
+    }),
     glslRaw(),
   ],
   resolve: {
