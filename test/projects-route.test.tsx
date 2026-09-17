@@ -9,8 +9,13 @@ import ProjectsPage, {
   SUBTITLE_COPY,
   toRow,
 } from 'pagesComponents/projects';
-import MapProvider from 'scene/MapProvider';
-import { MOBILE_QUERY } from 'scene/useViewport';
+import { FG_STAGGER_MS, foregroundHandoffMs } from 'scene/enter';
+import MapProvider, { useSceneViewValue } from 'scene/MapProvider';
+import {
+  MOBILE_QUERY,
+  REDUCED_MOTION_QUERY,
+} from 'scene/useViewport';
+import { showLabels } from 'scene/view';
 
 /*
  * 1b / 1c / 1g, from the outside.
@@ -232,5 +237,89 @@ describe('mobile (1g)', () => {
       'max-tablet:hidden',
     );
     expect(bodyRows()).toHaveLength(6);
+  });
+});
+
+/*
+ * Asserted through showLabels -- the function SceneRoot itself calls --
+ * rather than off the raw patch, because the answer is a composition and
+ * the half this route owns is only one of its two inputs. No Mapbox tiles
+ * are reachable in CI or in the sandbox, so this seam is as close to the
+ * drawn labels as a test can get.
+ */
+describe('what the route tells the scene', () => {
+  const Labels = () => {
+    const view = useSceneViewValue();
+    return (
+      <span data-testid="labels">
+        {`${String(showLabels(view, false))}/${String(
+          showLabels(view, true),
+        )}`}
+      </span>
+    );
+  };
+
+  const drawn = (): string =>
+    screen.getByTestId('labels').textContent ?? '';
+
+  it('keeps the map type at rest and vetoes it at full bleed', async () => {
+    const user = userEvent.setup();
+    render(
+      <MapProvider>
+        <ProjectsPage projects={projectsList} />
+        <Labels />
+      </MapProvider>,
+    );
+
+    // Drawn on the desktop board, already suppressed at 390px (1g) --
+    // and that half is the viewport's, not this route's.
+    expect(drawn()).toBe('true/false');
+
+    await user.click(
+      screen.getByRole('button', { name: /browse all/ }),
+    );
+    // 1c: the table is over the label band now, so the table carries the
+    // names and the points carry the places. Off at both widths.
+    expect(drawn()).toBe('false/false');
+
+    await user.click(
+      screen.getByRole('button', { name: /selected work/ }),
+    );
+    expect(drawn()).toBe('true/false');
+  });
+});
+
+describe('the foreground arrives with the camera', () => {
+  /** word, subtitle, table, cap -- the order 1b lists them in. */
+  const steps = (container: HTMLElement): string[] =>
+    [...container.querySelectorAll('[style*="animation"]')].map(
+      (el) => (el as HTMLElement).style.animation,
+    );
+
+  it('waits out 60% of the move, then steps 40ms apart', () => {
+    const { container } = render(
+      <ProjectsPage projects={projectsList} />,
+    );
+    const handoff = foregroundHandoffMs('projects');
+
+    expect(steps(container)).toEqual(
+      [0, 1, 2, 3].map(
+        (step) =>
+          `clif-slidein var(--fg-enter) var(--fg-ease) ${
+            handoff + step * FG_STAGGER_MS
+          }ms both`,
+      ),
+    );
+  });
+
+  it('is a crossfade with no wait under reduced motion', () => {
+    vi.stubGlobal('matchMedia', matchMediaFor(REDUCED_MOTION_QUERY));
+    const { container } = render(
+      <ProjectsPage projects={projectsList} />,
+    );
+
+    for (const animation of steps(container)) {
+      expect(animation).toBe('clif-slidein 200ms linear both');
+    }
   });
 });
