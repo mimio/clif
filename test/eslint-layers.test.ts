@@ -28,23 +28,33 @@ const LAYERS = [
   'scene/budget.ts',
 ];
 
-let eslint: ESLint;
+/*
+ * Resolving a config loads the whole eslint-config-next graph, which is
+ * seconds on a cold worker -- well past the 5s default, and slower again
+ * under coverage instrumentation. Doing it once here, with a timeout that
+ * fits, is what keeps this a gate rather than an intermittent failure.
+ */
+const resolved = new Map<string, Pattern[]>();
 
-const patternsFor = async (file: string): Promise<Pattern[]> => {
-  const config = await eslint.calculateConfigForFile(file);
-  const rule = config.rules?.['no-restricted-imports'];
-  // ['error', { patterns: [...] }]
-  const options = (rule as [unknown, { patterns: Pattern[] }])[1];
-  return options.patterns;
-};
+const patternsFor = (file: string): Pattern[] =>
+  resolved.get(file) as Pattern[];
 
-beforeAll(() => {
-  eslint = new ESLint();
-});
+beforeAll(async () => {
+  const eslint = new ESLint();
+  await Promise.all(
+    LAYERS.map(async (file) => {
+      const config = await eslint.calculateConfigForFile(file);
+      const rule = config.rules?.['no-restricted-imports'];
+      // ['error', { patterns: [...] }]
+      const options = (rule as [unknown, { patterns: Pattern[] }])[1];
+      resolved.set(file, options.patterns);
+    }),
+  );
+}, 120_000);
 
 describe('the layer rule', () => {
-  it.each(LAYERS)('guards %s with its own block', async (file) => {
-    const patterns = await patternsFor(file);
+  it.each(LAYERS)('guards %s with its own block', (file) => {
+    const patterns = patternsFor(file);
     const layerRule = patterns.filter((pattern) =>
       pattern.message.startsWith('Layer rule:'),
     );
@@ -52,23 +62,20 @@ describe('the layer rule', () => {
     expect(layerRule[0].group.length).toBeGreaterThan(0);
   });
 
-  it('bars every layer but scene/ from scene/mapbox', async () => {
+  it('bars every layer but scene/ from scene/mapbox', () => {
     const guarded = LAYERS.filter(
       (file) => !file.startsWith('scene/'),
     );
-    const results = await Promise.all(
-      guarded.map(async (file) => {
-        const patterns = await patternsFor(file);
-        return patterns.some((pattern) =>
-          pattern.group.includes('scene/mapbox/**'),
-        );
-      }),
+    const results = guarded.map((file) =>
+      patternsFor(file).some((pattern) =>
+        pattern.group.includes('scene/mapbox/**'),
+      ),
     );
     expect(results).toEqual(guarded.map(() => true));
   });
 
-  it('lets scene/ reach its own mapbox wrapper', async () => {
-    const patterns = await patternsFor('scene/budget.ts');
+  it('lets scene/ reach its own mapbox wrapper', () => {
+    const patterns = patternsFor('scene/budget.ts');
     expect(
       patterns.some((pattern) =>
         pattern.group.includes('scene/mapbox/**'),
@@ -76,10 +83,10 @@ describe('the layer rule', () => {
     ).toBe(false);
   });
 
-  it('bars the leaves from the component stack and the scene', async () => {
-    const [leaf] = await (
-      await patternsFor('styles/theme-bootstrap.ts')
-    ).filter((pattern) => pattern.message.startsWith('Layer rule:'));
+  it('bars the leaves from the component stack and the scene', () => {
+    const [leaf] = patternsFor('styles/theme-bootstrap.ts').filter(
+      (pattern) => pattern.message.startsWith('Layer rule:'),
+    );
     expect(leaf.group).toEqual(
       expect.arrayContaining([
         'components/**',
@@ -90,9 +97,9 @@ describe('the layer rule', () => {
     );
   });
 
-  it('bars the route components from pages/, and nothing else', async () => {
-    const [route] = await (
-      await patternsFor('pagesComponents/hello/index.tsx')
+  it('bars the route components from pages/, and nothing else', () => {
+    const [route] = patternsFor(
+      'pagesComponents/hello/index.tsx',
     ).filter((pattern) => pattern.message.startsWith('Layer rule:'));
     // scene/ is deliberately absent: scene/enter owns the foreground timing
     // the routes have to agree with.
