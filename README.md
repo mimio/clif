@@ -27,26 +27,49 @@ pnpm dev
 ## Architecture
 
 Five layers. Each may import the ones below it, plus `content/` and
-`utils/`. ESLint enforces this (`no-restricted-imports` in
-`eslint.config.mjs`), so a violation fails `pnpm lint`.
+`utils/`.
 
 | Layer | Where                     | What                                            |
 | ----- | ------------------------- | ----------------------------------------------- |
-| L0    | `styles/tokens/*.css`     | Design tokens                                   |
+| L0    | `styles/`                 | Design tokens, the type faces, the theme id     |
 | L1    | `components/primitives/`  | Text PageWord Button Glyph Icon Pill Chip Rule  |
 | L2    | `components/composed/`    | SceneStage ProjectTable Sheet Scrubber Pager …  |
 | L3    | `components/chrome/`      | Altimeter ThemeEye ContactMouth CoordPill       |
 | L4    | `pagesComponents/<route>/`| One component per route                         |
 | L4    | `pages/`                  | Data, composition and one `useSceneCamera()`    |
 
+ESLint enforces this with `no-restricted-imports` blocks in
+`eslint.config.mjs`, so a violation fails `pnpm lint`. What is enforced,
+precisely:
+
+- Every directory above has a block of its own. A flat config resolves per
+  file, so a directory without one falls through to the base config and is
+  governed by the mapbox restriction alone — silently. That happened to
+  `pagesComponents/` and `styles/`, so `test/eslint-layers.test.ts` now
+  asserts the resolved config for a file in each layer and fails if a layer
+  is left unguarded.
+- `styles/`, `content/` and `utils/` are leaves. They may not import the
+  component stack, the routes or the scene.
+- `pagesComponents/` may not import `pages/`. Nothing else is barred to it.
+- `pages/` may import anything, and is not restricted.
+- `test/**` and the specimen boards are exempt on purpose: their job is to
+  reach across layers.
+
 Outside the stack:
 
-- `scene/` owns the map. Only `scene/` may import `scene/mapbox/**`, which is
-  the one place mapbox-gl is loaded, lazily and only when a token exists.
+- `scene/` owns the map. It is a service sibling rather than a rung: the
+  chrome, the route components and the pages may all use it, because the
+  scene owns numbers the foreground has to agree with — `scene/enter` derives
+  the type's entrance delay from the camera move that route actually makes.
+  The lower layers and the leaves may not touch it. Only `scene/` may import
+  `scene/mapbox/**`, which is the one place mapbox-gl is loaded, lazily and
+  only when a token exists.
 - `content/` is data, not components: projects, work history, city anchors,
   per-route cameras and the route table. It imports nothing from the layers.
 
-`pages/_app.tsx` renders exactly three siblings: `SceneRoot` (z-0, never
+Page files are named `<name>.page.tsx`; see Specimens for why.
+
+`pages/_app.page.tsx` renders exactly three siblings: `SceneRoot` (z-0, never
 unmounts), the page (z-10), and `ChromeRoot` (z-40, never unmounts).
 
 ## Scripts
@@ -95,7 +118,7 @@ own. Prettier sorts class names, and `pnpm format` covers `.css` too.
 
 Themes: eight token scopes selected by `data-theme` on the documentElement.
 `styles/theme-bootstrap.ts` holds the identity list and the blocking script
-that `pages/_document.tsx` injects into `<head>`, so the stored theme is
+that `pages/_document.page.tsx` injects into `<head>`, so the stored theme is
 applied before first paint and there is no flash.
 
 ## Tests and CI
@@ -107,9 +130,15 @@ small inline plugin that returns the file text. `NEXT_PUBLIC_MAPBOX_TOKEN` is
 pinned empty in the test environment, so unit tests always exercise the
 no-token fallback.
 
+Re-implementing those rules means they can drift, and the SVG rule did:
+`@svgr/webpack` runs SVGO and `vite-plugin-svgr` does not, so every icon
+compiled differently under test than in a browser. The shared options live in
+`svgr.config.mjs` and `test/svgr-parity.test.ts` diffs the two transforms
+over every icon, reading those same options rather than restating them.
+
 `pnpm test:coverage` is gated at 100% on statements, branches, functions and
-lines. Everything excluded from that gate carries a one-line reason in the
-config.
+lines, and CI runs that, not `test:unit` — a threshold nothing evaluates is
+not a gate. Everything excluded from it carries its reason in the config.
 
 `pnpm test:e2e` runs Playwright, which builds and starts the app itself.
 Mapbox requests are answered locally by `e2e/fixtures/mapbox-stub.ts`, so it
@@ -117,16 +146,31 @@ needs no network and no token quota; Chromium runs on SwiftShader so the
 scene has a GL context on a GPU-less runner. The first run needs
 `pnpm exec playwright install chromium`.
 
-GitHub Actions runs lint, typecheck, unit tests, build and e2e on every pull
-request and on pushes to `master`. A pre-commit hook (husky and lint-staged)
+GitHub Actions runs lint, typecheck, unit tests with the coverage gate,
+build and e2e on every pull request and on pushes to `master`. A pre-commit hook (husky and lint-staged)
 runs ESLint and Prettier on staged files.
 
 ## Specimens
 
-`/specimens` is a design harness, not part of the site: its `getStaticProps`
-returns `notFound` unless `NEXT_PUBLIC_SPECIMENS` is `1`, which only
-`pnpm specimens` sets. Each section is its own file under
-`pagesComponents/specimens/`.
+`/specimens` is a design harness and is not part of the site. Each section is
+its own file under `pagesComponents/specimens/`, registered in one line in
+`pages/specimens.harness.tsx`.
+
+Keeping it out of the build is why page files carry marker extensions.
+`getStaticProps` returning `notFound` stops a page being *served*, but it is
+still compiled, bundled and deployed — measured, the harness was 131,623
+bytes of client chunks, a `/specimens` entry in the manifest every visitor
+downloads, and a second production consumer of `scene/`. Next decides what a
+page is from the filename, so:
+
+- real pages are `<name>.page.tsx`, and `pageExtensions` is
+  `['page.tsx', 'page.ts']`;
+- the harness is `specimens.harness.tsx`, and `harness.tsx` joins
+  `pageExtensions` only when `NEXT_PUBLIC_SPECIMENS` is set.
+
+With the flag off Next never sees the file: no route, no chunk, no manifest
+entry. It keeps its `.tsx` extension either way, so TypeScript and ESLint
+still check it.
 
 ## Configuration
 

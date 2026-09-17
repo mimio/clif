@@ -18,7 +18,7 @@ import { useReducedMotion } from 'scene/useViewport';
  * 1d. The map is HELD here -- the one route where the camera is not the
  * visitor's -- so the screen is a column of type on the left over the wash,
  * the capture tilted on the right, and "ascend to map" top-left as the only
- * exit. The camera is declared by the route (pages/projects/[projectId].tsx)
+ * exit. The camera is declared by the route (pages/projects/[projectId].page.tsx)
  * and the chrome is mounted once by _app; neither is this component's.
  *
  * TWO BOXES ARE PINNED RATHER THAN IN THE COLUMN, and both use `fixed`

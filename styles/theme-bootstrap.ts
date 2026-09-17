@@ -3,7 +3,7 @@
  *
  * The eight themes are the design system's; `yellow` is the default and is
  * byte-identical to :root. The stored id is read before first paint by the
- * script below, which pages/_document.tsx injects into <head>, so the
+ * script below, which pages/_document.page.tsx injects into <head>, so the
  * document never paints one theme and then swaps to another.
  *
  * The logic lives here rather than inline in _document.tsx because this is

@@ -310,7 +310,7 @@ describe('/about', () => {
   };
 
   const renderPage = async () => {
-    const about = await import('pages/about');
+    const about = await import('pages/about.page');
     render(
       <MapProvider>
         <about.default stops={historyStops} />
@@ -391,7 +391,7 @@ describe('/about', () => {
    */
   it('hands the map the same stop the scrubber is showing', async () => {
     const uninstall = installMapboxStub();
-    const about = await import('pages/about');
+    const about = await import('pages/about.page');
     // A fresh element each time: React bails out of a rerender handed the
     // very same one, and this test is about what a re-render does.
     const tree = () => (

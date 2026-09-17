@@ -18,7 +18,7 @@
     "lint:fix": "eslint --fix \"{pagesComponents,components,content,pages,scene,styles,test,utils,e2e,scripts,types}/**/*.{js,jsx,ts,tsx,mts}\" \"*.{ts,mts,mjs}\"",
     "format": "prettier --write \"*/**/*.{js,jsx,ts,tsx,mts,css}\" \"!public/**\" \"!node_modules/**\" \"!.next/**\" \"!.vercel/**\" \"!.vscode/**\"",
     "prepare": "husky",
-    "test": "vitest run && pnpm test:e2e",
+    "test": "pnpm test:coverage && pnpm test:e2e",
     "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test"
@@ -43,6 +43,9 @@
     "@eslint/js": "^9.39.5",
     "@next/env": "16.3.5",
     "@playwright/test": "^1.63.0",
+    "@svgr/core": "8.1.0",
+    "@svgr/plugin-jsx": "8.1.0",
+    "@svgr/plugin-svgo": "8.1.0",
     "@svgr/webpack": "^8.1.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",

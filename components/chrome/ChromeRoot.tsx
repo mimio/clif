@@ -16,7 +16,7 @@ import { useScene } from 'scene/MapProvider';
 import { cn } from 'utils/cn';
 
 /*
- * The chrome. Mounted once in pages/_app.tsx above every page, fixed at
+ * The chrome. Mounted once in pages/_app.page.tsx above every page, fixed at
  * z-index 40, and never unmounted: the rail and the readout are instruments,
  * and an instrument that remounts is not one.
  *

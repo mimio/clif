@@ -182,7 +182,7 @@ describe('route components', () => {
 
 describe('pages', () => {
   it('/ declares the hello camera', async () => {
-    const { default: Hello } = await import('pages/index');
+    const { default: Hello } = await import('pages/index.page');
     render(
       <MapProvider>
         <Hello />
@@ -192,7 +192,7 @@ describe('pages', () => {
   });
 
   it('/404 declares the furthest camera', async () => {
-    const { default: NotFound } = await import('pages/404');
+    const { default: NotFound } = await import('pages/404.page');
     render(
       <MapProvider>
         <NotFound />
@@ -202,7 +202,7 @@ describe('pages', () => {
   });
 
   it('/about serves the six stops statically', async () => {
-    const about = await import('pages/about');
+    const about = await import('pages/about.page');
     const result = await about.getStaticProps({});
     expect(result).toEqual({ props: { stops: historyStops } });
     render(
@@ -216,7 +216,7 @@ describe('pages', () => {
   });
 
   it('/projects serves the fourteen statically', async () => {
-    const projects = await import('pages/projects/index');
+    const projects = await import('pages/projects/index.page');
     const result = await projects.getStaticProps({});
     expect(result).toEqual({
       props: { projects: projectsList },
@@ -230,7 +230,7 @@ describe('pages', () => {
   });
 
   it('/projects/[projectId] keeps its static shape', async () => {
-    const detail = await import('pages/projects/[projectId]');
+    const detail = await import('pages/projects/[projectId].page');
     const paths = await detail.getStaticPaths({});
     expect(paths).toEqual({
       paths: projectsList.map((project) => `/projects/${project.id}`),
@@ -260,7 +260,7 @@ describe('_app', () => {
   const Page = () => <p>page</p>;
 
   const renderApp = async () => {
-    const { default: App } = await import('pages/_app');
+    const { default: App } = await import('pages/_app.page');
     await act(async () => {
       render(
         <App
