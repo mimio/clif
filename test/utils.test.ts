@@ -15,11 +15,19 @@ describe('cn', () => {
 describe('analytics', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     vi.resetModules();
     delete window.gtag;
   });
 
   const load = async () => import('utils/analytics');
+
+  it('reads an empty id when the variable is not set at all', async () => {
+    vi.stubEnv('NEXT_PUBLIC_GA_MEASUREMENT_ID', undefined);
+    vi.resetModules();
+    const analytics = await load();
+    expect(analytics.MEASUREMENT_ID).toBe('');
+  });
 
   it('is a no-op without a measurement id', async () => {
     vi.stubEnv('NEXT_PUBLIC_GA_MEASUREMENT_ID', '');
@@ -37,6 +45,15 @@ describe('analytics', () => {
     vi.stubEnv('NEXT_PUBLIC_GA_MEASUREMENT_ID', 'G-TEST');
     vi.resetModules();
     const analytics = await load();
+    expect(() => analytics.pageview('/a')).not.toThrow();
+    expect(() => analytics.event('thing')).not.toThrow();
+  });
+
+  it('is a no-op on the server, where there is no window', async () => {
+    vi.stubEnv('NEXT_PUBLIC_GA_MEASUREMENT_ID', 'G-TEST');
+    vi.resetModules();
+    const analytics = await load();
+    vi.stubGlobal('window', undefined);
     expect(() => analytics.pageview('/a')).not.toThrow();
     expect(() => analytics.event('thing')).not.toThrow();
   });

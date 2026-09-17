@@ -1,11 +1,13 @@
 # clif
 
-Clifton Campbell's personal site: a landing page with a rotating globe, a
-filmstrip of projects with a WebGL glitch effect on each project page, and a
-work history drawn on a Mapbox map.
+Clifton Campbell's personal site. One globe, three routes: `hello`,
+`projects` and `about`. The scene is a single persistent Mapbox map mounted
+behind the whole app; changing route moves the camera rather than rebuilding
+anything.
 
 Built with Next.js (Pages Router, Turbopack), React, TypeScript, Tailwind
-CSS, Redux, mapbox-gl, three.js and d3. Deployed on Vercel.
+CSS, mapbox-gl and three.js. Tested with Vitest and Playwright. Deployed on
+Vercel.
 
 ## Requirements
 
@@ -18,81 +20,113 @@ CSS, Redux, mapbox-gl, three.js and d3. Deployed on Vercel.
 
 ```sh
 pnpm install
-cp .env.example .env.local   # then add a public Mapbox token
+cp .env.example .env.local   # optional in dev; see Configuration
 pnpm dev
 ```
 
+## Architecture
+
+Five layers. Each may import the ones below it, plus `content/` and
+`utils/`. ESLint enforces this (`no-restricted-imports` in
+`eslint.config.mjs`), so a violation fails `pnpm lint`.
+
+| Layer | Where                     | What                                            |
+| ----- | ------------------------- | ----------------------------------------------- |
+| L0    | `styles/tokens/*.css`     | Design tokens                                   |
+| L1    | `components/primitives/`  | Text PageWord Button Glyph Icon Pill Chip Rule  |
+| L2    | `components/composed/`    | SceneStage ProjectTable Sheet Scrubber Pager …  |
+| L3    | `components/chrome/`      | Altimeter ThemeEye ContactMouth CoordPill       |
+| L4    | `pagesComponents/<route>/`| One component per route                         |
+| L4    | `pages/`                  | Data, composition and one `useSceneCamera()`    |
+
+Outside the stack:
+
+- `scene/` owns the map. Only `scene/` may import `scene/mapbox/**`, which is
+  the one place mapbox-gl is loaded, lazily and only when a token exists.
+- `content/` is data, not components: projects, work history, city anchors,
+  per-route cameras and the route table. It imports nothing from the layers.
+
+`pages/_app.tsx` renders exactly three siblings: `SceneRoot` (z-0, never
+unmounts), the page (z-10), and `ChromeRoot` (z-40, never unmounts).
+
 ## Scripts
 
-| Command                       | What it does                                    |
-| ----------------------------- | ----------------------------------------------- |
-| `pnpm dev`                    | Development server                              |
-| `pnpm build` / `pnpm start`   | Production build and server                     |
-| `pnpm typecheck`              | Generates Next's route types and runs `tsc`     |
-| `pnpm lint` / `pnpm lint:fix` | ESLint over the source                          |
-| `pnpm format`                 | Prettier over the source                        |
-| `pnpm preprocess`             | Regenerates the history map data (see Content)  |
-| `pnpm images`                 | Re-encodes project images to WebP (see Content) |
-| `pnpm test:e2e`               | Browser smoke test against a production build   |
+| Command                       | What it does                                     |
+| ----------------------------- | ------------------------------------------------ |
+| `pnpm dev`                    | Development server                               |
+| `pnpm specimens`              | Dev server with the `/specimens` harness enabled |
+| `pnpm build` / `pnpm start`   | Production build and server                      |
+| `pnpm typecheck`              | Generates Next's route types and runs `tsc`      |
+| `pnpm lint` / `pnpm lint:fix` | ESLint over the source                           |
+| `pnpm format`                 | Prettier over the source                         |
+| `pnpm images`                 | Re-encodes project images to WebP (see Content)  |
+| `pnpm test:unit`              | Vitest                                           |
+| `pnpm test:coverage`          | Vitest with coverage, gated at 100%              |
+| `pnpm test:e2e`               | Playwright against a production build            |
+| `pnpm test`                   | Unit tests, then e2e                             |
 
 ## Content
 
-**Projects** live in `constants/projects.tsx`. Each entry names its full image
-(the texture for the effect on the project page) and its filmstrip preview.
-After adding images to `public/`, run `pnpm images`: it re-encodes images as
-WebP at display size when that makes them smaller, leaves the rest alone, and
-rewrites the references. `pnpm images --dry-run` shows what would change.
+**Projects** live in `content/projects.ts`. Prose is a typed rich-text shape
+(paragraphs of spans, where a span is a string or a `{ text, href }` link)
+rather than JSX, so the data can be read without React. Each entry names its
+full image, which is the texture for the shader plane on the detail route.
+After adding images to `public/`, run `pnpm images`; `--dry-run` shows what
+would change.
 
-**Work history** lives in `makeHistoryData/features.ts`. Run `pnpm preprocess`
-after editing it; it writes the GeoJSON, layer definitions and map config the
-history page reads from `public/history/`, and that output is committed. The
-map options live in `makeHistoryData/mapboxConfig.ts`; the access token does
-not (see Configuration).
+**Work history** lives in `content/history.ts`: six stops with dates,
+coordinates and prose. There is no build step any more — the old
+`makeHistoryData` pipeline and its committed GeoJSON are gone, and the scene
+reads the module directly.
+
+**Cameras** live in `content/cameras.ts`, one `CameraSpec` per scene, taken
+from the design system's artboards. A page declares its camera with a single
+`useSceneCamera()` call.
 
 **Fonts** are self-hosted from `styles/fonts/` through `next/font/local`,
-which exposes each as a CSS variable that the `font-mono` and `font-display`
-utilities read.
+which exposes each as a CSS variable.
 
 ## Styling
 
-Tailwind CSS v4, configured entirely in `styles/globals.css`:
+Tailwind CSS v4, configured in `styles/globals.css`. Components style
+themselves with utilities in `className`; `cn()` in `utils/cn.ts` joins
+conditional classes and lets a caller's `className` override a component's
+own. Prettier sorts class names, and `pnpm format` covers `.css` too.
 
-- Design tokens (colours, breakpoints, animations, the 4px spacing grid)
-  live in its `@theme` block and become both CSS custom properties and
-  utility classes: `--color-accent` gives `bg-accent`, `text-accent`,
-  `border-accent/30` and so on.
-- Recurring declaration groups are `@utility` classes (`transition-hue`,
-  `transition-size`, `link-underline`, `scrollbar-hidden`), so they take
-  variants like any other utility. Element defaults live in `@layer base`.
-- `hover:` is redefined as plain `:hover` (`@custom-variant` in
-  `globals.css`) to match the site's pre-Tailwind behaviour on touch;
-  Tailwind's default applies it only where hovering is possible.
-- Breakpoints are `tablet` (650px) and `desktop` (1000px), used mobile-first:
-  `max-tablet:` targets phones, `max-desktop:` phones and tablets.
-  `styles/breakpoints.ts` carries the same numbers for the Redux device
-  selectors, and `styles/palette.ts` the colours for code that paints
-  outside CSS (the history map layers).
-
-Components style themselves with utilities in `className`. `cn()` in
-`utils/cn.ts` joins conditional classes and lets a caller's `className`
-override a component's own, so components list their classes first and the
-caller's last. The type scale is `components/text.tsx`: `Heading`, `Body`,
-`Detail3` and friends as components, and `textClass` for elements that are
-not text. Prettier sorts class names (`prettier-plugin-tailwindcss`), and
-`pnpm format` covers `.css` files too.
+Themes: eight token scopes selected by `data-theme` on the documentElement.
+`styles/theme-bootstrap.ts` holds the identity list and the blocking script
+that `pages/_document.tsx` injects into `<head>`, so the stored theme is
+applied before first paint and there is no flash.
 
 ## Tests and CI
 
-`pnpm test:e2e` needs a build first (`pnpm build`). It starts `next start` on
-port 3999 (override with `PORT`) and drives every route in headless Chromium:
-the globe, the filmstrip drag, the three.js effect and the Mapbox map. Mapbox
-requests are answered locally, so it needs no network and no token quota.
-Screenshots land in `.smoke-output/` (override with `SMOKE_OUT`). The first
-run needs `pnpm exec playwright install chromium`.
+`pnpm test:unit` runs Vitest in jsdom. `vitest.config.mts` re-implements the
+loader rules `next.config.ts` gives Turbopack, because Vitest never reads it:
+SVGs through `vite-plugin-svgr` as default exports, and `.glsl` through a
+small inline plugin that returns the file text. `NEXT_PUBLIC_MAPBOX_TOKEN` is
+pinned empty in the test environment, so unit tests always exercise the
+no-token fallback.
 
-GitHub Actions runs lint, typecheck, build and the smoke test on every pull
+`pnpm test:coverage` is gated at 100% on statements, branches, functions and
+lines. Everything excluded from that gate carries a one-line reason in the
+config.
+
+`pnpm test:e2e` runs Playwright, which builds and starts the app itself.
+Mapbox requests are answered locally by `e2e/fixtures/mapbox-stub.ts`, so it
+needs no network and no token quota; Chromium runs on SwiftShader so the
+scene has a GL context on a GPU-less runner. The first run needs
+`pnpm exec playwright install chromium`.
+
+GitHub Actions runs lint, typecheck, unit tests, build and e2e on every pull
 request and on pushes to `master`. A pre-commit hook (husky and lint-staged)
 runs ESLint and Prettier on staged files.
+
+## Specimens
+
+`/specimens` is a design harness, not part of the site: its `getStaticProps`
+returns `notFound` unless `NEXT_PUBLIC_SPECIMENS` is `1`, which only
+`pnpm specimens` sets. Each section is its own file under
+`pagesComponents/specimens/`.
 
 ## Configuration
 
@@ -100,17 +134,18 @@ Both variables are inlined at build time. Locally they go in `.env.local`
 (start from `.env.example`); on Vercel they live in the project's Environment
 Variables for Production, Preview and Development.
 
-- `NEXT_PUBLIC_MAPBOX_TOKEN`, required: a public Mapbox token (`pk.…`) for the
-  history map. `pnpm build` and `pnpm dev` refuse to start without it
-  (`scripts/check-env.mts`), rather than shipping a history page whose map
-  cannot load. Restrict the token to the site's domain in the Mapbox
-  dashboard. CI builds with a placeholder because the smoke test answers every
-  Mapbox request locally.
+- `NEXT_PUBLIC_MAPBOX_TOKEN`: a public Mapbox token (`pk.…`). `pnpm build`
+  refuses to start without one, because a production deploy with no scene is
+  not worth shipping; `pnpm dev` only warns, and the scene degrades to an
+  empty container so the rest of the app is still workable. Restrict the
+  token to the site's domain in the Mapbox dashboard. CI builds with a
+  placeholder because the e2e suite answers every Mapbox request locally.
+- `NEXT_PUBLIC_MAPBOX_STYLE`, optional: defaults to
+  `mapbox://styles/mapbox/standard`.
 - `NEXT_PUBLIC_GA_MEASUREMENT_ID`, optional: a Google Analytics 4 measurement
   id. Analytics is a no-op when it is unset.
 
 ## Credits
 
-The globe started from [KoGor's d3 globe](https://gist.github.com/KoGor/5994804),
-and the image effect from Codrops'
+The image effect started from Codrops'
 [wave motion effect](https://tympanus.net/codrops/2020/03/17/create-a-wave-motion-effect-on-an-image-with-three-js/).

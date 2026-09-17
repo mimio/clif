@@ -3,13 +3,28 @@ import type { AppProps } from 'next/app';
 import Head from 'next/head';
 import Script from 'next/script';
 import { useRouter } from 'next/router';
+import ChromeRoot from 'components/chrome/ChromeRoot';
+import MapProvider from 'scene/MapProvider';
+import SceneRoot from 'scene/SceneRoot';
 import * as analytics from 'utils/analytics';
 import { adder, robotoMono } from 'styles/fonts';
 
 import 'styles/globals.css';
 
+/*
+ * Three siblings, in z order:
+ *
+ *   SceneRoot   z-0   the globe. Mounted once, never unmounted.
+ *   Component   z-10  the route's foreground.
+ *   ChromeRoot  z-40  the rail, the eye, the mouth, the readout. Also
+ *                     mounted once and never unmounted.
+ *
+ * MapProvider wraps all three so the page can declare a camera and the chrome
+ * can read it, without either of them touching the map.
+ */
 const App = ({ Component, pageProps }: AppProps) => {
   const { events } = useRouter();
+
   useEffect(() => {
     events.on('routeChangeComplete', analytics.pageview);
     return () =>
@@ -52,7 +67,11 @@ gtag('config', '${analytics.MEASUREMENT_ID}');`}
       <div
         className={`${robotoMono.variable} ${adder.variable} contents font-mono`}
       >
-        <Component {...pageProps} />
+        <MapProvider>
+          <SceneRoot />
+          <Component {...pageProps} />
+          <ChromeRoot />
+        </MapProvider>
       </div>
     </>
   );
