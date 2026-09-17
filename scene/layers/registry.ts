@@ -99,22 +99,32 @@ export type LayerRegistry = {
 export const createLayerRegistry = (): LayerRegistry => {
   const mounted = new Map<string, MountedSet>();
 
+  /*
+   * Records what it ADDED, not what it wanted.
+   *
+   * The adds are guarded on getSource/getLayer, so an id another owner
+   * already put on the map is skipped -- but the bookkeeping used to
+   * claim it anyway, and unmount would then remove somebody else's
+   * source. Latent only because the three sets' ids are pairwise
+   * disjoint and every scene maps to at most one builder; neither is a
+   * property the model promises.
+   */
   const mount = (map: SceneMap, set: LayerSet): void => {
+    const sources: string[] = [];
+    const layers: string[] = [];
     for (const source of set.sources) {
-      if (!map.getSource(source.id)) {
-        map.addSource(source.id, source.spec);
-      }
+      if (map.getSource(source.id)) continue;
+      map.addSource(source.id, source.spec);
+      sources.push(source.id);
     }
     for (const layer of set.layers) {
-      if (!map.getLayer(layer.id)) map.addLayer(layer);
+      if (map.getLayer(layer.id)) continue;
+      map.addLayer(layer);
+      layers.push(layer.id);
     }
     const interactions = set.interactions.map(slotFor);
     for (const slot of interactions) bind(map, 'on', slot);
-    mounted.set(set.id, {
-      sources: set.sources.map((source) => source.id),
-      layers: set.layers.map((layer) => layer.id),
-      interactions,
-    });
+    mounted.set(set.id, { sources, layers, interactions });
   };
 
   /**

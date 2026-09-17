@@ -123,6 +123,24 @@ const COLLAPSED: Partial<Record<AnchorId, Anchor>> = {
   wolcott: VAIL_VALLEY,
 };
 
+/**
+ * The id of the map feature an anchor is drawn as.
+ *
+ * Collapsing means a project's anchor and the point that represents it
+ * are not always the same thing: gopro is in `vail` and 970's winter map
+ * is in `wolcott`, but both are drawn as the one VAIL VALLEY point,
+ * whose id is `beaverCreek`. Comparing a hovered project's own anchor
+ * against `['get', 'anchor']` therefore matched nothing for two of the
+ * six featured rows -- no point lit, no halo -- while the camera still
+ * nudged toward the city, so the globe drifted with nothing lit.
+ *
+ * Anything that has to line a project up with its point goes through
+ * here. The reverse direction never needed it: a click reads the id off
+ * the tile, which is already a site id.
+ */
+export const siteIdFor = (anchor: AnchorId): AnchorId =>
+  (COLLAPSED[anchor] ?? anchors[anchor]).id;
+
 export type Site = {
   anchor: AnchorId;
   name: string;
@@ -287,7 +305,9 @@ const workPathSet = (options: LayerSetOptions): LayerSet => {
 
 const projectSitesSet = (options: LayerSetOptions): LayerSet => {
   const { hover, labels, onHoverAnchor, onSelectAnchor } = options;
-  const lit = hover ?? '';
+  // The site the hovered project is drawn as, which is not always the
+  // anchor it declares.
+  const lit = hover === null ? '' : siteIdFor(hover);
 
   const paint = (palette: Palette): PaintPatch[] => [
     {

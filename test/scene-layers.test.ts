@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { anchors } from 'content/anchors';
+import { type AnchorId, anchors } from 'content/anchors';
 import { historyStops } from 'content/history';
 import { projectsList } from 'content/projects';
 import {
@@ -38,7 +38,7 @@ import type {
   SceneListener,
   SceneMap,
 } from 'scene/layers/types';
-import { FALLBACK_PALETTE } from 'styles/tokens/palette';
+import { FALLBACK_PALETTE, makePalette } from 'styles/tokens/palette';
 
 /* ---- a map that is only a record of what was asked of it -------------- */
 
@@ -260,6 +260,43 @@ describe('the layer registry', () => {
     registry.sync(map, [set('one')]);
     expect(addSource).not.toHaveBeenCalled();
     expect(addLayer).toHaveBeenCalledTimes(1);
+
+    /*
+     * And does not take them away again on the way out. Skipping the add
+     * while recording the id anyway made unmount remove whatever the
+     * other owner had put there -- the guard was asserted, the removal
+     * never was.
+     */
+    registry.sync(map, []);
+    expect(map.sources.has('one-src')).toBe(true);
+    expect(map.layers.has('one-a')).toBe(true);
+    // Its own layer is gone, though.
+    expect(map.layers.has('one-b')).toBe(false);
+  });
+
+  it('leaves a shared source alone until its last owner goes', () => {
+    const map = fakeMap();
+    const registry = createLayerRegistry();
+    const shared = (id: string): LayerSet => ({
+      ...set(id),
+      sources: [{ id: 'shared-src', spec: { type: 'geojson' } }],
+      layers: [
+        { id: `${id}-a`, type: 'circle', source: 'shared-src' },
+      ],
+    });
+
+    registry.sync(map, [shared('one'), shared('two')]);
+    expect(map.sources.has('shared-src')).toBe(true);
+
+    // 'two' never added it, so unmounting 'two' must not remove it --
+    // real mapbox refuses anyway, with "cannot be removed while layer
+    // ... is using it", and the registry would have deleted its record.
+    registry.sync(map, [shared('one')]);
+    expect(map.sources.has('shared-src')).toBe(true);
+    expect(map.layers.has('one-a')).toBe(true);
+
+    registry.sync(map, []);
+    expect(map.sources.has('shared-src')).toBe(false);
   });
 
   it('survives a layer the style dropped underneath it', () => {
@@ -471,6 +508,76 @@ describe('the route layer sets', () => {
   });
 });
 
+/*
+ * A tiny evaluator for the handful of mapbox expression forms the sets
+ * use. String-matching an expression proves it mentions an id; running
+ * it against the features the source actually carries proves the point
+ * lights up -- which is the difference that let two of the six featured
+ * rows hover dead for as long as they did.
+ */
+type Feature = {
+  properties: Record<string, unknown>;
+  geometry: { coordinates: [number, number] };
+};
+
+const evaluate = (expr: unknown, feature: Feature): unknown => {
+  if (!Array.isArray(expr)) return expr;
+  const [op, ...args] = expr as [string, ...unknown[]];
+  switch (op) {
+    case 'get':
+      return feature.properties[args[0] as string];
+    case '==':
+      return (
+        evaluate(args[0], feature) === evaluate(args[1], feature)
+      );
+    case 'case': {
+      for (let at = 0; at + 1 < args.length; at += 2) {
+        if (evaluate(args[at], feature)) {
+          return evaluate(args[at + 1], feature);
+        }
+      }
+      return evaluate(args[args.length - 1], feature);
+    }
+    case 'min':
+      return Math.min(
+        ...args.map((arg) => evaluate(arg, feature) as number),
+      );
+    case '+':
+      return args.reduce<number>(
+        (sum, arg) => sum + (evaluate(arg, feature) as number),
+        0,
+      );
+    case '*':
+      return args.reduce<number>(
+        (product, arg) =>
+          product * (evaluate(arg, feature) as number),
+        1,
+      );
+    default:
+      throw new Error(`no evaluator for ${op}`);
+  }
+};
+
+const siteFeatures = (): Feature[] => {
+  const source = layerSetsFor('projects', options())[0].sources.find(
+    (one) => one.id === PROJECT_SITES_SET,
+  );
+  return (source?.spec.data as { features: Feature[] }).features;
+};
+
+const litFor = (
+  hover: AnchorId | null,
+  feature: Feature,
+): unknown => {
+  const patch = layerSetsFor('projects', options({ hover }))[0]
+    .paint(FALLBACK_PALETTE)
+    .find(
+      (one) =>
+        one.layer === SITE_POINTS && one.property === 'circle-color',
+    );
+  return evaluate(patch?.value, feature);
+};
+
 describe('the project sites', () => {
   it('collapses the three Colorado anchors into one point', () => {
     const sites = projectSites();
@@ -546,6 +653,62 @@ describe('the project sites', () => {
       8,
       0,
     ]);
+  });
+
+  /*
+   * The expression above is asserted literally, which proves what it
+   * says but not that anything answers to it. Collapsing means a
+   * project's anchor and the feature id it is drawn as differ for three
+   * of the fourteen rows, and reading the expression cannot see that.
+   * So these two run it against the features the source really carries.
+   */
+  it('lights one point, over the project, for every project', () => {
+    const features = siteFeatures();
+    expect(features).not.toHaveLength(0);
+
+    for (const project of projectsList) {
+      const home = anchors[project.anchor].center;
+      // Which points change colour when this project is hovered, and
+      // how far each one sits from where the project actually is. A
+      // collapsed anchor still lights a point within a fifth of a
+      // degree of itself; a missed one lights nothing at all.
+      const lit = features
+        .filter(
+          (feature) =>
+            litFor(project.anchor, feature) !== litFor(null, feature),
+        )
+        .map((feature) => [
+          Math.abs(feature.geometry.coordinates[0] - home[0]) < 1 &&
+            Math.abs(feature.geometry.coordinates[1] - home[1]) < 1,
+        ]);
+      expect({ anchor: project.anchor, lit }).toEqual({
+        anchor: project.anchor,
+        lit: [[true]],
+      });
+    }
+  });
+
+  it('draws the three Colorado anchors as the one valley point', () => {
+    const features = siteFeatures();
+    // Only one point stands in the valley, whatever its id is.
+    const valleys = features.filter(
+      (feature) =>
+        feature.geometry.coordinates[0] > -108 &&
+        feature.geometry.coordinates[0] < -105,
+    );
+    expect(valleys).toHaveLength(1);
+    const valley = valleys[0];
+
+    for (const anchor of [
+      'vail',
+      'beaverCreek',
+      'wolcott',
+    ] as const) {
+      expect(litFor(anchor, valley)).toBe(
+        litFor('beaverCreek', valley),
+      );
+      expect(litFor(anchor, valley)).not.toBe(litFor(null, valley));
+    }
   });
 
   it('drops the labels below the tablet breakpoint', () => {
@@ -854,6 +1017,27 @@ const STATES: Partial<LayerSetOptions>[] = [
   { selectedStop: 4, labels: false, dash: false },
 ];
 
+/*
+ * A light ground, which is the other half of the palette contract: sh()
+ * washes toward white rather than multiplying toward black, and `ink`
+ * and `light` both flip. Running the structural guards under only the
+ * dark fallback left every light-theme branch of paint() unwalked, so
+ * a patch aimed at a layer that only exists on dark would have passed.
+ */
+const PAPER = makePalette({
+  accent: [138, 92, 0],
+  accent2: [156, 58, 0],
+  space: [242, 240, 236],
+  land: [205, 196, 184],
+  deep: [176, 168, 157],
+  body: [26, 26, 26],
+  accentSmall: [102, 68, 0],
+  sub: [74, 74, 74],
+  muted: [110, 110, 110],
+});
+
+const PALETTES = [FALLBACK_PALETTE, PAPER];
+
 const SCENES = [
   'hello',
   'notFound',
@@ -883,15 +1067,22 @@ describe('the paint the design actually asks for', () => {
   });
 
   it('every patch lands on a layer that exists in its set', () => {
-    for (const scene of SCENES) {
-      for (const state of STATES) {
-        for (const set of layerSetsFor(scene, options(state))) {
-          const ids = new Set(set.layers.map((one) => one.id));
-          for (const patch of set.paint(FALLBACK_PALETTE)) {
-            expect(
-              ids.has(patch.layer),
-              `${scene}: ${patch.layer}/${patch.property}`,
-            ).toBe(true);
+    for (const palette of PALETTES) {
+      for (const scene of SCENES) {
+        for (const state of STATES) {
+          const built = layerSetsFor(
+            scene,
+            options({ ...state, palette }),
+          );
+          for (const set of built) {
+            const ids = new Set(set.layers.map((one) => one.id));
+            for (const patch of set.paint(palette)) {
+              expect(
+                ids.has(patch.layer),
+                `${scene}/${palette.light ? 'paper' : 'space'}: ` +
+                  `${patch.layer}/${patch.property}`,
+              ).toBe(true);
+            }
           }
         }
       }
@@ -899,21 +1090,43 @@ describe('the paint the design actually asks for', () => {
   });
 
   it('leaves no mounted layer with an empty paint', () => {
-    for (const scene of SCENES) {
-      for (const state of STATES) {
-        for (const set of layerSetsFor(scene, options(state))) {
-          for (const entry of set.layers) {
-            const paint = (entry.paint ?? {}) as Record<
-              string,
-              unknown
-            >;
-            expect(
-              Object.keys(paint),
-              `${scene}: ${entry.id}`,
-            ).not.toHaveLength(0);
+    for (const palette of PALETTES) {
+      for (const scene of SCENES) {
+        for (const state of STATES) {
+          const built = layerSetsFor(
+            scene,
+            options({ ...state, palette }),
+          );
+          for (const set of built) {
+            for (const entry of set.layers) {
+              const paint = (entry.paint ?? {}) as Record<
+                string,
+                unknown
+              >;
+              expect(
+                Object.keys(paint),
+                `${scene}/${palette.light ? 'paper' : 'space'}: ` +
+                  `${entry.id}`,
+              ).not.toHaveLength(0);
+            }
           }
         }
       }
     }
+  });
+
+  /*
+   * And the second palette must actually be a second palette: if PAPER
+   * produced the same strings as the fallback, both guards above would
+   * be running the same pass twice and reporting it as two.
+   */
+  it('paints a light ground differently from a dark one', () => {
+    const under = (palette: typeof FALLBACK_PALETTE) =>
+      layerSetsFor('about', options({ palette })).flatMap((one) =>
+        one.paint(palette).map((patch) => patch.value),
+      );
+    expect(PAPER.light).toBe(true);
+    expect(FALLBACK_PALETTE.light).toBe(false);
+    expect(under(PAPER)).not.toEqual(under(FALLBACK_PALETTE));
   });
 });
