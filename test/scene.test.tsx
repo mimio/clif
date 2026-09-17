@@ -1,5 +1,25 @@
-import { act, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { StrictMode } from 'react';
+import {
+  act,
+  render,
+  type RenderResult,
+  screen,
+} from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
+import { anchors } from 'content/anchors';
+import {
+  cameras,
+  SCENE_MOVE_LONG_MS,
+  SCENE_MOVE_MS,
+} from 'content/cameras';
 import {
   clampDpr,
   DPR_CLAMP,
@@ -9,10 +29,98 @@ import {
   prefersReducedMotion,
   terrainExaggeration,
 } from 'scene/budget';
-import MapProvider, { useScene } from 'scene/MapProvider';
+import {
+  cameraAt,
+  REDUCED_MOVE_MS,
+  SCENE_REFRAME_MS,
+} from 'scene/camera';
+import {
+  HISTORY_POINTS,
+  SITE_POINTS,
+  WORK_PATH_LINE,
+} from 'scene/layers/sets';
+import MapProvider, {
+  SceneContext,
+  useScene,
+  useSceneHover,
+} from 'scene/MapProvider';
+import {
+  ensureMap,
+  getMap,
+  resetMapForTests,
+} from 'scene/mapbox/instance';
+import { loadMapboxGl } from 'scene/mapbox/loader';
 import SceneRoot from 'scene/SceneRoot';
+import { resetLutCacheForTests, THEME_EVENT } from 'scene/theme';
 import useSceneCamera from 'scene/useSceneCamera';
-import { cameras } from 'content/cameras';
+import {
+  MOBILE_QUERY,
+  REDUCED_MOTION_QUERY,
+  useIsMobile,
+  useReducedMotion,
+} from 'scene/useViewport';
+import { applyTheme, THEME_IDS } from 'styles/theme-bootstrap';
+import {
+  FakeMap,
+  installMapboxStub,
+  stubThemedStyles,
+} from 'test/fake-mapbox';
+import { themeBlock } from 'test/theme-css';
+
+const pathname = vi.hoisted(() => ({ current: '/' }));
+
+vi.mock('next/router', () => ({
+  useRouter: () => ({ pathname: pathname.current }),
+}));
+
+const THEME_BLOCKS = new Map<string, Record<string, string>>(
+  THEME_IDS.map((id) => [
+    id,
+    themeBlock(id === 'yellow' ? ':root' : `[data-theme='${id}']`),
+  ]),
+);
+
+const settle = async (ms = 200): Promise<void> => {
+  await new Promise((done) => {
+    setTimeout(done, ms);
+  });
+};
+
+/** jsdom has no matchMedia; `truthy` is the set of queries that match. */
+const matchMediaStub = (truthy: string[]) =>
+  vi.fn((query: string) => {
+    const listeners = new Set<() => void>();
+    return {
+      matches: truthy.includes(query),
+      media: query,
+      onchange: null,
+      addEventListener: (_: string, fn: () => void) =>
+        listeners.add(fn),
+      removeEventListener: (_: string, fn: () => void) =>
+        listeners.delete(fn),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    };
+  });
+
+beforeEach(() => {
+  pathname.current = '/';
+  resetMapForTests();
+  resetLutCacheForTests();
+  applyTheme('yellow');
+  // Restored per test, because unstubAllGlobals below would otherwise
+  // drop the one test/setup.ts installs for the whole file.
+  vi.stubGlobal('matchMedia', matchMediaStub([]));
+});
+
+afterEach(() => {
+  resetMapForTests();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+/* ---- the budget ------------------------------------------------------- */
 
 describe('budget', () => {
   it('clamps device pixel ratio to 1.5, or to a given ceiling', () => {
@@ -38,9 +146,13 @@ describe('budget', () => {
   });
 });
 
+/* ---- the React seam --------------------------------------------------- */
+
 const Probe = () => {
   const { camera } = useScene();
-  return <p>{camera === null ? 'none' : String(camera.zoom)}</p>;
+  const { hover } = useSceneHover();
+  const zoom = camera === null ? 'none' : String(camera.zoom);
+  return <p>{`${zoom}/${hover ?? 'clear'}`}</p>;
 };
 
 const Page = () => {
@@ -48,14 +160,23 @@ const Page = () => {
   return null;
 };
 
+const Hoverer = ({ anchor }: { anchor: 'vail' | null }) => {
+  const { setHover } = useSceneHover();
+  return (
+    <button onClick={() => setHover(anchor)} type="button">
+      hover
+    </button>
+  );
+};
+
 describe('MapProvider and useSceneCamera', () => {
-  it('starts with no camera', () => {
+  it('starts with no camera and nothing hovered', () => {
     render(
       <MapProvider>
         <Probe />
       </MapProvider>,
     );
-    expect(screen.getByText('none')).toBeVisible();
+    expect(screen.getByText('none/clear')).toBeVisible();
   });
 
   it("lets a page declare the scene's camera", () => {
@@ -65,16 +186,95 @@ describe('MapProvider and useSceneCamera', () => {
         <Probe />
       </MapProvider>,
     );
-    expect(screen.getByText('10.5')).toBeVisible();
+    expect(screen.getByText('10.5/clear')).toBeVisible();
   });
 
-  it('is a no-op outside a provider', () => {
+  it('carries the hovered anchor both ways', async () => {
+    render(
+      <MapProvider>
+        <Hoverer anchor="vail" />
+        <Probe />
+      </MapProvider>,
+    );
+    await act(async () => {
+      screen.getByRole('button').click();
+    });
+    expect(screen.getByText('none/vail')).toBeVisible();
+  });
+
+  it('is a no-op outside a provider', async () => {
     expect(() => render(<Page />)).not.toThrow();
+    render(
+      <>
+        <Hoverer anchor={null} />
+        <Probe />
+      </>,
+    );
+    await act(async () => {
+      screen.getAllByRole('button')[0].click();
+    });
+    expect(screen.getByText('none/clear')).toBeVisible();
+  });
+
+  it('still accepts a context value of camera and setCamera alone', () => {
+    render(
+      <SceneContext.Provider
+        value={{ camera: cameras.hello, setCamera: vi.fn() }}
+      >
+        <Probe />
+      </SceneContext.Provider>,
+    );
+    expect(screen.getByText('1.6/clear')).toBeVisible();
   });
 });
 
-describe('SceneRoot', () => {
-  it('renders an empty, decorative container without a token', async () => {
+/* ---- the environment reads -------------------------------------------- */
+
+const Viewport = () => (
+  <p>{`${useIsMobile() ? 'mobile' : 'desktop'}/${
+    useReducedMotion() ? 'reduced' : 'full'
+  }`}</p>
+);
+
+describe('the viewport and motion reads', () => {
+  it('reports desktop, full motion by default', () => {
+    render(<Viewport />);
+    expect(screen.getByText('desktop/full')).toBeVisible();
+  });
+
+  it('follows the two media queries', () => {
+    vi.stubGlobal(
+      'matchMedia',
+      matchMediaStub([MOBILE_QUERY, REDUCED_MOTION_QUERY]),
+    );
+    render(<Viewport />);
+    expect(screen.getByText('mobile/reduced')).toBeVisible();
+  });
+
+  it('answers desktop and full motion on the server', () => {
+    expect(renderToStaticMarkup(<Viewport />)).toContain(
+      'desktop/full',
+    );
+  });
+
+  it('unsubscribes from both queries on unmount', () => {
+    const stub = matchMediaStub([]);
+    vi.stubGlobal('matchMedia', stub);
+    const { unmount } = render(<Viewport />);
+    expect(() => unmount()).not.toThrow();
+    expect(stub).toHaveBeenCalled();
+  });
+});
+
+/* ---- no token --------------------------------------------------------- */
+
+describe('the no-token fallback', () => {
+  it('is the path unit tests take', async () => {
+    await expect(loadMapboxGl()).resolves.toBeNull();
+    expect(process.env.NEXT_PUBLIC_MAPBOX_TOKEN).toBeFalsy();
+  });
+
+  it('renders a static plate and leaves the foreground alone', async () => {
     await act(async () => {
       render(
         <MapProvider>
@@ -84,27 +284,319 @@ describe('SceneRoot', () => {
     });
     const node = screen.getByTestId('scene-root');
     expect(node).toHaveAttribute('aria-hidden', 'true');
-    expect(node).toBeEmptyDOMElement();
+    expect(node).toHaveAttribute('data-scene-state', 'fallback');
+    expect(node).toHaveClass('clif-scene', 'x');
+    expect(screen.getByTestId('scene-fallback')).toBeInTheDocument();
+    expect(getMap()).toBeNull();
   });
 
-  it('follows the camera a page declares', async () => {
-    await act(async () => {
-      render(
-        <MapProvider>
-          <SceneRoot />
-          <Page />
-        </MapProvider>,
-      );
-    });
-    expect(screen.getByTestId('scene-root')).toBeInTheDocument();
+  it('never resolves the container into a map', async () => {
+    await expect(ensureMap(null)).resolves.toBeNull();
+    await expect(
+      ensureMap(document.createElement('div')),
+    ).resolves.toBeNull();
+  });
+
+  it('does not set state for a scene that unmounted first', async () => {
+    const { unmount } = render(
+      <MapProvider>
+        <SceneRoot />
+      </MapProvider>,
+    );
+    unmount();
+    await act(async () => {});
+    expect(getMap()).toBeNull();
   });
 });
 
-describe('the no-token fallback', () => {
-  it('is the path unit tests take', async () => {
-    const { loadMapboxGl } = await import('scene/mapbox/loader');
-    await expect(loadMapboxGl()).resolves.toBeNull();
-    expect(process.env.NEXT_PUBLIC_MAPBOX_TOKEN).toBeFalsy();
-    vi.resetModules();
+/* ---- with a map ------------------------------------------------------- */
+
+describe('the persistent map', () => {
+  let uninstall: () => void;
+
+  beforeEach(() => {
+    uninstall = installMapboxStub();
+    stubThemedStyles(THEME_BLOCKS);
+  });
+
+  afterEach(() => {
+    uninstall();
+  });
+
+  /*
+   * SceneRoot is mounted once in _app.tsx and never unmounts, so a route
+   * change has to be a re-render of the same component -- a fresh mount
+   * would hand it fresh refs and hide exactly the bugs these tests are
+   * for.
+   */
+  let view: RenderResult;
+
+  const mount = async (node = <SceneRoot />) => {
+    await act(async () => {
+      view = render(<MapProvider>{node}</MapProvider>);
+    });
+  };
+
+  const navigate = async (path: string, node = <SceneRoot />) => {
+    pathname.current = path;
+    await act(async () => {
+      view.rerender(<MapProvider>{node}</MapProvider>);
+    });
+  };
+
+  it('builds one map, on a globe, unpinned at the bottom', async () => {
+    await mount();
+    expect(FakeMap.instances).toHaveLength(1);
+    expect(FakeMap.last.options.projection).toEqual({
+      name: 'globe',
+    });
+    // The old style pinned minZoom at 7, which no globe can live with.
+    expect(FakeMap.last.options.minZoom).toBe(0);
+    expect(screen.getByTestId('scene-root')).toHaveAttribute(
+      'data-scene-state',
+      'live',
+    );
+    expect(
+      screen.queryByTestId('scene-fallback'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('is idempotent however many times ensureMap is called', async () => {
+    const container = document.createElement('div');
+    // Concurrent: the second call lands while the first is in flight,
+    // which is exactly what React 19's double-invoked effects do.
+    const [first, second] = await Promise.all([
+      ensureMap(container),
+      ensureMap(container),
+    ]);
+    const third = await ensureMap(container);
+    expect(first).toBe(second);
+    expect(second).toBe(third);
+    expect(third).toBe(getMap());
+    expect(FakeMap.instances).toHaveLength(1);
+  });
+
+  it('builds one map under StrictMode, not two', async () => {
+    await act(async () => {
+      render(
+        <StrictMode>
+          <MapProvider>
+            <SceneRoot />
+          </MapProvider>
+        </StrictMode>,
+      );
+    });
+    expect(FakeMap.instances).toHaveLength(1);
+  });
+
+  it('eases to the route camera rather than rebuilding anything', async () => {
+    await mount();
+    const [move] = FakeMap.last.calls.easeTo;
+    expect(move.center).toEqual(cameras.hello.center);
+    expect(move.zoom).toBe(cameras.hello.zoom);
+    expect(move.duration).toBe(SCENE_MOVE_MS);
+    expect(typeof move.easing).toBe('function');
+  });
+
+  it('flies 900ms into the detail and keeps the page centre', async () => {
+    pathname.current = '/projects/[projectId]';
+    const cambridge = cameraAt(
+      cameras.projectDetail,
+      [-71.11, 42.37],
+    );
+    const Detail = () => {
+      useSceneCamera(cambridge);
+      return null;
+    };
+    await mount(
+      <>
+        <SceneRoot />
+        <Detail />
+      </>,
+    );
+    const last = FakeMap.last.calls.easeTo.at(-1);
+    expect(last?.center).toEqual(cambridge.center);
+    expect(FakeMap.last.calls.easeTo[0].duration).toBe(
+      SCENE_MOVE_LONG_MS,
+    );
+  });
+
+  it('holds the map on the detail route and hands it back after', async () => {
+    pathname.current = '/projects/[projectId]';
+    await mount();
+    expect([...FakeMap.last.enabled.values()]).not.toContain(true);
+
+    await navigate('/projects');
+    expect([...FakeMap.last.enabled.values()]).not.toContain(false);
+  });
+
+  it('turns terrain on for the close routes and off for the far ones', async () => {
+    await mount();
+    expect(FakeMap.last.calls.terrain.at(-1)).toBeNull();
+
+    await navigate('/about');
+    expect(FakeMap.last.calls.terrain.at(-1)).toEqual({
+      source: 'mapbox-dem',
+      exaggeration: 1.4,
+    });
+    expect(FakeMap.last.getSource('mapbox-dem')).toBeDefined();
+  });
+
+  it('nudges 8% toward a hovered city over 600ms', async () => {
+    pathname.current = '/projects';
+    await mount(
+      <>
+        <SceneRoot />
+        <Hoverer anchor="vail" />
+      </>,
+    );
+    const before = FakeMap.last.calls.easeTo.length;
+    await act(async () => {
+      screen.getByRole('button').click();
+    });
+    const nudge = FakeMap.last.calls.easeTo[before];
+    expect(nudge.duration).toBe(SCENE_REFRAME_MS);
+    // Vail is west of the projects centre, so the nudge moves west.
+    expect((nudge.center as number[])[0]).toBeLessThan(
+      cameras.projects.center[0],
+    );
+    expect((nudge.center as number[])[0]).toBeGreaterThan(
+      anchors.vail.center[0],
+    );
+  });
+
+  it('mounts a route s layer sets and unmounts the last route s', async () => {
+    pathname.current = '/projects';
+    await mount();
+    expect(FakeMap.last.getLayer(SITE_POINTS)).toBeDefined();
+    expect(FakeMap.last.bound.length).toBeGreaterThan(0);
+
+    await navigate('/about');
+    expect(FakeMap.last.getLayer(SITE_POINTS)).toBeUndefined();
+    expect(FakeMap.last.getLayer(HISTORY_POINTS)).toBeDefined();
+    // Total teardown: the projects hover handlers are gone.
+    expect(FakeMap.last.bound).toEqual([]);
+
+    await navigate('/');
+    expect(FakeMap.last.getLayer(HISTORY_POINTS)).toBeUndefined();
+    expect(FakeMap.last.getLayer(WORK_PATH_LINE)).toBeDefined();
+  });
+
+  it('sends the basemap config, and only what changed after that', async () => {
+    await mount();
+    const first = FakeMap.last.calls.config.length;
+    expect(first).toBeGreaterThan(0);
+    expect(FakeMap.last.calls.config).toContainEqual([
+      'basemap',
+      'lightPreset',
+      'dawn',
+    ]);
+    // Deep space is a world-zoom camera: no roads, no labels.
+    expect(FakeMap.last.calls.config).toContainEqual([
+      'basemap',
+      'showPlaceLabels',
+      false,
+    ]);
+
+    await navigate('/about');
+    const after = FakeMap.last.calls.config.slice(first);
+    expect(after).toContainEqual(['basemap', 'lightPreset', 'night']);
+    expect(after).toContainEqual([
+      'basemap',
+      'showPlaceLabels',
+      true,
+    ]);
+    expect(after.length).toBeLessThan(first);
+  });
+
+  it('paints our own layers straight from the palette', async () => {
+    await mount();
+    const colors = FakeMap.last.calls.paint.filter(
+      ([layer, property]) =>
+        layer === WORK_PATH_LINE && property === 'line-color',
+    );
+    expect(colors.length).toBeGreaterThan(0);
+    expect(String(colors[0][2])).toMatch(/^rgba\(255, 229, 32/);
+  });
+
+  it('sets the colour theme once, and again only on a real change', async () => {
+    await mount();
+    const map = FakeMap.last;
+    expect(map.calls.colorTheme).toHaveLength(1);
+    const yellow = map.calls.colorTheme[0];
+    expect(yellow).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
+
+    const moves = map.calls.easeTo.length;
+
+    // Re-announcing the live theme must not reload every tile.
+    await act(async () => {
+      window.dispatchEvent(new Event(THEME_EVENT));
+      await settle();
+    });
+    expect(map.calls.colorTheme).toHaveLength(1);
+
+    await act(async () => {
+      applyTheme('paper');
+      await settle();
+    });
+    expect(map.calls.colorTheme).toHaveLength(2);
+    expect(map.calls.colorTheme[1]).not.toBe(yellow);
+    // The camera holds through a theme change -- it is the one scene
+    // change with no camera move, so any move it does provoke is a
+    // reframe of where it already is, not a route change.
+    for (const move of map.calls.easeTo.slice(moves)) {
+      expect(move.duration).toBe(SCENE_REFRAME_MS);
+      expect(move.center).toEqual(cameras.hello.center);
+    }
+  });
+
+  it('follows the attribute even when no event is dispatched', async () => {
+    await mount();
+    const map = FakeMap.last;
+    await act(async () => {
+      document.documentElement.dataset.theme = 'teal';
+      await settle();
+    });
+    expect(map.calls.colorTheme).toHaveLength(2);
+  });
+
+  it('rotates the hello globe', async () => {
+    await mount();
+    await act(async () => {
+      await new Promise((done) => {
+        requestAnimationFrame(() => done(null));
+      });
+    });
+    expect(FakeMap.last.calls.bearing.length).toBeGreaterThan(0);
+  });
+
+  it('is static under reduced motion: 200ms, no rotation', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      matchMediaStub([REDUCED_MOTION_QUERY]),
+    );
+    await mount();
+    expect(FakeMap.last.calls.easeTo[0].duration).toBe(
+      REDUCED_MOVE_MS,
+    );
+    await act(async () => {
+      await new Promise((done) => {
+        requestAnimationFrame(() => done(null));
+      });
+    });
+    expect(FakeMap.last.calls.bearing).toEqual([]);
+  });
+
+  it('applies the mobile artboard camera below the breakpoint', async () => {
+    vi.stubGlobal('matchMedia', matchMediaStub([MOBILE_QUERY]));
+    await mount();
+    expect(FakeMap.last.calls.easeTo[0].zoom).toBe(1.4);
+  });
+
+  it('fogs the scene from the route preset', async () => {
+    await mount();
+    const fog = FakeMap.last.calls.fog.at(-1);
+    expect(fog?.range).toEqual([0.6, 12]);
+    expect(fog?.color).toBe('#161616');
   });
 });

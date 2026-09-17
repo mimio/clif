@@ -49,9 +49,7 @@ const solve = (a: number, b: number, target: number): number => {
   let high = 1;
   s = target;
   for (let i = 0; i < BISECTION_STEPS; i += 1) {
-    const x = bezier(a, b, s);
-    if (Math.abs(x - target) < EPSILON) return s;
-    if (x > target) high = s;
+    if (bezier(a, b, s) > target) high = s;
     else low = s;
     s = (low + high) / 2;
   }
