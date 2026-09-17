@@ -1,4 +1,4 @@
-import { px } from './sizes';
+import { BOX_VARS, CASE_CLASS, px, TYPE_CLASS } from './sizes';
 import type { ButtonSize, ButtonStyle, ButtonTone } from './types';
 
 /*
@@ -25,6 +25,18 @@ import type { ButtonSize, ButtonStyle, ButtonTone } from './types';
  *
  * Press has no state in the bundle's code; the readme says it drops to 0.7
  * opacity, and that is what is implemented here.
+ *
+ * ITS BOX IS OVERRIDABLE. The pill paints the wrapper, which is also where
+ * a caller's `className` lands, so every visible box property here is a
+ * utility rather than an inline declaration -- see BOX_VARS in sizes.ts for
+ * why the numbers can still live in one table. `rounded-none px-1` on a
+ * flat pill does what it says.
+ *
+ * Hover is scoped to `pointer-fine:`. The site redefines Tailwind's `hover`
+ * to bare `:hover`, which on a touch screen LATCHES: the tap that fires the
+ * button leaves it inverted until the next tap somewhere else. A coarse
+ * pointer therefore gets rest and press only, which is the whole of the
+ * feedback it can actually use.
  */
 
 type FlatBox = {
@@ -64,7 +76,7 @@ const TONE_REST: Record<ButtonTone, string> = {
 
 const STATES = [
   'bg-transparent',
-  'hover:border-accent hover:bg-accent hover:text-on-accent',
+  'pointer-fine:hover:border-accent pointer-fine:hover:bg-accent pointer-fine:hover:text-on-accent',
   'active:opacity-70',
   'data-[disabled=true]:pointer-events-none',
   'data-[disabled=true]:cursor-default',
@@ -90,15 +102,13 @@ export const flat: ButtonStyle = ({
   padded,
 }) => ({
   wrapper: {
-    className: `${BOX[`${grow}`]} ${TONE_REST[tone]} ${STATES} transition-hue min-w-0 cursor-pointer items-center border select-none`,
+    className: `${BOX[`${grow}`]} ${TONE_REST[tone]} ${STATES} ${TYPE_CLASS} ${CASE_CLASS[spec.textTransform]} transition-hue min-w-0 cursor-pointer items-center border p-(--b-pad) font-[number:var(--weight-regular)] select-none rounded-(--b-radius)`,
     style: {
-      padding: padding(FLAT_BOXES[size], padded),
-      borderRadius: 'var(--radius-control)',
-      fontSize: px(spec.fontSize),
-      lineHeight: px(spec.lineHeight),
-      letterSpacing: spec.tracking,
-      textTransform: spec.textTransform,
-      fontWeight: 'var(--weight-regular)',
+      ...BOX_VARS(
+        spec,
+        padding(FLAT_BOXES[size], padded),
+        'var(--radius-control)',
+      ),
 
       /* The glyph still needs its resting scale; it does not spring here. */
       '--g-base': `${spec.glyph}`,
@@ -110,8 +120,8 @@ export const flat: ButtonStyle = ({
     },
   },
   inner: {
-    className: `${JUSTIFY[`${grow || center}`]} flex min-w-0 flex-auto items-center`,
-    style: { gap: px(spec.gap) },
+    className: `${JUSTIFY[`${grow || center}`]} flex min-w-0 flex-auto items-center gap-(--b-gap)`,
+    style: {},
   },
   glyph: {
     className: 'h-[34px] w-[34px] flex-none origin-center',

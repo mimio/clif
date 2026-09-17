@@ -26,6 +26,15 @@ import type {
  * interactive element (button, a, or next/link) and carries the state
  * utilities; the plate inside it is what actually moves, so a lift or a
  * press never changes the hit target.
+ *
+ * TWO className PROPS, because there are two elements and they are not
+ * interchangeable. `className` dresses the wrapper -- layout, and on the
+ * flat pill the whole box, since the pill paints the wrapper.
+ * `plateClassName` dresses the plate, which is what the keycap paints; on
+ * a keycap, `className` alone can never reach the cap's padding or radius,
+ * and before this prop existed a caller writing `rounded-none` on one got
+ * a class that landed on an element with no border-radius at all. Both
+ * merge through `cn()`, so what a caller writes wins.
  */
 
 export * from './types';
@@ -118,6 +127,7 @@ export const Button = ({
   onClick,
   ariaLabel,
   className,
+  plateClassName,
 }: ButtonProps) => {
   // useId's colons are legal in an id but not in a url(#...) reference.
   const markId = `clif-expand-${useId().replace(/:/g, '')}`;
@@ -137,7 +147,11 @@ export const Button = ({
 
   const body = (
     <span
-      className={cn('clif-button-inner', parts.inner.className)}
+      className={cn(
+        'clif-button-inner',
+        parts.inner.className,
+        plateClassName,
+      )}
       style={parts.inner.style}
     >
       {lead === undefined ? null : (

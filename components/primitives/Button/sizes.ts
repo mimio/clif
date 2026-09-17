@@ -79,6 +79,45 @@ export const BUTTON_SIZE_ORDER: readonly ButtonSize[] = [
 
 export const px = (value: number): string => `${value}px`;
 
+/*
+ * THE BOX IS CLASSES, THE NUMBERS ARE PROPERTIES.
+ *
+ * Both treatments used to stamp their padding, radius and type ramp
+ * straight into the inline `style` of whichever element owned them. That
+ * made a caller's `rounded-none px-1` silently inert: an inline
+ * declaration outranks any utility that is not `!`-flagged, so `cn()` kept
+ * the class and the cascade then threw it away. The numbers still have to
+ * live here -- Tailwind's scanner cannot see a class name assembled at
+ * render time from this table -- so instead the element carries them as
+ * custom properties and REAL UTILITIES read them back. A caller's own box
+ * class now merges against these and wins, like every other class.
+ */
+export const BOX_VARS = (
+  spec: ButtonSizeSpec,
+  padding: string,
+  radius: string,
+): Record<string, string> => ({
+  '--b-pad': padding,
+  '--b-radius': radius,
+  '--b-gap': px(spec.gap),
+  '--b-size': px(spec.fontSize),
+  '--b-line': px(spec.lineHeight),
+  '--b-track': spec.tracking,
+});
+
+/** The type ramp, off --b-size / --b-line / --b-track. */
+export const TYPE_CLASS =
+  'text-(length:--b-size) leading-(--b-line) tracking-(--b-track)';
+
+/** The table's text-transform, as a utility a caller can merge against. */
+export const CASE_CLASS: Record<
+  ButtonSizeSpec['textTransform'],
+  string
+> = {
+  none: 'normal-case',
+  uppercase: 'uppercase',
+};
+
 /**
  * Whether the asymmetric `pad` applies. A glyph, an expand mark or a lead
  * pulls the left padding in; a TRAIL DOES NOT. That asymmetry is deliberate

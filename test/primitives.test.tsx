@@ -112,7 +112,43 @@ describe('Pill', () => {
       'data-tone',
       'accent',
     );
+    expect(screen.getByRole('link')).toHaveClass('x');
     expect(PILL_SIZES.sm.fontSize).toBe(11);
+  });
+
+  /*
+   * The pill's own comment used to promise a caller "gets it" and then say
+   * in the same sentence that the utility only wins when it is `!`-flagged.
+   * Both halves were describing padding stamped into the inline style,
+   * where a class could never win. Padding and tracking are properties the
+   * element's own utilities read now, so an override merges and applies --
+   * and the proof is that nothing inline is left to outrank it.
+   */
+  it('lets a caller re-box it', () => {
+    render(<Pill className="px-1 tracking-[.4em]">go</Pill>);
+    const node = screen.getByRole('button');
+    expect(node).toHaveClass('px-1');
+    expect(node).toHaveClass('tracking-[.4em]');
+    expect(node.className).not.toContain('tracking-(--pill-track)');
+    expect(node.style.padding).toBe('');
+    expect(node.style.letterSpacing).toBe('');
+    // The numbers still live in one table; they just travel as properties.
+    expect(node.style.getPropertyValue('--pill-pad')).toBe(
+      PILL_SIZES.md.padding,
+    );
+  });
+
+  it('scopes its hover fill to a fine pointer', () => {
+    // Bare `:hover` latches on a touch screen: the tap that fires the pill
+    // would leave it washed until the next tap elsewhere.
+    render(<Pill tone="accent">go</Pill>);
+    screen
+      .getByRole('button')
+      .className.split(' ')
+      .filter((name) => name.includes('hover:'))
+      .forEach((name) =>
+        expect(name.startsWith('pointer-fine:hover:')).toBe(true),
+      );
   });
 });
 
