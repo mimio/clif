@@ -33,7 +33,6 @@ import Altimeter, {
   TRAVEL_MS,
 } from 'components/chrome/Altimeter';
 import ChromeRoot, {
-  coordLabelFor,
   DETAIL_INDICATOR,
   DETAIL_PATH,
   indicatorForPath,
@@ -55,6 +54,7 @@ import ThemeEye, {
   serverTheme,
 } from 'components/chrome/ThemeEye';
 import { POPOVER_EVENT } from 'components/chrome/usePopover';
+import { coordLabel } from 'scene/camera';
 import { cameras } from 'content/cameras';
 import { SceneContext } from 'scene/MapProvider';
 import {
@@ -763,9 +763,9 @@ describe('ChromeRoot', () => {
   });
 
   it('captions the pill from the camera, not from the URL', () => {
-    expect(coordLabelFor(null)).toBe('camera');
-    expect(coordLabelFor(cameras.hello)).toBe('camera');
-    expect(coordLabelFor(cameras.projectDetail)).toBe('held');
+    expect(coordLabel(null)).toBe('camera');
+    expect(coordLabel(cameras.hello)).toBe('camera');
+    expect(coordLabel(cameras.projectDetail)).toBe('held');
   });
 
   it('holds the camera on the detail route', () => {
