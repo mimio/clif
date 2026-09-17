@@ -14,14 +14,14 @@ permissions:
 
 jobs:
   checks:
-    name: Lint, typecheck, build
+    name: Lint, unit tests, build, e2e
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      # The smoke test answers every Mapbox request locally, so the build only
+      # The e2e suite answers every Mapbox request locally, so the build only
       # needs a token-shaped value here, not a real one.
-      NEXT_PUBLIC_MAPBOX_TOKEN: pk.smoke-test-placeholder
+      NEXT_PUBLIC_MAPBOX_TOKEN: pk.e2e-placeholder
     steps:
       - uses: actions/checkout@v7
 
@@ -39,4 +39,34 @@ jobs:
 
       - run: pnpm typecheck
 
+      # Unit tests are seconds, the build is minutes: fail on the cheap one.
+      - run: pnpm test:unit
+
       - run: pnpm build
+
+      # The browser build only changes when Playwright itself is bumped, so
+      # key the cache on its version rather than the whole lockfile.
+      - name: Read Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - run: pnpm exec playwright install --with-deps chromium
+
+      # The build above is what `playwright test` would otherwise run itself.
+      - run: pnpm exec playwright test
+        env:
+          PLAYWRIGHT_REUSE_BUILD: '1'
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: ignore

@@ -7,6 +7,13 @@ const nextConfig: NextConfig = {
     // declaration in types/assets.d.ts.
     disableStaticImages: true,
   },
+  // /history is gone; the work timeline lives on /about now. 308 so the
+  // redirect is cached and the method is preserved.
+  async redirects() {
+    return [
+      { source: '/history', destination: '/about', permanent: true },
+    ];
+  },
   turbopack: {
     rules: {
       // SVG files import as React components.

@@ -29,6 +29,8 @@ pnpm-debug.log*
 
 .now
 
-# browser smoke test output
-.smoke-output/
-smoke-output/
+# playwright
+/playwright-report/
+/test-results/
+/blob-report/
+/.playwright/
