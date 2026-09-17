@@ -123,6 +123,29 @@ for (const route of ROUTES) {
     ).toBeGreaterThan(0);
 
     /*
+     * AND IT IS THE SCENE'S LUT, not merely some accepted image.
+     *
+     * The line above says an image mapbox decoded passed mapbox's own
+     * height <= 32 / width === height^2 check. It does not say WHICH
+     * image: a 1x1 PNG from anywhere on the page satisfies `ok` just as
+     * well, and nothing tied the probe's record back to what the scene
+     * sent. The tie is free, because the two fingerprints are byte
+     * identical by construction -- readScene() hashes appliedLut() as
+     * `${length}:${fnv}` and the probe hashes value.slice(PREFIX.length)
+     * with the same FNV-1a constants over the same payload.
+     */
+    expect(
+      luts.some(
+        (lut) => `${lut.bytes}:${lut.hash}` === scene.lut && lut.ok,
+      ),
+      `mapbox accepted a LUT, but not the one the scene sent (${
+        scene.lut
+      }); saw ${JSON.stringify(
+        luts.map((lut) => `${lut.bytes}:${lut.hash} ok=${lut.ok}`),
+      )}`,
+    ).toBe(true);
+
+    /*
      * Every config key the route sent is a key the Standard import has.
      * The bogus key is not padding: without it this assertion would pass
      * just as happily against a getConfigProperty that answered

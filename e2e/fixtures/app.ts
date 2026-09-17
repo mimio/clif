@@ -329,6 +329,14 @@ export const readScene = (page: Page): Promise<SceneReport> =>
  * return` -- an unknown key is not an error, not a warning, not an event.
  * It is a silent no-op, and the globe simply never gets the light preset
  * the route asked for. Reading each one back is the only way to find out.
+ *
+ * This list is a HAND COPY of BasemapConfig's fields and cannot be an
+ * import: tier 2 needs the key NAMES as strings and the type is erased.
+ * So it is guarded instead, hermetically, in e2e/hermetic/routes.spec.ts
+ * -- the stub records every [key, value] the scene sends, and that set
+ * has to equal this one. Without that guard an eighth field added to
+ * BasemapConfig would be the single thing tier 2 never asks Standard
+ * about, which is the one question tier 2 exists to answer.
  */
 export const BASEMAP_CONFIG_KEYS = [
   'lightPreset',
