@@ -368,11 +368,18 @@ export const cameraForHover = (
 export const coordLabel = (spec: CameraSpec | null): string =>
   spec !== null && !spec.interactive ? 'held' : 'camera';
 
-/** Reduced motion turns rotation off rather than slowing it. */
+/**
+ * The globe's rotation for this visitor, in degrees of centre longitude
+ * per second, or null for a still globe.
+ *
+ * Reduced motion turns rotation OFF rather than slowing it: a globe that
+ * creeps is still a globe that moves, and the preference is not a request
+ * for less.
+ */
 export const spinRateFor = (
   spec: CameraSpec,
   reduced: boolean,
-): number | null => (reduced ? null : spec.spin);
+): number | null => (reduced ? null : spec.spinDegPerSecond);
 
 /**
  * The travelling dash pauses on terrain routes to stay inside the frame

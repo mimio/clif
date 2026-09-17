@@ -58,7 +58,15 @@ describe('cameras', () => {
       of: 'height',
       zoomOffset: 0,
     });
-    expect(cameras.hello.spin).toBeCloseTo(0.0015);
+    /*
+     * One revolution per four minutes, which is the prototype's
+     * `t * (Math.PI * 2 / 240)` in degrees a second. Stated as the
+     * arithmetic rather than as 1.5 so the four minutes stays legible.
+     */
+    expect(cameras.hello.spinDegPerSecond).toBeCloseTo(360 / 240);
+    expect(cameras.notFound.spinDegPerSecond).toBe(
+      cameras.hello.spinDegPerSecond,
+    );
     expect(cameras.projects.center).toEqual([-98.0, 39.0]);
     expect(cameras.projects.zoom).toBe(2.6);
     expect(cameras.projects.pitch).toBe(25);

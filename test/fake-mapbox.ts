@@ -246,6 +246,13 @@ export type Recorded = {
   paint: [string, string, unknown][];
   bearing: number[];
   /**
+   * Every centre written by `setCenter` -- which is how the globe turns
+   * on its axis, and the one camera write the scene makes outside a
+   * flight. Like `bearing`, it is `jumpTo` underneath, so each entry here
+   * is also a flight that would have been cancelled.
+   */
+  center: [number, number][];
+  /**
    * `off` calls that matched no live binding.
    *
    * Real mapbox-gl ignores one, so this fake does too -- but it counts
@@ -309,6 +316,7 @@ export class FakeMap {
     configDiscarded: [],
     paint: [],
     bearing: [],
+    center: [],
     strayOff: [],
   };
 
@@ -708,6 +716,16 @@ export class FakeMap {
     this.easing = false;
     this.bearing = value;
     this.calls.bearing.push(value);
+  }
+
+  setCenter(value: [number, number]): void {
+    // And so is setCenter, for the same reason and with the same teeth:
+    // the globe's rotation writes THIS one, so a rotation that ran during
+    // a route's flight would kill it here exactly as it does in mapbox.
+    this.easing = false;
+    this.center = [...value];
+    this.calls.center.push([...value]);
+    this.fire('move');
   }
 
   getSource(id: string): unknown {

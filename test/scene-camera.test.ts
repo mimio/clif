@@ -92,7 +92,7 @@ describe('refinement', () => {
     { terrain: null },
     { fog: 'space' },
     { interactive: true },
-    { spin: 0.01 },
+    { spinDegPerSecond: 0.01 },
   ];
 
   it.each(drifts)('rejects a camera whose %o differs', (drift) => {
@@ -464,7 +464,7 @@ describe('the readout and the two motion dials', () => {
   });
 
   it('turns rotation off under reduced motion', () => {
-    expect(spinRateFor(cameras.hello, false)).toBe(0.0015);
+    expect(spinRateFor(cameras.hello, false)).toBe(360 / 240);
     expect(spinRateFor(cameras.hello, true)).toBeNull();
     expect(spinRateFor(cameras.projects, false)).toBeNull();
   });

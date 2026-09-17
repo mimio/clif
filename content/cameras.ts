@@ -107,6 +107,18 @@ export const NOT_FOUND_FRAME_MOBILE: GlobeFrame = {
   zoomOffset: NOT_FOUND_ZOOM_OFFSET,
 };
 
+/**
+ * How long the globe takes to come round once, in seconds.
+ *
+ * The prototype's `orbit()` states it directly --
+ * `const rot = t * (Math.PI * 2 / 240)`, with `t` in seconds -- and the
+ * design inventory says nothing else about the figure, so this is it.
+ */
+export const REVOLUTION_SECONDS = 240;
+
+/** The same rotation in the units `spinDegPerSecond` is stated in. */
+export const SPIN_DEG_PER_SECOND = 360 / REVOLUTION_SECONDS;
+
 export type CameraSpec = {
   center: [number, number];
   zoom: number;
@@ -138,8 +150,36 @@ export type CameraSpec = {
   fog: FogPreset;
   /** False on the detail route, where the map is HELD. */
   interactive: boolean;
-  /** Degrees of bearing per frame, or null for a still camera. */
-  spin: number | null;
+  /**
+   * How fast the Earth turns on its axis, in DEGREES OF CENTRE LONGITUDE
+   * PER SECOND, or null for a still camera.
+   *
+   * Three things about that sentence are load-bearing.
+   *
+   * IT IS LONGITUDE, NOT BEARING. The prototype's `orbit()` turns the
+   * planet -- `rot = t * (Math.PI * 2 / 240)` enters the projection as
+   * `a = (lon - centerLon - rot)`, which is the centre meridian walking
+   * east while the ground walks west across the glass. `setBearing` is a
+   * different motion: at pitch 0 on a globe it rolls the whole sphere
+   * about the screen's view axis, poles and all, like a record rather
+   * than a planet. The app turned the bearing for its whole life, and
+   * nobody would have called that "the globe rotating".
+   *
+   * IT IS PER SECOND, NOT PER FRAME. A per-frame step is whatever the
+   * display and the frame budget make it: measured on a headless runner
+   * at 11fps, the old 0.0015 degrees a frame came to one revolution every
+   * six hours, and even on a healthy 60Hz display it was one revolution
+   * every 67 minutes -- while a 120Hz panel would have run at twice the
+   * rate of the 60Hz one beside it. scene/mapbox/instance.ts scales by the elapsed
+   * milliseconds instead, so the figure below is true on any display.
+   *
+   * IT IS POSITIVE FOR LEFTWARD. Advancing the centre longitude EASTWARD
+   * carries a fixed place toward smaller screen x, because mapbox draws a
+   * place east of the centre to its right and this shrinks that
+   * difference. e2e/hermetic/globe-spin.spec.ts measures where a fixed
+   * lat/lng actually lands rather than trusting the sign.
+   */
+  spinDegPerSecond: number | null;
 };
 
 /** Every scene the camera has a resting position for. */
@@ -185,8 +225,12 @@ export const cameras: Record<SceneId, CameraSpec> = {
     terrain: null,
     fog: 'space',
     interactive: true,
-    // One revolution per four minutes, at 60fps.
-    spin: 0.0015,
+    /*
+     * One revolution per four minutes: 360 / 240 = 1.5 degrees a second,
+     * which is the prototype's `Math.PI * 2 / 240` radians a second said
+     * in the units this field is in.
+     */
+    spinDegPerSecond: SPIN_DEG_PER_SECOND,
   },
   projects: {
     center: [-98.0, 39.0],
@@ -198,7 +242,7 @@ export const cameras: Record<SceneId, CameraSpec> = {
     terrain: null,
     fog: 'dusk',
     interactive: true,
-    spin: null,
+    spinDegPerSecond: null,
   },
   projectDetail: {
     // Overridden per project with the client city; 1d's gopro is the default.
@@ -213,7 +257,7 @@ export const cameras: Record<SceneId, CameraSpec> = {
     // The one route where the camera is not yours: drag, scroll-zoom and
     // rotate are all off and the readout reads HELD.
     interactive: false,
-    spin: null,
+    spinDegPerSecond: null,
   },
   about: {
     center: [-122.658, 45.512],
@@ -225,7 +269,7 @@ export const cameras: Record<SceneId, CameraSpec> = {
     terrain: 1.4,
     fog: 'night',
     interactive: true,
-    spin: null,
+    spinDegPerSecond: null,
   },
   notFound: {
     // No 404 artboard exists. See NOT_FOUND_FRAME above for what that
@@ -240,7 +284,8 @@ export const cameras: Record<SceneId, CameraSpec> = {
     terrain: null,
     fog: 'space',
     interactive: true,
-    spin: 0.0015,
+    // The 404 is hello's globe, so it turns at hello's rate.
+    spinDegPerSecond: SPIN_DEG_PER_SECOND,
   },
 };
 

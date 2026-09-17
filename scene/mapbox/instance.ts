@@ -1077,19 +1077,58 @@ export const syncLayers = (
 /* ---- the animation loop ---------------------------------------------- */
 
 let frame = 0;
+/** Degrees of centre longitude per second, or null for a still globe. */
 let spin: number | null = null;
+/** When the spin last advanced, on performance.now()'s clock. */
+let spinAt = 0;
 let dash = false;
 let dashLayers: string[] = [];
 /** The dash step last written, so an unchanged one writes nothing. */
 let dashStep: number | null = null;
 
 /*
+ * A frame that arrives late must turn the globe further, not slower.
+ *
+ * The rotation used to be a fixed step per rAF callback, which makes the
+ * rate a property of the DISPLAY: 60Hz and 120Hz turned at different
+ * speeds, and a loaded frame simply lost its share of the turn. The
+ * headless runner this suite uses renders the globe at 6-11fps, and
+ * measured there, "one revolution per four minutes" was turning at one
+ * revolution per SIX HOURS.
+ *
+ * So the step is the rate times the ELAPSED MILLISECONDS, and `spinAt`
+ * is moved forward on every tick whether or not the tick wrote anything.
+ * That second half is what keeps the yield below from becoming a debt: a
+ * flight that owns the transform for 800ms must not be followed by 800ms
+ * of rotation applied in one jump.
+ *
+ * A tab in the background stops getting frames altogether, so the first
+ * tick after it comes back can be minutes late. SPIN_MAX_STEP_MS bounds
+ * that to a step nobody can see -- it is far longer than any real frame,
+ * so it never throttles a slow display, it only refuses an absurd one.
+ */
+const SPIN_MAX_STEP_MS = 1_000;
+
+/**
+ * Longitude folded back into [-180, 180).
+ *
+ * A camera that keeps turning east runs off the end of the range
+ * otherwise: mapbox constrains the LATITUDE of a centre it is given and
+ * leaves the longitude alone, so after an hour the transform would be
+ * reporting 5,000 degrees east and every readout built on `getCenter`
+ * would say so.
+ */
+const wrapLng = (lng: number): number =>
+  ((((lng + 180) % 360) + 360) % 360) - 180;
+
+/*
  * THE SPIN MUST NOT WRITE WHILE THE CAMERA IS FLYING, and this is the
  * whole reason a route change never arrived anywhere.
  *
- * `map.setBearing(b)` is not a bearing setter. It is
- * `jumpTo({ bearing: b })`, and jumpTo opens with `this._stop(...)` --
- * which cancels whatever easeTo is in flight, wherever it had got to.
+ * `map.setCenter(c)` is not a centre setter, any more than
+ * `map.setBearing(b)` was a bearing setter. It is `jumpTo({ center: c })`,
+ * and jumpTo opens with `this._stop(...)` -- which cancels whatever
+ * easeTo is in flight, wherever it had got to.
  * So on every route whose resting camera spins (hello, and the 404), the
  * scene issued its 800ms flight, this loop took the very next frame, and
  * the flight died about one frame in. The map then sat at the previous
@@ -1113,21 +1152,39 @@ let dashStep: number | null = null;
 const tick = (): void => {
   frame = 0;
   if (!instance) return;
+  const now = performance.now();
+  const since = Math.min(now - spinAt, SPIN_MAX_STEP_MS);
+  spinAt = now;
   /*
-   * Both dials wait for a style. Spin did not, so a route with a
-   * rotating globe kept calling setBearing on a dead one for the life of
-   * the tab -- behind the fallback plate, where nothing showed it.
+   * THE EARTH TURNS ON ITS AXIS, which is a walk of the CENTRE MERIDIAN
+   * and not a roll of the bearing.
+   *
+   * The prototype's `orbit()` is the spec and it is unambiguous: `rot`
+   * enters the projection as `a = (lon - centerLon - rot)`, so the centre
+   * meridian advances EAST and a fixed place slides toward smaller screen
+   * x -- left. mapbox's globe draws a place east of the centre to its
+   * right, so adding to `center.lng` reproduces exactly that. The bearing
+   * this used to turn does something else entirely: at pitch 0 it rotates
+   * the sphere about the screen's view axis, poles and all, and a place
+   * at the projection centre does not move at all.
+   * e2e/hermetic/globe-spin.spec.ts measures both the rate and where a
+   * fixed lat/lng lands, because a sign in the camera table is not the
+   * same claim and stayed green through all of this.
+   *
+   * Both dials wait for a style. Spin did not, so a route with a rotating
+   * globe kept writing the camera of a dead one for the life of the tab
+   * -- behind the fallback plate, where nothing showed it.
    *
    * AND SPIN WAITS FOR THE FLIGHT, which is the second half of the same
-   * mistake and by far the worse one. `setBearing` is `jumpTo({bearing})`
-   * and mapbox's `jumpTo` OPENS WITH `this.stop()` -- so every frame of
-   * the rotation cancelled whatever easeTo was in progress. On the two
-   * routes that spin, that is the route's own camera move: the hello
-   * globe was stopped about 8% into its 800ms flight by the first spin
-   * frame after it started, and sat for the life of the tab at zoom 0.18
-   * of the 2.2 it was flying to, drawn around a projection centre 38px
-   * into a 461px offset. Measured, either way, in
-   * e2e/hermetic/globe-frame.spec.ts.
+   * mistake and by far the worse one. Every camera setter on a Map is
+   * `jumpTo` underneath -- `setCenter` as much as `setBearing` -- and
+   * mapbox's `jumpTo` OPENS WITH `this.stop()`, so every frame of the
+   * rotation cancelled whatever easeTo was in progress. On the two routes
+   * that spin, that is the route's own camera move: the hello globe was
+   * stopped about 8% into its 800ms flight by the first spin frame after
+   * it started, and sat for the life of the tab at zoom 0.18 of the 2.2
+   * it was flying to, drawn around a projection centre 38px into a 461px
+   * offset. Measured, either way, in e2e/hermetic/globe-frame.spec.ts.
    *
    * Nothing showed it because every local check falls through to the
    * fallback plate, and because a globe stopped at the wrong zoom is
@@ -1135,13 +1192,14 @@ const tick = (): void => {
    * which is exactly what it was.
    *
    * Holding off while the camera is easing costs nothing: easeTo is
-   * animating the bearing to the route's own resting value anyway, so a
+   * carrying the centre to the route's own resting value anyway, so a
    * rotation applied during the flight has no meaning. It also leaves a
    * user's inertial pan alone, which went the same way for the same
    * reason.
    */
   if (spin !== null && status === 'ready' && !instance.isEasing()) {
-    instance.setBearing(instance.getBearing() + spin);
+    const { lng, lat } = instance.getCenter();
+    instance.setCenter([wrapLng(lng + (spin * since) / 1_000), lat]);
   }
   // The dash is a paint property, so it waits for the style like every
   // other paint property does.
@@ -1178,6 +1236,13 @@ export const setAnimation = (
   layers: string[],
 ): void => {
   spin = spinRate;
+  /*
+   * The clock restarts here rather than carrying on from whenever the
+   * loop last ran. A scene that has been still for a minute -- reduced
+   * motion, or a route that does not turn -- must not open with a minute
+   * of rotation the moment one does.
+   */
+  spinAt = performance.now();
   dash = dashRunning;
   dashLayers = layers;
   // A new layer list has never been written to, so the next frame must
@@ -1193,6 +1258,7 @@ export const resetMapForTests = (): void => {
   if (frame !== 0) cancelAnimationFrame(frame);
   frame = 0;
   spin = null;
+  spinAt = 0;
   dash = false;
   dashLayers = [];
   dashStep = null;

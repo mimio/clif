@@ -244,16 +244,16 @@ export default defineConfig({
              * applies to the hard gate as well as to the captures. The
              * app answers reduced motion by turning the motion off:
              *
-             *   scene/camera.ts:179-182  spinRateFor() -> null. The
-             *                            globe does not spin.
-             *   scene/camera.ts:188-191  dashRuns() -> false. The
+             *   scene/camera.ts:379-382  spinRateFor() -> null. The
+             *                            globe does not turn.
+             *   scene/camera.ts:388-391  dashRuns() -> false. The
              *                            travelling dash never runs.
-             *   scene/camera.ts:137-147  moveDurationFor() collapses the
+             *   scene/camera.ts:330-341  moveDurationFor() collapses the
              *                            800/900/600ms flights to
              *                            REDUCED_MOVE_MS = 200ms, which
              *                            the motion card specifies as a
              *                            crossfade rather than a move.
-             *   scene/enter.ts:74-92     foregroundEnter() takes the
+             *   scene/enter.ts:79-91     foregroundEnter() takes the
              *                            reduced branch, so
              *                            foregroundHandoffMs() is never
              *                            evaluated at all.
