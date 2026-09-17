@@ -932,14 +932,30 @@ describe('the persistent map', () => {
     expect(map.calls.colorTheme).toHaveLength(2);
   });
 
-  it('rotates the hello globe', async () => {
+  it('rotates the hello globe, once it has arrived', async () => {
     await mount();
+    const map = FakeMap.last;
+
+    /*
+     * Not while the route's flight is still in the air. setBearing is
+     * jumpTo and jumpTo stops the flight, so a loop that turned during
+     * one would cancel it a frame in -- which is what left the globe
+     * short of every camera it was sent to.
+     */
     await act(async () => {
       await new Promise((done) => {
         requestAnimationFrame(() => done(null));
       });
     });
-    expect(FakeMap.last.calls.bearing.length).toBeGreaterThan(0);
+    expect(map.calls.bearing).toEqual([]);
+
+    map.endEase();
+    await act(async () => {
+      await new Promise((done) => {
+        requestAnimationFrame(() => done(null));
+      });
+    });
+    expect(map.calls.bearing.length).toBeGreaterThan(0);
   });
 
   it('is static under reduced motion: 200ms, no rotation', async () => {
@@ -1021,6 +1037,8 @@ describe('the persistent map', () => {
     vi.stubGlobal('matchMedia', media);
     await mount();
     const map = FakeMap.last;
+    // The globe only turns once the route's flight has landed.
+    map.endEase();
     await act(async () => {
       await frame();
     });
@@ -1128,6 +1146,9 @@ describe('the persistent map', () => {
   it('skips a dash layer the style dropped underneath the loop', async () => {
     await mount();
     const map = FakeMap.last;
+    // The loop is watched after the route's flight has landed, so the
+    // spin below is free to write.
+    map.endEase();
     const dashes = () =>
       map.calls.paint.filter(
         ([layer, property]) =>
@@ -1764,6 +1785,7 @@ describe('the style lifecycle', () => {
     await act(async () => {
       map.loadStyle();
     });
+    map.endEase();
     await frame();
     expect(map.calls.bearing.length).toBeGreaterThan(0);
   });

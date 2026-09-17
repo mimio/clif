@@ -96,6 +96,28 @@ describe('refinement', () => {
     expect(resolveCamera('/', cameras.about)).toBe(cameras.hello);
   });
 
+  /*
+   * And that holds for EVERY pair, not just the one above.
+   *
+   * refinesCamera is what tells "this route's camera, reframed" from
+   * "the last route's camera, still in context", and it does it on the
+   * framing alone. Two scenes that happened to share a framing would be
+   * mutual refinements, and the scene would accept the previous route's
+   * centre as this route's -- silently, and only on the routes that
+   * collided. Asked over the table rather than over a hand-picked pair,
+   * so a scene added later is included by existing.
+   */
+  it('cannot mistake any scene for a refinement of another', () => {
+    const ids = Object.keys(cameras) as SceneId[];
+    const confused = ids.flatMap((from) =>
+      ids
+        .filter((to) => to !== from)
+        .filter((to) => refinesCamera(cameras[from], cameras[to]))
+        .map((to) => `${from} reads as ${to}`),
+    );
+    expect(confused).toEqual([]);
+  });
+
   it('prefers a page refinement over the table entry', () => {
     const refined = cameraAt(cameras.projectDetail, [-71.11, 42.37]);
     expect(resolveCamera('/projects/[projectId]', refined)).toBe(

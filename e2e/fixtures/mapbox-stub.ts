@@ -259,9 +259,20 @@ const stubScript = (options: StubOptions): void => {
       }),
       getBearing: (): number => bearing,
       setBearing: (next: number): void => {
+        // jumpTo, in the real library, and jumpTo stops the flight. The
+        // stub lands easeTo in one step so there is never one open --
+        // see isEasing below.
         bearing = next;
         record.bearings += 1;
       },
+      /*
+       * Never in flight: this stub's easeTo arrives in the call that
+       * issued it, so nothing here can be interrupted. It is the REAL
+       * library, in e2e/hermetic/camera-return.spec.ts, that answers
+       * whether the scene's animation loop leaves a flight alone --
+       * mapbox's own easeTo is the only one with a window to interrupt.
+       */
+      isEasing: (): boolean => false,
 
       getSource: (id: string): unknown => sources.get(id),
       getLayer: (id: string): unknown => layers.get(id),

@@ -292,6 +292,21 @@ export class FakeMap {
   /** The transform's centre, as easeTo leaves it. */
   private center: [number, number] = [0, 0];
 
+  /*
+   * WHETHER A CAMERA FLIGHT OWNS THE TRANSFORM, which is the one thing
+   * about easeTo the scene's animation loop has to respect.
+   *
+   * The fake lands the transform in one step -- interpolating it would
+   * buy nothing a unit test can read -- but the flight WINDOW is not a
+   * detail: in real mapbox-gl, `setBearing` is `jumpTo({bearing})` and
+   * jumpTo opens with `_stop()`, so anything that writes a bearing
+   * during a flight cancels it wherever it had got to. That is not
+   * observable on a fake whose easeTo has already finished, so the
+   * window is modelled explicitly: easeTo opens it, endEase() closes it,
+   * and setBearing stops it exactly as jumpTo would.
+   */
+  private easing = false;
+
   constructor(options: Record<string, unknown>) {
     this.options = options;
     FakeMap.instances.push(this);
@@ -552,7 +567,19 @@ export class FakeMap {
     if (Array.isArray(options.center)) {
       this.center = [...options.center] as [number, number];
     }
+    // A zero-duration ease is a jump: real mapbox runs the frame and
+    // finishes inside the call rather than scheduling one.
+    this.easing = options.duration !== 0;
     this.fire('move');
+  }
+
+  isEasing(): boolean {
+    return this.easing;
+  }
+
+  /** Test-only: the flight opened by easeTo reaches its destination. */
+  endEase(): void {
+    this.easing = false;
   }
 
   getCenter(): { lng: number; lat: number } {
@@ -564,6 +591,10 @@ export class FakeMap {
   }
 
   setBearing(value: number): void {
+    // setBearing is jumpTo, and jumpTo stops whatever is in flight. The
+    // fake cancels the same way so a caller that writes a bearing over a
+    // flight loses the flight here too, rather than only in a browser.
+    this.easing = false;
     this.bearing = value;
     this.calls.bearing.push(value);
   }

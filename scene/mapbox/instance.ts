@@ -654,6 +654,41 @@ const reconcileTerrain = (map: MapboxMap): void => {
   markTerrainDirty(map);
 };
 
+/*
+ * THE MAP IS BORN SOMEWHERE ON PURPOSE, and saying so is what keeps the
+ * stylesheet from taking the camera off the route.
+ *
+ * mapbox-gl's Map constructor records whether the CALLER named a centre
+ * or a zoom:
+ *
+ *   if (initialOptions.center != null || initialOptions.zoom != null) {
+ *     this.transform._unmodified = false;
+ *   }
+ *   ...
+ *   this.on('style.load', () => {
+ *     if (this.transform.unmodified) this.jumpTo(this.style.stylesheet);
+ *   });
+ *
+ * Constructed without them, the transform stays "unmodified" and mapbox
+ * jumps the camera to the STYLESHEET's own centre and zoom the moment the
+ * style arrives -- and jumpTo, as ever, stops whatever flight is in the
+ * air. The scene issues the route's flight as soon as the map object
+ * exists, which is well before a style round trip, so the two collide by
+ * default and the stylesheet wins.
+ *
+ * It did not lose every time, which is why this read as flaky rather than
+ * as a rule: any ease frame that ran first sets _unmodified false through
+ * the transform's own setters, so whether the route survived depended on
+ * whether one rAF beat the style over the network. Three cold loads in
+ * six came up at the stylesheet's camera rather than the route's.
+ *
+ * Naming the values mapbox would have defaulted to costs nothing visible
+ * -- the map still starts on a whole globe at [0, 0] and still flies to
+ * the route from there -- and settles the ownership question for good:
+ * the camera comes from the route table, never from the basemap.
+ */
+const START = { center: [0, 0] as [number, number], zoom: 0 };
+
 const create = async (
   container: HTMLElement,
 ): Promise<MapboxMap | null> => {
@@ -666,6 +701,9 @@ const create = async (
       container,
       accessToken: getMapboxToken(),
       style: getMapboxStyle(),
+      // Stated rather than defaulted, so the stylesheet does not get to
+      // move the camera when it loads -- see START above.
+      ...START,
       // Set at construction: changing projection later restyles the
       // whole map, and the globe is never not the projection.
       projection: { name: 'globe' },
@@ -887,13 +925,40 @@ let dashLayers: string[] = [];
 /** The dash step last written, so an unchanged one writes nothing. */
 let dashStep: number | null = null;
 
+/*
+ * THE SPIN MUST NOT WRITE WHILE THE CAMERA IS FLYING, and this is the
+ * whole reason a route change never arrived anywhere.
+ *
+ * `map.setBearing(b)` is not a bearing setter. It is
+ * `jumpTo({ bearing: b })`, and jumpTo opens with `this._stop(...)` --
+ * which cancels whatever easeTo is in flight, wherever it had got to.
+ * So on every route whose resting camera spins (hello, and the 404), the
+ * scene issued its 800ms flight, this loop took the very next frame, and
+ * the flight died about one frame in. The map then sat at the previous
+ * route's camera for the life of the tab, because nothing ever asked
+ * again: SceneRoot had recorded the move as made.
+ *
+ * That is exactly what going back to `/` looked like -- the globe stayed
+ * wherever /projects or /about had left it -- and it is also why a cold
+ * load of `/` came up near [0, 0] at zoom 0.1 instead of Portland: the
+ * flight from the map's constructed default was stopped the same way.
+ *
+ * The fix is not to move the camera harder. `isEasing()` is true for
+ * exactly as long as a camera animation owns the transform, so the spin
+ * simply yields to it and picks up from wherever the flight landed. The
+ * loop keeps ticking throughout -- it is rearmed below regardless of
+ * whether it wrote -- so nothing has to rearm it when the flight ends.
+ *
+ * The dash below does not need the guard: setPaintProperty does not go
+ * through jumpTo and cannot stop a camera.
+ */
 const tick = (): void => {
   frame = 0;
   if (!instance) return;
   // Both dials wait for a style. Spin did not, so a route with a
   // rotating globe kept calling setBearing on a dead one for the life of
   // the tab -- behind the fallback plate, where nothing showed it.
-  if (spin !== null && status === 'ready') {
+  if (spin !== null && status === 'ready' && !instance.isEasing()) {
     instance.setBearing(instance.getBearing() + spin);
   }
   // The dash is a paint property, so it waits for the style like every
