@@ -452,8 +452,24 @@ const projectSitesSet = (options: LayerSetOptions): LayerSet => {
 
 const historySet = (options: LayerSetOptions): LayerSet => {
   const { labels, selectedStop } = options;
-  // A stop id is never null, so a null selection matches nothing and the
-  // route simply has no live element until it names one.
+  /*
+   * A stop id is never -1, so a null selection matches nothing and the
+   * route simply has no live element until it names one.
+   *
+   * This is a PAINT expression and not a layer `filter`, which is the
+   * whole bug it replaces. A filter is read once, at addLayer time inside
+   * mount(), and sync() skips a set whose id is already mounted -- so the
+   * ring stayed on whichever stop happened to be selected when the route
+   * was first entered, while the point beside it moved correctly because
+   * colour and radius are paint patches and repaint re-applies them.
+   *
+   * Hiding a feature by collapsing its radius and stroke to zero costs
+   * nothing and keeps one rule for the whole layer model: structure is
+   * declared once in `layers`, and everything that varies with route
+   * state is a paint patch. The alternative -- re-applying filters from
+   * the registry -- makes the static half dynamic too, and leaves two
+   * mechanisms to remember instead of one.
+   */
   const live = ['==', ['get', 'id'], selectedStop ?? -1];
 
   const paint = (palette: Palette): PaintPatch[] => [
@@ -473,7 +489,11 @@ const historySet = (options: LayerSetOptions): LayerSet => {
       property: 'circle-color',
       value: ['case', live, palette.a(1), palette.a(0.6)],
     },
-    { layer: HISTORY_RING, property: 'circle-radius', value: 11 },
+    {
+      layer: HISTORY_RING,
+      property: 'circle-radius',
+      value: ['case', live, 11, 0],
+    },
     { layer: HISTORY_RING, property: 'circle-opacity', value: 0 },
     {
       layer: HISTORY_RING,
@@ -483,7 +503,7 @@ const historySet = (options: LayerSetOptions): LayerSet => {
     {
       layer: HISTORY_RING,
       property: 'circle-stroke-width',
-      value: 1,
+      value: ['case', live, 1, 0],
     },
     {
       layer: HISTORY_LABELS,
@@ -553,12 +573,7 @@ const historySet = (options: LayerSetOptions): LayerSet => {
         patches,
       ),
       layer(
-        {
-          id: HISTORY_RING,
-          type: 'circle',
-          source: HISTORY_SET,
-          filter: live,
-        },
+        { id: HISTORY_RING, type: 'circle', source: HISTORY_SET },
         patches,
       ),
       layer(

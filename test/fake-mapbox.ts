@@ -53,7 +53,7 @@ export const STYLE_GUARDED = [
 export const STYLE_NOT_LOADED = 'Style is not done loading';
 
 /** Events the scene's own lifecycle owns, rather than a layer set. */
-const LIFECYCLE_EVENTS = ['style.load', 'error'];
+const LIFECYCLE_EVENTS = ['style.load', 'error', 'sourcedata'];
 
 export type Recorded = {
   easeTo: Record<string, unknown>[];
@@ -120,6 +120,15 @@ export class FakeMap {
 
   /** False until style.load, exactly as Style._loaded is. */
   styleLoaded = false;
+
+  /**
+   * Which sources have resolved their TileJSON.
+   *
+   * A source is NOT loaded the moment it is added -- that is a network
+   * round trip -- and pretending otherwise is how the terrain race hid.
+   * Call loadSource(id) to resolve one.
+   */
+  readonly loadedSources = new Set<string>();
 
   private listeners = new Map<string, Listener[]>();
 
@@ -195,6 +204,16 @@ export class FakeMap {
 
   isStyleLoaded(): boolean {
     return this.styleLoaded;
+  }
+
+  isSourceLoaded(id: string): boolean {
+    return this.loadedSources.has(id);
+  }
+
+  /** Resolves a source's TileJSON, as the network eventually would. */
+  loadSource(id: string): void {
+    this.loadedSources.add(id);
+    this.fire('sourcedata', { sourceId: id, isSourceLoaded: true });
   }
 
   /* ---- events ------------------------------------------------------ */

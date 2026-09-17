@@ -140,6 +140,9 @@ let desired: Desired = emptyDesired();
  */
 let appliedLut: string | null = null;
 
+/** True while a terrain want is parked waiting for the DEM to resolve. */
+let waitingForDem = false;
+
 const asSceneMap = (map: MapboxMap): SceneMap =>
   map as unknown as SceneMap;
 
@@ -182,14 +185,45 @@ const flush = (): void => {
 
   if (desired.terrain !== undefined) {
     const exaggeration = desired.terrain;
-    desired.terrain = undefined;
     if (exaggeration === null) {
+      desired.terrain = undefined;
       map.setTerrain(null);
     } else {
       if (!map.getSource(DEM_SOURCE)) {
         map.addSource(DEM_SOURCE, DEM_SPEC);
       }
-      map.setTerrain({ source: DEM_SOURCE, exaggeration });
+      /*
+       * Terrain waits for its own source.
+       *
+       * Adding a raster-dem source and draping on it in the same tick
+       * works on a fresh style, because the source resolves before the
+       * first frame that uses it. It does not work once the map has been
+       * rendering for a while: mapbox's Terrain.update reaches into the
+       * DEM's tile cache on the very next frame and throws "Cannot read
+       * properties of undefined" when the TileJSON has not come back
+       * yet. That is a navigation from hello into about -- the one path
+       * where terrain is switched on late -- and it took the whole tree
+       * down every time.
+       *
+       * So the want stays on the record, and the sourcedata handler
+       * flushes again when the DEM is ready. If the route leaves the
+       * terrain view while we are waiting, the want is simply overwritten
+       * with null and the wait resolves into a no-op.
+       */
+      if (map.isSourceLoaded(DEM_SOURCE)) {
+        desired.terrain = undefined;
+        map.setTerrain({ source: DEM_SOURCE, exaggeration });
+      } else if (!waitingForDem) {
+        waitingForDem = true;
+        const onData = (event: { sourceId?: string }): void => {
+          if (event.sourceId !== DEM_SOURCE) return;
+          if (!map.isSourceLoaded(DEM_SOURCE)) return;
+          map.off('sourcedata', onData);
+          waitingForDem = false;
+          flush();
+        };
+        map.on('sourcedata', onData);
+      }
     }
   }
 
@@ -429,4 +463,5 @@ export const resetMapForTests = (): void => {
   watchers.clear();
   desired = emptyDesired();
   appliedLut = null;
+  waitingForDem = false;
 };

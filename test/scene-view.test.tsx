@@ -240,23 +240,44 @@ describe('the live history stop', () => {
     expect(current).toBeDefined();
     expect(selected.id).not.toBe(current?.id);
 
-    const ring = patchFor(
-      historyPaint(selected.id),
-      HISTORY_RING,
-      'circle-stroke-color',
-    );
-    expect(ring).toBeDefined();
-
-    const filter = layerSetsFor(
-      'about',
-      options({ selectedStop: selected.id }),
-    )[0].layers.find((one) => one.id === HISTORY_RING)?.filter;
-    // The ring tracks the selection, so it names that id and no other.
-    expect(JSON.stringify(filter)).toContain(String(selected.id));
-    expect(JSON.stringify(filter)).toContain('"id"');
+    const patches = historyPaint(selected.id);
+    // Both the point and the ring name the selected id, and nothing in
+    // the set names the current job.
+    for (const property of ['circle-radius', 'circle-stroke-width']) {
+      expect(
+        JSON.stringify(patchFor(patches, HISTORY_RING, property)),
+      ).toContain(String(selected.id));
+    }
+    expect(
+      JSON.stringify(
+        patchFor(patches, HISTORY_POINTS, 'circle-color'),
+      ),
+    ).toContain(String(selected.id));
   });
 
-  it('carries a stop id on every point, so a filter can find it', () => {
+  /*
+   * The selection may not live in a layer `filter`. A filter is read once,
+   * at addLayer time, and sync() never remounts a set that is already
+   * mounted -- so a filter that names the selection is a no-op from the
+   * second selection onwards. That is the shape of the bug that left the
+   * ring stuck on whichever stop the route was entered on.
+   */
+  it('keeps the selection out of every layer filter', () => {
+    for (const selectedStop of [null, 1, 4]) {
+      for (const set of layerSetsFor(
+        'about',
+        options({ selectedStop }),
+      )) {
+        for (const entry of set.layers) {
+          expect(JSON.stringify(entry.filter ?? null)).not.toContain(
+            '"id"',
+          );
+        }
+      }
+    }
+  });
+
+  it('carries a stop id on every point, so the paint can find it', () => {
     const source = layerSetsFor('about', options())[0].sources.find(
       (one) => one.id === HISTORY_SET,
     );
@@ -273,13 +294,15 @@ describe('the live history stop', () => {
   });
 
   it('lights nothing when the route has selected nothing', () => {
-    const filter = layerSetsFor('about', options())[0].layers.find(
-      (one) => one.id === HISTORY_RING,
-    )?.filter;
-    // A stop id is never -1, so the filter matches no feature.
-    expect(JSON.stringify(filter)).toContain('-1');
+    const patches = historyPaint(null);
+    // A stop id is never -1, so the expression matches no feature and
+    // the ring collapses to nothing on every one of them.
+    const radius = JSON.stringify(
+      patchFor(patches, HISTORY_RING, 'circle-radius'),
+    );
+    expect(radius).toContain('-1');
     for (const stop of historyStops) {
-      expect(JSON.stringify(filter)).not.toContain(`,${stop.id}]`);
+      expect(radius).not.toContain(`,${stop.id}]`);
     }
   });
 
