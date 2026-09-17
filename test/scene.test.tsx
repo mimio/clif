@@ -55,6 +55,7 @@ import {
   applyTerrain,
   ensureMap,
   getMap,
+  getStyleStatus,
   resetMapForTests,
   syncLayers,
 } from 'scene/mapbox/instance';
@@ -1080,6 +1081,50 @@ describe('the persistent map', () => {
     }
   });
 
+  /*
+   * And it walks it only when there is a step to walk to. The loop runs
+   * at display rate; the dash advances every 90ms. Without the guard,
+   * five frames in six wrote a paint property that was already there.
+   */
+  it('writes the dash only on the frame its step changes', async () => {
+    await mount();
+    const map = FakeMap.last;
+    const dashes = () =>
+      map.calls.paint.filter(
+        ([layer, property]) =>
+          layer === WORK_PATH_DASH && property === 'line-dasharray',
+      ).length;
+
+    await act(async () => {
+      for (let spent = 0; spent < 20 && dashes() === 0; spent += 1) {
+        await frame();
+      }
+    });
+    expect(dashes()).toBeGreaterThan(0);
+
+    // Three frames inside one 90ms window. floor(90000/90) % 3 is 1.
+    const now = vi.spyOn(Date, 'now').mockReturnValue(90_000);
+    await act(async () => {
+      await frame();
+    });
+    const settled = dashes();
+    await act(async () => {
+      await frame();
+      await frame();
+      await frame();
+    });
+    expect(dashes()).toBe(settled);
+
+    // One window on, and it writes once more -- not once per frame.
+    now.mockReturnValue(90_090);
+    await act(async () => {
+      await frame();
+      await frame();
+    });
+    expect(dashes()).toBe(settled + 1);
+    now.mockRestore();
+  });
+
   it('skips a dash layer the style dropped underneath the loop', async () => {
     await mount();
     const map = FakeMap.last;
@@ -1593,6 +1638,71 @@ describe('the style lifecycle', () => {
     expect(map.calls.colorTheme).toEqual([]);
   });
 
+  /*
+   * 'failed' is provisional, and both stubs used to make that
+   * unknowable by modelling the one shape the design assumed: an error
+   * and no style.load.
+   */
+  it('comes back from the plate when the style loads after an error', async () => {
+    const warn = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+    await mount();
+    const map = FakeMap.last;
+
+    // mapbox fires the import failure and THEN style.load, in that
+    // order, synchronously.
+    await act(async () => {
+      map.failImportThenLoad();
+    });
+
+    expect(getStyleStatus()).toBe('ready');
+    // The plate must not sit over a globe that works.
+    expect(screen.getByTestId('scene-root')).toHaveAttribute(
+      'data-scene-state',
+      'live',
+    );
+    expect(
+      screen.queryByTestId('scene-fallback'),
+    ).not.toBeInTheDocument();
+    // And the scene really did apply itself to the map it now has.
+    expect(map.calls.colorTheme).toHaveLength(1);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to load imports'),
+    );
+  });
+
+  it('does not plate the scene for a source that 401s while loading', async () => {
+    const warn = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+    const error = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    await mount();
+    const map = FakeMap.last;
+
+    // Sources begin fetching before style.load, so this is routine --
+    // the same shape that is routine a moment later.
+    await act(async () => {
+      map.failSourceWhileLoading('mapbox-dem');
+    });
+    expect(getStyleStatus()).toBe('loading');
+
+    await act(async () => {
+      map.loadStyle();
+    });
+    expect(getStyleStatus()).toBe('ready');
+    expect(screen.getByTestId('scene-root')).toHaveAttribute(
+      'data-scene-state',
+      'live',
+    );
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('mapbox-dem'),
+    );
+    expect(error).not.toHaveBeenCalled();
+  });
+
   it('survives tile errors after the style loaded', async () => {
     await mount();
     const map = FakeMap.last;
@@ -1630,17 +1740,31 @@ describe('the style lifecycle', () => {
     expect(FakeMap.last.calls.fog).toEqual([]);
   });
 
-  it('holds the dash still until the style can take a paint property', async () => {
+  it('turns nothing until there is a style to turn', async () => {
     await mount();
     const map = FakeMap.last;
-    await act(async () => {
-      await new Promise((done) => {
-        requestAnimationFrame(() => done(null));
+    const frame = async () => {
+      await act(async () => {
+        await new Promise((done) => {
+          requestAnimationFrame(() => done(null));
+        });
       });
-    });
-    // The globe is already turning -- setBearing has no precondition --
-    // but the dash is a paint property and must not have been written.
-    expect(map.calls.bearing.length).toBeGreaterThan(0);
+    };
+    await frame();
+
+    /*
+     * Neither dial runs. The dash is a paint property so it never could,
+     * but spin used to: setBearing has no style precondition, so a
+     * rotating route kept driving a dead style for the life of the tab,
+     * behind the fallback plate where nothing showed it.
+     */
+    expect(map.calls.bearing).toEqual([]);
     expect(map.calls.paint).toEqual([]);
+
+    await act(async () => {
+      map.loadStyle();
+    });
+    await frame();
+    expect(map.calls.bearing.length).toBeGreaterThan(0);
   });
 });

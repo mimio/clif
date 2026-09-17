@@ -38,7 +38,8 @@ import type { BrowserContext, Page } from '@playwright/test';
  */
 
 /** How the stubbed stylesheet resolves. */
-export type StubStyle = 'auto' | 'fail';
+export type StubStyle =
+  'auto' | 'fail' | 'import-error' | 'source-error';
 
 export type StubOptions = {
   /**
@@ -46,6 +47,21 @@ export type StubOptions = {
    * thing -- construct, then a round trip. 'fail' is the stylesheet a
    * token that cannot fetch it produces: an error event and no style.load,
    * which is what drives SceneRoot to its fallback plate.
+   *
+   * The other two are orderings this stub used to make unreachable, and
+   * which the design rested on not existing. Both are ordinary in
+   * mapbox 3.30:
+   *
+   *   'import-error'  Style._load does `_loadImports(...).catch(e => {
+   *                   fire ErrorEvent; fire style.load; })` -- the error
+   *                   and THEN the style, synchronously. The app's style
+   *                   always has an import, because
+   *                   setConfigProperty('basemap', ...) resolves
+   *                   through it.
+   *   'source-error'  _loaded is set and sources start fetching their
+   *                   TileJSON before style.load, so a 401 on one
+   *                   arrives during 'loading' with a sourceId -- the
+   *                   same shape that is routine a moment later.
    */
   style?: StubStyle;
 };
@@ -358,6 +374,17 @@ const stubScript = (options: StubOptions): void => {
       if (options.style === 'fail') {
         fire('error', { error: new Error('Unauthorized') });
         return;
+      }
+      if (options.style === 'import-error') {
+        fire('error', {
+          error: new Error('Failed to load imports'),
+        });
+      }
+      if (options.style === 'source-error') {
+        fire('error', {
+          error: new Error('Unauthorized'),
+          sourceId: 'mapbox-dem',
+        });
       }
       record.styleLoaded = true;
       fire('style.load');
