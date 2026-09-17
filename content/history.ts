@@ -9,8 +9,8 @@ import type { AnchorId } from 'content/anchors';
  *   1503378652000 1545455452000 1579480362000 1595228400000
  *
  * The first stop is 2,400 miles from the other five. The old map excluded it
- * when fitting bounds ("outlier"); the new scene frames Portland and simply
- * draws the great-circle path back to Albany, so the flag is gone.
+ * when fitting bounds ("outlier"); the new scene frames Portland and lets the
+ * chronological line run off east to Albany, so the flag is gone.
  */
 export type HistoryStop = {
   id: number;

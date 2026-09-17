@@ -1,92 +1,22 @@
 /*
- * Great-circle geometry for the work path.
+ * The GeoJSON the scene's own layers are built from.
  *
- * The old map drew a plain GeoJSON LineString between its stops, which is
- * a straight line in the projection and therefore wrong on a globe: a
- * two-point line from Albany to Portland cuts through the sphere rather
- * than lying on it. Mapbox will not interpolate it for us on a globe
- * projection, so the arc is sampled here.
+ * WHAT USED TO BE HERE: `greatCircle`, a slerp on the unit sphere plus
+ * artboard 1a's sin(k*pi) * 3.5-degree latitude bow, which sampled the
+ * Albany -> Portland work path into 64 segments because mapbox will not
+ * interpolate a two-point LineString on a globe -- a straight line in the
+ * projection cuts through the sphere rather than lying on it.
  *
- * Slerp on the unit sphere, plus the design's latitude bow -- artboard 1a
- * specifies a sin(k*pi) * 3.5-degree lift so the arc reads as an arc and
- * not as a chord that happens to bend.
+ * That path was the prototype's illustration of a mid band rather than
+ * anything the site claims (see the note at the top of ./sets.ts), and it
+ * was the only caller. The about route's chronological line IS a plain
+ * LineString between its stops, on purpose: its six points are all within
+ * a few degrees of one another except the first, and at that scale the
+ * chord and the arc are the same line. So nothing is left that needs a
+ * sampled great circle, and it went out with the layer set rather than
+ * staying behind as geometry with no geometry to draw.
  */
 export type Point = [number, number];
-
-const RAD = Math.PI / 180;
-const DEG = 180 / Math.PI;
-
-const toVector = ([lng, lat]: Point): [number, number, number] => {
-  const phi = lat * RAD;
-  const lambda = lng * RAD;
-  const cosPhi = Math.cos(phi);
-  return [
-    cosPhi * Math.cos(lambda),
-    cosPhi * Math.sin(lambda),
-    Math.sin(phi),
-  ];
-};
-
-const toPoint = ([x, y, z]: [number, number, number]): Point => [
-  Math.atan2(y, x) * DEG,
-  Math.atan2(z, Math.hypot(x, y)) * DEG,
-];
-
-/** Artboard 1a's arc lift, in degrees of latitude at the midpoint. */
-export const WORK_PATH_BOW = 3.5;
-
-/** Artboard 1a samples the path at 64 segments. */
-export const WORK_PATH_SEGMENTS = 64;
-
-/**
- * The great circle from `from` to `to`, sampled at `segments` + 1 points.
- * Both endpoints come back exactly; everything between is slerped and
- * then bowed north by `bow` degrees at the midpoint.
- */
-export const greatCircle = (
-  from: Point,
-  to: Point,
-  segments: number = WORK_PATH_SEGMENTS,
-  bow: number = WORK_PATH_BOW,
-): Point[] => {
-  const a = toVector(from);
-  const b = toVector(to);
-  const dot = Math.min(
-    1,
-    Math.max(-1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]),
-  );
-  const omega = Math.acos(dot);
-  const sinOmega = Math.sin(omega);
-
-  const points: Point[] = [];
-  for (let i = 0; i <= segments; i += 1) {
-    const k = i / segments;
-    if (i === 0) {
-      points.push([...from] as Point);
-    } else if (i === segments) {
-      points.push([...to] as Point);
-    } else {
-      // Antipodal or coincident endpoints have no unique great circle;
-      // a linear blend is the only defined answer and never happens for
-      // the two cities this draws.
-      const [p, q] =
-        sinOmega === 0
-          ? [1 - k, k]
-          : [
-              Math.sin((1 - k) * omega) / sinOmega,
-              Math.sin(k * omega) / sinOmega,
-            ];
-      const point = toPoint([
-        a[0] * p + b[0] * q,
-        a[1] * p + b[1] * q,
-        a[2] * p + b[2] * q,
-      ]);
-      point[1] += Math.sin(k * Math.PI) * bow;
-      points.push(point);
-    }
-  }
-  return points;
-};
 
 /** A GeoJSON LineString feature, ready for a geojson source. */
 export const lineString = (

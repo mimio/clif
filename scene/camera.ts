@@ -380,12 +380,3 @@ export const spinRateFor = (
   spec: CameraSpec,
   reduced: boolean,
 ): number | null => (reduced ? null : spec.spinDegPerSecond);
-
-/**
- * The travelling dash pauses on terrain routes to stay inside the frame
- * budget (artboard 1e), and under reduced motion it never runs.
- */
-export const dashRuns = (
-  spec: CameraSpec,
-  reduced: boolean,
-): boolean => !reduced && spec.terrain === null;

@@ -19,7 +19,6 @@ import {
   cameraForHover,
   cameraForPath,
   coordLabel,
-  dashRuns,
   forViewport,
   frameCamera,
   HOVER_NUDGE,
@@ -467,12 +466,6 @@ describe('the readout and the two motion dials', () => {
     expect(spinRateFor(cameras.hello, false)).toBe(360 / 240);
     expect(spinRateFor(cameras.hello, true)).toBeNull();
     expect(spinRateFor(cameras.projects, false)).toBeNull();
-  });
-
-  it('pauses the travelling dash on terrain routes', () => {
-    expect(dashRuns(cameras.hello, false)).toBe(true);
-    expect(dashRuns(cameras.hello, true)).toBe(false);
-    expect(dashRuns(cameras.about, false)).toBe(false);
   });
 });
 

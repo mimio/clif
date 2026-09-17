@@ -3,16 +3,12 @@ import { type AnchorId, anchors } from 'content/anchors';
 import { historyStops } from 'content/history';
 import { projectsList } from 'content/projects';
 import {
-  greatCircle,
   lineString,
   type Point,
   pointCollection,
-  WORK_PATH_BOW,
-  WORK_PATH_SEGMENTS,
 } from 'scene/layers/geo';
 import { createLayerRegistry } from 'scene/layers/registry';
 import {
-  ALBANY,
   anchorFromEvent,
   HISTORY_LABELS,
   HISTORY_LINE,
@@ -26,11 +22,6 @@ import {
   SITE_COUNTS,
   SITE_LABELS,
   SITE_POINTS,
-  WORK_CITY_POINTS,
-  WORK_HOME_POINT,
-  WORK_PATH_DASH,
-  WORK_PATH_LINE,
-  WORK_PATH_SET,
 } from 'scene/layers/sets';
 import type {
   LayerSet,
@@ -112,7 +103,6 @@ const options = (
   hover: null,
   labels: true,
   selectedStop: null,
-  dash: true,
   onHoverAnchor: vi.fn(),
   onSelectAnchor: vi.fn(),
   ...overrides,
@@ -136,54 +126,14 @@ const set = (
 
 /* ---- geometry --------------------------------------------------------- */
 
-describe('great-circle geometry', () => {
-  const path = greatCircle(ALBANY, anchors.portland.center);
-
-  it('samples the arc at the artboard resolution', () => {
-    expect(path).toHaveLength(WORK_PATH_SEGMENTS + 1);
-  });
-
-  it('starts and ends exactly on its endpoints', () => {
-    expect(path[0]).toEqual(ALBANY);
-    expect(path[path.length - 1]).toEqual(anchors.portland.center);
-  });
-
-  it('bows the arc a further 3.5 degrees at the midpoint', () => {
-    const at = WORK_PATH_SEGMENTS / 2;
-    const flat = greatCircle(
-      ALBANY,
-      anchors.portland.center,
-      WORK_PATH_SEGMENTS,
-      0,
-    );
-    // The great circle already rides north of the chord; the bow is the
-    // design's extra lift on top of it.
-    const chord = (ALBANY[1] + anchors.portland.center[1]) / 2;
-    expect(flat[at][1]).toBeGreaterThan(chord);
-    expect(path[at][1] - flat[at][1]).toBeCloseTo(WORK_PATH_BOW, 6);
-  });
-
-  it('stays on the sphere rather than cutting across it', () => {
-    // A great circle between two mid-latitude points is north of the
-    // straight interpolation everywhere, bow aside.
-    const flat = (k: number): number =>
-      ALBANY[1] + (anchors.portland.center[1] - ALBANY[1]) * k;
-    for (let i = 1; i < WORK_PATH_SEGMENTS; i += 1) {
-      expect(path[i][1]).toBeGreaterThan(
-        flat(i / WORK_PATH_SEGMENTS),
-      );
-    }
-  });
-
-  it('degenerates linearly when both ends are the same point', () => {
-    const none = greatCircle(ALBANY, ALBANY, 4, 0);
-    expect(none).toHaveLength(5);
-    for (const point of none) {
-      expect(point[0]).toBeCloseTo(ALBANY[0], 6);
-      expect(point[1]).toBeCloseTo(ALBANY[1], 6);
-    }
-  });
-
+/*
+ * What is left of scene/layers/geo.ts, which used to carry `greatCircle`
+ * too. That sampler existed for the Albany -> Portland work path and had
+ * no other caller, so it went out with the layer set rather than staying
+ * behind as geometry nothing draws -- see the note at the top of the
+ * module.
+ */
+describe('the GeoJSON builders', () => {
   it('wraps coordinates into GeoJSON', () => {
     const coordinates: Point[] = [
       [0, 0],
@@ -475,11 +425,16 @@ describe('repaint', () => {
 /* ---- the concrete sets ------------------------------------------------ */
 
 describe('the route layer sets', () => {
-  it('gives hello and 404 the work path', () => {
+  /*
+   * The prototype's great-circle work path used to be mounted on both,
+   * as an illustration of what a mid band could hold. Neither route has
+   * any data of its own, so neither carries a set -- and
+   * e2e/hermetic/globe-clean.spec.ts reads that back off the real map,
+   * which is the half of the claim this one cannot make.
+   */
+  it('gives hello and 404 nothing at all', () => {
     for (const scene of ['hello', 'notFound'] as const) {
-      expect(
-        layerSetsFor(scene, options()).map((one) => one.id),
-      ).toEqual([WORK_PATH_SET]);
+      expect(layerSetsFor(scene, options())).toEqual([]);
     }
   });
 
@@ -768,22 +723,9 @@ describe('the project sites', () => {
   });
 });
 
-describe('the work path and the history stops', () => {
-  it('fades the dash out rather than removing the layer', () => {
-    const opacity = (dash: boolean) =>
-      layerSetsFor('hello', options({ dash }))[0]
-        .paint(FALLBACK_PALETTE)
-        .find(
-          (patch) =>
-            patch.layer === WORK_PATH_DASH &&
-            patch.property === 'line-opacity',
-        )?.value;
-    expect(opacity(true)).toBe(1);
-    expect(opacity(false)).toBe(0);
-  });
-
+describe('the history stops', () => {
   it('builds each layer with the paint its own patches describe', () => {
-    const work = layerSetsFor('hello', options())[0];
+    const work = layerSetsFor('about', options())[0];
     const patches = work.paint(FALLBACK_PALETTE);
     for (const entry of work.layers) {
       const paint = entry.paint as Record<string, unknown>;
@@ -861,48 +803,6 @@ describe('the work path and the history stops', () => {
  * is still "from palette.a", and is also an invisible line.
  */
 const RESTING = {
-  work: [
-    {
-      layer: WORK_PATH_LINE,
-      property: 'line-color',
-      value: 'rgba(255, 229, 32, 0.6)',
-    },
-    { layer: WORK_PATH_LINE, property: 'line-width', value: 1 },
-    {
-      layer: WORK_PATH_DASH,
-      property: 'line-color',
-      value: 'rgba(255, 138, 43, 1)',
-    },
-    { layer: WORK_PATH_DASH, property: 'line-width', value: 1.5 },
-    { layer: WORK_PATH_DASH, property: 'line-opacity', value: 1 },
-    {
-      layer: WORK_PATH_DASH,
-      property: 'line-dasharray',
-      value: [0, 4, 3],
-    },
-    {
-      layer: WORK_CITY_POINTS,
-      property: 'circle-color',
-      value: 'rgba(255, 229, 32, 0.6)',
-    },
-    { layer: WORK_CITY_POINTS, property: 'circle-radius', value: 2 },
-    {
-      layer: WORK_HOME_POINT,
-      property: 'circle-color',
-      value: 'rgba(255, 229, 32, 1)',
-    },
-    { layer: WORK_HOME_POINT, property: 'circle-radius', value: 3.2 },
-    {
-      layer: WORK_HOME_POINT,
-      property: 'circle-stroke-color',
-      value: 'rgba(255, 229, 32, 0.35)',
-    },
-    {
-      layer: WORK_HOME_POINT,
-      property: 'circle-stroke-width',
-      value: 9,
-    },
-  ],
   projects: [
     {
       layer: SITE_POINTS,
@@ -1012,9 +912,9 @@ const STATES: Partial<LayerSetOptions>[] = [
   {},
   { hover: 'cambridge' },
   { hover: 'vail', labels: false },
-  { labels: false, dash: false },
+  { labels: false },
   { selectedStop: 1 },
-  { selectedStop: 4, labels: false, dash: false },
+  { selectedStop: 4, labels: false },
 ];
 
 /*
@@ -1048,7 +948,6 @@ const SCENES = [
 
 describe('the paint the design actually asks for', () => {
   it.each([
-    ['hello', RESTING.work],
     ['projects', RESTING.projects],
     ['about', RESTING.about],
   ] as const)(
@@ -1060,10 +959,10 @@ describe('the paint the design actually asks for', () => {
     },
   );
 
-  it('gives 404 the same work path hello has', () => {
-    expect(
-      layerSetsFor('notFound', options())[0].paint(FALLBACK_PALETTE),
-    ).toEqual(RESTING.work);
+  it('gives hello and 404 no paint, because they have no layers', () => {
+    for (const scene of ['hello', 'notFound'] as const) {
+      expect(layerSetsFor(scene, options())).toHaveLength(0);
+    }
   });
 
   it('every patch lands on a layer that exists in its set', () => {

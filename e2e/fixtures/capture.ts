@@ -10,8 +10,8 @@ import { expect, type Page, type TestInfo } from '@playwright/test';
  * expectation". The reason is structural rather than a matter of waiting
  * longer: toHaveScreenshot captures repeatedly until two consecutive
  * frames are identical, and a live Mapbox canvas does not deliver that.
- * `reducedMotion: 'reduce'` stops the camera spin and the work-path dash
- * because scene/camera.ts resolves both dials to off, and `animations:
+ * `reducedMotion: 'reduce'` stops the camera spin because
+ * scene/camera.ts resolves it to null, and `animations:
  * 'disabled'` finishes CSS animations and transitions -- neither reaches
  * inside a WebGL canvas that is fading tiles in and refining terrain.
  * That was, again, a mechanism verified against a stub that did hold

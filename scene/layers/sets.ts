@@ -8,7 +8,6 @@ import type { SceneId } from 'content/cameras';
 import { historyStops } from 'content/history';
 import { projectsList } from 'content/projects';
 import {
-  greatCircle,
   lineString,
   type Point,
   pointCollection,
@@ -25,8 +24,7 @@ import type { Palette } from 'styles/tokens/palette';
  * The MID band of the layer stack: our own data drawn on top of the
  * themed basemap.
  *
- *   hello / 404   the great-circle work path, Albany -> Portland, with the
- *                 travelling dash and the eight city points.
+ *   hello / 404   nothing. See below.
  *   projects      the clustered project sites, with the three Colorado
  *                 anchors collapsed into VAIL VALLEY at world zoom.
  *   about         the six work-history stops, their chronological line and
@@ -34,20 +32,32 @@ import type { Palette } from 'styles/tokens/palette';
  *   detail        nothing. Artboard 1d is terrain and the shader plane;
  *                 the map is held and carries no data of its own.
  *
+ * HELLO AND THE 404 USED TO CARRY A MID BAND AND DO NOT ANY MORE.
+ * The prototype's layer-stack note sketched one -- "mid: great-circle
+ * work path Albany->Portland, yellow 60% 1px + travelling dash" -- and
+ * the scene built it out: the arc, a dash walking along it, a dot on each
+ * of the eight anchor cities and a glow on Portland. It was an EXAMPLE of
+ * what a mid band could hold, not a claim the site makes -- nothing on
+ * the site is about a journey from Albany, and the cities that ARE
+ * content are drawn by `projectSitesSet` and `historySet`, collapsed and
+ * counted and labelled, which is a different picture entirely. The two
+ * routes it was mounted on are exactly the two with no data of their
+ * own, so they now mount no sets at all and the globe is just the globe.
+ * e2e/hermetic/globe-clean.spec.ts reads that back off the real map.
+ *
+ * Going with it: the travelling dash, which was the only dash layer in
+ * the app, so the whole mechanism went too -- the rAF loop's dash branch
+ * in scene/mapbox/instance.ts, `dashRuns` in scene/camera.ts, and
+ * `greatCircle` in ./geo.ts, which nothing else sampled.
+ *
  * Every colour comes out of `paint(palette)` -- theming tier 3 -- and the
  * same patch list builds each layer's initial paint, so a colour is
  * written once and cannot drift between "what the layer was added with"
  * and "what a repaint sets it to".
  */
 
-export const WORK_PATH_SET = 'work-path';
 export const PROJECT_SITES_SET = 'project-sites';
 export const HISTORY_SET = 'history-stops';
-
-export const WORK_PATH_LINE = 'work-path-line';
-export const WORK_PATH_DASH = 'work-path-dash';
-export const WORK_CITY_POINTS = 'work-city-points';
-export const WORK_HOME_POINT = 'work-home-point';
 
 export const SITE_POINTS = 'project-site-points';
 export const SITE_LABELS = 'project-site-labels';
@@ -60,9 +70,6 @@ export const HISTORY_LABELS = 'history-stop-labels';
 
 /** Mapbox-hosted mono, with the catalogue's universal fallback. */
 const MONO_FONT = ['Roboto Mono Light', 'Arial Unicode MS Regular'];
-
-/** Artboard 1a: the work path runs from the first job back east. */
-export const ALBANY: Point = [-73.75, 42.65];
 
 /** Every colour on the scene passes through sh() before it is drawn. */
 const shaded = (
@@ -191,116 +198,10 @@ export type LayerSetOptions = {
    * current job.
    */
   selectedStop: number | null;
-  /** False on terrain routes and under reduced motion. */
-  dash: boolean;
   /** Called with the anchor under the pointer, or null on leave. */
   onHoverAnchor: (anchor: AnchorId | null) => void;
   /** Called when a site point is clicked. */
   onSelectAnchor: (anchor: AnchorId) => void;
-};
-
-const workPathSet = (options: LayerSetOptions): LayerSet => {
-  const { dash } = options;
-  const paint = (palette: Palette): PaintPatch[] => [
-    {
-      layer: WORK_PATH_LINE,
-      property: 'line-color',
-      value: palette.a(0.6),
-    },
-    { layer: WORK_PATH_LINE, property: 'line-width', value: 1 },
-    {
-      layer: WORK_PATH_DASH,
-      property: 'line-color',
-      value: palette.b(1),
-    },
-    { layer: WORK_PATH_DASH, property: 'line-width', value: 1.5 },
-    {
-      layer: WORK_PATH_DASH,
-      property: 'line-opacity',
-      value: dash ? 1 : 0,
-    },
-    {
-      layer: WORK_PATH_DASH,
-      property: 'line-dasharray',
-      value: [0, 4, 3],
-    },
-    {
-      layer: WORK_CITY_POINTS,
-      property: 'circle-color',
-      value: palette.a(0.6),
-    },
-    { layer: WORK_CITY_POINTS, property: 'circle-radius', value: 2 },
-    {
-      layer: WORK_HOME_POINT,
-      property: 'circle-color',
-      value: palette.a(1),
-    },
-    { layer: WORK_HOME_POINT, property: 'circle-radius', value: 3.2 },
-    {
-      layer: WORK_HOME_POINT,
-      property: 'circle-stroke-color',
-      value: palette.a(0.35),
-    },
-    {
-      layer: WORK_HOME_POINT,
-      property: 'circle-stroke-width',
-      value: 9,
-    },
-  ];
-
-  const patches = paint(options.palette);
-  const path = greatCircle(ALBANY, anchors.portland.center);
-
-  return {
-    id: WORK_PATH_SET,
-    sources: [
-      {
-        id: WORK_PATH_SET,
-        spec: { type: 'geojson', data: lineString(path) },
-      },
-      {
-        id: WORK_CITY_POINTS,
-        spec: {
-          type: 'geojson',
-          data: pointCollection(
-            Object.values(anchors).map((anchor) => ({
-              center: [...anchor.center] as Point,
-              properties: { anchor: anchor.id, name: anchor.name },
-            })),
-          ),
-        },
-      },
-    ],
-    layers: [
-      layer(
-        { id: WORK_PATH_LINE, type: 'line', source: WORK_PATH_SET },
-        patches,
-      ),
-      layer(
-        { id: WORK_PATH_DASH, type: 'line', source: WORK_PATH_SET },
-        patches,
-      ),
-      layer(
-        {
-          id: WORK_CITY_POINTS,
-          type: 'circle',
-          source: WORK_CITY_POINTS,
-        },
-        patches,
-      ),
-      layer(
-        {
-          id: WORK_HOME_POINT,
-          type: 'circle',
-          source: WORK_CITY_POINTS,
-          filter: ['==', ['get', 'anchor'], 'portland'],
-        },
-        patches,
-      ),
-    ],
-    interactions: [],
-    paint,
-  };
 };
 
 const projectSitesSet = (options: LayerSetOptions): LayerSet => {
@@ -622,8 +523,8 @@ const BUILDERS: Record<
   SceneId,
   ((options: LayerSetOptions) => LayerSet)[]
 > = {
-  hello: [workPathSet],
-  notFound: [workPathSet],
+  hello: [],
+  notFound: [],
   projects: [projectSitesSet],
   about: [historySet],
   projectDetail: [],

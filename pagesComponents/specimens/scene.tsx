@@ -228,7 +228,6 @@ const LayerTable = () => {
             hover: null,
             labels: true,
             selectedStop: null,
-            dash: true,
             onHoverAnchor: noop,
             onSelectAnchor: noop,
           });

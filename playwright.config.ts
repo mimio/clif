@@ -227,10 +227,10 @@ export default defineConfig({
             ...devices['Desktop Chrome'],
             launchOptions,
             /*
-             * The hello and 404 cameras spin and the work path dashes,
-             * and scene/camera.ts resolves both dials to off under
-             * reduced motion -- the app's own switch, so this is the
-             * honest way to stop them rather than a test-only freeze.
+             * The hello and 404 cameras spin, and scene/camera.ts
+             * resolves that dial to off under reduced motion -- the
+             * app's own switch, so this is the honest way to stop it
+             * rather than a test-only freeze.
              *
              * It does NOT make the canvas still, and nothing can: tiles
              * fade in and terrain refines under their own render loop.
@@ -244,10 +244,8 @@ export default defineConfig({
              * applies to the hard gate as well as to the captures. The
              * app answers reduced motion by turning the motion off:
              *
-             *   scene/camera.ts:379-382  spinRateFor() -> null. The
+             *   scene/camera.ts          spinRateFor() -> null. The
              *                            globe does not turn.
-             *   scene/camera.ts:388-391  dashRuns() -> false. The
-             *                            travelling dash never runs.
              *   scene/camera.ts:330-341  moveDurationFor() collapses the
              *                            800/900/600ms flights to
              *                            REDUCED_MOVE_MS = 200ms, which
@@ -261,8 +259,8 @@ export default defineConfig({
              * So the ONE PLACE THE REAL BASEMAP EXISTS CANNOT SEE ANY OF
              * THE MOTION. Every one of those dials is verified against
              * the stub alone -- the unit suite and tier 1 -- and a spin
-             * rate, a dash or a flight duration that is wrong over real
-             * terrain would not be caught here.
+             * rate or a flight duration that is wrong over real terrain
+             * would not be caught here.
              *
              * That division is deliberate and defensible: a spinning
              * globe cannot be photographed reproducibly, and a camera

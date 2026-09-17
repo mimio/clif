@@ -16,6 +16,8 @@ import {
   it,
   vi,
 } from 'vitest';
+import ChromeRoot from 'components/chrome/ChromeRoot';
+import { formatCoordinates } from 'components/chrome/CoordPill';
 import { anchors } from 'content/anchors';
 import {
   cameras,
@@ -43,8 +45,6 @@ import {
   layerSetsFor,
   SITE_LABELS,
   SITE_POINTS,
-  WORK_PATH_DASH,
-  WORK_PATH_LINE,
 } from 'scene/layers/sets';
 import MapProvider, {
   SceneContext,
@@ -849,7 +849,6 @@ describe('the persistent map', () => {
       hover: null,
       labels: true,
       selectedStop: null,
-      dash: false,
       onHoverAnchor: vi.fn(),
       onSelectAnchor: vi.fn(),
     });
@@ -931,9 +930,14 @@ describe('the persistent map', () => {
     // Total teardown: the projects hover handlers are gone.
     expect(FakeMap.last.handlers).toEqual([]);
 
+    /*
+     * And `/` takes the last route's layers off and adds none of its
+     * own: hello has no data to draw, so the registry's job there is
+     * the removal and nothing else. Asserted on the map's whole layer
+     * table rather than on one id, because "no layers" is the claim.
+     */
     await navigate('/');
-    expect(FakeMap.last.getLayer(HISTORY_POINTS)).toBeUndefined();
-    expect(FakeMap.last.getLayer(WORK_PATH_LINE)).toBeDefined();
+    expect([...FakeMap.last.layers.keys()]).toEqual([]);
 
     /*
      * And nothing was unbound twice. Real mapbox-gl ignores an `off` with
@@ -974,10 +978,12 @@ describe('the persistent map', () => {
   });
 
   it('paints our own layers straight from the palette', async () => {
+    // A route that HAS layers: hello draws nothing of its own.
+    pathname.current = '/projects';
     await mount();
     const colors = FakeMap.last.calls.paint.filter(
       ([layer, property]) =>
-        layer === WORK_PATH_LINE && property === 'line-color',
+        layer === SITE_POINTS && property === 'circle-stroke-color',
     );
     expect(colors.length).toBeGreaterThan(0);
     expect(String(colors[0][2])).toMatch(/^rgba\(255, 229, 32/);
@@ -1268,133 +1274,8 @@ describe('the persistent map', () => {
       await frame();
       await frame();
     });
-    // The rotation stopped, and the travelling dash with it.
+    // The rotation stopped.
     expect(map.calls.center).toHaveLength(spun);
-    const dashOpacity = map.calls.paint
-      .filter(
-        ([layer, property]) =>
-          layer === WORK_PATH_DASH && property === 'line-opacity',
-      )
-      .at(-1)?.[2];
-    expect(dashOpacity).toBe(0);
-  });
-
-  /*
-   * The dash loop itself, driven to completion rather than left to
-   * whichever frame happens to land inside an `act`. It is also the one
-   * branch in scene/mapbox/instance.ts whose coverage moved between two
-   * identical runs, because nothing forced a frame while the style was
-   * ready and the dash layer mounted.
-   */
-  it('walks the dash along the work path, three steps and no more', async () => {
-    await mount();
-    const map = FakeMap.last;
-    const dashes = () =>
-      map.calls.paint.filter(
-        ([layer, property]) =>
-          layer === WORK_PATH_DASH && property === 'line-dasharray',
-      );
-
-    await act(async () => {
-      for (
-        let spent = 0;
-        spent < 20 && dashes().length === 0;
-        spent += 1
-      ) {
-        await frame();
-      }
-    });
-
-    expect(dashes().length).toBeGreaterThan(0);
-    for (const [, , value] of dashes()) {
-      expect([
-        [0, 4, 3],
-        [0, 3, 4],
-        [0, 2, 5],
-      ]).toContainEqual(value);
-    }
-  });
-
-  /*
-   * And it walks it only when there is a step to walk to. The loop runs
-   * at display rate; the dash advances every 90ms. Without the guard,
-   * five frames in six wrote a paint property that was already there.
-   */
-  it('writes the dash only on the frame its step changes', async () => {
-    await mount();
-    const map = FakeMap.last;
-    const dashes = () =>
-      map.calls.paint.filter(
-        ([layer, property]) =>
-          layer === WORK_PATH_DASH && property === 'line-dasharray',
-      ).length;
-
-    await act(async () => {
-      for (let spent = 0; spent < 20 && dashes() === 0; spent += 1) {
-        await frame();
-      }
-    });
-    expect(dashes()).toBeGreaterThan(0);
-
-    // Three frames inside one 90ms window. floor(90000/90) % 3 is 1.
-    const now = vi.spyOn(Date, 'now').mockReturnValue(90_000);
-    await act(async () => {
-      await frame();
-    });
-    const settled = dashes();
-    await act(async () => {
-      await frame();
-      await frame();
-      await frame();
-    });
-    expect(dashes()).toBe(settled);
-
-    // One window on, and it writes once more -- not once per frame.
-    now.mockReturnValue(90_090);
-    await act(async () => {
-      await frame();
-      await frame();
-    });
-    expect(dashes()).toBe(settled + 1);
-    now.mockRestore();
-  });
-
-  it('skips a dash layer the style dropped underneath the loop', async () => {
-    await mount();
-    const map = FakeMap.last;
-    // The loop is watched after the route's flight has landed, so the
-    // spin below is free to write.
-    map.endEase();
-    const dashes = () =>
-      map.calls.paint.filter(
-        ([layer, property]) =>
-          layer === WORK_PATH_DASH && property === 'line-dasharray',
-      );
-    await act(async () => {
-      for (
-        let spent = 0;
-        spent < 20 && dashes().length === 0;
-        spent += 1
-      ) {
-        await frame();
-      }
-    });
-    expect(dashes().length).toBeGreaterThan(0);
-
-    // A style reload drops our layers; the loop outlives them, because it
-    // is owned by the route rather than by the style.
-    map.removeLayer(WORK_PATH_DASH);
-    const painted = map.calls.paint.length;
-    const spun = map.calls.center.length;
-    await act(async () => {
-      await frame();
-      await frame();
-    });
-
-    // Still turning, and not writing a paint property to a layer that is
-    // not there -- which is the call that throws in real mapbox-gl.
-    expect(map.calls.center.length).toBeGreaterThan(spun);
-    expect(map.calls.paint).toHaveLength(painted);
   });
 
   /*
@@ -1638,6 +1519,67 @@ describe('the persistent map', () => {
     stop();
   });
 
+  /*
+   * B2. And the chrome actually reads it.
+   *
+   * The subscription above existed and nothing subscribed, which was
+   * harmless while the rotation rolled the BEARING -- nothing in the
+   * chrome reads bearing. The rotation walks the CENTRE now, so a pill
+   * fed from the route table starts lying the moment the globe starts
+   * turning and is a hundred and eighty degrees out two minutes later.
+   *
+   * Rendered with SceneRoot rather than alone, because what is under
+   * test is the two of them over ONE map: the scene drives it, the
+   * chrome reads it back.
+   */
+  it('feeds the coordinate pill from the map, not from the route table', async () => {
+    await mount(
+      <>
+        <SceneRoot />
+        <ChromeRoot />
+      </>,
+    );
+    const map = FakeMap.last;
+    const readout = () =>
+      screen.getByTestId('coord-readout').textContent;
+
+    // At rest the two agree, which is why this was invisible.
+    expect(readout()).toBe(
+      formatCoordinates(...cameras.hello.center),
+    );
+
+    // The globe turns once the route's flight has landed.
+    map.endEase();
+    await act(async () => {
+      await frame();
+    });
+    const { lng, lat } = map.getCenter();
+    expect(lng).toBeGreaterThan(cameras.hello.center[0]);
+    expect(readout()).toBe(formatCoordinates(lng, lat));
+    expect(readout()).not.toBe(
+      formatCoordinates(...cameras.hello.center),
+    );
+  });
+
+  /*
+   * ...and the caption does not follow it. `held` is a statement about
+   * whose camera it is, which the DECLARED camera answers and a centre
+   * cannot -- so the detail route still says so while the readout is
+   * free to track the transform.
+   */
+  it('keeps the held caption on the detail route', async () => {
+    pathname.current = '/projects/[projectId]';
+    await mount(
+      <>
+        <SceneRoot />
+        <ChromeRoot />
+      </>,
+    );
+    expect(screen.getByTestId('coord-caption').textContent).toBe(
+      'held',
+    );
+  });
+
   it('fogs the scene from the route preset', async () => {
     await mount();
     const fog = FakeMap.last.calls.fog.at(-1);
@@ -1823,7 +1765,9 @@ describe('the style lifecycle', () => {
       'lightPreset',
       'dawn',
     ]);
-    expect(map.getLayer(WORK_PATH_LINE)).toBeDefined();
+    // And the layer diff ran: hello wants no sets, so the map carries
+    // none -- which is a want that was applied, not one that was lost.
+    expect([...map.layers.keys()]).toEqual([]);
   });
 
   it('keeps a theme change that arrives mid-load, and applies it once', async () => {
@@ -2039,10 +1983,10 @@ describe('the style lifecycle', () => {
     await frame();
 
     /*
-     * Neither dial runs. The dash is a paint property so it never could,
-     * but spin used to: the camera setters have no style precondition, so
-     * a rotating route kept driving a dead style for the life of the tab,
-     * behind the fallback plate where nothing showed it.
+     * The rotation does not run. The camera setters have no style
+     * precondition of their own, so a rotating route kept driving a dead
+     * style for the life of the tab, behind the fallback plate where
+     * nothing showed it.
      */
     expect(map.calls.center).toEqual([]);
     expect(map.calls.paint).toEqual([]);

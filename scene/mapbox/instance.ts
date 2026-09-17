@@ -96,6 +96,29 @@ export const getMap = (): MapboxMap | null => instance;
 
 /* ---- reading the camera back ----------------------------------------- */
 
+/**
+ * Longitude folded back into [-180, 180).
+ *
+ * A camera that keeps turning east runs off the end of the range
+ * otherwise: mapbox constrains the LATITUDE of a centre it is given and
+ * leaves the longitude alone, so after an hour the transform would be
+ * reporting 5,000 degrees east. Both ends of the rotation go through
+ * here -- what the spin WRITES below, and what the subscription READS
+ * back -- because a readout is a coordinate and not an odometer, and
+ * because a pan the visitor drove past the antimeridian accumulates the
+ * same way without ever touching the spin.
+ *
+ * A longitude already in range is handed back UNCHANGED rather than run
+ * through the arithmetic, which is not an optimisation: `(-122.7 + 180) %
+ * 360 + 360) % 360 - 180` is -122.69999999999999, so folding a value that
+ * did not need folding puts a rounding error into every camera the route
+ * table declares -- including the ones tests compare by equality.
+ */
+const wrapLng = (lng: number): number =>
+  lng >= -180 && lng < 180
+    ? lng
+    : ((((lng + 180) % 360) + 360) % 360) - 180;
+
 export type CameraListener = (center: [number, number]) => void;
 
 type CameraSub = { listener: CameraListener; detach: () => void };
@@ -107,7 +130,7 @@ const noop = (): void => {};
 const attachCamera = (map: MapboxMap, sub: CameraSub): void => {
   const onMove = (): void => {
     const { lng, lat } = map.getCenter();
-    sub.listener([lng, lat]);
+    sub.listener([wrapLng(lng), lat]);
   };
   map.on('move', onMove);
   sub.detach = () => map.off('move', onMove);
@@ -517,6 +540,17 @@ export type SceneDebug = {
    * to the end, so a pass that throws never counts.
    */
   passes: () => number;
+  /**
+   * The layer sets the registry currently holds mounted, by id.
+   *
+   * The registry's own record rather than the set table's opinion: it
+   * lists what `mount` actually added to THIS map, so a route that is
+   * supposed to carry no data of its own can be asserted against the
+   * bookkeeping as well as against the style. See
+   * e2e/hermetic/globe-clean.spec.ts, which reads both and requires
+   * them to agree.
+   */
+  mountedSets: () => string[];
 };
 
 /*
@@ -539,6 +573,7 @@ const publishDebugHandle = (map: MapboxMap): void => {
     errors: () => [...sceneErrors],
     lastAction: () => lastAction,
     passes: () => passes,
+    mountedSets: () => registry.mountedIds(),
   };
 };
 
@@ -1081,10 +1116,22 @@ let frame = 0;
 let spin: number | null = null;
 /** When the spin last advanced, on performance.now()'s clock. */
 let spinAt = 0;
-let dash = false;
-let dashLayers: string[] = [];
-/** The dash step last written, so an unchanged one writes nothing. */
-let dashStep: number | null = null;
+
+/*
+ * ONE DIAL, WHERE THERE USED TO BE TWO.
+ *
+ * This loop also walked a three-step `line-dasharray` along whatever
+ * layers setAnimation was handed, which read as a dash travelling up the
+ * work path. That path was the prototype's illustration of a mid band
+ * rather than content (see the note at the top of scene/layers/sets.ts),
+ * WORK_PATH_DASH was the only dash layer the app ever had, and the list
+ * SceneRoot passed was literally `[WORK_PATH_DASH]` -- so with the layer
+ * set gone the whole mechanism had no layer to write to and no caller to
+ * turn it on. It is out rather than idling: `dash`, `dashLayers`,
+ * `dashStep`, the branch here, the two extra parameters on setAnimation,
+ * and `dashRuns` in scene/camera.ts, which existed only to fill one of
+ * them.
+ */
 
 /*
  * A frame that arrives late must turn the globe further, not slower.
@@ -1108,18 +1155,6 @@ let dashStep: number | null = null;
  * so it never throttles a slow display, it only refuses an absurd one.
  */
 const SPIN_MAX_STEP_MS = 1_000;
-
-/**
- * Longitude folded back into [-180, 180).
- *
- * A camera that keeps turning east runs off the end of the range
- * otherwise: mapbox constrains the LATITUDE of a centre it is given and
- * leaves the longitude alone, so after an hour the transform would be
- * reporting 5,000 degrees east and every readout built on `getCenter`
- * would say so.
- */
-const wrapLng = (lng: number): number =>
-  ((((lng + 180) % 360) + 360) % 360) - 180;
 
 /*
  * THE SPIN MUST NOT WRITE WHILE THE CAMERA IS FLYING, and this is the
@@ -1145,9 +1180,6 @@ const wrapLng = (lng: number): number =>
  * simply yields to it and picks up from wherever the flight landed. The
  * loop keeps ticking throughout -- it is rearmed below regardless of
  * whether it wrote -- so nothing has to rearm it when the flight ends.
- *
- * The dash below does not need the guard: setPaintProperty does not go
- * through jumpTo and cannot stop a camera.
  */
 const tick = (): void => {
   frame = 0;
@@ -1201,40 +1233,15 @@ const tick = (): void => {
     const { lng, lat } = instance.getCenter();
     instance.setCenter([wrapLng(lng + (spin * since) / 1_000), lat]);
   }
-  // The dash is a paint property, so it waits for the style like every
-  // other paint property does.
-  if (dash && status === 'ready') {
-    // A three-step dash walked one step at a time reads as travel. It
-    // advances every 90ms, so on a 60fps display five frames in six have
-    // nothing new to say -- and it is this comparison, not the interval
-    // on its own, that keeps them from writing a paint property on every
-    // dash layer anyway.
-    const step = Math.floor(Date.now() / 90) % 3;
-    if (step !== dashStep) {
-      dashStep = step;
-      for (const id of dashLayers) {
-        if (!instance.getLayer(id)) continue;
-        instance.setPaintProperty(id, 'line-dasharray', [
-          0,
-          4 - step,
-          3 + step,
-        ]);
-      }
-    }
-  }
-  if (spin !== null || dash) frame = requestAnimationFrame(tick);
+  if (spin !== null) frame = requestAnimationFrame(tick);
 };
 
 /**
  * One loop for the whole scene, started and stopped by what the route
- * asks for. Reduced motion resolves both dials to off in
+ * asks for. Reduced motion resolves the rotation to null in
  * scene/camera.ts, so under it this never starts.
  */
-export const setAnimation = (
-  spinRate: number | null,
-  dashRunning: boolean,
-  layers: string[],
-): void => {
+export const setAnimation = (spinRate: number | null): void => {
   spin = spinRate;
   /*
    * The clock restarts here rather than carrying on from whenever the
@@ -1243,13 +1250,8 @@ export const setAnimation = (
    * of rotation the moment one does.
    */
   spinAt = performance.now();
-  dash = dashRunning;
-  dashLayers = layers;
-  // A new layer list has never been written to, so the next frame must
-  // write whatever step it lands on rather than skipping it as stale.
-  dashStep = null;
   if (frame !== 0) return;
-  if (spin === null && !dash) return;
+  if (spin === null) return;
   frame = requestAnimationFrame(tick);
 };
 
@@ -1259,9 +1261,6 @@ export const resetMapForTests = (): void => {
   frame = 0;
   spin = null;
   spinAt = 0;
-  dash = false;
-  dashLayers = [];
-  dashStep = null;
   instance = null;
   creating = null;
   registry = createLayerRegistry();

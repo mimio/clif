@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import type { AnchorId } from 'content/anchors';
 import type { CameraSpec } from 'content/cameras';
@@ -13,6 +14,7 @@ import {
   resolveCamera,
   sceneIdForPath,
 } from 'scene/camera';
+import { watchCamera } from 'scene/liveCamera';
 import { useScene, useSceneHover } from 'scene/MapProvider';
 import { useIsMobile } from 'scene/useViewport';
 import { cn } from 'utils/cn';
@@ -138,24 +140,33 @@ export type ChromeRootProps = {
  * is the whole reason the chrome can apply them: this derives the same
  * value from the same inputs rather than keeping a second copy of it.
  *
- * WHAT IT CANNOT SEE is the flight. applyCamera hands mapbox an easeTo of
- * 800-900ms; this snaps to the destination on the frame the route changes,
- * so for the length of every move it is ahead of the globe. Interpolating
- * the ease here would be a second implementation of the flight, wrong in a
- * different way, since easeTo does not move lng/lat linearly.
+ * WHAT IT CANNOT SEE is the map. This is where the camera is GOING, and
+ * it is exact only when the globe is standing still at the end of a
+ * flight. Two things move the transform underneath it, and one of them
+ * has no bound at all:
  *
- * The seam for closing it exists and is NOT WIRED HERE YET. `watchCamera`
- * in scene/liveCamera.ts reports the map's real transform on every move
- * and fires once when the map is first created -- the moment getMap()
- * cannot serve, because this component mounts before ensureMap resolves.
- * Nothing in the app subscribes to it today, so the readout still snaps to
- * the destination and leads the globe for the length of every flight.
+ *   THE FLIGHT   applyCamera hands mapbox an easeTo of 800-900ms, so for
+ *                the length of every move a derived readout is already
+ *                at the destination while the globe is still on its way.
+ *                Interpolating the ease here would be a second
+ *                implementation of it, wrong in a new way, since easeTo
+ *                does not move lng/lat linearly.
+ *   THE SPIN     and this is the one that made the readout a lie. The
+ *                rotation used to roll the BEARING, which nothing in the
+ *                chrome reads, so a derived centre stayed correct on a
+ *                spinning route. It walks the CENTRE MERIDIAN now, 1.5
+ *                degrees a second on / and on the 404 -- so the map's
+ *                real centre leaves the table's -122.700 immediately and
+ *                is a hundred and eighty degrees away two minutes later,
+ *                while the pill goes on printing the table.
  *
- * Wiring it is a few lines here: subscribe in an effect, hold the centre
- * in state, and prefer it when it is non-null. This function stays either
- * way -- as the fallback for every case with no map to read (no token, the
- * fallback plate, unit tests) and as the destination the flight is
- * heading for.
+ * So ChromeRoot subscribes to `watchCamera` below and prefers the live
+ * transform. This function stays, and is still load-bearing twice over:
+ * as the FALLBACK for every case with no map to read -- no token, the
+ * fallback plate, unit tests, the server render -- and as the
+ * DESTINATION, which is what `coordLabel` is asked about, because
+ * whether the camera is the visitor's is a property of the route rather
+ * than of the transform.
  */
 export const liveCamera = (
   pathname: string,
@@ -180,8 +191,40 @@ export const ChromeRoot = ({ className }: ChromeRootProps) => {
   const { hover } = useSceneHover();
   const isMobile = useIsMobile();
   const active = routeIdForPath(pathname);
+
+  /*
+   * The map's own centre, or null until there is a map to read.
+   *
+   * Subscribing before the map exists is the normal case -- the chrome
+   * mounts before ensureMap resolves -- and watchCamera attaches itself
+   * when the map arrives, so there is nothing to retry here and no
+   * dependency to re-run on. A visitor with no token never hears
+   * anything and `live` stays null for the life of the tab, which is
+   * exactly what the fallback below is for.
+   */
+  const [live, setLive] = useState<[number, number] | null>(null);
+  useEffect(() => watchCamera(setLive), []);
+
   const camera = liveCamera(pathname, declared, isMobile, hover);
-  const { center } = camera;
+  /*
+   * THE READOUT TRACKS THE GLOBE; THE CAPTION DESCRIBES THE ROUTE.
+   *
+   * Reading the transform also changes what the pill does during a
+   * flight, and the new behaviour is the better one: it used to snap to
+   * the destination on the frame the route changed and lead the globe
+   * for the whole 800ms, and it now walks with it and arrives when it
+   * does. A readout of an instrument should say where the instrument is.
+   * The old behaviour was not a decision anybody made -- it was what
+   * deriving the value happened to produce -- and the one argument for
+   * it, that the number stops sooner, is an argument for a readout that
+   * is wrong for most of a second.
+   *
+   * The caption does NOT follow the transform, and must not: `held` on
+   * the detail route is a statement about whose camera it is, which
+   * `spec.interactive` answers and a centre cannot. So coordLabel is
+   * asked about the declared camera either way.
+   */
+  const center = live ?? camera.center;
   const sheeted = active === ABOUT;
 
   return (

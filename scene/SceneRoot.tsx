@@ -10,7 +10,6 @@ import type { CameraSpec, SceneId } from 'content/cameras';
 import {
   awaitingRefinement,
   cameraForHover,
-  dashRuns,
   forViewport,
   frameCamera,
   moveDurationFor,
@@ -20,7 +19,7 @@ import {
   spinRateFor,
   terrainFor,
 } from 'scene/camera';
-import { layerSetsFor, WORK_PATH_DASH } from 'scene/layers/sets';
+import { layerSetsFor } from 'scene/layers/sets';
 import {
   useScene,
   useSceneHover,
@@ -221,21 +220,11 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
         // outranks the other.
         labels: showLabels(view, isMobile),
         selectedStop: view.selectedStop,
-        dash: dashRuns(spec, reduced),
         onHoverAnchor: setHover,
         // A tap is the touch equivalent of a hover: it lights the city.
         onSelectAnchor: setHover,
       }),
-    [
-      sceneId,
-      palette,
-      hover,
-      isMobile,
-      view,
-      spec,
-      reduced,
-      setHover,
-    ],
+    [sceneId, palette, hover, isMobile, view, setHover],
   );
 
   /*
@@ -317,7 +306,7 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
       // Nothing drives a scene that is not live. setAnimation is only
       // reachable from this pass, so without this the rAF loop started
       // by a previous route would run forever behind the plate.
-      setAnimation(null, false, []);
+      setAnimation(null);
       return;
     }
 
@@ -371,11 +360,7 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
       syncLayers(sets, palette);
     });
 
-    setAnimation(
-      spinRateFor(spec, reduced),
-      dashRuns(spec, reduced),
-      [WORK_PATH_DASH],
-    );
+    setAnimation(spinRateFor(spec, reduced));
   }, [
     state,
     target,

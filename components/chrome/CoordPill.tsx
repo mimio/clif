@@ -171,14 +171,22 @@ export const CoordPill = ({
         onMouseEnter={() => setAwake(true)}
         onMouseLeave={() => setAwake(false)}
       >
-        <span className="text-accent-small" style={READOUT_TYPE}>
+        <span
+          className="text-accent-small"
+          data-testid="coord-readout"
+          style={READOUT_TYPE}
+        >
           {formatCoordinates(lng, lat)}
         </span>
         <span
           aria-hidden="true"
           className="h-[14px] w-px flex-none bg-surface-3"
         />
-        <span className="text-fg-4 uppercase" style={CAPTION_TYPE}>
+        <span
+          className="text-fg-4 uppercase"
+          data-testid="coord-caption"
+          style={CAPTION_TYPE}
+        >
           {label}
         </span>
       </div>

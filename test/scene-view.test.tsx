@@ -35,7 +35,6 @@ const options = (
   hover: null,
   labels: true,
   selectedStop: null,
-  dash: true,
   onHoverAnchor: vi.fn(),
   onSelectAnchor: vi.fn(),
   ...overrides,
@@ -306,13 +305,8 @@ describe('the live history stop', () => {
     { selectedStop: 1 },
     { selectedStop: 4, labels: false },
     { hover: 'cambridge' },
-    { hover: 'vail', labels: false, dash: false },
-    {
-      selectedStop: 2,
-      hover: 'portland',
-      labels: false,
-      dash: false,
-    },
+    { hover: 'vail', labels: false },
+    { selectedStop: 2, hover: 'portland', labels: false },
   ];
 
   const SCENES = [

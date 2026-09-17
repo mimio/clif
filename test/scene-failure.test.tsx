@@ -425,7 +425,7 @@ describe('driving the scene before there is a map', () => {
   it('runs the animation loop without one and stops', async () => {
     // setAnimation arms the frame whatever the map is doing, so this is
     // the path where tick() finds nothing to drive.
-    setAnimation(SPIN_DEG_PER_SECOND, true, ['work-path-dash']);
+    setAnimation(SPIN_DEG_PER_SECOND);
     await act(async () => {
       await new Promise((done) => {
         requestAnimationFrame(() => done(null));
