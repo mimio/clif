@@ -59,7 +59,7 @@
    */
   --plane-right: 80px;
   --plane-top: 230px;
-  --plane-width: clamp(300px, 26vw, 540px);
+  --plane-width: clamp(320px, 28vw, 600px);
   --plane-gap: 40px;
 
   /*

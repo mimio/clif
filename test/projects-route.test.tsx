@@ -5,6 +5,8 @@ import projectsById, { projectsList } from 'content/projects';
 import ProjectsPage, {
   anchorFor,
   BODY_COPY,
+  planeDrift,
+  PLANE_DRIFT_PX,
   projectFor,
   toRow,
 } from 'pagesComponents/projects';
@@ -85,6 +87,23 @@ describe('projectFor / anchorFor', () => {
 
   it('is null for an id that is not a project', () => {
     expect(anchorFor(projectsList, 'not-a-project')).toBeNull();
+  });
+});
+
+describe('planeDrift', () => {
+  it('spreads the travel evenly, centred on the rail rest', () => {
+    expect(planeDrift(0, 14)).toBe(-PLANE_DRIFT_PX / 2);
+    expect(planeDrift(13, 14)).toBe(PLANE_DRIFT_PX / 2);
+    // The middle pair straddle the rest rather than landing on it, which
+    // is what an even row count means.
+    expect(planeDrift(6, 14)).toBe(-5);
+    expect(planeDrift(7, 14)).toBe(5);
+  });
+
+  it('rests where nothing is hovered, and where there is no direction', () => {
+    expect(planeDrift(-1, 14)).toBe(0);
+    expect(planeDrift(0, 1)).toBe(0);
+    expect(planeDrift(0, 0)).toBe(0);
   });
 });
 
@@ -234,6 +253,52 @@ describe('the hover channel', () => {
       '/gopro.webp',
     );
     expect(plane(container)).toHaveClass('opacity-0');
+  });
+
+  /*
+   * "Offset it a tasteful amount depending on the hovered item so it tracks
+   * down and up according to same in table a bit." The first row lifts the
+   * capture, the last drops it, and the shift stays where it was on the way
+   * out so the fade does not also move.
+   */
+  it('tracks the row down the rail, and holds where it was on the way out', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <ProjectsPage projects={projectsList} />,
+    );
+    const rail = () =>
+      container.querySelector<HTMLElement>('[data-slot="plane"]');
+    const shift = () =>
+      rail()?.style.getPropertyValue('--plane-shift');
+
+    expect(shift()).toBe('0px');
+
+    const rowFor = (id: string) =>
+      screen
+        .getByRole('link', {
+          name: new RegExp(
+            projectsList.find((project) => project.id === id)
+              ?.title ?? '',
+            'i',
+          ),
+        })
+        .closest('tr') as HTMLElement;
+
+    await user.hover(rowFor(projectsList[0].id));
+    expect(shift()).toBe(
+      `${String(planeDrift(0, projectsList.length))}px`,
+    );
+
+    const last = projectsList.length - 1;
+    await user.hover(rowFor(projectsList[last].id));
+    expect(shift()).toBe(
+      `${String(planeDrift(last, projectsList.length))}px`,
+    );
+
+    await user.unhover(rowFor(projectsList[last].id));
+    expect(shift()).toBe(
+      `${String(planeDrift(last, projectsList.length))}px`,
+    );
   });
 
   it('closes when the page goes, not only when a row does', async () => {

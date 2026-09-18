@@ -131,12 +131,12 @@ const CELL_INK: Record<ProjectColumnKey, string> = {
  *   <650    42  + 1x10 + 16 =  68px   at 320:  252px column
  *   650+    224 + 2x16 + 24 = 280px   at 650:  542px column
  *   1000+   458 + 4x16 + 24 = 546px   at 1000: 768px column
- *   1280+   458 + 4x16 + 24 = 546px   at 1280: 715px column (rail open)
+ *   1280+   458 + 4x16 + 24 = 546px   at 1280: 690px column (rail open)
  *
  * The 1280 row is the tight one and it is tight by design: the rail takes
- * clamp(300px, 26vw, 540px) and the table keeps the rest, which at the
- * narrowest railed width still leaves 169px for the title and grows to 288
- * at 1440 and 360 past 1700, where --reading-column caps the column and the
+ * clamp(320px, 28vw, 600px) and the table keeps the rest, which at the
+ * narrowest railed width still leaves 144px for the title and grows to 259
+ * at 1440 and 354 past 1800, where --reading-column caps the column and the
  * rail takes everything after it.
  *
  * The four fixed tracks are each the longest real value plus nothing:

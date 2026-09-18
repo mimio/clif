@@ -107,6 +107,45 @@ export const NOT_FOUND_FRAME_MOBILE: GlobeFrame = {
   zoomOffset: NOT_FOUND_ZOOM_OFFSET,
 };
 
+/*
+ * The projects globe, which is framed rather than zoomed as of the
+ * index's rewrite -- "move the globe so it fits perfectly in the middle of
+ * the open space on the right of the screen".
+ *
+ * THE OPEN SPACE IS A REAL BOX, and these numbers are it, measured at
+ * 1440x900 against the layout's own tokens. The stage caps the reading
+ * column at --reading-max, so at the artboard the table ends at
+ * 112 + (1440 - 112 - 40 - 0.28*1440 - 80) = 916.8, leaving 916.8..1440
+ * for the rail: 523px wide, centred at 0.818 of the width.
+ *
+ * The ratios are a little inside that, because the frame is a pair of
+ * constants and the box is not: --plane-width is `clamp(320px, 28vw,
+ * 600px)` and --reading-column caps the table at 900px, so the box stops
+ * growing at about 1700px of viewport while the disc would go on growing.
+ * 0.812 and 0.168 keep the whole disc inside the box from 1280 -- where
+ * the rail opens at all -- out past 2560, with ten pixels or more of air
+ * on both sides at the widths screens actually are. They are the same kind
+ * of number as 1a's 0.66: a ratio chosen to clear a column, not one the
+ * design handed down.
+ *
+ * It is sized off the WIDTH because the box is a width. The height never
+ * binds: 0.168 of any viewport is a third of its own height at worst.
+ *
+ * AND 0.376 IS NOT A TYPO FOR 0.5. `at` is where the PROJECTION CENTRE
+ * goes, and on a pitched camera that is not where the sphere lands: at
+ * pitch 25 the globe is painted about 0.124 of the viewport height BELOW
+ * it -- measured, at four viewports, in e2e/hermetic/globe-frame.spec.ts,
+ * which is also what holds this number honest. Lifting the projection
+ * centre by that much is what puts the DISC in the middle of the box.
+ * hello and the 404 need no such correction because they are pitch 0.
+ */
+export const PROJECTS_FRAME: GlobeFrame = {
+  at: [0.812, 0.376],
+  radius: 0.168,
+  of: 'width',
+  zoomOffset: 0,
+};
+
 /**
  * How long the globe takes to come round once, in seconds.
  *
@@ -234,11 +273,25 @@ export const cameras: Record<SceneId, CameraSpec> = {
   },
   projects: {
     center: [-98.0, 39.0],
-    zoom: 2.6,
+    /*
+     * PROJECTS_FRAME at 1440x900, NOT the artboards' 2.6.
+     *
+     * 2.6 paints a disc 980px across on a 900px-tall artboard: wider than
+     * the viewport is tall, centred behind the table, and cut off at three
+     * edges. That was right while the index was a 620px column on the left
+     * and the whole right of the screen was ground. It is not right now
+     * that the table runs to 917px and the capture flies into the rail
+     * beside it, so the globe is framed into that rail instead -- whole,
+     * and with the capture crossing it on a hover rather than both of them
+     * fighting for the same third of the screen.
+     */
+    zoom: 1.327049251179784,
     pitch: 25,
     bearing: -12,
-    frame: null,
-    padding: NO_PADDING,
+    frame: PROJECTS_FRAME,
+    // Half of each gap moves the projection centre: left 898.56 puts it at
+    // 0.812 * 1440 = 1169.3, bottom 223.2 lifts it to 0.376 * 900 = 338.4.
+    padding: { top: 0, right: 0, bottom: 223.2, left: 898.56 },
     terrain: null,
     fog: 'dusk',
     interactive: true,

@@ -107,6 +107,35 @@ export const anchorFor = (
 const PREVIEW =
   'pointer-events-none transition-opacity duration-[240ms] ease-scene motion-reduce:transition-none';
 
+/*
+ * THE DRIFT: how far the capture moves between the first row and the last,
+ * in CSS pixels, centred on the rail's resting position.
+ *
+ * "Offset it a tasteful amount depending on the hovered item so it tracks
+ * down and up according to same in table a bit" -- so it is a share of the
+ * row's place in the list rather than the row's own y. Measuring the row
+ * would tie the rail to a scroll position, a resize listener and a layout
+ * read on every hover, to say the same thing about a list that is always
+ * fourteen rows in one order.
+ *
+ * 120px against a table about 560px tall is a little over a fifth of the
+ * travel: enough to read as following the pointer, not enough to look like
+ * the capture is being dragged. The plane rests at --plane-top 230 and is
+ * about 255px tall at 1440, so +/-60 keeps it between 170 and 545 of a
+ * 900px viewport with room at both ends.
+ */
+export const PLANE_DRIFT_PX = 120;
+
+/**
+ * Where the capture sits for row `index` of `count`, as an offset either
+ * side of the rail's resting top. Nothing hovered -- index below zero --
+ * rests at 0, and so does a list too short to have a direction.
+ */
+export const planeDrift = (index: number, count: number): number => {
+  if (index < 0 || count <= 1) return 0;
+  return Math.round((index / (count - 1) - 0.5) * PLANE_DRIFT_PX);
+};
+
 export type ProjectsPageProps = {
   projects: Project[];
   onHoverProject?: (id: string | null) => void;
@@ -177,13 +206,16 @@ export const ProjectsPage = ({
       plane={
         <ScreenshotPlane
           alt={preview === null ? '' : preview.title}
-          caption={preview?.product}
           className={cn(PREVIEW, activeId === null && 'opacity-0')}
           src={preview?.imgSrc}
           tilt={-16}
         />
       }
       planeFold={false}
+      planeShift={planeDrift(
+        preview === null ? -1 : projects.indexOf(preview),
+        projects.length,
+      )}
       vignette="sheet"
     >
       <div

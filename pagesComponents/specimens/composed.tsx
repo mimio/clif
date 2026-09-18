@@ -249,7 +249,6 @@ export const composed: Specimen = {
           plane={
             <ScreenshotPlane
               alt="Ubiquiti Local Device Settings"
-              caption="device settings · rgb-split wave shader"
               src="/ubiquiti_settings.webp"
               tilt={-16}
             />
@@ -345,7 +344,6 @@ export const composed: Specimen = {
           plane={
             <ScreenshotPlane
               alt="GoPro Mountain Games Event Map"
-              caption="event map sheet · rgb-split wave shader"
               src="/gopro.webp"
             />
           }

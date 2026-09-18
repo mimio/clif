@@ -151,9 +151,15 @@ describe('viewport', () => {
     expect(forViewport(cameras.hello, 'hello', true).frame).toBe(
       ORBIT_FRAME_MOBILE,
     );
+    // projects CLEARS its frame on a phone rather than swapping it: there
+    // is no rail beside a full-bleed table, so 1g is a plain zoom, and the
+    // padding has to be cleared with it or the desktop frame's offset
+    // rides along on mapbox's transform.
     const projects = forViewport(cameras.projects, 'projects', true);
     expect(projects.zoom).toBe(2.2);
     expect(projects.pitch).toBe(20);
+    expect(projects.frame).toBeNull();
+    expect(projects.padding).toEqual(NO_PADDING);
     const about = forViewport(cameras.about, 'about', true);
     expect(about.zoom).toBe(10.2);
     expect(about.pitch).toBe(55);
@@ -204,6 +210,11 @@ describe('the artboard cameras are their frames', () => {
       viewport: ARTBOARD_MOBILE,
     },
     {
+      name: 'projects on 1b',
+      spec: cameras.projects,
+      viewport: ARTBOARD_DESKTOP,
+    },
+    {
       name: 'the 404 at desktop size',
       spec: cameras.notFound,
       viewport: ARTBOARD_DESKTOP,
@@ -242,8 +253,8 @@ describe('the artboard cameras are their frames', () => {
 
 describe('framing', () => {
   it('leaves a camera with no frame alone', () => {
-    expect(frameCamera(cameras.projects, ARTBOARD_DESKTOP)).toBe(
-      cameras.projects,
+    expect(frameCamera(cameras.about, ARTBOARD_DESKTOP)).toBe(
+      cameras.about,
     );
   });
 
@@ -357,12 +368,18 @@ describe('framing', () => {
       false,
     );
     expect(
-      sameCamera(cameras.projects, bent({ ...NO_PADDING, extra: 1 })),
+      sameCamera(
+        cameras.projects,
+        bent({ ...cameras.projects.padding, extra: 1 }),
+      ),
     ).toBe(false);
     // And a rebuilt-but-equal padding is still the same camera, which is
     // what stops a re-render turning into a camera move.
     expect(
-      sameCamera(cameras.projects, bent({ ...NO_PADDING })),
+      sameCamera(
+        cameras.projects,
+        bent({ ...cameras.projects.padding }),
+      ),
     ).toBe(true);
   });
 

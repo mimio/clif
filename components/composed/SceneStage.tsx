@@ -61,6 +61,16 @@ export type SceneStageProps = {
    * it is nothing, so it is dropped.
    */
   planeFold?: boolean;
+  /**
+   * How far down the rail the plane sits, in CSS pixels either side of its
+   * resting top. The index uses it to track the hovered row; a detail,
+   * which has one capture and no row to track, leaves it at 0.
+   *
+   * It moves the rail rather than the capture because the capture's own
+   * transform is its perspective tilt, and a page that wanted to nudge it
+   * would have to restate that tilt to do it.
+   */
+  planeShift?: number;
   vignette?: StageVignette;
   align?: 'center' | 'top';
   className?: string;
@@ -88,6 +98,19 @@ const INSET_X =
 const PLANE_RAIL =
   'z-10 wide:fixed wide:top-[var(--plane-top)] wide:right-[var(--plane-right)] wide:w-[var(--plane-width)] [&>figure]:w-full! wide:[&>figure]:h-auto! wide:[&>figure]:aspect-[600/380]';
 
+/*
+ * The drift, and why it is `transform` written out rather than
+ * `translate-y-*`. Tailwind's translate utilities set the `translate`
+ * PROPERTY, which `transition-transform` does not cover -- the shift would
+ * jump between rows instead of gliding. Stating the transform means the
+ * transition beside it is the one that runs.
+ *
+ * Only where there is a rail: folded into the column the plane is in flow,
+ * and moving it would open a gap under the pager.
+ */
+const PLANE_DRIFT =
+  'wide:[transform:translateY(var(--plane-shift,0px))] transition-transform duration-[320ms] ease-scene motion-reduce:transition-none';
+
 /** Folded into the column, below the rail's breakpoint. */
 const PLANE_FOLD =
   'max-wide:mt-2 max-wide:[&>figure]:h-[260px]! max-tablet:[&>figure]:h-[200px]!';
@@ -110,6 +133,7 @@ export const SceneStage = ({
   footer,
   plane,
   planeFold = true,
+  planeShift = 0,
   vignette = 'left',
   align = 'center',
   className,
@@ -167,9 +191,15 @@ export const SceneStage = ({
           <div
             className={cn(
               PLANE_RAIL,
+              PLANE_DRIFT,
               planeFold ? PLANE_FOLD : 'max-wide:hidden',
             )}
             data-slot="plane"
+            style={
+              {
+                '--plane-shift': `${String(planeShift)}px`,
+              } as CSSProperties
+            }
           >
             {plane}
           </div>

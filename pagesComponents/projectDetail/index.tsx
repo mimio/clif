@@ -131,11 +131,7 @@ export const ProjectDetailPage = ({
     <SceneStage
       className={COLUMN_FIT}
       plane={
-        <ScreenshotPlane
-          alt={project.title}
-          caption={project.product}
-          src={project.imgSrc}
-        />
+        <ScreenshotPlane alt={project.title} src={project.imgSrc} />
       }
       vignette="sheet"
     >

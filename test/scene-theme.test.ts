@@ -489,6 +489,12 @@ describe('the atmosphere', () => {
    * long way from the constant 0.04 the scene used to send, and they
    * differ from each other by nearly a factor of two -- which is the
    * whole argument for solving per camera.
+   *
+   * projects moved when its globe was framed into the rail rather than
+   * zoomed to 2.6: a smaller sphere subtends a smaller angle, so the same
+   * reach in globe RADII is a narrower fadeout in radians. It used to be
+   * the widest of the four and is now the second narrowest, which is the
+   * solver doing exactly what it is for.
    */
   it('solves a different horizon-blend for each globe', () => {
     const palette = livePalette();
@@ -497,7 +503,7 @@ describe('the atmosphere', () => {
 
     expect(at(cameras.hello, desktop)).toBeCloseTo(0.03215, 5);
     expect(at(cameras.notFound, desktop)).toBeCloseTo(0.02103, 5);
-    expect(at(cameras.projects, desktop)).toBeCloseTo(0.03825, 5);
+    expect(at(cameras.projects, desktop)).toBeCloseTo(0.02016, 5);
 
     // 1f's mobile frame: a smaller sphere subtends a smaller angle, so
     // the same reach in RADII is a much narrower fadeout in radians.

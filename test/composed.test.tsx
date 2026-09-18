@@ -303,6 +303,38 @@ describe('SceneStage', () => {
   });
 
   /*
+   * The drift moves the RAIL, not the capture: the capture's own transform
+   * is its perspective tilt, so a page nudging it directly would have to
+   * restate that tilt. It is a written-out `transform` rather than
+   * `translate-y-*` because Tailwind's translate utilities set the
+   * `translate` property, which `transition-transform` does not cover.
+   */
+  it('offsets the rail by the shift it is given, and glides between them', () => {
+    const { container, rerender } = render(
+      <SceneStage plane={<figure>capture</figure>} planeShift={-48}>
+        body
+      </SceneStage>,
+    );
+    const rail = () =>
+      container.querySelector<HTMLElement>('[data-slot="plane"]');
+
+    expect(rail()?.style.getPropertyValue('--plane-shift')).toBe(
+      '-48px',
+    );
+    expect(rail()).toHaveClass(
+      'wide:[transform:translateY(var(--plane-shift,0px))]',
+      'transition-transform',
+    );
+
+    rerender(
+      <SceneStage plane={<figure>capture</figure>}>body</SceneStage>,
+    );
+    expect(rail()?.style.getPropertyValue('--plane-shift')).toBe(
+      '0px',
+    );
+  });
+
+  /*
    * `center` on a scroll container overflows at BOTH ends and the top end
    * cannot be scrolled back to, which on a long project detail ate the page
    * word. `safe center` centres while it fits and starts at the top when it
@@ -720,21 +752,33 @@ describe('ScreenshotPlane', () => {
       height: '380px',
       transform: 'perspective(1200px) rotateY(-18deg) rotateX(5deg)',
     });
-    expect(container.querySelector('figcaption')).toBeNull();
   });
 
-  it('is the one place the system spends a shadow', () => {
-    const { container } = render(<ScreenshotPlane />);
-    expect(container.querySelector('figure')?.className).toMatch(
+  /*
+   * The border and the caption plate are both gone at the owner's word, so
+   * the shadow is the only thing separating the capture from the ground.
+   * The caption said what the detail's meta grid and the index's hovered
+   * row already say, and `alt` -- which GlitchImage puts on the canvas or
+   * on the fallback image -- was always the accessible name.
+   */
+  it('is a bare capture on a shadow: no border, no caption plate', () => {
+    const { container } = render(
+      <ScreenshotPlane alt="GoPro" src="/gopro.webp" />,
+    );
+    const figure = container.querySelector('figure');
+    expect(figure?.className).toMatch(
       /shadow-\[var\(--shadow-plane\)\]/,
     );
+    expect(figure?.className).not.toMatch(/\bborder\b/);
+    expect(container.querySelector('figcaption')).toBeNull();
+    expect(figure?.textContent).toBe('');
+    expect(screen.getByRole('img', { name: 'GoPro' })).toBeVisible();
   });
 
-  it('takes a source, a caption and a hover tilt', () => {
+  it('takes a source, a box and a hover tilt', () => {
     const { container } = render(
       <ScreenshotPlane
         alt="GoPro"
-        caption="event map sheet"
         className="x"
         height={200}
         src="/gopro.webp"
@@ -742,8 +786,9 @@ describe('ScreenshotPlane', () => {
         width={300}
       />,
     );
-    expect(screen.getByText('event map sheet')).toBeVisible();
     expect(container.querySelector('figure')).toHaveStyle({
+      width: '300px',
+      height: '200px',
       transform: 'perspective(1200px) rotateY(-16deg) rotateX(5deg)',
     });
     // No WebGL in jsdom, so the shader falls back to the plain image.
@@ -794,14 +839,15 @@ describe('the screenshot plane, with a GL context', () => {
     const { container } = render(
       <ScreenshotPlane
         alt="GoPro Mountain Games Event Map"
-        caption="event map sheet"
         src="/gopro.webp"
       />,
     );
 
     // The shader path renders a bare <div> and lets three.js append the
-    // canvas into it, so `alt` had nowhere to land: the figure's entire
-    // text content was the caption, and the capture itself was not there.
+    // canvas into it, so `alt` had nowhere to land: the only text in the
+    // figure was the caption, and the capture itself was not there. The
+    // caption has since gone too, which leaves the canvas as the only
+    // thing in here that can carry a name.
     expect(container.querySelector('img')).toBeNull();
     expect(
       screen.getByRole('img', {
