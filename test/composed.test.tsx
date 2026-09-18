@@ -242,6 +242,59 @@ describe('SceneStage', () => {
   });
 
   /*
+   * PASS-THROUGH IS EVERY BOX THE STAGE OWNS, not just the <main>.
+   *
+   * The stage puts three positioned boxes over the scene -- the landmark
+   * itself, the scrolling column and the footer rail -- and any one of
+   * them left armed is enough to swallow a drag before it reaches the
+   * map. The wash is already `pointer-events-none` at every setting and
+   * stays that way here.
+   *
+   * The column restates it rather than inheriting it because
+   * `pointer-events` is inherited: a pass-through route's own content has
+   * to say `auto` for itself, and a child that does would otherwise make
+   * the whole column catch presses again.
+   */
+  it('lets the pointer through every box it owns when asked', () => {
+    const { container } = render(
+      <SceneStage
+        footer={<p>footer</p>}
+        passThrough
+        vignette="night"
+        word={<h1>word</h1>}
+      >
+        body
+      </SceneStage>,
+    );
+
+    const main = container.querySelector('main');
+    expect(main).toHaveAttribute('data-through', 'true');
+    expect(main).toHaveClass('pointer-events-none');
+    expect(main?.querySelector('.clif-stage-column')).toHaveClass(
+      'pointer-events-none',
+    );
+    expect(screen.getByText('footer').parentElement).toHaveClass(
+      'pointer-events-none',
+    );
+  });
+
+  it('catches presses by default, which is what every other route wants', () => {
+    const { container } = render(
+      <SceneStage footer={<p>footer</p>}>body</SceneStage>,
+    );
+
+    const main = container.querySelector('main');
+    expect(main).toHaveAttribute('data-through', 'false');
+    expect(main).not.toHaveClass('pointer-events-none');
+    expect(main?.querySelector('.clif-stage-column')).not.toHaveClass(
+      'pointer-events-none',
+    );
+    expect(screen.getByText('footer').parentElement).not.toHaveClass(
+      'pointer-events-none',
+    );
+  });
+
+  /*
    * THE RAIL. A stage with no plane is the stage it always was -- that is
    * what keeps hello, about and the 404 out of this -- and a stage with one
    * reserves the space for it whether or not there is an image in it yet.

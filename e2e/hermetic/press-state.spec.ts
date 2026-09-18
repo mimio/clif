@@ -790,10 +790,20 @@ test('a pressed project row deepens its wash', async ({ page }) => {
  * correct on inspection and dead on screen. `scale` is a separate property
  * and the keyframes do not touch it; only a rendered measurement can tell
  * those two builds apart.
+ *
+ * THE SCRUBBER TICK IS NO LONGER ONE OF THEM, and the reason is a route
+ * change rather than a press change. /about was the only page that drew a
+ * scrubber, and the simplified 1e draws none -- the map is that route's
+ * control now -- so there is no production URL left to press a tick on.
+ * The tick's press is unchanged and still covered: Scrubber.tsx carries
+ * it, test/press.test.tsx asserts it, and the specimen board renders it.
+ * What is gone is the browser measurement, because a browser needs a page,
+ * and /specimens is not in the production build (see the README's
+ * Specimens section for why). Put a scrubber back on a route and this
+ * matrix is where it belongs.
  */
 for (const control of [
   { label: 'rail tab', route: '/', name: 'projects' },
-  { label: 'scrubber tick', route: '/about', name: 'NIKE' },
 ] as const) {
   test(`the ${control.label} takes a press`, async ({ page }) => {
     await page.goto(control.route, { waitUntil: 'load' });

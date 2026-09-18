@@ -73,6 +73,32 @@ export type SceneStageProps = {
   planeShift?: number;
   vignette?: StageVignette;
   align?: 'center' | 'top';
+  /**
+   * Lets the pointer through the foreground to the map behind it.
+   *
+   * THE STAGE IS THE REASON /about'S MAP COULD NOT BE DRAGGED. Every
+   * camera but the detail's has `interactive: true` and SceneRoot has
+   * always applied it, so mapbox's drag, scroll-zoom and rotate handlers
+   * were enabled the whole time -- they just never saw an event. This
+   * <main> is `h-full w-full` at z-10 over a scene at z-0, and the column
+   * inside it is `inset-y-0` across the stage insets, so between them
+   * they cover the viewport and swallow every press. Turning the handlers
+   * on again would have changed nothing; this is the flag that matters.
+   *
+   * It is opt-in per route rather than the default because the other
+   * routes DO want to catch a stray press: hello and projects put their
+   * own controls in that column, and a drag begun on a table row that
+   * ended up panning the globe under it would be worse than a globe that
+   * holds still.
+   *
+   * WHAT A PASS-THROUGH ROUTE OWES. Anything in the foreground that must
+   * still take a pointer -- a link, a button, a paragraph a visitor might
+   * want to select -- has to say `pointer-events-auto` for itself, and
+   * the route's content has to be short enough not to need the column's
+   * scroll, because a `pointer-events-none` scroll container cannot be
+   * wheeled. /about is both: four lines of copy and a word.
+   */
+  passThrough?: boolean;
   className?: string;
 };
 
@@ -136,6 +162,7 @@ export const SceneStage = ({
   planeShift = 0,
   vignette = 'left',
   align = 'center',
+  passThrough = false,
   className,
 }: SceneStageProps) => {
   const wash = STAGE_WASHES[vignette];
@@ -148,10 +175,12 @@ export const SceneStage = ({
     <main
       className={cn(
         'relative h-full w-full overflow-hidden',
+        passThrough && 'pointer-events-none',
         className,
       )}
       data-align={align}
       data-rail={railed}
+      data-through={passThrough}
       data-vignette={vignette}
     >
       {wash === null ? null : (
@@ -172,6 +201,12 @@ export const SceneStage = ({
           // `animation` declarations in the same layer and which one won
           // would otherwise be a question about class order.
           railed ? STILL : 'animate-slide-in',
+          // Restated on the column and not left to inherit: it is a
+          // positioned box of its own, and `pointer-events` is inherited
+          // rather than applied down a tree, so a child that sets `auto`
+          // -- which a pass-through route's content must -- would make
+          // the whole column catch presses again.
+          passThrough && 'pointer-events-none',
           INSET_X,
           'pb-[var(--foreground-bottom-mobile)] tablet:pb-[var(--foreground-bottom)]',
           align === 'center'
@@ -209,6 +244,7 @@ export const SceneStage = ({
         <div
           className={cn(
             'absolute bottom-[var(--foreground-bottom-mobile)] z-10 tablet:bottom-[var(--foreground-bottom)]',
+            passThrough && 'pointer-events-none',
             INSET_X,
           )}
         >

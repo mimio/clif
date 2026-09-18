@@ -248,6 +248,7 @@ const optionsFor = (
   selectedStop: null,
   onHoverAnchor: () => {},
   onSelectAnchor: () => {},
+  onSelectStop: () => {},
   ...overrides,
 });
 

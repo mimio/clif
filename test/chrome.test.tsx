@@ -473,9 +473,13 @@ describe('Altimeter behaviour', () => {
   it('reveals the label for keyboard focus too', () => {
     render(<Altimeter active="hello" />);
     fireEvent.focus(rail(/about/));
-    expect(screen.getByText('about')).toHaveStyle({ opacity: '1' });
+    expect(screen.getByText('about me')).toHaveStyle({
+      opacity: '1',
+    });
     fireEvent.blur(rail(/about/));
-    expect(screen.getByText('about')).toHaveStyle({ opacity: '0' });
+    expect(screen.getByText('about me')).toHaveStyle({
+      opacity: '0',
+    });
   });
 
   it('moves every rail on the page from one click', async () => {

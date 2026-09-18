@@ -147,6 +147,15 @@ export const PROJECTS_FRAME: GlobeFrame = {
 };
 
 /**
+ * Where about's projection centre sits, as a fraction of the viewport.
+ *
+ * Horizontally centred, and 0.7 down: the simplified 1e's foreground
+ * clears at 0.404 of the height, and the data is centred in what is left.
+ * See `at` on CameraSpec for the derivation.
+ */
+export const ABOUT_AT: [number, number] = [0.5, 0.7];
+
+/**
  * How long the globe takes to come round once, in seconds.
  *
  * The prototype's `orbit()` states it directly --
@@ -176,12 +185,44 @@ export type CameraSpec = {
    */
   frame: GlobeFrame | null;
   /**
+   * Where the projection centre sits, as a fraction of the viewport, or
+   * null to take `padding` below as stated.
+   *
+   * This is `frame.at` for a camera that has no frame. A GlobeFrame says
+   * two things at once -- where the sphere goes AND how big it is -- and
+   * only the first of them means anything to a pitched mercator camera
+   * like about's: there is no limb to size, but there is still a
+   * projection centre, and a route can still want it somewhere other than
+   * the middle of the glass.
+   *
+   * about is the one route that does. The simplified 1e has no sheet and
+   * no scrubber -- the word at top 64, the copy block at top 160 running
+   * about 204px -- so the foreground clears at y 364 of 900, which is
+   * 0.404 of the height. Centring the data in what is left of the frame
+   * puts it at (0.404 + 1) / 2 = 0.702, which is the 0.7 stated below.
+   *
+   * A RATIO AND NOT A PIXEL COUNT, for the reason ORBIT_FRAME is one: it
+   * is the only form that survives a window that is not 1440x900. A fixed
+   * 360px of top padding would bury the data on a laptop and barely move
+   * it on a tall display.
+   *
+   * A camera may not state both this and `frame`. Where `frame` is set it
+   * carries an `at` of its own and that one wins, so this is null there --
+   * one answer to where the centre goes rather than two that can drift.
+   */
+  at: [number, number] | null;
+  /**
    * Where the projection centre sits, in CSS pixels.
    *
    * Every route states it, including the ones that want none, because
    * mapbox's padding is CAMERA STATE: it persists across an easeTo that
    * does not mention it, so a route that said nothing would inherit the
    * previous route's offset and draw its globe off to one side.
+   *
+   * DERIVED wherever `frame` or `at` is set: it is that ratio resolved at
+   * the artboard viewport, which is what ships when there is no box to
+   * measure, and scene/camera.ts's `frameCamera` recomputes it for the
+   * viewport the visitor actually has.
    */
   padding: CameraPadding;
   /** Terrain exaggeration, or null for a flat globe. */
@@ -259,6 +300,7 @@ export const cameras: Record<SceneId, CameraSpec> = {
     pitch: 0,
     bearing: 0,
     frame: ORBIT_FRAME,
+    at: null,
     // 0.32 * 1440: half of it moves the centre to 0.66 * 1440 = 950.4.
     padding: { top: 0, right: 0, bottom: 0, left: 460.8 },
     terrain: null,
@@ -289,6 +331,7 @@ export const cameras: Record<SceneId, CameraSpec> = {
     pitch: 25,
     bearing: -12,
     frame: PROJECTS_FRAME,
+    at: null,
     // Half of each gap moves the projection centre: left 898.56 puts it at
     // 0.812 * 1440 = 1169.3, bottom 223.2 lifts it to 0.376 * 900 = 338.4.
     padding: { top: 0, right: 0, bottom: 223.2, left: 898.56 },
@@ -304,6 +347,7 @@ export const cameras: Record<SceneId, CameraSpec> = {
     pitch: 60,
     bearing: -20,
     frame: null,
+    at: null,
     padding: NO_PADDING,
     terrain: 1.4,
     fog: 'night',
@@ -318,7 +362,14 @@ export const cameras: Record<SceneId, CameraSpec> = {
     pitch: 60,
     bearing: -12,
     frame: null,
-    padding: NO_PADDING,
+    /*
+     * The data sits below the copy rather than behind it. See `at` on
+     * CameraSpec for where 0.7 comes from; ABOUT_AT is the number, and
+     * the padding on the next line is it resolved at 1440x900.
+     */
+    at: ABOUT_AT,
+    // 0.4 * 900: half of it drops the centre to 0.7 * 900 = 630.
+    padding: { top: 360, right: 0, bottom: 0, left: 0 },
     terrain: 1.4,
     fog: 'night',
     interactive: true,
@@ -333,6 +384,7 @@ export const cameras: Record<SceneId, CameraSpec> = {
     pitch: 0,
     bearing: 0,
     frame: NOT_FOUND_FRAME,
+    at: null,
     padding: { top: 0, right: 0, bottom: 0, left: 460.8 },
     terrain: null,
     fog: 'space',

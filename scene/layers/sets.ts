@@ -290,6 +290,20 @@ export const anchorFromEvent = (event: unknown): AnchorId | null => {
   return isAnchorId(id) ? id : null;
 };
 
+/**
+ * The history stop a map event landed on, or null.
+ *
+ * Validated the same way and for the same reason as the anchor above:
+ * these come back off a tile as whatever was put in the source, and a
+ * stop id that arrived as the string `"4"` would select nothing and say
+ * nothing about why.
+ */
+export const stopFromEvent = (event: unknown): number | null => {
+  const feature = (event as SceneEvent)?.features?.[0];
+  const id = feature?.properties?.id;
+  return typeof id === 'number' && Number.isFinite(id) ? id : null;
+};
+
 /* ---- the project sites ----------------------------------------------- */
 
 /** The three Colorado anchors read as one point at world zoom (6.7). */
@@ -371,6 +385,15 @@ export type LayerSetOptions = {
   onHoverAnchor: (anchor: AnchorId | null) => void;
   /** Called when a site point is clicked. */
   onSelectAnchor: (anchor: AnchorId) => void;
+  /**
+   * Called when a work-history stop is clicked, with its id.
+   *
+   * On /about this is the whole of the route's input: the simplified 1e
+   * draws no scrubber and no pager, so the map IS the control and this is
+   * the wire it runs on. It asks rather than sets -- the selected stop is
+   * a URL -- which is scene/MapProvider's `requestStop`.
+   */
+  onSelectStop: (id: number) => void;
 };
 
 const projectSitesSet = (options: LayerSetOptions): LayerSet => {
@@ -537,7 +560,7 @@ const projectSitesSet = (options: LayerSetOptions): LayerSet => {
 };
 
 const historySet = (options: LayerSetOptions): LayerSet => {
-  const { labels, selectedStop } = options;
+  const { labels, selectedStop, onSelectStop } = options;
   /*
    * A stop id is never -1, so a null selection matches nothing and the
    * route simply has no live element until it names one.
@@ -663,7 +686,40 @@ const historySet = (options: LayerSetOptions): LayerSet => {
         },
       },
     ],
-    interactions: [],
+    /*
+     * THE MAP IS THE ROUTE'S CONTROL, which it was not before: the
+     * scrubber and the pager used to carry the selection and this set
+     * listened for nothing. The simplified 1e has neither, so a click on
+     * a stop is the only pointing device the route has left.
+     *
+     * Both the point and its label are bound. A 3px circle is a small
+     * target and the company name beside it reads as part of the same
+     * thing, so a click that lands on the words selects the stop rather
+     * than falling through to the map and panning it.
+     *
+     * The ring, deliberately, is not: it is drawn only on the stop that
+     * is ALREADY selected, so binding it would add a target that can only
+     * ever re-select what is live -- and it is 11px, so it would sit over
+     * its own point and swallow the one click that matters.
+     */
+    interactions: [
+      {
+        type: 'click',
+        layer: HISTORY_POINTS,
+        handler: ((event: unknown) => {
+          const id = stopFromEvent(event);
+          if (id !== null) onSelectStop(id);
+        }) as SceneListener,
+      },
+      {
+        type: 'click',
+        layer: HISTORY_LABELS,
+        handler: ((event: unknown) => {
+          const id = stopFromEvent(event);
+          if (id !== null) onSelectStop(id);
+        }) as SceneListener,
+      },
+    ],
     paint,
   };
 };

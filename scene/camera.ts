@@ -310,8 +310,20 @@ export const frameCamera = (
   spec: CameraSpec,
   viewport: Viewport | null,
 ): CameraSpec => {
-  const { frame } = spec;
-  if (frame === null || viewport === null) return spec;
+  const { frame, at } = spec;
+  if (viewport === null) return spec;
+  /*
+   * A camera with no frame may still want its projection centre off the
+   * middle of the glass -- about puts the data below the copy -- and that
+   * half of the resolution is the same either way. What a frame adds is
+   * the zoom, which only a sphere has: `radius` is the painted limb, and
+   * a pitched mercator camera has no limb to size.
+   */
+  if (frame === null) {
+    return at === null
+      ? spec
+      : { ...spec, padding: paddingFor(at, viewport) };
+  }
   const axis =
     frame.of === 'width' ? viewport.width : viewport.height;
   return {

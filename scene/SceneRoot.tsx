@@ -24,6 +24,7 @@ import {
   useScene,
   useSceneHover,
   useSceneViewValue,
+  useStopRequest,
 } from 'scene/MapProvider';
 import {
   applyBasemapConfig,
@@ -159,6 +160,7 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
   const { pathname } = useRouter();
   const { camera: declared } = useScene();
   const { hover, setHover } = useSceneHover();
+  const { requestStop } = useStopRequest();
   const view = useSceneViewValue();
   const isMobile = useIsMobile();
   const viewport = useViewportSize();
@@ -223,8 +225,10 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
         onHoverAnchor: setHover,
         // A tap is the touch equivalent of a hover: it lights the city.
         onSelectAnchor: setHover,
+        // /about's only control. The scene asks; the route navigates.
+        onSelectStop: requestStop,
       }),
-    [sceneId, palette, hover, isMobile, view, setHover],
+    [sceneId, palette, hover, isMobile, view, setHover, requestStop],
   );
 
   /*

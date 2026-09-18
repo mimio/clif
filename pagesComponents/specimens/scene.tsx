@@ -252,6 +252,7 @@ const LayerTable = () => {
             selectedStop: null,
             onHoverAnchor: noop,
             onSelectAnchor: noop,
+            onSelectStop: noop,
           });
           return (
             <tr className="border-b border-surface-3" key={id}>

@@ -53,6 +53,7 @@ import MapProvider, {
   useScene,
   useSceneHover,
   useSceneView,
+  useStopRequest,
 } from 'scene/MapProvider';
 import {
   applyTerrain,
@@ -268,6 +269,16 @@ const Hoverer = ({ anchor }: { anchor: 'vail' | null }) => {
   );
 };
 
+/** The map's end of /about's request channel: it asks, and reads back. */
+const Asker = ({ id }: { id: number | null }) => {
+  const { stopRequest, requestStop } = useStopRequest();
+  return (
+    <button onClick={() => requestStop(id)} type="button">
+      {`ask ${stopRequest ?? 'none'}`}
+    </button>
+  );
+};
+
 describe('MapProvider and useSceneCamera', () => {
   it('starts with no camera and nothing hovered', () => {
     render(
@@ -313,6 +324,50 @@ describe('MapProvider and useSceneCamera', () => {
       screen.getAllByRole('button')[0].click();
     });
     expect(screen.getByText('none/clear')).toBeVisible();
+  });
+
+  /*
+   * THE STOP MAILBOX. /about's selection lives in the URL, so the map can
+   * only ask -- the route reads the request, pushes, and posts null back.
+   * That round trip is what lets the same stop be clicked twice, so what
+   * is asserted is that the channel carries a value AND that it can be
+   * emptied again.
+   */
+  it('carries a stop request, and lets it be cleared', async () => {
+    const { rerender } = render(
+      <MapProvider>
+        <Asker id={4} />
+      </MapProvider>,
+    );
+    expect(screen.getByText('ask none')).toBeVisible();
+
+    await act(async () => {
+      screen.getByRole('button').click();
+    });
+    expect(screen.getByText('ask 4')).toBeVisible();
+
+    rerender(
+      <MapProvider>
+        <Asker id={null} />
+      </MapProvider>,
+    );
+    await act(async () => {
+      screen.getByRole('button').click();
+    });
+    expect(screen.getByText('ask none')).toBeVisible();
+  });
+
+  /*
+   * Asking with nothing listening is the specimen harness and this
+   * route's own unit tests, where there is no scene to be clicked and
+   * nothing to answer.
+   */
+  it('asking for a stop outside a provider is a no-op', async () => {
+    render(<Asker id={4} />);
+    await act(async () => {
+      screen.getByRole('button').click();
+    });
+    expect(screen.getByText('ask none')).toBeVisible();
   });
 
   it('still accepts a context value of camera and setCamera alone', () => {
@@ -858,6 +913,7 @@ describe('the persistent map', () => {
       labels: true,
       selectedStop: null,
       onHoverAnchor: vi.fn(),
+      onSelectStop: vi.fn(),
       onSelectAnchor: vi.fn(),
     });
     expect(() => syncLayers(empty, FALLBACK_PALETTE)).not.toThrow();
@@ -935,8 +991,24 @@ describe('the persistent map', () => {
     await navigate('/about');
     expect(FakeMap.last.getLayer(SITE_POINTS)).toBeUndefined();
     expect(FakeMap.last.getLayer(HISTORY_POINTS)).toBeDefined();
-    // Total teardown: the projects hover handlers are gone.
-    expect(FakeMap.last.handlers).toEqual([]);
+    /*
+     * Total teardown: NONE of the projects handlers survived. What is
+     * bound afterwards is about's own two -- the click on a stop point
+     * and the one on its label, which are that route's only control --
+     * so the claim is about the layers the bindings name rather than
+     * about there being none at all.
+     */
+    expect(
+      FakeMap.last.handlers.filter((entry) =>
+        entry.includes(SITE_POINTS),
+      ),
+    ).toEqual([]);
+    expect(FakeMap.last.handlers).toHaveLength(2);
+    expect(
+      FakeMap.last.handlers.every((entry) =>
+        entry.startsWith('click|history-stop-'),
+      ),
+    ).toBe(true);
 
     /*
      * And `/` takes the last route's layers off and adds none of its
