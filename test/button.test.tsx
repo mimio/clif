@@ -64,6 +64,44 @@ describe('Button: press travel', () => {
     },
   );
 
+  /*
+   * THE PRESS IS IMMEDIATE ON THE WAY IN AND EASED ON THE WAY OUT.
+   *
+   * Every press value was already landing on the first frame -- the state
+   * variables are unregistered, so they do not interpolate -- but what they
+   * feed does, and it did so on the same easings the cap settles into hover
+   * with: 70ms of travel, 160ms of ink, 240ms of glyph spring. A click is
+   * shorter than all three, so the cap was never rendered down. The three
+   * durations therefore ride down as properties with the design's values as
+   * their fallbacks, and the press declares them 0s.
+   *
+   * It has to be properties rather than utilities: the plate's `transition`
+   * is an inline declaration, and an inline declaration outranks any class.
+   * The rendered proof, with the fractions it used to reach, is
+   * e2e/hermetic/press-feel.spec.ts.
+   */
+  it('collapses its transition durations while it is pressed', () => {
+    render(<Button glyph="home">go</Button>);
+
+    expect(cap()).toHaveClass('active:[--k-move:0s]');
+    expect(cap()).toHaveClass('active:[--k-hue:0s]');
+    expect(cap()).toHaveClass('active:[--g-move:0s]');
+
+    // ...and nothing declares them at rest, so the release keeps the
+    // prototype's own 70 / 160 / 240ms.
+    const transition = plate().style.transition;
+    expect(transition).toContain('transform var(--k-move, 70ms)');
+    expect(transition).toContain('box-shadow var(--k-move, 70ms)');
+    expect(transition).toContain('color var(--k-hue, 160ms)');
+    expect(transition).toContain('background var(--k-hue, 160ms)');
+    expect(sculpture().style.transition).toContain(
+      'var(--g-move, 240ms)',
+    );
+    expect(prop(cap(), '--k-move')).toBe('');
+    expect(prop(cap(), '--k-hue')).toBe('');
+    expect(prop(cap(), '--g-move')).toBe('');
+  });
+
   it('reserves the hover lift so layout never shifts', () => {
     BUTTON_SIZE_ORDER.forEach((size) => {
       const { unmount } = render(<Button size={size}>go</Button>);
@@ -156,6 +194,16 @@ describe('Button: variants', () => {
     expect(cap()).toHaveClass('border-accent-30');
     expect(cap()).toHaveClass('pointer-fine:hover:bg-accent');
     expect(cap()).toHaveClass('pointer-fine:hover:text-on-accent');
+    /*
+     * The pill's press dims instantly and fades back on transition-hue's
+     * 150ms, for the reason keycap.ts spells out. It is a class rather than
+     * a property here because the pill's transition is a class too --
+     * `active:[transition-duration:0s]` is a class plus a pseudo-class, so
+     * it outranks `transition-hue` on specificity and not on emission
+     * order.
+     */
+    expect(cap()).toHaveClass('active:opacity-70');
+    expect(cap()).toHaveClass('active:[transition-duration:0s]');
     expect(cap()).toHaveClass('data-[disabled=true]:opacity-50');
 
     // Both tones invert the same way; the tone separates them at rest.

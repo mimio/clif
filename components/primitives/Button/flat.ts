@@ -24,7 +24,22 @@ import type { ButtonSize, ButtonStyle, ButtonTone } from './types';
  * at all, because the plate carries no data-disabled.
  *
  * Press has no state in the bundle's code; the readme says it drops to 0.7
- * opacity, and that is what is implemented here.
+ * opacity, and that is what is implemented here -- IMMEDIATELY on the way
+ * in and on `transition-hue`'s own 150ms on the way out, for the reason
+ * keycap.ts's PRESS block sets out at length. The pill had the keycap's
+ * timing problem in a milder form: 150ms linear is longer than most clicks,
+ * and the transition is not even created until the style recalculation
+ * after the pointerdown, so a fast click dimmed the pill by nothing at all
+ * before the pointer came back up.
+ *
+ * The keycap fixes that with a custom property because its `transition` is
+ * an inline declaration that no class can outrank. The pill's is a class
+ * -- `transition-hue`, one class of specificity -- so it takes the simpler
+ * road: `active:[transition-duration:0s]` is a class AND a pseudo-class,
+ * which outranks it on specificity alone. Neither mechanism depends on the
+ * order Tailwind emits anything in, which is the property that matters;
+ * they differ only because the two elements declare their transitions in
+ * different places.
  *
  * ITS BOX IS OVERRIDABLE. The pill paints the wrapper, which is also where
  * a caller's `className` lands, so every visible box property here is a
@@ -78,6 +93,7 @@ const STATES = [
   'bg-transparent',
   'pointer-fine:hover:border-accent pointer-fine:hover:bg-accent pointer-fine:hover:text-on-accent',
   'active:opacity-70',
+  'active:[transition-duration:0s]',
   'data-[disabled=true]:pointer-events-none',
   'data-[disabled=true]:cursor-default',
   'data-[disabled=true]:opacity-50',

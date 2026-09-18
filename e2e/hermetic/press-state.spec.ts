@@ -84,7 +84,12 @@ const MD_SKIRT = BUTTON_SIZES.md.skirt;
 /** The hover lift, which is what the cap is doing when the press lands. */
 const HOVER_LIFT = -1;
 
-/** keycap.ts's TRANSITION, which nothing may lengthen or delay. */
+/**
+ * keycap.ts's TRANSITION, which nothing may lengthen or delay. It is the
+ * duration of the RELEASE: the press-in collapses --k-move to 0s so the
+ * down state lands on the frame the pointer does, and the travel this
+ * number times is the cap coming back up. See press-feel.spec.ts.
+ */
 const TRAVEL_MS = 70;
 
 type Sample = {
@@ -106,6 +111,10 @@ type Trace = {
 declare global {
   interface Window {
     __pressTrace?: Trace;
+    __releaseTiming?: Promise<{
+      duration: number;
+      delay: number;
+    } | null>;
   }
 }
 
@@ -368,7 +377,16 @@ test('a pressed keycap takes the press state on the frame the pointer goes down'
 /*
  * NOTHING IS WAITING ON A CLOCK. The frame counts above are soft because
  * the runner's cadence is; this is the hard version of the same claim,
- * read off the transition the browser actually created for the press.
+ * read off the transition the browser actually created.
+ *
+ * IT IS READ ON THE RELEASE NOW, because the press no longer creates one.
+ * When this test was written both edges ran the same 70ms ease, and 70ms
+ * of ease is longer than a fast click renders -- measured, the cap had not
+ * moved by a pixel inside a 50ms press (press-feel.spec.ts). The press-in
+ * is therefore immediate and the release still eased, so the edge that has
+ * a transition on it is the one coming back up. The claim is unchanged:
+ * the cap's travel is 70ms of easing with no delay in front of it, and
+ * nothing may lengthen or stall it.
  */
 test('the press travel is a 70ms transition with no delay', async ({
   page,
@@ -390,11 +408,22 @@ test('the press travel is a 70ms transition with no delay', async ({
     ),
   ).toBe('0s, 0s, 0s, 0s');
 
-  await page.mouse.down();
-  const timing = await plate.evaluate(
-    (el: Element) =>
-      new Promise<{ duration: number; delay: number } | null>(
-        (resolve) => {
+  /*
+   * Armed inside the page rather than asked for after the await: the
+   * transition being measured is 70ms long and a CDP round trip is not
+   * reliably shorter than that, so the question has to already be waiting
+   * when the pointer comes up.
+   */
+  await plate.evaluate((el: Element) => {
+    window.__releaseTiming = new Promise<{
+      duration: number;
+      delay: number;
+    } | null>((resolve) => {
+      const wrapper = el.closest('.clif-button');
+      if (wrapper === null) throw new Error('the plate has no cap');
+      wrapper.addEventListener(
+        'pointerup',
+        () => {
           requestAnimationFrame(() => {
             const transform = el
               .getAnimations()
@@ -414,9 +443,20 @@ test('the press travel is a 70ms transition with no delay', async ({
             });
           });
         },
-      ),
-  );
+        { once: true },
+      );
+    });
+  });
+
+  await page.mouse.down();
   await page.mouse.up();
+  const timing = await page.evaluate(
+    () =>
+      window.__releaseTiming as Promise<{
+        duration: number;
+        delay: number;
+      } | null>,
+  );
 
   expect(timing).not.toBeNull();
   expect(timing?.duration).toBe(TRAVEL_MS);
