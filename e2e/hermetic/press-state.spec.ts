@@ -680,6 +680,99 @@ for (const control of [
 }
 
 /*
+ * THE PROJECT ROW, and the reason it is measured here rather than trusted
+ * to its class list.
+ *
+ * This row had the defect in its most instructive form. `active:` and
+ * `data-[active=true]:` are both one class plus one simple selector,
+ * Tailwind emits the `data-*` group after the `active:` group, and
+ * `data-active` follows the pointer -- the row's pointerenter reaches the
+ * route through onHoverRow and comes back as activeId. So the press wash
+ * was overruled by the hover wash under another name, on every row a mouse
+ * can reach.
+ *
+ * What makes it worth a browser: this row was ALREADY "fixed" once. The
+ * hover half was scoped `not-active:`, the class list gained exactly the
+ * guard the keycap had, every unit assertion passed, and the rendered
+ * press did not change by one value -- because the guard had gone on the
+ * competitor that was not winning. A rendered measurement is the only
+ * thing that can tell a real fix from that one, and this is the assertion
+ * that would have caught it.
+ */
+test('a pressed project row deepens its wash', async ({ page }) => {
+  await page.goto('/projects', { waitUntil: 'load' });
+
+  const row = page.locator('tr[role="row"][data-active]').first();
+  await expect(row).toBeVisible();
+
+  // The mouse-up is a click on a row that navigates, and the trace would
+  // go with it. Same swallow as arm(), for the same reason.
+  await page.evaluate(() =>
+    window.addEventListener(
+      'click',
+      (event: Event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      },
+      true,
+    ),
+  );
+
+  const alphaOf = async (): Promise<number> =>
+    row.evaluate((el: Element) => {
+      const parts = getComputedStyle(el)
+        .backgroundColor.replace(/[^0-9.,]/g, '')
+        .split(',');
+      return parts.length < 4 ? 0 : Number(parts[3]);
+    });
+
+  await park(page);
+  await settle(row);
+  await pointerOnto(page, row);
+  await settle(row);
+
+  /*
+   * Hovering is what sets data-active, so by the time the press lands the
+   * competing rule is live. Asserted rather than assumed: if the route
+   * ever stopped feeding activeId back, this test would be measuring a
+   * race that no longer exists and would pass for the wrong reason.
+   */
+  await expect(row).toHaveAttribute('data-active', 'true');
+  const hovered = await alphaOf();
+  expect(hovered).toBeGreaterThan(0);
+
+  await page.mouse.down();
+  const pressed = await row.evaluate(
+    (el: Element) =>
+      new Promise<number>((resolve) => {
+        requestAnimationFrame(() => {
+          const parts = getComputedStyle(el)
+            .backgroundColor.replace(/[^0-9.,]/g, '')
+            .split(',');
+          resolve(parts.length < 4 ? 0 : Number(parts[3]));
+        });
+      }),
+  );
+  await page.mouse.up();
+
+  /*
+   * On the FIRST frame, because the row collapses its own 120ms transition
+   * under :active. Against the old build this read the hover alpha exactly
+   * -- not a smaller step, the same number.
+   *
+   * The threshold is a real step rather than "different", because the
+   * value this replaced was accent-12 over accent-07: a 0.05 change that
+   * rendered as nothing. A press has to clear that by a margin to be a
+   * state rather than a rounding difference.
+   */
+  expect(pressed - hovered).toBeGreaterThan(0.1);
+
+  // ...and it lets go, back to the hover wash the pointer is still over.
+  await settle(row);
+  expect(await alphaOf()).toBeCloseTo(hovered, 3);
+});
+
+/*
  * THE CONTROLS THAT HAD NO PRESS STATE AT ALL.
  *
  * The rail tabs and the scrubber ticks were never written a press: measured
