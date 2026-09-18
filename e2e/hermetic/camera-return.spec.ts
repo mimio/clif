@@ -383,16 +383,26 @@ test.describe('the camera comes home', () => {
       'no transform to read after the spin',
     ).not.toBeNull();
     /*
-     * Eastward, and by roughly what two seconds of it should be. Half the
-     * nominal traversal is the floor: it says the globe is turning at
-     * something like the right speed rather than merely not being stuck,
-     * which is the difference this whole change was about -- the old rate
-     * would have moved it a thirtieth of a degree and passed any test
-     * that only asked for "more than before".
+     * Eastward, and by roughly what two seconds of it should be: a floor
+     * well above "not stuck" -- the old rate would have moved it a
+     * thirtieth of a degree and passed any test asking only for "more
+     * than before" -- but below one clamped tick.
+     *
+     * THAT SECOND BOUND IS WHY THE DIVISOR IS NOT 2. The spin step is
+     * `min(now - spinAt, SPIN_MAX_STEP_MS)`, so on a runner whose rAF
+     * stalls for a second or more, ONE tick lands in this window and
+     * contributes exactly SPIN_MAX_STEP_MS * SPIN_DEG_PER_SECOND / 1000
+     * = 1.5 degrees. Half of two seconds' nominal traversal is also
+     * exactly 1.5 degrees, so the old floor sat precisely on the value a
+     * clamped tick produces and `toBeGreaterThan` failed on the boundary
+     * -- observed repeatedly on this box under load, and on a CI runner
+     * driving a WebGL globe it would be a routine red. A third keeps the
+     * claim (this is a turning globe, not a stuck one) and clears the
+     * clamp's quantum by half a degree.
      */
     const turned = (after as Transform).lng - before;
     expect(turned, 'the hello globe is not turning').toBeGreaterThan(
-      (SPIN_DEG_PER_SECOND * waited) / 1_000 / 2,
+      (SPIN_DEG_PER_SECOND * waited) / 1_000 / 3,
     );
   });
 });
