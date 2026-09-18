@@ -295,6 +295,64 @@ test.describe('the map names places in the site voice', () => {
   });
 
   /*
+   * WHAT THE SECOND SOURCE COSTS, AS A NUMBER.
+   *
+   * Drawing the names ourselves means a second copy of
+   * mapbox-streets-v8: Standard's lives inside the `basemap` fragment
+   * and a root layer cannot name it. Mapbox tiles are billed, so the
+   * claim that this is cheap has to be measured rather than asserted.
+   *
+   * MEASURED at 1440x900, over the first eight seconds of each route:
+   *
+   *   /                 0 TileJSON, 0 tiles
+   *   /about            1 TileJSON, 24 tiles
+   *   /projects/gopro   1 TileJSON, 25 tiles
+   *
+   * The zero is the important one and it is the whole reason
+   * LABEL_MIN_ZOOM moved onto the layers' `minzoom`: mapbox clears a
+   * source's `used` flag when every layer reading it is outside its zoom
+   * range, so the spinning globe on `/` and on the 404 -- the two routes
+   * that run for the life of the tab -- never asks for a single one of
+   * these. The cost falls entirely on the two routes that were already
+   * showing labels, and it is a duplicate of a tile set Standard has
+   * fetched for the same viewport anyway.
+   *
+   * The ceilings below are ceilings, not targets. What would fail this
+   * is the source being requested on a globe route at all, or the label
+   * layers losing their zoom floor.
+   */
+  test('the second source is not paid for above the globe', async ({
+    context,
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    const asked: string[] = [];
+    // Registered after the stub, so it is matched first; fallback()
+    // hands the request on to the stub that answers it.
+    await context.route(/mapbox-streets-v8/, (route) => {
+      asked.push(route.request().url());
+      return route.fallback();
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    await page.goto('/', { waitUntil: 'load' });
+    await settleScene(page);
+    await page.waitForTimeout(4_000);
+    expect(
+      asked,
+      'the globe is paying for a tileset it draws nothing from',
+    ).toEqual([]);
+
+    await page.goto('/about', { waitUntil: 'load' });
+    await settleScene(page);
+    await page.waitForTimeout(6_000);
+    const tiles = asked.filter((url) => url.includes('.mvt'));
+    expect(asked.length - tiles.length).toBe(1);
+    expect(tiles.length).toBeGreaterThan(0);
+    expect(tiles.length).toBeLessThan(64);
+  });
+
+  /*
    * The held detail route is the one that had no map type of its own at
    * all -- 1d is terrain and the shader plane -- so every word on it was
    * Standard's, and every word on it was one of the white ones. It is
