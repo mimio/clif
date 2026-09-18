@@ -150,7 +150,6 @@ const CASES: { name: string; tree: ReactElement }[] = [
         rows={[
           {
             id: 'haikumi',
-            index: 0,
             title: 'Haikumi',
             client: 'Haikumi',
             year: 2019,

@@ -48,7 +48,8 @@ import { cn } from 'utils/cn';
  * Growth is scoped to a fine pointer for the same reason as the eye's: the
  * site's `hover` variant is bare `:hover`, so on a touch screen the tap
  * that opened the panel left the mouth stuck 8% oversized. Escape closes
- * the panel (usePopover).
+ * the panel, and so does a press anywhere outside the lips and the panel,
+ * which is what `ref` below is for (usePopover).
  */
 export const COPIED_MS = 1600;
 
@@ -98,7 +99,7 @@ export const ContactMouth = ({
   defaultOpen = false,
   className,
 }: ContactMouthProps) => {
-  const { open, toggle } = usePopover(defaultOpen);
+  const { open, ref, toggle } = usePopover(defaultOpen);
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -114,6 +115,7 @@ export const ContactMouth = ({
   return (
     <div
       className={cn('relative select-none', className)}
+      ref={ref}
       style={{ width: MOUTH_WIDTH, height: MOUTH_HEIGHT }}
     >
       {/*
@@ -168,6 +170,24 @@ export const ContactMouth = ({
           className="absolute right-[58px] bottom-[2px] z-[9] box-border animate-slide-in-card rounded-[16px_16px_6px_16px] bg-surface-2 p-[15px] shadow-[var(--shadow-panel)] select-text [border:var(--border-cta-soft)]"
           style={{ ...PANEL_ENTER, width: PANEL_WIDTH }}
         >
+          {/*
+            The tail, in three parts, and the order is the whole point --
+            the eye's panel carries the same note. The panel's border is
+            30% accent (--border-cta-soft) and so is the tail's edge, and
+            the edge triangle's base sat ON that border: two translucent
+            paints of the same colour, compositing to ~51% in the two
+            shoulders the fill triangle does not reach, which lit a bright
+            1px point at each of the joints where the tail meets the body.
+
+            So the border is ERASED first, across exactly the 14px the edge
+            triangle's base covers, and the edge is drawn over the gap. Now
+            every part of the outline is a single 30% paint and the border
+            butts into the tail's shoulders instead of running under them.
+            The strip is 2px wide to land its outer edge on the border's
+            outer edge; the inner pixel falls on the panel's own padding,
+            which is this colour already.
+          */}
+          <span className="absolute right-[-1px] bottom-[8px] h-[14px] w-[2px] bg-surface-2" />
           <span className="absolute right-[-11px] bottom-[8px] h-0 w-0 border-y-[7px] border-l-[11px] border-y-transparent border-l-accent-30" />
           <span className="absolute right-[-9px] bottom-[9px] h-0 w-0 border-y-[6px] border-l-[10px] border-y-transparent border-l-surface-2" />
 

@@ -55,7 +55,8 @@ import { cn } from 'utils/cn';
  * Picking does NOT close the panel: themes are meant to be compared back to
  * back, and the tokens crossfade over 400ms (tokens/themes.css) while the
  * camera holds position -- the one case where the scene changes without a
- * camera move. Escape closes it (usePopover).
+ * camera move. Escape closes it, and so does a press anywhere outside the
+ * eye and its panel, which is what `ref` below is for (usePopover).
  *
  * THE TRIGGER COMES FIRST IN THE DOM and the panel follows it, even though
  * the panel is drawn above and to the left. Tab order is DOM order: with
@@ -168,7 +169,7 @@ export const ThemeEye = ({
   defaultOpen = false,
   className,
 }: ThemeEyeProps) => {
-  const { open, toggle } = usePopover(defaultOpen);
+  const { open, ref, toggle } = usePopover(defaultOpen);
   // The panel's visible caption names the group, so the name a screen
   // reader announces and the word on screen cannot drift apart.
   const captionId = `clif-theme-${useId().replace(/:/g, '')}`;
@@ -195,6 +196,7 @@ export const ThemeEye = ({
   return (
     <div
       className={cn('relative select-none', className)}
+      ref={ref}
       style={{ width: EYE_SIZE, height: EYE_SIZE }}
     >
       <button
@@ -238,6 +240,24 @@ export const ThemeEye = ({
           className="absolute top-0 right-[56px] z-[9] box-border animate-slide-in-card rounded-[16px_6px_16px_16px] bg-surface-2 p-[13px] shadow-[var(--shadow-panel)] [border:var(--border-cta-soft)]"
           style={{ ...PANEL_ENTER, width: PANEL_WIDTH }}
         >
+          {/*
+            The tail, in three parts, and the order is the whole point.
+            The panel's border is 30% accent (--border-cta-soft) and so is
+            the tail's edge, and the edge triangle's base sat ON that
+            border: two translucent paints of the same colour, compositing
+            to ~51% in the two shoulders the fill triangle does not reach,
+            which lit a bright 1px point at each of the joints where the
+            tail meets the body.
+
+            So the border is ERASED first, across exactly the 14px the edge
+            triangle's base covers, and the edge is drawn over the gap. Now
+            every part of the outline is a single 30% paint and the border
+            butts into the tail's shoulders instead of running under them.
+            The strip is 2px wide to land its outer edge on the border's
+            outer edge; the inner pixel falls on the panel's own padding,
+            which is this colour already.
+          */}
+          <span className="absolute top-[10px] right-[-1px] h-[14px] w-[2px] bg-surface-2" />
           <span className="absolute top-[10px] right-[-11px] h-0 w-0 border-y-[7px] border-l-[11px] border-y-transparent border-l-accent-30" />
           <span className="absolute top-[11px] right-[-9px] h-0 w-0 border-y-[6px] border-l-[10px] border-y-transparent border-l-surface-2" />
 

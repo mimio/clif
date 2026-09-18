@@ -158,7 +158,6 @@ const REDUCED = '(prefers-reduced-motion: reduce)';
 const rows: ProjectRow[] = [
   {
     id: 'gopro',
-    index: 10,
     title: 'GoPro Mountain Games Event Map',
     client: '970 Design',
     city: 'Vail CO',
@@ -168,7 +167,6 @@ const rows: ProjectRow[] = [
   },
   {
     id: 'haikumi',
-    index: 0,
     title: 'Haikumi',
     client: 'Wieden+Kennedy',
     year: 2023,
@@ -242,44 +240,115 @@ describe('SceneStage', () => {
     expect(screen.getByText('about')).toBeVisible();
     expect(screen.getByText('footer')).toBeVisible();
   });
+
+  /*
+   * THE RAIL. A stage with no plane is the stage it always was -- that is
+   * what keeps hello, about and the 404 out of this -- and a stage with one
+   * reserves the space for it whether or not there is an image in it yet.
+   */
+  it('opens no rail, and keeps its travel, without a plane', () => {
+    const { container } = render(<SceneStage>body</SceneStage>);
+    expect(container.querySelector('main')).toHaveAttribute(
+      'data-rail',
+      'false',
+    );
+    expect(container.querySelector('[data-slot="plane"]')).toBeNull();
+    expect(container.querySelector('.clif-stage-column')).toHaveClass(
+      'animate-slide-in',
+    );
+  });
+
+  it('reserves the column against the rail, and stills the column to hold it', () => {
+    const { container } = render(
+      <SceneStage plane={<figure>capture</figure>}>body</SceneStage>,
+    );
+    const column = container.querySelector('.clif-stage-column');
+
+    expect(container.querySelector('main')).toHaveAttribute(
+      'data-rail',
+      'true',
+    );
+    expect(screen.getByText('capture')).toBeVisible();
+    // The cap is the token both project routes read, not a number either
+    // of them keeps.
+    expect(column).toHaveClass('wide:max-w-[var(--reading-max)]');
+    /*
+     * --enter-page fills forwards, so the landed column keeps
+     * `transform: translateY(0)` -- and any transform makes it the
+     * containing block for the rail's fixed box, which lands the plane
+     * inside the column instead of against the viewport.
+     */
+    expect(column).toHaveClass('animate-none');
+    expect(column).not.toHaveClass('animate-slide-in');
+  });
+
+  it('folds the plane into the column below the rail, unless told not to', () => {
+    const { container, rerender } = render(
+      <SceneStage plane={<figure>capture</figure>}>body</SceneStage>,
+    );
+    const rail = () => container.querySelector('[data-slot="plane"]');
+
+    // A detail always has a capture, so below --breakpoint-wide it goes
+    // back into the column rather than disappearing.
+    expect(rail()).toHaveClass('max-wide:mt-2');
+    expect(rail()).not.toHaveClass('max-wide:hidden');
+
+    // The index's is a hover preview, and there is no hover to open it.
+    rerender(
+      <SceneStage plane={<figure>capture</figure>} planeFold={false}>
+        body
+      </SceneStage>,
+    );
+    expect(rail()).toHaveClass('max-wide:hidden');
+  });
+
+  /*
+   * `center` on a scroll container overflows at BOTH ends and the top end
+   * cannot be scrolled back to, which on a long project detail ate the page
+   * word. `safe center` centres while it fits and starts at the top when it
+   * does not.
+   */
+  it('centres safely, so a column taller than the stage keeps its first line', () => {
+    const { container } = render(<SceneStage>body</SceneStage>);
+    expect(container.querySelector('.clif-stage-column')).toHaveClass(
+      '[justify-content:safe_center]',
+    );
+  });
 });
 
 describe('ProjectTable', () => {
-  it('shows the featured columns and pads the index', () => {
+  it('is one column set, and it carries no ordinal', () => {
     render(<ProjectTable rows={rows} />);
-    expect(PROJECT_TABLE_COLUMNS.featured).toEqual([
-      '##',
+    expect(PROJECT_TABLE_COLUMNS).toEqual([
       'project',
       'client',
+      'city',
       'year',
+      'users',
     ]);
     expect(
       screen.getByRole('columnheader', { name: 'project' }),
     ).toBeVisible();
-    expect(screen.getByText('10')).toBeVisible();
-    expect(screen.getByText('00')).toBeVisible();
+    // The ## column and the numbers under it are gone with browse-all.
+    expect(
+      screen.queryByRole('columnheader', { name: '##' }),
+    ).toBeNull();
+    expect(screen.queryByText('10')).toBeNull();
+    expect(screen.queryByText('00')).toBeNull();
   });
 
-  it('keeps the two column models in step with their headings', () => {
-    expect(PROJECT_TABLE_MODEL.featured.map((c) => c.key)).toEqual([
-      'index',
-      'title',
-      'client',
-      'year',
-    ]);
-    expect(PROJECT_TABLE_MODEL.all.map((c) => c.key)).toEqual([
-      'index',
+  it('keeps the column model in step with its headings', () => {
+    expect(PROJECT_TABLE_MODEL.map((column) => column.key)).toEqual([
       'title',
       'client',
       'city',
       'year',
       'users',
     ]);
-    expect(PROJECT_TABLE_COLUMNS.all).toHaveLength(6);
+    expect(PROJECT_TABLE_COLUMNS).toHaveLength(5);
   });
 
   it('reads every cell off the row, with an em dash for the gaps', () => {
-    expect(cellValue(rows[0], 'index')).toBe('10');
     expect(cellValue(rows[0], 'title')).toBe(
       'GoPro Mountain Games Event Map',
     );
@@ -293,7 +362,9 @@ describe('ProjectTable', () => {
 
   it('never gives itself a surface: it lies on the bare map', () => {
     const { container } = render(<ProjectTable rows={rows} />);
-    const root = container.querySelector('[data-columns]');
+    const root = container.querySelector(
+      '[data-slot="project-table"]',
+    );
     expect(root?.className).not.toMatch(
       /\bbg-(surface|sheet)|shadow-|rounded-\[var\(--radius-card/,
     );
@@ -324,8 +395,7 @@ describe('ProjectTable', () => {
       <ProjectTable
         activeId="gopro"
         className="x"
-        columns="all"
-        count="14 of 14"
+        count="14"
         eyebrow="all projects"
         onHoverRow={onHoverRow}
         onSelectRow={onSelectRow}
@@ -421,7 +491,7 @@ describe('ProjectTable', () => {
 
   it('folds the client under the title without repeating the year', () => {
     render(<ProjectTable rows={rows} />);
-    // The mobile grid keeps three columns -- ##, project, year -- so the
+    // The mobile grid keeps two columns -- project and year -- so the
     // fold under the title carries the client alone. It used to carry the
     // year as well, and below 650px the year was on screen twice.
     const fold = screen
@@ -432,17 +502,18 @@ describe('ProjectTable', () => {
     expect(fold.textContent).not.toContain('2017');
   });
 
-  it('scrolls inside itself only in the browse-all state', () => {
-    const { container, rerender } = render(
-      <ProjectTable columns="all" rows={rows} />,
-    );
-    expect(container.querySelector('tbody')?.className).toMatch(
-      /overflow-y-auto/,
-    );
-    rerender(<ProjectTable rows={rows} />);
-    expect(container.querySelector('tbody')?.className).not.toMatch(
-      /overflow-y-auto/,
-    );
+  /*
+   * It always scrolls now, because it always carries the whole catalogue.
+   * `overflow-x: clip` is the other half and the one that matters: a
+   * scroll container whose other axis is `visible` computes it to `auto`,
+   * so the day a row is one pixel too wide the table answers with a
+   * sideways scrollbar instead of a clipped cell.
+   */
+  it('scrolls down inside itself, and can never scroll sideways', () => {
+    const { container } = render(<ProjectTable rows={rows} />);
+    const tbody = container.querySelector('tbody')?.className;
+    expect(tbody).toMatch(/overflow-y-auto/);
+    expect(tbody).toMatch(/overflow-x-clip/);
   });
 });
 
