@@ -59,10 +59,14 @@ import {
  * It also answers three questions that decide the shape of the theming
  * work and that nothing else can:
  *
- *   1. WHICH LAYERS EACH CONFIG KEY DRIVES. A config key reaches a
- *      paint property as a `["config", "<key>"]` expression inside the
- *      fragment, so walking every layer for those references maps key
- *      -> layers exactly, rather than by inference from the key's name.
+ *   1. WHICH LAYERS EACH CONFIG KEY DRIVES, and HOW. A config key
+ *      reaches a paint property as a `["config", "<key>"]` expression
+ *      inside the fragment, so walking every layer for those references
+ *      maps key -> layers exactly, rather than by inference from the
+ *      key's name. The `paint` record then prints the expressions
+ *      themselves for the layers the cartography actually rides on --
+ *      which is the only way to see whether `theme: 'faded'` selects a
+ *      branch that still reads the colour keys.
  *   2. WHICH PAINT PROPERTIES OPT OUT OF THE LUT. mapbox-gl 3.x honours
  *      `<property>-use-theme: "none"` (shouldIgnoreLut in the bundle),
  *      and any property Standard marks that way is one the colour theme
@@ -336,6 +340,68 @@ test.describe('standard cartography', () => {
           ),
           useTheme,
         };
+      }, BASEMAP_IMPORT),
+    );
+
+    /*
+     * THE PAINT EXPRESSIONS OF THE LAYERS THE CARTOGRAPHY DRIVES.
+     *
+     * The reach walk above says WHICH layers a config key is referenced
+     * in. It does not say HOW, and one question turns on that: the app
+     * sends `theme: 'faded'` on its two light themes, `theme` is
+     * referenced by 100 layers, and Standard writes it as a `match` --
+     * so a branch selected by `faded` could perfectly well resolve to a
+     * literal rather than to `["config", "colorWater"]`, which would
+     * mean the authored water colour is dropped on paper and chalk and
+     * nothing anywhere says so.
+     *
+     * `roadsBrightness` (default 0.4, "how bright roads appear in dark
+     * styles") is the same shape of question for the road colours.
+     *
+     * Neither can be answered by reading a schema; both are plainly
+     * readable in the serialized paint. So this prints it, for the
+     * handful of layers that carry the surfaces the globe is actually
+     * made of, and the answer decides whether `theme` stays where it is.
+     */
+    await guard(testInfo, 'paint', () =>
+      page.evaluate((importId) => {
+        const map = window.__SCENE__?.map as unknown as ProbeMap;
+        if (!map)
+          throw new Error('window.__SCENE__ is not published');
+        const layers =
+          map
+            .getStyle()
+            .imports?.find((entry) => entry.id === importId)?.data
+            ?.layers ?? [];
+        /*
+         * The surfaces the globe is made of at world zoom, plus the road
+         * and building fills a z10 route shows. Named rather than swept,
+         * because the whole fragment's paint is far past what an
+         * annotation can carry.
+         */
+        const WANTED = [
+          'land',
+          'landcover',
+          'national-park',
+          'landuse',
+          'water',
+          'water-depth',
+          'waterway',
+          'hillshade',
+          'roads',
+          'roads-case',
+          '2d-building',
+          '3d-building',
+          'admin-0-boundary',
+        ];
+        return Object.fromEntries(
+          layers
+            .filter((layer) => WANTED.includes(layer.id))
+            .map((layer) => [
+              layer.id,
+              { type: layer.type, paint: layer.paint ?? null },
+            ]),
+        );
       }, BASEMAP_IMPORT),
     );
 

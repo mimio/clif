@@ -20,7 +20,7 @@ import {
 } from 'scene/mapbox/instance';
 import SceneRoot from 'scene/SceneRoot';
 import { DEFAULT_STYLE } from 'scene/mapbox/loader';
-import { BASEMAP_IMPORT, resetLutCacheForTests } from 'scene/theme';
+import { BASEMAP_IMPORT } from 'scene/theme';
 import { FakeMap, installMapboxStub } from 'test/fake-mapbox';
 
 vi.mock('next/router', () => ({
@@ -39,7 +39,6 @@ vi.mock('next/router', () => ({
  */
 beforeEach(() => {
   resetMapForTests();
-  resetLutCacheForTests();
   vi.stubGlobal(
     'matchMedia',
     vi.fn(() => ({
@@ -352,10 +351,19 @@ describe('a style that cannot be colour-themed', () => {
       'data-scene-state',
       'live',
     );
-    // And the LUT went nowhere, which is the fact the message asserts.
+    /*
+     * And the theming went nowhere, which is the fact the message
+     * asserts. It used to be the colour LUT that vanished; it is the
+     * cartography now, which makes the failure bigger rather than
+     * smaller -- twelve colours dropped instead of one cube, every one
+     * of them silently.
+     */
     const map = FakeMap.last;
-    expect(map.calls.colorTheme).toEqual([]);
-    expect(map.calls.colorThemeDiscarded.length).toBeGreaterThan(0);
+    expect(map.calls.config).toEqual([]);
+    expect(map.calls.configDiscarded.length).toBeGreaterThan(0);
+    expect(map.calls.configDiscarded.map(([, key]) => key)).toContain(
+      'colorWater',
+    );
   });
 
   it('treats a style that cannot answer the probe as unthemeable', async () => {
@@ -473,17 +481,11 @@ describe('the debug handle', () => {
     expect(handle?.styleUrl()).toBe(DEFAULT_STYLE);
     expect(handle?.colorThemeSupported()).toBe(true);
     /*
-     * Compared against what the map actually received, not just matched
-     * against a base64 shape. The handle reports the LUT the scene
-     * REQUESTED -- mapbox decodes asynchronously and swallows a
-     * rejection into a warnOnce, so nothing can confirm it was worn --
-     * and a regex on its shape would pass just as happily on a value
-     * the map never saw.
+     * The handle used to also report the colour LUT the scene had sent.
+     * There is no LUT: the cartography is setConfigProperty now, and
+     * what the map is wearing is the config record, which the e2e tier
+     * reads back off the real style rather than off this handle.
      */
-    expect(handle?.appliedLut()).toBe(
-      FakeMap.last.calls.colorTheme.at(-1),
-    );
-    expect(handle?.appliedLut()).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
     expect(handle?.lastAction()).not.toBe('none');
     expect(handle?.errors()).toEqual([]);
 

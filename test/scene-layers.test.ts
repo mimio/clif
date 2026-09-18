@@ -111,6 +111,7 @@ const options = (
   selectedStop: null,
   onHoverAnchor: vi.fn(),
   onSelectAnchor: vi.fn(),
+  onSelectStop: vi.fn(),
   ...overrides,
 });
 
@@ -1002,6 +1003,15 @@ const PAPER = makePalette({
   accentSmall: [102, 68, 0],
   sub: [74, 74, 74],
   muted: [110, 110, 110],
+  // The cartography. No layer in this file paints with these -- they are
+  // the basemap's, set through setConfigProperty -- but a Palette is all
+  // fifteen tokens or it is not one.
+  water: [188, 200, 214],
+  green: [198, 206, 190],
+  building: [218, 212, 202],
+  road: [228, 224, 217],
+  roadMajor: [214, 196, 170],
+  boundary: [176, 128, 96],
 });
 
 const PALETTES = [FALLBACK_PALETTE, PAPER];

@@ -17,13 +17,16 @@ name: Visual review
 #
 #   e2e/review/scene.spec.ts    the hard gate. Fails the build. Asserts
 #                               facts: every route is live over the real
-#                               basemap, the colour-theme LUT reached the
-#                               map and mapbox decoded and accepted it,
-#                               every setConfigProperty key is one
-#                               Standard has, and nothing complained.
-#                               These are the two things nobody could
-#                               verify without a real Mapbox account, and
-#                               both fail silently in production.
+#                               basemap, every setConfigProperty key is
+#                               one Standard has, and the basemap import
+#                               is really holding the twelve cartography
+#                               colours the scene sent -- per theme, read
+#                               back through getConfigProperty. That last
+#                               one is what nobody can verify without a
+#                               real Mapbox account, and it fails
+#                               silently in production: a wrong fragment
+#                               or a wrong key is a no-op with no throw,
+#                               no warning and no error event.
 #
 #   e2e/review/capture.spec.ts  the soft record. Cannot fail. Photographs
 #                               the five routes at two sizes and the globe

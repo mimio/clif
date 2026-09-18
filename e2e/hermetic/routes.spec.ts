@@ -73,7 +73,6 @@ test('every route builds exactly one map, and only after its style is ready', as
   expect(record.styleLoaded).toBe(true);
   // Everything behind Style._checkLoaded() throws in the stub until
   // style.load, so a non-empty record is proof the deferral worked.
-  expect(record.colorTheme.length).toBeGreaterThan(0);
   expect(record.config.length).toBeGreaterThan(0);
   expect(record.fog).toBeGreaterThan(0);
 

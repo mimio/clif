@@ -156,33 +156,70 @@ export const CONFIG_FRAGMENT = 'basemap';
  * `Style.setConfigProperty` reads `fragmentStyle.stylesheet.schema` and
  * returns -- silently, with no error event -- when the key is not in it.
  * The schema lives in the style JSON on Mapbox's servers, so there is
- * nothing in the package to derive this from; it is the documented
- * Standard configuration surface, and it is here so that a typo in
- * scene/theme.ts is a test failure rather than a knob that stops working
- * in production with nothing said.
+ * nothing in the package to derive this from, and it is here so that a
+ * typo in scene/theme.ts is a test failure rather than a knob that stops
+ * working in production with nothing said.
+ *
+ * THIS IS NOW A RECORDING RATHER THAN A RECOLLECTION. It used to be
+ * written from the documented configuration surface, which is how it
+ * came to carry `showRoadsAndTransit` -- a key Standard does not have --
+ * and to be missing eight of the colour keys the cartography needs. It
+ * is `Object.keys(map.getSchema('basemap')).sort()` read off the real
+ * style by e2e/review/cartography.spec.ts, which is the one tier that
+ * loads Standard with a real token. 46 keys, verbatim.
+ *
+ * Re-record it from a CARTO `schema` annotation when Mapbox ships a new
+ * Standard, rather than adding a key by hand: a guessed key here is a
+ * guard that passes while production silently drops the call.
  */
 export const STANDARD_CONFIG_SCHEMA = new Set([
-  'lightPreset',
-  'theme',
-  'font',
-  'showPlaceLabels',
-  'showRoadLabels',
-  'showPointOfInterestLabels',
-  'showTransitLabels',
-  'show3dObjects',
-  'showPedestrianRoads',
-  'showAdminBoundaries',
-  'showRoadsAndTransit',
-  'showLandmarkIcons',
-  'colorMotorways',
-  'colorTrunks',
-  'colorRoads',
-  'colorPlaceLabels',
-  'colorGreenspace',
-  'colorWater',
+  'backgroundPointOfInterestLabels',
   'colorAdminBoundaries',
   'colorBuildingHighlight',
   'colorBuildingSelect',
+  'colorBuildings',
+  'colorCommercial',
+  'colorEducation',
+  'colorGreenspace',
+  'colorHdRoads',
+  'colorIndoorLabelHighlight',
+  'colorIndoorLabelSelect',
+  'colorIndustrial',
+  'colorLand',
+  'colorMedical',
+  'colorModePointOfInterestLabels',
+  'colorMotorways',
+  'colorPlaceLabelHighlight',
+  'colorPlaceLabelSelect',
+  'colorPlaceLabels',
+  'colorPointOfInterestLabels',
+  'colorRoadLabels',
+  'colorRoads',
+  'colorTrunks',
+  'colorWater',
+  'densityPointOfInterestLabels',
+  'font',
+  'fuelingStationModePointOfInterestLabels',
+  'lightPreset',
+  'roadsBrightness',
+  'show3dBuildings',
+  'show3dFacades',
+  'show3dLandmarks',
+  'show3dObjects',
+  'show3dTrees',
+  'showAdminBoundaries',
+  'showHdRoads',
+  'showIndoor',
+  'showIndoorLabels',
+  'showLandmarkIconLabels',
+  'showLandmarkIcons',
+  'showPedestrianRoads',
+  'showPlaceLabels',
+  'showPointOfInterestLabels',
+  'showRoadLabels',
+  'showTransitLabels',
+  'theme',
+  'theme-data',
 ]);
 
 /**

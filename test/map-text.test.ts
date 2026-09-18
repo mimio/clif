@@ -11,7 +11,7 @@ import {
 } from 'scene/layers/sets';
 import { basemapConfig } from 'scene/theme';
 import { THEME_IDS, type ThemeId } from 'styles/theme-bootstrap';
-import { basemapColor, basemapRamp } from 'styles/tokens/lut';
+import { basemapSurfaces } from 'styles/tokens/cartography';
 import {
   contrastRatio,
   makePalette,
@@ -30,22 +30,22 @@ import { themeBlock } from 'test/theme-css';
  * The design's contrast ladder is derived once per theme against
  * --surface-ground: every ink in themes.css is a step that clears 4.5:1
  * on the page. Map type does not sit on the page. It sits on land, water
- * and terrain -- which are not tokens at all, but the OUTPUT of the
- * colour theme in styles/tokens/lut.ts -- so nothing in the token layer
- * had ever measured the background map type is actually drawn on, and
- * the first time anybody did was when the owner reported "a TON of text
- * coming through as just white".
+ * and terrain -- so nothing in the token layer had ever measured the
+ * background map type is actually drawn on, and the first time anybody
+ * did was when the owner reported "a TON of text coming through as just
+ * white".
  *
- * This file is that measurement. It answers two questions:
+ * This file is that measurement, and it got easier to make. The surfaces
+ * under a label used to be the OUTPUT of a colour LUT -- a continuous
+ * tone curve nobody could read back to a feature, sampled at three
+ * anchors and hoped to be representative. They are tokens now: Mapbox
+ * Standard names each feature class as a config key, so the six colours
+ * the basemap can put under a glyph are exactly the six a designer set
+ * in themes.css. styles/tokens/cartography.ts's `basemapSurfaces` is
+ * that list, and this measures against all of it rather than a sample.
  *
- *   1. Could Standard's own labels ever have been themed? (No, and the
- *      numbers say why: the LUT is a tone compressor, and on a light
- *      theme its whole output span is about 1.4:1 wide.)
- *   2. Does the type the scene draws instead clear a real bar against
- *      every surface the themed basemap can put under it?
- *
- * Both are asked of all eight themes, against the palettes themes.css
- * actually ships rather than against a fixture.
+ * Asked of all eight themes, against the palettes themes.css actually
+ * ships rather than against a fixture.
  */
 
 const paletteFor = (id: ThemeId): Palette => {
@@ -72,85 +72,36 @@ const AA = 4.5;
 const inkOf = (value: unknown): Rgb =>
   parseRgb(String(value), [-1, -1, -1]);
 
-/* ---- 1. what the colour theme does to Standard's own labels ----------- */
+/* ---- 1. the surfaces, and why Standard is never asked for text -------- */
 
 /*
- * A coarse sweep of the whole 8-bit cube: 4,913 source colours, which is
- * every combination of seventeen levels per channel. It is deliberately
- * not just the greys. The claim being tested is about ANY colour Mapbox
- * could pick for a label under ANY light preset, and a grey ramp would
- * only have tested the ones with no chroma to carry.
+ * THIS SECTION USED TO BE A SWEEP OF 4,913 SOURCE COLOURS.
+ *
+ * The claim it proved was that no colour Mapbox could pick for a label
+ * would ever be legible, because the import's colour LUT was applied to
+ * a symbol layer's TEXT exactly as to a fill -- SymbolBucket.createArrays
+ * hands the bucket's lut to the text binder -- and that LUT was a tone
+ * compressor whose whole output span was about 1.4:1 on a light theme.
+ * Both ends of Standard's range arrived at the same illegible place and
+ * no lightPreset moved them.
+ *
+ * THE LUT IS GONE, SO THE CLAIM IS GONE WITH IT. There is no compressor
+ * any more; Standard's colorPlaceLabels and colorRoadLabels would now do
+ * exactly what they say. Keeping the sweep would be asserting something
+ * that is no longer true about code that no longer exists.
+ *
+ * What survives is the CONSEQUENCE, which was always the point: the site
+ * does not ask Standard for text. That is a design decision now rather
+ * than a workaround -- the scene names places in its own mono, at its own
+ * sizes, and two typefaces naming the same places would be worse than
+ * either alone -- and it is worth pinning precisely because the reason
+ * changed underneath it.
  */
-const SWEEP_STEPS = 16;
 
-const sweep = (): Rgb[] => {
-  const colors: Rgb[] = [];
-  for (let r = 0; r <= SWEEP_STEPS; r += 1) {
-    for (let g = 0; g <= SWEEP_STEPS; g += 1) {
-      for (let b = 0; b <= SWEEP_STEPS; b += 1) {
-        colors.push([
-          (r / SWEEP_STEPS) * 255,
-          (g / SWEEP_STEPS) * 255,
-          (b / SWEEP_STEPS) * 255,
-        ]);
-      }
-    }
-  }
-  return colors;
-};
-
-const SOURCES = sweep();
-
-/** The best a basemap-scope label could possibly do on this theme. */
-const bestBasemapLabel = (palette: Palette): number => {
-  const land = basemapRamp(palette)[1];
-  let best = 1;
-  for (const src of SOURCES) {
-    best = Math.max(
-      best,
-      contrastRatio(basemapColor(palette, src), land),
-    );
-  }
-  return best;
-};
-
-describe("Standard's own labels, after the colour theme", () => {
-  /*
-   * THE TEST THAT WOULD HAVE CAUGHT IT.
-   *
-   * Written as a contrast measurement rather than as "the dusk preset
-   * draws white text", because the colour is not the bug. The bug is
-   * that a label inside the `basemap` fragment is painted through
-   * style.getLut('basemap') -- SymbolBucket hands the bucket's lut to
-   * the TEXT binder exactly as to a fill -- and the ramp that lut
-   * encodes maps every source luma above its floor onto
-   * deep -> land -> highlight. On a light theme those three anchors are
-   * within about 1.4:1 of each other, so both ends of Standard's range
-   * arrive at the same illegible place and no lightPreset moves them.
-   *
-   * This asserts the strongest form of that: over 4,913 source colours,
-   * covering anything Mapbox could possibly choose, the BEST achievable
-   * contrast against the themed land is still under AA.
-   */
-  it.each(LIGHT_THEMES)(
-    'cannot reach AA on %s, whatever colour Mapbox picks',
-    (id) => {
-      const best = bestBasemapLabel(paletteFor(id));
-      expect(
-        best,
-        `a basemap-scope label can reach ${best.toFixed(2)}:1 on ${id}`,
-      ).toBeLessThan(AA);
-    },
-  );
-
-  /*
-   * And the consequence, which is the line of code the measurement
-   * justifies: Standard is never asked for text. Not at a zoom, not on a
-   * theme, not for one category of label and not another.
-   */
+describe('Standard is never asked for text', () => {
   it.each(PALETTES)('%s never asks Standard for text', (_id, p) => {
     for (const fog of ['space', 'dusk', 'night'] as const) {
-      const config = basemapConfig(fog, p.light);
+      const config = basemapConfig(fog, p);
       expect(config.showPlaceLabels).toBe(false);
       expect(config.showRoadLabels).toBe(false);
       expect(config.showPointOfInterestLabels).toBe(false);
@@ -159,60 +110,47 @@ describe("Standard's own labels, after the colour theme", () => {
   });
 
   /*
-   * The control, and the reason the sweep above is not vacuous. Our own
-   * labels are drawn at the ROOT scope, which carries no colour theme --
-   * e2e/hermetic/basemap-theme.spec.ts reads that back off the real
-   * library -- so the same ink that cannot work inside the fragment
-   * works comfortably outside it. If this ever failed alongside the
-   * sweep, the problem would be the palette, not the scope.
+   * The control, and the reason the measurements below are not vacuous:
+   * the ink the scene draws with clears AA against the brightest ground
+   * the basemap can put under it on a light theme, unaided.
    */
-  it.each(LIGHT_THEMES)(
-    'while the same ink, drawn at the root scope, clears AA on %s',
-    (id) => {
-      const palette = paletteFor(id);
-      const land = basemapRamp(palette)[1];
-      expect(
-        contrastRatio(inkOf(palette.subInk), land),
-      ).toBeGreaterThanOrEqual(AA);
-    },
-  );
+  it.each(LIGHT_THEMES)('the scene ink clears AA on %s', (id) => {
+    const palette = paletteFor(id);
+    expect(
+      contrastRatio(inkOf(palette.subInk), palette.land),
+    ).toBeGreaterThanOrEqual(AA);
+  });
 });
 
 /* ---- 2. the ink the scene draws map type in --------------------------- */
 
 /*
- * The themed basemap's three ramp anchors are the full range of ground a
- * label can land on: the deepest water at the bottom, the land beige in
- * the middle, the brightest road fill at the top. Map type is measured
- * against all three.
+ * The six surfaces the basemap can put under a glyph -- water,
+ * greenspace, land, buildings, minor roads, major roads -- are the full
+ * range of ground a label can land on, and map type is measured against
+ * every one of them.
  *
- * WHAT THE NUMBERS ARE, on the shipped palettes (--text-secondary, which
- * is what both label layers resolve to today because themes.css collapses
- * the secondary and muted steps onto one value):
- *
- *   theme   floor   land   top    halo/ink  halo/land
- *   yellow   8.86   3.45   1.45     10.58     3.07
- *   lime     9.47   3.57   1.37     11.37     3.19
- *   rust     9.23   3.78   1.03     11.16     2.95
- *   teal     8.95   3.56   1.35     10.71     3.01
- *   pink     8.75   3.66   1.12     10.43     2.85
- *   cream    9.36   3.58   1.32     11.37     3.18
- *   paper    5.10   6.96   5.76      6.71     1.04
- *   chalk    5.14   7.10   6.16      7.17     1.01
- *
- * Read that honestly: on a LIGHT theme the ink clears AA against every
- * anchor unaided, and the halo does nothing because the ground and the
- * themed land are within 1.05:1. On a DARK theme the ink clears AA
- * against the bottom of the ramp and falls to about 3.5:1 against the
- * land -- the map's ground is far brighter than the page's, which is
- * exactly the gap this file exists to name -- and it is the halo, at
- * 10-11:1 from the ink, that separates a glyph from the land and from
- * the bright road fills at the top of the ramp.
+ * Read the shape of it honestly, because it has not changed even though
+ * the surfaces have. On a LIGHT theme the ink clears AA against every
+ * surface unaided, and the halo does nothing because the ground and the
+ * themed land are within about 1.05:1. On a DARK theme the ink clears AA
+ * comfortably against water and greenspace, and falls under it against
+ * the land and the roads -- the map's ground is far brighter than the
+ * page's, which is exactly the gap this file exists to name -- and it is
+ * the halo, at 10-11:1 from the ink, that separates a glyph from those.
  *
  * So the bar below is stated in the two parts that are actually true,
  * rather than as one number that would have to be fudged: the ink clears
- * AA somewhere on the ramp on every theme, and wherever it does not, the
- * halo clears AA against the ink AND stands clear of the land.
+ * AA somewhere on the map on every theme, and wherever it does not, the
+ * halo clears AA against the ink AND stands clear of the surface.
+ *
+ * THE LADDER IS NOW A DESIGN INPUT RATHER THAN AN OUTPUT, which is worth
+ * saying because it changes what to do when this fails. A LUT produced
+ * its surfaces from Mapbox's, so a contrast failure could only be fixed
+ * by retuning the whole grade; these are six literals in themes.css, so
+ * a failure names the surface and the fix is that one token. The tones
+ * were picked against this contract in the first place -- see the note
+ * on the cartography block in themes.css.
  *
  * A --map-ink token, lifted on dark themes so the ink clears AA against
  * the land unaided, is the obvious next step and is deliberately NOT
@@ -248,6 +186,7 @@ const optionsFor = (
   selectedStop: null,
   onHoverAnchor: () => {},
   onSelectAnchor: () => {},
+  onSelectStop: () => {},
   ...overrides,
 });
 
@@ -348,7 +287,7 @@ describe('every word the scene puts on the map', () => {
   it.each(PALETTES)(
     '%s: clears AA against the basemap, by ink or by halo',
     (_id, palette) => {
-      const ramp = basemapRamp(palette);
+      const ramp = basemapSurfaces(palette);
       for (const text of drawnText(palette)) {
         for (const ground of ramp) {
           const byInk = contrastRatio(text.ink, ground);
@@ -375,9 +314,9 @@ describe('every word the scene puts on the map', () => {
    * halo carrying type that is invisible everywhere.
    */
   it.each(PALETTES)(
-    '%s: the ink alone clears AA against part of the ramp',
+    '%s: the ink alone clears AA against part of the map',
     (_id, palette) => {
-      const ramp = basemapRamp(palette);
+      const ramp = basemapSurfaces(palette);
       for (const text of drawnText(palette)) {
         const best = Math.max(
           ...ramp.map((ground) => contrastRatio(text.ink, ground)),

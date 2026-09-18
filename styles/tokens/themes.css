@@ -118,6 +118,34 @@
   --map-space: #161616;
   --map-land: rgb(89, 75, 64);
   --map-deep: rgb(53, 46, 39);
+
+  /*
+   * THE CARTOGRAPHY, IN THIS THEME'S OWN COLOURS.
+   *
+   * Mapbox Standard names each feature class as a config key, so these
+   * are the colours the basemap is actually painted in -- not a grade
+   * over the colours Mapbox ships. A forest here is not a tinted green;
+   * it is this theme's second accent at the tone a forest wants. See
+   * styles/tokens/cartography.ts for which key each one drives.
+   *
+   * Every surface is a hue this theme already owns -- the primary accent
+   * for water and the line work, the secondary for ground cover -- at a
+   * tone stated as a contrast ratio against --map-land and solved for,
+   * because HSL lightness is not perceptual and a ladder written in it
+   * comes out even on one theme and collapsed on the next. Water is the
+   * exception on a dark theme: it is stated upward from --surface-ground
+   * instead, or it lands darker than the page behind the globe.
+   *
+   * They are literals so they can be overridden one at a time. The
+   * contract they have to keep is in test/map-text.test.ts: map type
+   * clears AA against every one of them, by ink or by halo.
+   */
+  --map-water: rgb(57, 55, 34);
+  --map-green: rgb(81, 64, 49);
+  --map-building: rgb(117, 96, 80);
+  --map-road: rgb(148, 129, 113);
+  --map-road-major: rgb(173, 169, 133);
+  --map-boundary: rgb(134, 126, 58);
   --map-contour: rgba(255, 229, 32, 0.15);
   --map-atmosphere: rgba(255, 229, 32, 0.2);
   --map-atmosphere-2: rgba(255, 138, 43, 0.14);
@@ -286,6 +314,14 @@
   --map-space: #121410;
   --map-land: rgb(65, 84, 72);
   --map-deep: rgb(38, 49, 42);
+
+  /* The cartography, in this theme's own colours: see :root. */
+  --map-water: rgb(50, 54, 36);
+  --map-green: rgb(51, 74, 63);
+  --map-building: rgb(81, 108, 95);
+  --map-road: rgb(113, 141, 127);
+  --map-road-major: rgb(166, 173, 144);
+  --map-boundary: rgb(115, 134, 57);
   --map-contour: rgba(200, 240, 75, 0.15);
   --map-atmosphere: rgba(200, 240, 75, 0.2);
   --map-atmosphere-2: rgba(75, 227, 154, 0.14);
@@ -454,6 +490,14 @@
   --map-space: #17120f;
   --map-land: rgb(86, 78, 62);
   --map-deep: rgb(52, 46, 36);
+
+  /* The cartography, in this theme's own colours: see :root. */
+  --map-water: rgb(68, 48, 40);
+  --map-green: rgb(75, 68, 46);
+  --map-building: rgb(109, 101, 75);
+  --map-road: rgb(141, 134, 107);
+  --map-road-major: rgb(188, 165, 155);
+  --map-boundary: rgb(179, 106, 77);
   --map-contour: rgba(226, 118, 74, 0.15);
   --map-atmosphere: rgba(226, 118, 74, 0.2);
   --map-atmosphere-2: rgba(226, 192, 74, 0.14);
@@ -622,6 +666,14 @@
   --map-space: #0f1417;
   --map-land: rgb(63, 79, 87);
   --map-deep: rgb(36, 47, 53);
+
+  /* The cartography, in this theme's own colours: see :root. */
+  --map-water: rgb(33, 57, 53);
+  --map-green: rgb(48, 70, 79);
+  --map-building: rgb(78, 102, 114);
+  --map-road: rgb(111, 135, 145);
+  --map-road-major: rgb(135, 173, 168);
+  --map-boundary: rgb(58, 135, 124);
   --map-contour: rgba(99, 224, 206, 0.15);
   --map-atmosphere: rgba(99, 224, 206, 0.2);
   --map-atmosphere-2: rgba(79, 184, 232, 0.14);
@@ -790,6 +842,14 @@
   --map-space: #141014;
   --map-land: rgb(87, 72, 68);
   --map-deep: rgb(51, 42, 41);
+
+  /* The cartography, in this theme's own colours: see :root. */
+  --map-water: rgb(67, 45, 56);
+  --map-green: rgb(76, 62, 52);
+  --map-building: rgb(111, 94, 84);
+  --map-road: rgb(143, 126, 116);
+  --map-road-major: rgb(183, 158, 169);
+  --map-boundary: rgb(184, 90, 134);
   --map-contour: rgba(255, 92, 168, 0.15);
   --map-atmosphere: rgba(255, 92, 168, 0.2);
   --map-atmosphere-2: rgba(255, 155, 92, 0.14);
@@ -958,6 +1018,14 @@
   --map-space: #1a1714;
   --map-land: rgb(89, 79, 72);
   --map-deep: rgb(55, 49, 43);
+
+  /* The cartography, in this theme's own colours: see :root. */
+  --map-water: rgb(61, 54, 43);
+  --map-green: rgb(81, 68, 59);
+  --map-building: rgb(116, 101, 90);
+  --map-road: rgb(147, 134, 125);
+  --map-road-major: rgb(179, 171, 156);
+  --map-boundary: rgb(155, 123, 66);
   --map-contour: rgba(245, 217, 168, 0.15);
   --map-atmosphere: rgba(245, 217, 168, 0.2);
   --map-atmosphere-2: rgba(232, 168, 124, 0.14);
@@ -1131,6 +1199,14 @@
   --map-space: #ede9e1;
   --map-land: rgb(246, 241, 233);
   --map-deep: rgb(217, 191, 159);
+
+  /* The cartography, in this theme's own colours: see :root. */
+  --map-water: rgb(203, 163, 159);
+  --map-green: rgb(219, 206, 191);
+  --map-building: rgb(221, 216, 210);
+  --map-road: rgb(230, 227, 225);
+  --map-road-major: rgb(215, 178, 173);
+  --map-boundary: rgb(202, 134, 125);
   --map-contour: rgba(212, 64, 46, 0.22);
   --map-atmosphere: rgba(212, 64, 46, 0.16);
   --map-atmosphere-2: rgba(224, 138, 46, 0.1);
@@ -1303,6 +1379,14 @@
   --map-space: #f1f3f4;
   --map-land: rgb(240, 246, 244);
   --map-deep: rgb(170, 203, 189);
+
+  /* The cartography, in this theme's own colours: see :root. */
+  --map-water: rgb(135, 184, 190);
+  --map-green: rgb(187, 217, 203);
+  --map-building: rgb(212, 222, 217);
+  --map-road: rgb(227, 232, 230);
+  --map-road-major: rgb(151, 197, 204);
+  --map-boundary: rgb(73, 166, 178);
   --map-contour: rgba(14, 124, 139, 0.22);
   --map-atmosphere: rgba(14, 124, 139, 0.16);
   --map-atmosphere-2: rgba(46, 158, 107, 0.1);

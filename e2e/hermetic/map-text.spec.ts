@@ -8,7 +8,7 @@ import {
   MAP_TYPE_SIZE_QUIET,
   PLACE_LABELS,
 } from 'scene/layers/sets';
-import { basemapRamp } from 'styles/tokens/lut';
+import { basemapSurfaces } from 'styles/tokens/cartography';
 import {
   contrastRatio,
   makePalette,
@@ -195,7 +195,7 @@ const assertMapType = async (
 
   const inks = [palette.subInk, palette.mutedInk];
   const halo = haloColor(palette);
-  const ramp = basemapRamp(palette);
+  const ramp = basemapSurfaces(palette);
 
   for (const text of drawn) {
     const at = `${where}: ${text.id}`;

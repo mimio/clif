@@ -104,25 +104,28 @@ describe('project detail (artboard 1d)', () => {
     expect(screen.getByText(/interactive event map/)).toBeVisible();
   });
 
-  it('names the pager caps by row number and title', () => {
+  it('names the pager caps by title, with no ordinal in front of it', () => {
     render(<ProjectDetailPage project={gopro} />);
 
+    // The cap's accessible name is its arrow and its label; what the
+    // ordinal removal is about is the label, which pagerLabel states
+    // exactly a few lines down.
     expect(
-      screen.getByRole('link', { name: /09 sports events finder/ }),
+      screen.getByRole('link', { name: /sports events finder/ }),
     ).toHaveAttribute('href', '/projects/ngwsd');
     expect(
       screen.getByRole('link', {
-        name: /11 3d asset searching and viewing tool/,
+        name: /3d asset searching and viewing tool/,
       }),
     ).toHaveAttribute('href', '/projects/poly');
   });
 
   it('wraps the catalogue at both ends', () => {
     expect(pagerLabel('haikumi')).toBe(
-      '00 haikumi: mobile messaging with care',
+      'haikumi: mobile messaging with care',
     );
     expect(pagerLabel(projectsById.haikumi.prevId)).toBe(
-      '13 birds of prey winter sports event map',
+      'birds of prey winter sports event map',
     );
   });
 
@@ -172,9 +175,31 @@ describe('project detail (artboard 1d)', () => {
     const { container } = render(
       <ProjectDetailPage project={gopro} />,
     );
-    const plane =
-      container.querySelector('figure')?.parentElement?.parentElement;
-    expect(plane?.style.animation).toBe('');
+    const rail = container.querySelector('figure')?.parentElement;
+    expect(rail).toHaveAttribute('data-slot', 'plane');
+    expect(rail?.style.animation).toBe('');
+    expect(rail?.parentElement?.style.animation).toBe('');
+  });
+
+  /*
+   * The column's width is the STAGE's, because the rail the capture sits in
+   * is: /projects and a detail read the same --reading-max, which is the
+   * only way the owner's "they can pretty much exactly match" can survive a
+   * later change to either page. The artboard's hand-held 560px and 470px
+   * blocks are what that replaced.
+   */
+  it('takes its column width from the rail the stage reserves', () => {
+    const { container } = render(
+      <ProjectDetailPage project={gopro} />,
+    );
+    expect(container.querySelector('main')).toHaveAttribute(
+      'data-rail',
+      'true',
+    );
+    expect(container.querySelector('.clif-stage-column')).toHaveClass(
+      'wide:max-w-[var(--reading-max)]',
+    );
+    expect(container.innerHTML).not.toMatch(/max-w-\[(560|470)px\]/);
   });
 });
 

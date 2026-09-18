@@ -40,6 +40,12 @@ const DARK: PaletteColors = {
   accentSmall: [255, 229, 32],
   sub: [193, 193, 193],
   muted: [193, 193, 193],
+  water: [57, 55, 34],
+  green: [81, 64, 49],
+  building: [117, 96, 80],
+  road: [148, 129, 113],
+  roadMajor: [173, 169, 133],
+  boundary: [134, 126, 58],
 };
 
 const LIGHT: PaletteColors = {
@@ -231,14 +237,16 @@ describe('makePalette', () => {
   });
 
   /*
-   * The key is a cache key: scene/theme.ts skips rebuilding the Mapbox
-   * LUT while it holds, and the still canvases skip repainting. So the
+   * The key is a cache key: the theme painter skips a repaint while it
+   * holds, and the still canvases skip repainting with it. So the
    * assertion that matters is the invariant, not the literal string --
    * change any colour the palette carries and the key has to move. The
-   * design bundle keyed on accent|space|land, which is three of nine and
-   * misses --map-deep, a colour buildLut reads.
+   * design bundle keyed on accent|space|land, which is three of fifteen
+   * and misses every one of the six cartographic surfaces: two themes
+   * differing only in --map-water would have shared a key, and the
+   * basemap would have kept the previous theme's ocean.
    */
-  it('changes when any one of the nine colours changes', () => {
+  it('changes when any one of the fifteen colours changes', () => {
     const base = makePalette(DARK);
     for (const name of PALETTE_KEYS) {
       const nudged = makePalette({
@@ -252,8 +260,12 @@ describe('makePalette', () => {
   });
 
   it('carries every colour, in PALETTE_KEYS order', () => {
-    expect(PALETTE_KEYS).toHaveLength(9);
-    expect(makePalette(DARK).key.split('|')).toHaveLength(9);
+    // Nine, before the six cartographic surfaces joined. The count is
+    // asserted rather than derived on purpose: PALETTE_KEYS is what the
+    // repaint cache key is built from, so a token quietly dropping out
+    // of it is a theme change the scene would stop noticing.
+    expect(PALETTE_KEYS).toHaveLength(15);
+    expect(makePalette(DARK).key.split('|')).toHaveLength(15);
     expect(makePalette(DARK).key).toBe(
       PALETTE_KEYS.map((name) => DARK[name].join()).join('|'),
     );

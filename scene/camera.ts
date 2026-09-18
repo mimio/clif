@@ -3,6 +3,7 @@ import {
   type CameraPadding,
   type CameraSpec,
   cameras,
+  NO_PADDING,
   NOT_FOUND_FRAME_MOBILE,
   ORBIT_FRAME_MOBILE,
   SCENE_MOVE_LONG_MS,
@@ -204,7 +205,21 @@ const MOBILE_CAMERAS: Partial<Record<SceneId, Partial<CameraSpec>>> =
       // 0.4 * 844: half of it lifts the centre to 0.3 * 844 = 253.2.
       padding: { top: 0, right: 0, bottom: 337.6, left: 0 },
     },
-    projects: { zoom: 2.2, pitch: 20 },
+    /*
+     * A phone has no rail and no open space beside the table, so the
+     * projects globe is not framed there -- it is 1g's plain zoom, and
+     * the frame has to be CLEARED rather than left to be resolved
+     * against a 390px box. The padding goes with it for the same reason
+     * it is stated on every camera: mapbox keeps it on the transform, so
+     * a mobile camera that said nothing would inherit the desktop
+     * frame's 892.8px offset and push the globe off the right edge.
+     */
+    projects: {
+      frame: null,
+      zoom: 2.2,
+      pitch: 20,
+      padding: NO_PADDING,
+    },
     about: { zoom: 10.2, pitch: 55 },
     notFound: {
       frame: NOT_FOUND_FRAME_MOBILE,
@@ -295,8 +310,20 @@ export const frameCamera = (
   spec: CameraSpec,
   viewport: Viewport | null,
 ): CameraSpec => {
-  const { frame } = spec;
-  if (frame === null || viewport === null) return spec;
+  const { frame, at } = spec;
+  if (viewport === null) return spec;
+  /*
+   * A camera with no frame may still want its projection centre off the
+   * middle of the glass -- about puts the data below the copy -- and that
+   * half of the resolution is the same either way. What a frame adds is
+   * the zoom, which only a sphere has: `radius` is the painted limb, and
+   * a pitched mercator camera has no limb to size.
+   */
+  if (frame === null) {
+    return at === null
+      ? spec
+      : { ...spec, padding: paddingFor(at, viewport) };
+  }
   const axis =
     frame.of === 'width' ? viewport.width : viewport.height;
   return {

@@ -5,6 +5,7 @@ import {
   type Page,
 } from '@playwright/test';
 import { BUTTON_SIZES } from 'components/primitives/Button/sizes';
+import { PRESS_SCALE } from 'components/primitives/press';
 import {
   installMapboxGl,
   stubMapboxNetwork,
@@ -597,6 +598,21 @@ test('a pressed flat pill dims', async ({ page }) => {
  * SMALLER of the two -- so before the fix a press left the ball sitting at
  * its hover size and the press scale was unreachable with a mouse.
  *
+ * TWO THINGS WERE STILL WRONG AFTER THAT FIX, and both are asserted below
+ * because both were invisible to a class assertion.
+ *
+ * The press was 1.02 against a rest of 1.0. Smaller than hover, so the
+ * guard worked -- but a GROWTH from rest, so a tap, a keyboard activation
+ * or any click that beat the hover read as a weak hover. The press now
+ * compresses past rest, and the test starts from REST as well as from
+ * hover, which is the case the old one could not have failed.
+ *
+ * And it ran the 180ms release easing on the way down. Measured on an 80ms
+ * click, the ball travelled 1.08 -> 1.030 and never reached its own target
+ * before reversing: the state was right on the first frame and the
+ * RENDERING of it was not. So the down edge is now immediate, and that is
+ * asserted as a first-frame fact rather than a frame count.
+ *
  * (The old class names are described rather than spelled here on purpose:
  * Tailwind's scanner reads comments, and writing one out emits it into the
  * stylesheet as a live rule with nothing wearing it.)
@@ -625,12 +641,199 @@ for (const control of [
       ),
     ).toBeCloseTo(1.08, 2);
 
+    // From hover: the press is there on the FIRST frame, not eased into
+    // over 180ms. There is no transition on the down edge to wait for, so
+    // this is a first-frame fact and takes no frame budget.
     const trace = await pressAndRelease(page, ball, null);
     expect(
       onsetOf(trace, 'down', (sample) => sample.scale < 1.075),
-    ).toBeLessThanOrEqual(RENDER_FRAMES);
+    ).toBe(1);
     expect(
       Math.min(...held(trace).map((sample) => sample.scale)),
-    ).toBeCloseTo(1.02, 2);
+    ).toBeCloseTo(PRESS_SCALE, 2);
+
+    /*
+     * ...AND A CLICK THAT BEATS THE HOVER, which is the case the 1.02
+     * press could not serve at all.
+     *
+     * The old press sat BETWEEN rest and hover, so it only read as a press
+     * from a settled hover. It is reached here from the other end: the
+     * pointer arrives and the button goes down without waiting out the
+     * 180ms growth, so the ball is somewhere near 1.0 and climbing when
+     * the press lands -- the ordinary way a person clicks something they
+     * are not already pointing at, and the only way a finger or a keyboard
+     * can reach it at all.
+     *
+     * Against every build before this one the ball would have grown, to
+     * 1.02. It has to shrink past rest instead, so the threshold is 1 and
+     * there is nothing marginal about which side of it the old value was
+     * on.
+     */
+    await park(page);
+    await settle(ball);
+    await pointerOnto(page, ball);
+    const unsettled = await pressAndRelease(page, ball, null);
+    expect(
+      Math.min(...held(unsettled).map((sample) => sample.scale)),
+    ).toBeLessThan(1);
+  });
+}
+
+/*
+ * THE PROJECT ROW, and the reason it is measured here rather than trusted
+ * to its class list.
+ *
+ * This row had the defect in its most instructive form. `active:` and
+ * `data-[active=true]:` are both one class plus one simple selector,
+ * Tailwind emits the `data-*` group after the `active:` group, and
+ * `data-active` follows the pointer -- the row's pointerenter reaches the
+ * route through onHoverRow and comes back as activeId. So the press wash
+ * was overruled by the hover wash under another name, on every row a mouse
+ * can reach.
+ *
+ * What makes it worth a browser: this row was ALREADY "fixed" once. The
+ * hover half was scoped `not-active:`, the class list gained exactly the
+ * guard the keycap had, every unit assertion passed, and the rendered
+ * press did not change by one value -- because the guard had gone on the
+ * competitor that was not winning. A rendered measurement is the only
+ * thing that can tell a real fix from that one, and this is the assertion
+ * that would have caught it.
+ */
+test('a pressed project row deepens its wash', async ({ page }) => {
+  await page.goto('/projects', { waitUntil: 'load' });
+
+  const row = page.locator('tr[role="row"][data-active]').first();
+  await expect(row).toBeVisible();
+
+  // The mouse-up is a click on a row that navigates, and the trace would
+  // go with it. Same swallow as arm(), for the same reason.
+  await page.evaluate(() =>
+    window.addEventListener(
+      'click',
+      (event: Event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      },
+      true,
+    ),
+  );
+
+  const alphaOf = async (): Promise<number> =>
+    row.evaluate((el: Element) => {
+      const parts = getComputedStyle(el)
+        .backgroundColor.replace(/[^0-9.,]/g, '')
+        .split(',');
+      return parts.length < 4 ? 0 : Number(parts[3]);
+    });
+
+  await park(page);
+  await settle(row);
+  await pointerOnto(page, row);
+  await settle(row);
+
+  /*
+   * Hovering is what sets data-active, so by the time the press lands the
+   * competing rule is live. Asserted rather than assumed: if the route
+   * ever stopped feeding activeId back, this test would be measuring a
+   * race that no longer exists and would pass for the wrong reason.
+   */
+  await expect(row).toHaveAttribute('data-active', 'true');
+  const hovered = await alphaOf();
+  expect(hovered).toBeGreaterThan(0);
+
+  await page.mouse.down();
+  const pressed = await row.evaluate(
+    (el: Element) =>
+      new Promise<number>((resolve) => {
+        requestAnimationFrame(() => {
+          const parts = getComputedStyle(el)
+            .backgroundColor.replace(/[^0-9.,]/g, '')
+            .split(',');
+          resolve(parts.length < 4 ? 0 : Number(parts[3]));
+        });
+      }),
+  );
+  await page.mouse.up();
+
+  /*
+   * On the FIRST frame, because the row collapses its own 120ms transition
+   * under :active. Against the old build this read the hover alpha exactly
+   * -- not a smaller step, the same number.
+   *
+   * The threshold is a real step rather than "different", because the
+   * value this replaced was accent-12 over accent-07: a 0.05 change that
+   * rendered as nothing. A press has to clear that by a margin to be a
+   * state rather than a rounding difference.
+   */
+  expect(pressed - hovered).toBeGreaterThan(0.1);
+
+  // ...and it lets go, back to the hover wash the pointer is still over.
+  await settle(row);
+  expect(await alphaOf()).toBeCloseTo(hovered, 3);
+});
+
+/*
+ * THE CONTROLS THAT HAD NO PRESS STATE AT ALL.
+ *
+ * The rail tabs and the scrubber ticks were never written a press: measured
+ * against the old build, a trusted pointerdown on any of them changed not
+ * one computed property. The rail is the site's primary navigation, so this
+ * was the single most-pressed control on the site and the one with the
+ * least to say.
+ *
+ * They are checked in a browser rather than by their class lists for the
+ * same reason as everything else in this file -- and for one more that is
+ * specific to them. Both wear `animate-slide-in`, whose keyframes end on
+ * `transform: translateY(0)` under `forwards`, and a filling animation
+ * outranks every normal author declaration for as long as the element
+ * lives. A press written as `transform` would be present in the class list,
+ * correct on inspection and dead on screen. `scale` is a separate property
+ * and the keyframes do not touch it; only a rendered measurement can tell
+ * those two builds apart.
+ *
+ * THE SCRUBBER TICK IS NO LONGER ONE OF THEM, and the reason is a route
+ * change rather than a press change. /about was the only page that drew a
+ * scrubber, and the simplified 1e draws none -- the map is that route's
+ * control now -- so there is no production URL left to press a tick on.
+ * The tick's press is unchanged and still covered: Scrubber.tsx carries
+ * it, test/press.test.tsx asserts it, and the specimen board renders it.
+ * What is gone is the browser measurement, because a browser needs a page,
+ * and /specimens is not in the production build (see the README's
+ * Specimens section for why). Put a scrubber back on a route and this
+ * matrix is where it belongs.
+ */
+for (const control of [
+  { label: 'rail tab', route: '/', name: 'projects' },
+] as const) {
+  test(`the ${control.label} takes a press`, async ({ page }) => {
+    await page.goto(control.route, { waitUntil: 'load' });
+
+    const target = page
+      .getByRole('button', { name: control.name })
+      .first();
+    await expect(target).toBeVisible();
+
+    await park(page);
+    await settle(target);
+    await pointerOnto(page, target);
+    await settle(target);
+
+    const trace = await pressAndRelease(page, target, null);
+    expect(onsetOf(trace, 'down', (sample) => sample.scale < 1)).toBe(
+      1,
+    );
+    expect(
+      Math.min(...held(trace).map((sample) => sample.scale)),
+    ).toBeCloseTo(PRESS_SCALE, 2);
+
+    // And it lets go: a press state that latches is the same complaint
+    // from the other side.
+    await settle(target);
+    expect(
+      await target.evaluate((el: Element) => {
+        const { scale } = getComputedStyle(el);
+        return scale === 'none' ? 1 : parseFloat(scale);
+      }),
+    ).toBeCloseTo(1, 2);
   });
 }

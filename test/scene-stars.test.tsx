@@ -61,16 +61,22 @@ const mapboxSource = (): string =>
 
 const dark = FALLBACK_PALETTE;
 
+/*
+ * Two palettes built off the fallback rather than written out, so a token
+ * added to PaletteColors does not have to be added here as well. One is
+ * the same scope over a paper ground, which is the branch the field turns
+ * itself off on; the other differs only in the two accents, which is what
+ * makes "the stars are theme tokens" a claim a test can separate.
+ */
 const light: Palette = makePalette({
-  accent: [120, 90, 0],
-  accent2: [150, 70, 20],
+  ...dark,
   space: [244, 244, 240],
-  land: [230, 228, 220],
-  deep: [200, 205, 210],
-  body: [20, 20, 20],
-  accentSmall: [90, 70, 0],
-  sub: [70, 70, 70],
-  muted: [110, 110, 110],
+});
+
+const repainted: Palette = makePalette({
+  ...dark,
+  accent: [10, 120, 200],
+  accent2: [200, 40, 120],
 });
 
 /* ---- what mapbox actually draws --------------------------------------- */
@@ -197,7 +203,9 @@ describe('the accent field', () => {
     expect(starInk(dark, first!)).toBe(dark.a(first!.alpha));
     expect(starInk(dark, second!)).toBe(dark.b(second!.alpha));
     // Theme tokens, not fixed yellow: a different palette repaints it.
-    expect(starInk(light, first!)).not.toBe(starInk(dark, first!));
+    expect(starInk(repainted, first!)).not.toBe(
+      starInk(dark, first!),
+    );
   });
 });
 

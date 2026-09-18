@@ -29,8 +29,6 @@ import {
   LABEL_MIN_ZOOM,
   livePalette,
   LOCALITY_MIN_ZOOM,
-  lutFor,
-  resetLutCacheForTests,
   subscribeTheme,
   THEME_DEBOUNCE_MS,
   THEME_EVENT,
@@ -40,11 +38,21 @@ import {
   THEME_IDS,
   type ThemeId,
 } from 'styles/theme-bootstrap';
-import { buildLut } from 'styles/tokens/lut';
+import {
+  BASEMAP_COLOR_KEYS,
+  BASEMAP_COLORS,
+  type BasemapColorKey,
+  basemapColors,
+} from 'styles/tokens/cartography';
 import {
   FALLBACK_PALETTE,
   makePalette,
   type Palette,
+  PALETTE_KEYS,
+  PALETTE_TOKENS,
+  parseRgb,
+  type PaletteColors,
+  type Rgb,
 } from 'styles/tokens/palette';
 import { themeBlock } from 'test/theme-css';
 
@@ -85,33 +93,53 @@ const withColors = (
 const DARK = withColors([255, 229, 32], [22, 22, 22]);
 const LIGHT = withColors([120, 96, 0], [244, 242, 236]);
 
-beforeEach(() => {
-  resetLutCacheForTests();
+/*
+ * The eight palettes themes.css actually ships, read off the stylesheet
+ * rather than stubbed, so the cartography claims below are made about the
+ * colours that are deployed.
+ */
+const THEMED: [ThemeId, Palette][] = THEME_IDS.map((id) => {
+  const block = BLOCKS.get(id) ?? {};
+  return [
+    id,
+    makePalette(
+      Object.fromEntries(
+        PALETTE_KEYS.map((name) => [
+          name,
+          parseRgb(block[PALETTE_TOKENS[name]], [-1, -1, -1]),
+        ]),
+      ) as PaletteColors,
+    ),
+  ];
 });
+
+/** Plain RGB distance. Enough to ask "nearer to which of these two". */
+const distance = (a: Rgb, b: Rgb): number =>
+  Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
 afterEach(() => {
   vi.unstubAllGlobals();
   document.documentElement.removeAttribute('data-theme');
 });
 
-/* ---- tier 2 ----------------------------------------------------------- */
+/* ---- tier 1 ----------------------------------------------------------- */
 
 describe('the basemap config', () => {
   it('maps the three fog presets onto light presets', () => {
-    expect(basemapConfig('space', false).lightPreset).toBe('dawn');
-    expect(basemapConfig('dusk', false).lightPreset).toBe('dusk');
-    expect(basemapConfig('night', false).lightPreset).toBe('night');
+    expect(basemapConfig('space', DARK).lightPreset).toBe('dawn');
+    expect(basemapConfig('dusk', DARK).lightPreset).toBe('dusk');
+    expect(basemapConfig('night', DARK).lightPreset).toBe('night');
   });
 
   it('lifts every preset a step on a light theme', () => {
-    expect(basemapConfig('space', true).lightPreset).toBe('day');
-    expect(basemapConfig('dusk', true).lightPreset).toBe('day');
-    expect(basemapConfig('night', true).lightPreset).toBe('dusk');
+    expect(basemapConfig('space', LIGHT).lightPreset).toBe('day');
+    expect(basemapConfig('dusk', LIGHT).lightPreset).toBe('day');
+    expect(basemapConfig('night', LIGHT).lightPreset).toBe('dusk');
   });
 
   it('fades the basemap under a light theme and not a dark one', () => {
-    expect(basemapConfig('night', true).theme).toBe('faded');
-    expect(basemapConfig('night', false).theme).toBe('default');
+    expect(basemapConfig('night', LIGHT).theme).toBe('faded');
+    expect(basemapConfig('night', DARK).theme).toBe('default');
   });
 
   /*
@@ -122,45 +150,88 @@ describe('the basemap config', () => {
    * names. Both routes above z8 carry the `night` fog, which on the two
    * light themes is Standard's `dusk` preset, whose labels are white.
    *
-   * Lifting the preset does not fix it: the import's colour LUT is
+   * Lifting the preset did not fix it: the import's colour LUT was
    * applied to a symbol layer's text exactly as to a fill, so Standard's
-   * label colour is an input to the terrain ramp -- and the tests below
-   * measure what that ramp does to both ends of the range. There is
-   * nothing to ask Standard for. Every toggle is off, at every zoom, and
-   * the scene draws the names itself.
+   * label colour was an input to a tone compressor whose whole span was
+   * about 1.4:1 on a light theme. The LUT is gone now and the toggles
+   * stay off anyway, because the scene draws the names itself in the
+   * site's own mono. scene/theme.ts has the rest.
    */
   it('never lets Standard draw text, at any zoom or theme', () => {
     for (const fog of ['space', 'dusk', 'night'] as const) {
-      for (const light of [false, true]) {
-        const config = basemapConfig(fog, light);
-        expect(config.showRoadLabels, `${fog}/${light}`).toBe(false);
-        expect(config.showPlaceLabels, `${fog}/${light}`).toBe(false);
-        expect(config.showPointOfInterestLabels).toBe(false);
-        expect(config.showTransitLabels).toBe(false);
-        expect(config.show3dObjects).toBe(false);
+      for (const palette of [DARK, LIGHT]) {
+        const where = `${fog}/${palette.light ? 'light' : 'dark'}`;
+        const config = basemapConfig(fog, palette);
+        expect(config.showRoadLabels, where).toBe(false);
+        expect(config.showPlaceLabels, where).toBe(false);
+        expect(config.showPointOfInterestLabels, where).toBe(false);
+        expect(config.showTransitLabels, where).toBe(false);
+        expect(config.show3dObjects, where).toBe(false);
       }
     }
   });
 
+  /*
+   * AND THE KEYS IT DOES NOT SEND, WHICH IS NOW A DECISION RATHER THAN A
+   * LIMIT. Standard has colorPlaceLabels, colorRoadLabels and
+   * colorPointOfInterestLabels, and with the colour LUT retired they
+   * would work -- the compressor that made them unusable is gone. They
+   * stay unset because the scene draws its own type; this pins that it is
+   * a choice, so a future reader does not "fix" it by wiring them up.
+   */
+  it('sets no colour on text it has turned off', () => {
+    const config: Record<string, unknown> = basemapConfig(
+      'night',
+      DARK,
+    );
+    for (const key of [
+      'colorPlaceLabels',
+      'colorRoadLabels',
+      'colorPointOfInterestLabels',
+      'colorTransitLabels',
+    ]) {
+      expect(config[key], key).toBeUndefined();
+    }
+  });
+
   it('sends every property on the first apply', () => {
-    const config = basemapConfig('space', false);
+    const config = basemapConfig('space', DARK);
     expect(configChanges(config, null)).toHaveLength(
       Object.keys(config).length,
     );
   });
 
   it('sends nothing when nothing changed', () => {
-    const config = basemapConfig('space', false);
+    const config = basemapConfig('space', DARK);
     expect(
-      configChanges(basemapConfig('space', false), config),
+      configChanges(basemapConfig('space', DARK), config),
     ).toEqual([]);
   });
 
+  /*
+   * The cartography does not move with the camera, only with the theme,
+   * so a route change is still one key. That is worth pinning now that
+   * there are twelve colours riding in the same record: a fog change
+   * that re-sent them all would be twelve setConfigProperty calls per
+   * navigation.
+   */
   it('sends only the preset when the route changes its fog', () => {
-    const world = basemapConfig('space', false);
-    const city = basemapConfig('night', false);
+    const world = basemapConfig('space', DARK);
+    const city = basemapConfig('night', DARK);
     expect(configChanges(city, world)).toEqual([
       ['lightPreset', 'night'],
+    ]);
+  });
+
+  /* And the converse: a theme change is the colours and nothing else. */
+  it('sends only the colours when the theme changes under one camera', () => {
+    const before = basemapConfig('night', DARK);
+    const after = basemapConfig(
+      'night',
+      makePalette({ ...FALLBACK_PALETTE, water: [1, 2, 3] }),
+    );
+    expect(configChanges(after, before)).toEqual([
+      ['colorWater', 'rgb(1, 2, 3)'],
     ]);
   });
 
@@ -170,36 +241,84 @@ describe('the basemap config', () => {
   });
 });
 
-/* ---- tier 1 ----------------------------------------------------------- */
+/* ---- the cartography -------------------------------------------------- */
 
-describe('the colour LUT', () => {
-  it('is the cube strip buildLut produces', () => {
-    expect(lutFor(DARK)).toBe(buildLut(DARK));
+describe('the basemap cartography', () => {
+  /*
+   * Every key comes off a token, and off the RIGHT token. The mapping is
+   * data in styles/tokens/cartography.ts precisely so this can walk it
+   * rather than restate it -- a test that listed the pairs again would
+   * agree with a typo.
+   */
+  it('paints every key from the palette token that owns it', () => {
+    const config: Record<string, unknown> = basemapConfig(
+      'night',
+      DARK,
+    );
+    for (const key of BASEMAP_COLOR_KEYS) {
+      const token = DARK[BASEMAP_COLORS[key]];
+      expect(config[key], key).toBe(
+        `rgb(${token[0]}, ${token[1]}, ${token[2]})`,
+      );
+    }
   });
 
-  it('is built once per palette key', () => {
-    const first = lutFor(DARK);
-    expect(lutFor(makePalette({ ...DARK }))).toBe(first);
-  });
-
-  it('is rebuilt when the key changes, and differs per theme', () => {
-    expect(lutFor(LIGHT)).not.toBe(lutFor(DARK));
+  /*
+   * THE COMPLAINT THIS WHOLE CHANGE CAME FROM, AS AN ASSERTION.
+   *
+   * A colour LUT could only grade Mapbox's own cartography, so a forest
+   * on a blue theme came out a blue-tinted GREEN -- the hue survived the
+   * grade because the grade carried a fraction of the source's chroma by
+   * design. A config colour has no source to carry: greenspace is
+   * whatever --map-green says, and --map-green is a shade of the theme.
+   *
+   * Stated as "no surface is nearer Mapbox's own hue for that class than
+   * it is to the theme's own tokens", because "is blue" is not a thing a
+   * test can ask. Standard's defaults are the ones the review record read
+   * off the real style.
+   */
+  it('takes no hue from Mapbox for any surface', () => {
+    const MAPBOX_DEFAULTS: Record<string, Rgb> = {
+      // hsl(115, 60%, 84%) -- Standard's greenspace
+      colorGreenspace: [186, 240, 178],
+      // hsl(200, 100%, 80%) -- Standard's water
+      colorWater: [153, 221, 255],
+      // hsl(20, 20%, 95%) -- Standard's land
+      colorLand: [244, 240, 238],
+    };
+    for (const [id, palette] of THEMED) {
+      const config = basemapColors(palette);
+      for (const [key, mapbox] of Object.entries(MAPBOX_DEFAULTS)) {
+        const ours = parseRgb(
+          config[key as BasemapColorKey],
+          [-1, -1, -1],
+        );
+        const own = Math.min(
+          ...PALETTE_KEYS.map((name) =>
+            distance(ours, palette[name]),
+          ),
+        );
+        expect(
+          distance(ours, mapbox),
+          `${id} ${key} is nearer Mapbox's colour than its own theme's`,
+        ).toBeGreaterThan(own);
+      }
+    }
   });
 
   /*
    * The point of the whole tier: eight themes must produce eight
    * different basemaps. If two of these collided the globe would simply
-   * not retheme, and nothing else in the app would say so.
+   * not retheme, and nothing else in the app would say so. It used to be
+   * eight distinct LUT strips; it is eight distinct colour records now,
+   * which is the same claim about the same thing.
    */
-  it('produces a distinct LUT for all eight themes', () => {
-    stubThemedStyles();
-    const luts = new Map<ThemeId, string>();
-    for (const id of THEME_IDS) {
-      applyTheme(id);
-      resetLutCacheForTests();
-      luts.set(id, lutFor(livePalette()));
+  it('produces a distinct cartography for all eight themes', () => {
+    const seen = new Map<ThemeId, string>();
+    for (const [id, palette] of THEMED) {
+      seen.set(id, JSON.stringify(basemapColors(palette)));
     }
-    expect(new Set(luts.values()).size).toBe(THEME_IDS.length);
+    expect(new Set(seen.values()).size).toBe(THEME_IDS.length);
   });
 
   it('follows the live data-theme attribute', () => {
@@ -276,13 +395,16 @@ describe('the theme painter', () => {
     expect(paint).toHaveBeenCalledTimes(1);
   });
 
-  it('hands the paint callback the palette and its LUT', () => {
+  it('hands the paint callback the live palette', () => {
     const paint = vi.fn();
     createThemePainter(paint).request();
     vi.runAllTimers();
-    const [palette, lut] = paint.mock.calls[0];
+    const [palette] = paint.mock.calls[0];
     expect(palette.key).toBe(livePalette().key);
-    expect(lut).toBe(buildLut(palette));
+    // It used to be handed a prebuilt LUT alongside. Nothing is prebuilt
+    // now: the palette IS the payload, and the scene pass turns it into
+    // setConfigProperty calls.
+    expect(paint.mock.calls[0]).toHaveLength(1);
   });
 
   it('refuses to repaint when the palette has not moved', () => {
@@ -291,7 +413,8 @@ describe('the theme painter', () => {
     painter.request();
     vi.runAllTimers();
     // What an unrelated attribute write, or re-picking the live theme,
-    // looks like. A repaint here would reload every tile for nothing.
+    // looks like. A repaint here would re-send every colour key for
+    // nothing -- and, before the LUT was retired, reload every tile.
     painter.request();
     vi.runAllTimers();
     expect(paint).toHaveBeenCalledTimes(1);
@@ -307,7 +430,9 @@ describe('the theme painter', () => {
     painter.request();
     vi.runAllTimers();
     expect(paint).toHaveBeenCalledTimes(2);
-    expect(paint.mock.calls[0][1]).not.toBe(paint.mock.calls[1][1]);
+    expect(paint.mock.calls[0][0].key).not.toBe(
+      paint.mock.calls[1][0].key,
+    );
   });
 
   it('flushes a pending repaint for the first paint', () => {
@@ -444,12 +569,15 @@ describe('the atmosphere', () => {
   });
 
   /*
-   * The fog colours are read straight off the theme's tokens, so the
-   * colour-theme LUT -- which exists to map MAPBOX'S colours into this
-   * palette -- must not be applied to them a second time. mapbox honours
-   * that only for the exact string `none`, per fog colour, and
-   * `drawAtmosphereGlow` reads it off the ROOT scope, which Mapbox
-   * Standard themes and the stub did not. See the note on FogOptions.
+   * The fog colours are read straight off the theme's tokens, so a colour
+   * theme -- whose job is to map MAPBOX'S colours into this palette --
+   * must not be applied to them a second time. mapbox honours that only
+   * for the exact string `none`, per fog colour, and
+   * `drawAtmosphereGlow` reads it off the ROOT scope. The site sets no
+   * colour theme on either scope now, and the review record says
+   * Standard's root carries none either, so these three keys currently
+   * guard a case production does not present -- they are free and
+   * correct either way. See the note on FogOptions.
    */
   it('keeps the colour theme off all three fog colours', () => {
     for (const id of THEME_IDS) {
@@ -489,6 +617,12 @@ describe('the atmosphere', () => {
    * long way from the constant 0.04 the scene used to send, and they
    * differ from each other by nearly a factor of two -- which is the
    * whole argument for solving per camera.
+   *
+   * projects moved when its globe was framed into the rail rather than
+   * zoomed to 2.6: a smaller sphere subtends a smaller angle, so the same
+   * reach in globe RADII is a narrower fadeout in radians. It used to be
+   * the widest of the four and is now the second narrowest, which is the
+   * solver doing exactly what it is for.
    */
   it('solves a different horizon-blend for each globe', () => {
     const palette = livePalette();
@@ -497,7 +631,7 @@ describe('the atmosphere', () => {
 
     expect(at(cameras.hello, desktop)).toBeCloseTo(0.03215, 5);
     expect(at(cameras.notFound, desktop)).toBeCloseTo(0.02103, 5);
-    expect(at(cameras.projects, desktop)).toBeCloseTo(0.03825, 5);
+    expect(at(cameras.projects, desktop)).toBeCloseTo(0.02016, 5);
 
     // 1f's mobile frame: a smaller sphere subtends a smaller angle, so
     // the same reach in RADII is a much narrower fadeout in radians.

@@ -1,9 +1,17 @@
 # clif
 
 Clifton Campbell's personal site. One globe, three routes: `hello`,
-`projects` and `about`. The scene is a single persistent Mapbox map mounted
-behind the whole app; changing route moves the camera rather than rebuilding
-anything.
+`projects` and `about` — the last of which a visitor reads as **about me**;
+the id, the path and the scene keep the shorter name. The scene is a single
+persistent Mapbox map mounted behind the whole app; changing route moves the
+camera rather than rebuilding anything.
+
+On `/about` the map is also the route's control. The stage passes the
+pointer through to it (`SceneStage`'s `passThrough`), so the camera is the
+visitor's to drag and zoom, and clicking a work-history stop drives the copy
+above it rather than moving the camera. The other two routes keep the press:
+their own controls live in the foreground, and a drag begun on a table row
+must not pan the globe under it.
 
 Built with Next.js (Pages Router, Turbopack), React, TypeScript, Tailwind
 CSS, mapbox-gl and three.js. Tested with Vitest and Playwright. Deployed on
@@ -34,6 +42,10 @@ Five layers. Each may import the ones below it, plus `content/` and
 | L0    | `styles/`                 | Design tokens, the type faces, the theme id     |
 | L1    | `components/primitives/`  | Text PageWord Button Glyph Icon Pill Chip Rule  |
 | L2    | `components/composed/`    | SceneStage ProjectTable Sheet Scrubber Pager …  |
+
+`Sheet` and `Scrubber` are still part of the system and still specimen'd and
+tested, but no route renders them since `/about` was simplified: they are
+the panel and the timeline rail that route used to carry.
 | L3    | `components/chrome/`      | Altimeter ThemeEye ContactMouth CoordPill       |
 | L4    | `pagesComponents/<route>/`| One component per route                         |
 | L4    | `pages/`                  | Data, composition and one `useSceneCamera()`    |
@@ -64,6 +76,7 @@ Outside the stack:
   The lower layers and the leaves may not touch it. Only `scene/` may import
   `scene/mapbox/**`, which is the one place mapbox-gl is loaded, lazily and
   only when a token exists.
+
   One thing `scene/` draws is not on the map at all: `scene/StarField.tsx`
   paints the accent stars as an SVG over the canvas, because mapbox's own
   star field takes an intensity and no colour, and nothing in a style can
@@ -195,21 +208,39 @@ Variables for Production, Preview and Development.
   this site can theme.
 
   The eight themes are applied at runtime rather than baked into a style, and
-  the whole of that mechanism is addressed to Standard's `basemap` import:
-  `setImportColorTheme('basemap', …)` for the colour LUT and
-  `setConfigProperty('basemap', …)` for the light preset and the label
-  toggles. mapbox-gl answers both calls on a style that has no such import by
-  returning — no throw, no warning, no error event — so a site pointed at any
-  other style comes up looking entirely healthy and wears none of its themes.
+  the whole of that mechanism is addressed to Standard's `basemap` import
+  through `setConfigProperty('basemap', …)` — the light preset and the label
+  toggles, and the **cartography**: one colour key per feature class
+  (`colorWater`, `colorGreenspace`, `colorLand`, the roads, the buildings,
+  the boundaries), each set straight from that theme's `--map-*` tokens.
+  mapbox-gl answers a call on a style that has no such import by returning —
+  no throw, no warning, no error event — so a site pointed at any other style
+  comes up looking entirely healthy and wears none of its themes.
+
+  There used to be a colour LUT above all that, a 3D cube handed to
+  `setImportColorTheme('basemap', …)` that re-graded every basemap pixel. It
+  is gone. A grade sees a pixel value rather than a feature, so it could tint
+  Mapbox's cartography but never re-author it — on a blue theme a forest came
+  out a blue-tinted *green*. It was also the expensive tier: mapbox-gl
+  reloads every visible tile when an import's colour theme changes, by
+  design, and `setConfigProperty` reloads none, so switching themes got
+  dramatically cheaper as a side effect. `styles/tokens/cartography.ts` has
+  the measurement that retired it, including why a cube and the colour keys
+  cannot both be primary.
 
   Every one of those label toggles is **off**, and the site draws the place
-  names itself from `mapbox://mapbox.mapbox-streets-v8` instead. That is not a
-  preference: the colour LUT is applied to a symbol layer's text exactly as to
-  a fill, so Standard's label colour is an input to the theme's terrain ramp
-  rather than something the site can choose — on a light theme the whole ramp
-  spans about 1.4:1, and every colour Mapbox could pick lands inside it.
-  `scene/theme.ts`'s `basemapConfig` has the derivation and
+  names itself from `mapbox://mapbox.mapbox-streets-v8` instead. That started
+  as a workaround — the colour LUT was applied to a symbol layer's text
+  exactly as to a fill, so Standard's label colour was an input to a tone
+  compressor spanning about 1.4:1 on a light theme — and it is a choice now
+  that the LUT is gone and `colorPlaceLabels` would work: the map is set in
+  the site's own mono, and two typefaces naming the same places is worse than
+  either alone. `scene/theme.ts`'s `basemapConfig` has the derivation and
   `test/map-text.test.ts` has the measurement, per theme.
+
+  The `--map-*` tokens live in `styles/tokens/themes.css`, one block per
+  theme, as literals a designer can move one at a time. `/specimens` renders
+  all eight side by side.
 
   That is not hypothetical: this variable is inlined at build time, so a value
   left on the Vercel project from the old hand-maintained

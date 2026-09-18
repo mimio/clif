@@ -53,6 +53,7 @@ import MapProvider, {
   useScene,
   useSceneHover,
   useSceneView,
+  useStopRequest,
 } from 'scene/MapProvider';
 import {
   applyTerrain,
@@ -69,7 +70,6 @@ import { globeLimbAngle } from 'scene/globe';
 import {
   horizonBlendFor,
   livePalette,
-  resetLutCacheForTests,
   THEME_EVENT,
 } from 'scene/theme';
 import useSceneCamera from 'scene/useSceneCamera';
@@ -82,6 +82,7 @@ import {
   useViewportSize,
 } from 'scene/useViewport';
 import { applyTheme, THEME_IDS } from 'styles/theme-bootstrap';
+import { BASEMAP_COLOR_KEYS } from 'styles/tokens/cartography';
 import { FALLBACK_PALETTE } from 'styles/tokens/palette';
 import {
   CONFIG_FRAGMENT,
@@ -95,6 +96,19 @@ import {
   styleMethodsGuardedInMapboxGl,
 } from 'test/fake-mapbox';
 import { themeBlock } from 'test/theme-css';
+
+/**
+ * The cartography half of what the scene sent, in order.
+ *
+ * Every setConfigProperty the scene makes lands in one list, structural
+ * and cartographic together, because that is how it sends them -- one
+ * diff, one loop. Filtering by the colour keys is what separates "the
+ * route changed its light preset" from "the theme changed the map".
+ */
+const colorConfig = (map: FakeMap): [string, string, unknown][] =>
+  map.calls.config.filter(([, key]) =>
+    (BASEMAP_COLOR_KEYS as string[]).includes(key),
+  );
 
 const pathname = vi.hoisted(() => ({ current: '/' }));
 
@@ -176,7 +190,6 @@ const matchMediaStub = (truthy: string[]) => {
 beforeEach(() => {
   pathname.current = '/';
   resetMapForTests();
-  resetLutCacheForTests();
   applyTheme('yellow');
   // Restored per test, because unstubAllGlobals below would otherwise
   // drop the one test/setup.ts installs for the whole file.
@@ -268,6 +281,16 @@ const Hoverer = ({ anchor }: { anchor: 'vail' | null }) => {
   );
 };
 
+/** The map's end of /about's request channel: it asks, and reads back. */
+const Asker = ({ id }: { id: number | null }) => {
+  const { stopRequest, requestStop } = useStopRequest();
+  return (
+    <button onClick={() => requestStop(id)} type="button">
+      {`ask ${stopRequest ?? 'none'}`}
+    </button>
+  );
+};
+
 describe('MapProvider and useSceneCamera', () => {
   it('starts with no camera and nothing hovered', () => {
     render(
@@ -313,6 +336,50 @@ describe('MapProvider and useSceneCamera', () => {
       screen.getAllByRole('button')[0].click();
     });
     expect(screen.getByText('none/clear')).toBeVisible();
+  });
+
+  /*
+   * THE STOP MAILBOX. /about's selection lives in the URL, so the map can
+   * only ask -- the route reads the request, pushes, and posts null back.
+   * That round trip is what lets the same stop be clicked twice, so what
+   * is asserted is that the channel carries a value AND that it can be
+   * emptied again.
+   */
+  it('carries a stop request, and lets it be cleared', async () => {
+    const { rerender } = render(
+      <MapProvider>
+        <Asker id={4} />
+      </MapProvider>,
+    );
+    expect(screen.getByText('ask none')).toBeVisible();
+
+    await act(async () => {
+      screen.getByRole('button').click();
+    });
+    expect(screen.getByText('ask 4')).toBeVisible();
+
+    rerender(
+      <MapProvider>
+        <Asker id={null} />
+      </MapProvider>,
+    );
+    await act(async () => {
+      screen.getByRole('button').click();
+    });
+    expect(screen.getByText('ask none')).toBeVisible();
+  });
+
+  /*
+   * Asking with nothing listening is the specimen harness and this
+   * route's own unit tests, where there is no scene to be clicked and
+   * nothing to answer.
+   */
+  it('asking for a stop outside a provider is a no-op', async () => {
+    render(<Asker id={4} />);
+    await act(async () => {
+      screen.getByRole('button').click();
+    });
+    expect(screen.getByText('ask none')).toBeVisible();
   });
 
   it('still accepts a context value of camera and setCamera alone', () => {
@@ -858,6 +925,7 @@ describe('the persistent map', () => {
       labels: true,
       selectedStop: null,
       onHoverAnchor: vi.fn(),
+      onSelectStop: vi.fn(),
       onSelectAnchor: vi.fn(),
     });
     expect(() => syncLayers(empty, FALLBACK_PALETTE)).not.toThrow();
@@ -935,8 +1003,24 @@ describe('the persistent map', () => {
     await navigate('/about');
     expect(FakeMap.last.getLayer(SITE_POINTS)).toBeUndefined();
     expect(FakeMap.last.getLayer(HISTORY_POINTS)).toBeDefined();
-    // Total teardown: the projects hover handlers are gone.
-    expect(FakeMap.last.handlers).toEqual([]);
+    /*
+     * Total teardown: NONE of the projects handlers survived. What is
+     * bound afterwards is about's own two -- the click on a stop point
+     * and the one on its label, which are that route's only control --
+     * so the claim is about the layers the bindings name rather than
+     * about there being none at all.
+     */
+    expect(
+      FakeMap.last.handlers.filter((entry) =>
+        entry.includes(SITE_POINTS),
+      ),
+    ).toEqual([]);
+    expect(FakeMap.last.handlers).toHaveLength(2);
+    expect(
+      FakeMap.last.handlers.every((entry) =>
+        entry.startsWith('click|history-stop-'),
+      ),
+    ).toBe(true);
 
     /*
      * And `/` takes the last route's layers off and adds none of its
@@ -1001,28 +1085,34 @@ describe('the persistent map', () => {
     expect(String(colors[0][2])).toMatch(/^rgba\(255, 229, 32/);
   });
 
-  it('sets the colour theme once, and again only on a real change', async () => {
+  it('sets the cartography once, and again only on a real change', async () => {
     await mount();
     const map = FakeMap.last;
-    expect(map.calls.colorTheme).toHaveLength(1);
-    const yellow = map.calls.colorTheme[0];
-    expect(yellow).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
+    const yellow = colorConfig(map);
+    expect(yellow).toHaveLength(BASEMAP_COLOR_KEYS.length);
+    for (const [, , value] of yellow) {
+      expect(String(value)).toMatch(/^rgb\(\d+, \d+, \d+\)$/);
+    }
 
     const moves = map.calls.easeTo.length;
 
-    // Re-announcing the live theme must not reload every tile.
+    // Re-announcing the live theme must not re-send a single colour.
     await act(async () => {
       window.dispatchEvent(new Event(THEME_EVENT));
       await settle();
     });
-    expect(map.calls.colorTheme).toHaveLength(1);
+    expect(colorConfig(map)).toHaveLength(yellow.length);
 
     await act(async () => {
       applyTheme('paper');
       await settle();
     });
-    expect(map.calls.colorTheme).toHaveLength(2);
-    expect(map.calls.colorTheme[1]).not.toBe(yellow);
+    const after = colorConfig(map).slice(yellow.length);
+    expect(after).toHaveLength(BASEMAP_COLOR_KEYS.length);
+    // A different theme is a different map, key for key.
+    expect(after.map(([, , v]) => v)).not.toEqual(
+      yellow.map(([, , v]) => v),
+    );
     // The camera holds through a theme change -- it is the one scene
     // change with no camera move, so any move it does provoke is a
     // reframe of where it already is, not a route change.
@@ -1033,53 +1123,60 @@ describe('the persistent map', () => {
   });
 
   /*
-   * THE CALL, not just the payload.
+   * THE FRAGMENT, not just the payload.
    *
-   * `map.setColorTheme(lut)` and `map.setImportColorTheme('basemap', lut)`
-   * are indistinguishable from every seam this project had: both succeed,
-   * both decode, both leave appliedLut() reporting a LUT and errors()
-   * empty. Only one of them re-tints the globe. Standard's layers live in
-   * the `basemap` fragment and take their LUT from that scope
-   * (scene/theme.ts's BASEMAP_IMPORT has mapbox-gl's side of it), so the
-   * root call themes the layers WE added and nothing else -- which is
-   * exactly the site the owner loaded and described as "not styled at all
-   * with a theme".
+   * Standard is not a flat stylesheet: every layer the globe is made of
+   * lives inside the `basemap` import, in its own scope, and a call
+   * addressed anywhere else is dropped without a word --
+   * Style.setConfigProperty opens `if (!schema || !schema[key]) return`.
+   * So a cartography sent to the wrong fragment is a globe wearing none
+   * of the eight themes and reporting a clean run from every seam.
    *
-   * So the fake records the two separately, and this asserts which one
-   * the scene makes.
+   * This also pins the retirement of the colour LUT. Both colour-theme
+   * calls have to stay unmade: the root one because it was always the
+   * wrong call (it themed the layers WE added and left the globe exactly
+   * as Mapbox shipped it -- the site the owner described as "not styled
+   * at all with a theme"), and the import one because a LUT would now
+   * re-grade the very colours the config keys just set. Standard marks
+   * no paint property `-use-theme: "none"`, measured, so the two
+   * mechanisms cannot both be primary.
    */
-  it('themes the basemap import, and never the root style', async () => {
+  it('sends the cartography to the basemap import, and sets no colour theme', async () => {
     await mount();
     const map = FakeMap.last;
 
-    expect(map.calls.colorTheme).toHaveLength(1);
-    expect(map.calls.colorThemeImports).toEqual([CONFIG_FRAGMENT]);
-    // The root style's colour theme is the one that quietly does
-    // nothing to the globe. Nothing in the app may reach for it.
+    const colors = colorConfig(map);
+    expect(colors).toHaveLength(BASEMAP_COLOR_KEYS.length);
+    for (const [fragment] of colors) {
+      expect(fragment).toBe(CONFIG_FRAGMENT);
+    }
+    // Neither colour-theme door is opened, on either scope.
+    expect(map.calls.colorTheme).toEqual([]);
     expect(map.calls.rootColorTheme).toEqual([]);
-    // And nothing was addressed to an import the style does not have,
-    // which mapbox drops without a word.
     expect(map.calls.colorThemeDiscarded).toEqual([]);
 
     await act(async () => {
       applyTheme('teal');
       await settle();
     });
-    expect(map.calls.colorThemeImports).toEqual([
-      CONFIG_FRAGMENT,
-      CONFIG_FRAGMENT,
-    ]);
+    expect(colorConfig(map)).toHaveLength(
+      BASEMAP_COLOR_KEYS.length * 2,
+    );
+    expect(map.calls.colorTheme).toEqual([]);
     expect(map.calls.rootColorTheme).toEqual([]);
   });
 
   it('follows the attribute even when no event is dispatched', async () => {
     await mount();
     const map = FakeMap.last;
+    const before = colorConfig(map).length;
     await act(async () => {
       document.documentElement.dataset.theme = 'teal';
       await settle();
     });
-    expect(map.calls.colorTheme).toHaveLength(2);
+    expect(colorConfig(map)).toHaveLength(
+      before + BASEMAP_COLOR_KEYS.length,
+    );
   });
 
   it('rotates the hello globe, once it has arrived', async () => {
@@ -1789,7 +1886,6 @@ describe('the style lifecycle', () => {
      */
     expect(map.calls.easeTo).toEqual([]);
     // Everything that would have thrown.
-    expect(map.calls.colorTheme).toEqual([]);
     expect(map.calls.config).toEqual([]);
     expect(map.calls.fog).toEqual([]);
     expect(map.calls.terrain).toEqual([]);
@@ -1816,7 +1912,7 @@ describe('the style lifecycle', () => {
     await act(async () => {
       map.loadStyle();
     });
-    expect(map.calls.colorTheme).toHaveLength(1);
+    expect(colorConfig(map)).toHaveLength(BASEMAP_COLOR_KEYS.length);
     expect(map.calls.fog).toHaveLength(1);
     // hello wants no terrain and none is attached, so nothing is sent.
     expect(map.calls.terrain).toEqual([]);
@@ -1839,40 +1935,44 @@ describe('the style lifecycle', () => {
       await settle();
     });
     // Still nothing on the map: the style is not there to take it.
-    expect(map.calls.colorTheme).toEqual([]);
+    expect(colorConfig(map)).toEqual([]);
 
     await act(async () => {
       map.loadStyle();
     });
-    // Exactly one, and it is the theme that was asked for last -- not the
-    // yellow one the first paint requested, and not both in sequence.
-    expect(map.calls.colorTheme).toHaveLength(1);
-    const paper = map.calls.colorTheme[0];
+    // Exactly one cartography, and it is the theme that was asked for
+    // last -- not the yellow one the first paint requested, and not both
+    // in sequence.
+    const paper = colorConfig(map);
+    expect(paper).toHaveLength(BASEMAP_COLOR_KEYS.length);
 
     applyTheme('yellow');
     await act(async () => {
       await settle();
     });
-    expect(map.calls.colorTheme).toHaveLength(2);
-    expect(map.calls.colorTheme[1]).not.toBe(paper);
+    const yellow = colorConfig(map).slice(paper.length);
+    expect(yellow).toHaveLength(BASEMAP_COLOR_KEYS.length);
+    expect(yellow.map(([, , v]) => v)).not.toEqual(
+      paper.map(([, , v]) => v),
+    );
   });
 
-  it('never sends the same LUT twice, across painter rebuilds', async () => {
+  it('never re-sends the cartography across painter rebuilds', async () => {
     await mount();
     const map = FakeMap.last;
     await act(async () => {
       map.loadStyle();
     });
-    expect(map.calls.colorTheme).toHaveLength(1);
+    expect(colorConfig(map)).toHaveLength(BASEMAP_COLOR_KEYS.length);
 
     // The state flip from pending to live rebuilds the theme painter, and
     // a rebuilt painter has no memory of what it painted. The dedupe that
-    // matters lives on the map side, so this must not reload every tile.
+    // matters is the config diff, so this must send nothing at all.
     await act(async () => {
       window.dispatchEvent(new Event(THEME_EVENT));
       await settle();
     });
-    expect(map.calls.colorTheme).toHaveLength(1);
+    expect(colorConfig(map)).toHaveLength(BASEMAP_COLOR_KEYS.length);
   });
 
   it('collapses route changes made during load into the final route', async () => {
@@ -1924,7 +2024,7 @@ describe('the style lifecycle', () => {
     expect(screen.getByTestId('scene-fallback')).toBeInTheDocument();
     // Degraded, not crashed: nothing was forced onto a map that has no
     // style, so nothing threw.
-    expect(map.calls.colorTheme).toEqual([]);
+    expect(map.calls.config).toEqual([]);
   });
 
   /*
@@ -1955,7 +2055,7 @@ describe('the style lifecycle', () => {
       screen.queryByTestId('scene-fallback'),
     ).not.toBeInTheDocument();
     // And the scene really did apply itself to the map it now has.
-    expect(map.calls.colorTheme).toHaveLength(1);
+    expect(colorConfig(map)).toHaveLength(BASEMAP_COLOR_KEYS.length);
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('Failed to load imports'),
     );
@@ -2011,7 +2111,7 @@ describe('the style lifecycle', () => {
     expect(
       screen.queryByTestId('scene-fallback'),
     ).not.toBeInTheDocument();
-    expect(map.calls.colorTheme).toHaveLength(1);
+    expect(colorConfig(map)).toHaveLength(BASEMAP_COLOR_KEYS.length);
   });
 
   it('falls back when the style fails before the map even resolves', async () => {

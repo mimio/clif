@@ -212,7 +212,9 @@ test.describe('the globe atmosphere', () => {
       scopes.root,
       'the stub did not put a colour theme on the root scope, so this test is vacuous',
     ).toBe(true);
-    expect(scopes.basemap).toBe(true);
+    // And nothing on the basemap's: the site sets no colour theme at all
+    // now that the cartography is setConfigProperty.
+    expect(scopes.basemap).toBe(false);
 
     const ground = await page.evaluate(() =>
       getComputedStyle(document.documentElement)

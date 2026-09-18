@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { PRESS_NOW, PRESS_WASH } from 'components/primitives/press';
 import { cn } from 'utils/cn';
 
 /*
@@ -41,11 +42,27 @@ const SIZE_CLASS: Record<PillSize, string> = {
   sm: 'text-[length:var(--type-readout-size)]',
 };
 
+/*
+ * `not-active:` on the hover half: `pointer-fine:hover:` lands inside the
+ * `@media (pointer: fine)` block, which Tailwind emits after every
+ * unconditional rule, so at equal specificity it outranked the press wash
+ * and a pressed pill did nothing at all. Rule 2 in
+ * components/primitives/press.ts.
+ *
+ * EVERY pill takes the press, because every pill is already a control: this
+ * component renders an <a> when it has an href and a <button> otherwise,
+ * with no inert branch, so one given neither href nor onClick is still a
+ * focusable, pressable button. That is the shape the component already had
+ * and this is not the change that should narrow it -- but it does mean a
+ * pill is never a place to put pure output. The coordinate readout does not
+ * use this component; it is components/chrome/CoordPill.tsx, which paints
+ * its own box for exactly that reason.
+ */
 const TONE_CLASS: Record<PillTone, string> = {
   accent:
-    'border-accent-30 bg-accent-07 text-fg-2 pointer-fine:hover:bg-accent-12',
+    'border-accent-30 bg-accent-07 text-fg-2 pointer-fine:not-active:hover:bg-accent-12',
   neutral:
-    'border-surface-3 text-fg-3 pointer-fine:hover:bg-accent-07',
+    'border-surface-3 text-fg-3 pointer-fine:not-active:hover:bg-accent-07',
 };
 
 /** The box, read back out of the two properties the element carries. */
@@ -84,6 +101,8 @@ export const Pill = ({
       'flex-row data-[vertical=true]:flex-col',
       SIZE_CLASS[size],
       TONE_CLASS[tone],
+      PRESS_WASH,
+      PRESS_NOW,
       className,
     ),
     'data-tone': tone,

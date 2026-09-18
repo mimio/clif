@@ -135,22 +135,31 @@ const shaded = (
 /*
  * THE HALO BEHIND MAP TYPE: THE GROUND, PUSHED BACK A LITTLE.
  *
- * Measured against what the colour theme actually puts under a label
- * (styles/tokens/lut.ts's basemapColor), this does two different jobs on
- * the two kinds of theme, and it is worth saying which:
+ * Measured against the six surfaces the basemap can actually put under a
+ * label (styles/tokens/cartography.ts's basemapSurfaces), this does two
+ * different jobs on the two kinds of theme, and it is worth saying which.
+ * Numbers are the shipped palettes, ink = --text-secondary:
  *
- *   dark themes  the ink is light and this is near-black, so the halo
- *                is 10-16:1 from the ink and about 3:1 from the land.
- *                That is what carries a label over a bright road fill,
- *                which is the one basemap surface the ink cannot beat.
- *   light themes the ground and the themed land are within 1.05:1 of
- *                each other, so the halo separates almost nothing -- and
- *                does not need to. A light theme's ink runs 5.1:1
- *                against the DARKEST colour the ramp can produce and
- *                7.1:1 against its land, unaided.
+ *   dark themes  the ink is light and this is near-black. The ink alone
+ *                carries water (6.7-7.3:1), greenspace (5.5-5.6) and
+ *                land (4.7-4.8) -- all over AA -- and loses the built
+ *                surfaces: buildings 3.3, roads 2.1, motorways 1.35.
+ *                There the halo is what the eye reads, at 10.4-11.4:1
+ *                from the ink and 3.2 / 5.1 / 7.9 from those three.
+ *   light themes the ink is dark and the halo is the near-white ground,
+ *                so they swap roles. The ink carries land, buildings,
+ *                roads and greenspace unaided (5.3-7.3:1) and loses the
+ *                two strongest tones: water at 3.6 and motorways at 4.2.
+ *                The halo carries those, at 6.7-7.2:1 from the ink and
+ *                1.9 / 1.6 from them.
  *
- * It is left at the ground on both rather than lifted on light themes
- * because there is nowhere to lift it to: paper's --map-land is
+ * THE TIGHT ONE IS A LIGHT THEME'S MOTORWAY, at halo 1.60:1 on paper and
+ * 1.69 on chalk against a bar of 1.5. It is the number to watch if
+ * --map-road-major is ever darkened on a light theme; test/map-text.test.ts
+ * is what will say so.
+ *
+ * The halo is left at the ground on both rather than lifted on light
+ * themes because there is nowhere to lift it to: paper's --map-land is
  * rgb(246, 241, 233), so a brighter halo is barely a halo. sh() is also
  * a no-op at k >= 1 on a light theme, by design.
  */
@@ -175,16 +184,30 @@ const paintOf = (
  * `style.getLut(layer.scope)`. Our layers are added to the ROOT style, so
  * their scope is the root's, and `Style._reloadColorTheme` sets
  * `layer.lut = this._styleColorTheme.lut` for every layer it owns --
- * which is every layer this file declares. The root's colour theme is the
- * ROOT STYLESHEET'S, because `setImportColorTheme('basemap', ...)` sets
- * the FRAGMENT's override and leaves the root's alone.
+ * which is every layer this file declares. The root's colour theme is
+ * whatever the ROOT STYLESHEET carries: the site's own theming has never
+ * set one, and does not set any colour theme at all now that the
+ * cartography is config (styles/tokens/cartography.ts).
  *
  * The hermetic stub's root style carried no `color-theme`, so `getLut('')`
- * was null there and every colour below arrived as itself. MAPBOX
- * STANDARD'S ROOT DOES CARRY ONE. That is the whole reason this was
- * invisible until the fog's version of it reached a preview, and it is why
- * the guard in e2e/hermetic/layer-lut.spec.ts runs against
- * `stubMapboxNetwork(context, { rootColorTheme: true })`.
+ * was null there and every colour below arrived as itself. This was
+ * written believing MAPBOX STANDARD'S ROOT CARRIES ONE, reasoned from the
+ * fog's behaviour on the first real preview and reproduced offline by
+ * putting a root `color-theme` on the stub -- and that is the premise the
+ * review tier has since measured, and contradicted: the CARTO `reach`
+ * record reads `root: {declared: false, lut: false, fragmentLut: true}`.
+ * Standard's root carries no colour theme.
+ *
+ * SO THE SENTINELS ARE GUARDING A CASE PRODUCTION DOES NOT PRESENT, and
+ * they stay anyway. They are free -- one derived key per colour patch, at
+ * addLayer -- they are correct either way, and the thing they guard
+ * against is one stylesheet change away at any time. What that means for
+ * a reader is only this: a failure of the guard in
+ * e2e/hermetic/layer-lut.spec.ts, which runs against
+ * `stubMapboxNetwork(context, { rootColorTheme: true })`, is a statement
+ * about the stub rather than about the deployed site. The measured
+ * numbers below were taken on that stub and are still exactly what a root
+ * colour theme would do.
  *
  * MEASURED on that stub, against the real library, at the yellow theme --
  * the drawn pixel of our own layers, without the sentinel and with it:
@@ -290,6 +313,20 @@ export const anchorFromEvent = (event: unknown): AnchorId | null => {
   return isAnchorId(id) ? id : null;
 };
 
+/**
+ * The history stop a map event landed on, or null.
+ *
+ * Validated the same way and for the same reason as the anchor above:
+ * these come back off a tile as whatever was put in the source, and a
+ * stop id that arrived as the string `"4"` would select nothing and say
+ * nothing about why.
+ */
+export const stopFromEvent = (event: unknown): number | null => {
+  const feature = (event as SceneEvent)?.features?.[0];
+  const id = feature?.properties?.id;
+  return typeof id === 'number' && Number.isFinite(id) ? id : null;
+};
+
 /* ---- the project sites ----------------------------------------------- */
 
 /** The three Colorado anchors read as one point at world zoom (6.7). */
@@ -307,7 +344,7 @@ const COLLAPSED: Partial<Record<AnchorId, Anchor>> = {
  * is in `wolcott`, but both are drawn as the one VAIL VALLEY point,
  * whose id is `beaverCreek`. Comparing a hovered project's own anchor
  * against `['get', 'anchor']` therefore matched nothing for two of the
- * six featured rows -- no point lit, no halo -- while the camera still
+ * table's rows -- no point lit, no halo -- while the camera still
  * nudged toward the city, so the globe drifted with nothing lit.
  *
  * Anything that has to line a project up with its point goes through
@@ -358,7 +395,7 @@ export type LayerSetOptions = {
   palette: Palette;
   /** The anchor a hovered project row is lighting, if any. */
   hover: AnchorId | null;
-  /** False below the tablet breakpoint (1g) or in browse-all (1c). */
+  /** False below the tablet breakpoint (1g), and on /projects (1c). */
   labels: boolean;
   /**
    * The history stop drawn live, by id. Artboard 1e's yellow budget
@@ -371,6 +408,15 @@ export type LayerSetOptions = {
   onHoverAnchor: (anchor: AnchorId | null) => void;
   /** Called when a site point is clicked. */
   onSelectAnchor: (anchor: AnchorId) => void;
+  /**
+   * Called when a work-history stop is clicked, with its id.
+   *
+   * On /about this is the whole of the route's input: the simplified 1e
+   * draws no scrubber and no pager, so the map IS the control and this is
+   * the wire it runs on. It asks rather than sets -- the selected stop is
+   * a URL -- which is scene/MapProvider's `requestStop`.
+   */
+  onSelectStop: (id: number) => void;
 };
 
 const projectSitesSet = (options: LayerSetOptions): LayerSet => {
@@ -537,7 +583,7 @@ const projectSitesSet = (options: LayerSetOptions): LayerSet => {
 };
 
 const historySet = (options: LayerSetOptions): LayerSet => {
-  const { labels, selectedStop } = options;
+  const { labels, selectedStop, onSelectStop } = options;
   /*
    * A stop id is never -1, so a null selection matches nothing and the
    * route simply has no live element until it names one.
@@ -663,7 +709,40 @@ const historySet = (options: LayerSetOptions): LayerSet => {
         },
       },
     ],
-    interactions: [],
+    /*
+     * THE MAP IS THE ROUTE'S CONTROL, which it was not before: the
+     * scrubber and the pager used to carry the selection and this set
+     * listened for nothing. The simplified 1e has neither, so a click on
+     * a stop is the only pointing device the route has left.
+     *
+     * Both the point and its label are bound. A 3px circle is a small
+     * target and the company name beside it reads as part of the same
+     * thing, so a click that lands on the words selects the stop rather
+     * than falling through to the map and panning it.
+     *
+     * The ring, deliberately, is not: it is drawn only on the stop that
+     * is ALREADY selected, so binding it would add a target that can only
+     * ever re-select what is live -- and it is 11px, so it would sit over
+     * its own point and swallow the one click that matters.
+     */
+    interactions: [
+      {
+        type: 'click',
+        layer: HISTORY_POINTS,
+        handler: ((event: unknown) => {
+          const id = stopFromEvent(event);
+          if (id !== null) onSelectStop(id);
+        }) as SceneListener,
+      },
+      {
+        type: 'click',
+        layer: HISTORY_LABELS,
+        handler: ((event: unknown) => {
+          const id = stopFromEvent(event);
+          if (id !== null) onSelectStop(id);
+        }) as SceneListener,
+      },
+    ],
     paint,
   };
 };
