@@ -1,8 +1,9 @@
 import { test, type TestInfo } from '@playwright/test';
 import {
   BASEMAP_IMPORT,
-  installSceneDebug,
   ROUTES,
+  installSceneDebug,
+  notice,
   settle,
   waitForScene,
 } from '../fixtures/app';
@@ -96,10 +97,10 @@ const record = async (
 ): Promise<void> => {
   const json = JSON.stringify(value);
   const parts = Math.max(1, Math.ceil(json.length / SLICE));
-  console.log(`${TAG} ${name} bytes=${json.length} parts=${parts}`);
+  notice(`${TAG} ${name}`, `bytes=${json.length} parts=${parts}`);
   for (let i = 0; i < parts; i += 1) {
     const slice = json.slice(i * SLICE, (i + 1) * SLICE);
-    console.log(`${TAG} ${name} ${i + 1}/${parts} ${slice}`);
+    notice(`${TAG} ${name} ${i + 1}/${parts}`, slice);
   }
   await testInfo.attach(`${name}.json`, {
     body: JSON.stringify(value, null, 1),
@@ -121,7 +122,7 @@ const guard = async (
   try {
     await record(testInfo, name, await run());
   } catch (error) {
-    console.log(`${TAG} ${name} FAILED ${String(error)}`);
+    notice(`${TAG} ${name} FAILED`, String(error));
     testInfo.annotations.push({
       type: 'carto-unavailable',
       description: `${name}: ${String(error)}`,
