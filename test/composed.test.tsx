@@ -411,8 +411,12 @@ describe('ProjectTable', () => {
       .forEach((name) =>
         expect(name.startsWith('pointer-fine:')).toBe(true),
       );
-    expect(row).toHaveClass('focus-within:bg-accent-07');
-    expect(row).toHaveClass('focus-within:translate-x-[3px]');
+    // Guarded, because the press writes both of these too. See
+    // test/press.test.tsx, which holds that invariant for every component.
+    expect(row).toHaveClass('not-active:focus-within:bg-accent-07');
+    expect(row).toHaveClass(
+      'not-active:focus-within:translate-x-[3px]',
+    );
   });
 
   it('folds the client under the title without repeating the year', () => {

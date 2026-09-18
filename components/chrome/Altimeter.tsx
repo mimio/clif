@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Glyph, { type GlyphKind } from 'components/primitives/Glyph';
+import {
+  PRESS_COMPRESS,
+  PRESS_NOW,
+  PRESS_RELEASE,
+} from 'components/primitives/press';
 import { routes, type RouteId } from 'content/routes';
 import { prefersReducedMotion } from 'scene/budget';
 import { cn } from 'utils/cn';
@@ -432,10 +437,29 @@ export const Altimeter = ({
                 }}
               />
             </span>
+            {/*
+              The rail is the most-clicked control on the site and had no
+              press state of any kind -- measured in Chromium, a trusted
+              pointerdown on a tab changed not one computed property. Its
+              hover is JS (`setHover` fades the label in), and nothing ever
+              wrote the other half.
+
+              It compresses toward the rail rather than growing, because
+              that is the one direction that reads from every state this
+              tab has: the label is already at full opacity when the tab is
+              hot, so a press that only touched the label would be
+              invisible on exactly the tab you are about to click.
+              `origin-right` keeps the glyph pinned to the rail while the
+              label pulls in behind it.
+            */}
             <button
               aria-current={on}
               className={cn(
                 'absolute right-[14px] flex h-[34px] cursor-pointer items-center justify-end gap-[6px] select-none',
+                'origin-right',
+                PRESS_RELEASE,
+                PRESS_COMPRESS,
+                PRESS_NOW,
                 FOCUS_RING,
               )}
               data-route={route.id}

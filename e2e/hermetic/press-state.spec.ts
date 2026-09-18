@@ -5,6 +5,7 @@ import {
   type Page,
 } from '@playwright/test';
 import { BUTTON_SIZES } from 'components/primitives/Button/sizes';
+import { PRESS_SCALE } from 'components/primitives/press';
 import {
   installMapboxGl,
   stubMapboxNetwork,
@@ -597,6 +598,21 @@ test('a pressed flat pill dims', async ({ page }) => {
  * SMALLER of the two -- so before the fix a press left the ball sitting at
  * its hover size and the press scale was unreachable with a mouse.
  *
+ * TWO THINGS WERE STILL WRONG AFTER THAT FIX, and both are asserted below
+ * because both were invisible to a class assertion.
+ *
+ * The press was 1.02 against a rest of 1.0. Smaller than hover, so the
+ * guard worked -- but a GROWTH from rest, so a tap, a keyboard activation
+ * or any click that beat the hover read as a weak hover. The press now
+ * compresses past rest, and the test starts from REST as well as from
+ * hover, which is the case the old one could not have failed.
+ *
+ * And it ran the 180ms release easing on the way down. Measured on an 80ms
+ * click, the ball travelled 1.08 -> 1.030 and never reached its own target
+ * before reversing: the state was right on the first frame and the
+ * RENDERING of it was not. So the down edge is now immediate, and that is
+ * asserted as a first-frame fact rather than a frame count.
+ *
  * (The old class names are described rather than spelled here on purpose:
  * Tailwind's scanner reads comments, and writing one out emits it into the
  * stylesheet as a live rule with nothing wearing it.)
@@ -625,12 +641,96 @@ for (const control of [
       ),
     ).toBeCloseTo(1.08, 2);
 
+    // From hover: the press is there on the FIRST frame, not eased into
+    // over 180ms. There is no transition on the down edge to wait for, so
+    // this is a first-frame fact and takes no frame budget.
     const trace = await pressAndRelease(page, ball, null);
     expect(
       onsetOf(trace, 'down', (sample) => sample.scale < 1.075),
-    ).toBeLessThanOrEqual(RENDER_FRAMES);
+    ).toBe(1);
     expect(
       Math.min(...held(trace).map((sample) => sample.scale)),
-    ).toBeCloseTo(1.02, 2);
+    ).toBeCloseTo(PRESS_SCALE, 2);
+
+    /*
+     * ...AND A CLICK THAT BEATS THE HOVER, which is the case the 1.02
+     * press could not serve at all.
+     *
+     * The old press sat BETWEEN rest and hover, so it only read as a press
+     * from a settled hover. It is reached here from the other end: the
+     * pointer arrives and the button goes down without waiting out the
+     * 180ms growth, so the ball is somewhere near 1.0 and climbing when
+     * the press lands -- the ordinary way a person clicks something they
+     * are not already pointing at, and the only way a finger or a keyboard
+     * can reach it at all.
+     *
+     * Against every build before this one the ball would have grown, to
+     * 1.02. It has to shrink past rest instead, so the threshold is 1 and
+     * there is nothing marginal about which side of it the old value was
+     * on.
+     */
+    await park(page);
+    await settle(ball);
+    await pointerOnto(page, ball);
+    const unsettled = await pressAndRelease(page, ball, null);
+    expect(
+      Math.min(...held(unsettled).map((sample) => sample.scale)),
+    ).toBeLessThan(1);
+  });
+}
+
+/*
+ * THE CONTROLS THAT HAD NO PRESS STATE AT ALL.
+ *
+ * The rail tabs and the scrubber ticks were never written a press: measured
+ * against the old build, a trusted pointerdown on any of them changed not
+ * one computed property. The rail is the site's primary navigation, so this
+ * was the single most-pressed control on the site and the one with the
+ * least to say.
+ *
+ * They are checked in a browser rather than by their class lists for the
+ * same reason as everything else in this file -- and for one more that is
+ * specific to them. Both wear `animate-slide-in`, whose keyframes end on
+ * `transform: translateY(0)` under `forwards`, and a filling animation
+ * outranks every normal author declaration for as long as the element
+ * lives. A press written as `transform` would be present in the class list,
+ * correct on inspection and dead on screen. `scale` is a separate property
+ * and the keyframes do not touch it; only a rendered measurement can tell
+ * those two builds apart.
+ */
+for (const control of [
+  { label: 'rail tab', route: '/', name: 'projects' },
+  { label: 'scrubber tick', route: '/about', name: 'NIKE' },
+] as const) {
+  test(`the ${control.label} takes a press`, async ({ page }) => {
+    await page.goto(control.route, { waitUntil: 'load' });
+
+    const target = page
+      .getByRole('button', { name: control.name })
+      .first();
+    await expect(target).toBeVisible();
+
+    await park(page);
+    await settle(target);
+    await pointerOnto(page, target);
+    await settle(target);
+
+    const trace = await pressAndRelease(page, target, null);
+    expect(onsetOf(trace, 'down', (sample) => sample.scale < 1)).toBe(
+      1,
+    );
+    expect(
+      Math.min(...held(trace).map((sample) => sample.scale)),
+    ).toBeCloseTo(PRESS_SCALE, 2);
+
+    // And it lets go: a press state that latches is the same complaint
+    // from the other side.
+    await settle(target);
+    expect(
+      await target.evaluate((el: Element) => {
+        const { scale } = getComputedStyle(el);
+        return scale === 'none' ? 1 : parseFloat(scale);
+      }),
+    ).toBeCloseTo(1, 2);
   });
 }

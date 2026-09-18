@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { PRESS_NOW, PRESS_WASH } from 'components/primitives/press';
 import Rule from 'components/primitives/Rule';
 import Text from 'components/primitives/Text';
 import { cn } from 'utils/cn';
@@ -335,15 +336,37 @@ export const ProjectTable = ({
                 'relative cursor-pointer items-center rounded-[var(--radius-sm)] border-b border-surface-3 select-none',
                 'text-[length:var(--type-detail-size-mobile)] leading-[var(--type-detail-line-mobile)] tablet:text-[length:var(--type-detail-size)] tablet:leading-[var(--type-detail-line)]',
                 'transition-[background-color,transform] duration-[120ms] ease-out',
-                /* `not-active:`, because hover and press write the same
-                   two properties at the same specificity and Tailwind
-                   emits the fine-pointer block last -- so hover won and a
-                   pressed row never nudged or deepened. See the note in
-                   components/primitives/Button/keycap.ts. */
+                /*
+                 * EVERY ONE OF THESE THREE IS SCOPED `not-active:`, and the
+                 * row is where that rule was learned the hard way.
+                 *
+                 * Hover was guarded first, because the fine-pointer block
+                 * is emitted last and was beating the press. That fixed
+                 * nothing a person could see, because the guard was put on
+                 * the wrong competitor: `data-[active=true]:bg-accent-07`
+                 * is ALSO one class plus one simple selector, Tailwind
+                 * emits the `data-*` group AFTER the `active:` group, and
+                 * `data-active` follows the pointer: the row's own
+                 * pointerenter calls onHoverRow, the projects route stores
+                 * that as activeId and hands it straight back here. So on
+                 * every row a mouse can actually press, the press wash was
+                 * overruled by the hover wash wearing a different hat --
+                 * which is why guarding `hover:` alone changed nothing a
+                 * person could see. Measured: background-color was identical
+                 * on the frame before the pointerdown and the frame after
+                 * it, and what survived of the press was a 2px nudge and a
+                 * 0.3% scale, which is 0.1px of row height.
+                 *
+                 * So the guard goes on ANYTHING that writes a property the
+                 * press writes, per rule 2 in components/primitives/press.ts
+                 * -- hover, the data attribute and focus-within alike. The
+                 * scale is gone rather than guarded: 0.997 on a 40px row
+                 * was never a state, and the wash is what reads.
+                 */
                 'pointer-fine:not-active:hover:translate-x-[3px] pointer-fine:not-active:hover:bg-accent-07',
-                'focus-within:translate-x-[3px] focus-within:bg-accent-07',
-                'active:translate-x-px active:scale-[0.997] active:bg-accent-12',
-                'data-[active=true]:bg-accent-07',
+                'not-active:focus-within:translate-x-[3px] not-active:focus-within:bg-accent-07',
+                `active:translate-x-px ${PRESS_WASH} ${PRESS_NOW}`,
+                'not-active:data-[active=true]:bg-accent-07',
               )}
               data-active={row.id === activeId}
               key={row.id}

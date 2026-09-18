@@ -5,6 +5,12 @@ import {
   useState,
   type CSSProperties,
 } from 'react';
+import { BALL_MOTION } from 'components/chrome/ThemeEye';
+import {
+  PRESS_NOW,
+  PRESS_WASH,
+  PRESS_WASH_DEEP,
+} from 'components/primitives/press';
 import usePopover from 'components/chrome/usePopover';
 import { EMAIL, MAILTO } from 'content/contact';
 import { cn } from 'utils/cn';
@@ -111,18 +117,22 @@ export const ContactMouth = ({
       style={{ width: MOUTH_WIDTH, height: MOUTH_HEIGHT }}
     >
       {/*
-        The same growth as the eye's BALL_MOTION, written out rather than
-        shared. `not-active:` on the hover half is load bearing: both
-        halves set `scale` at equal specificity, Tailwind emits the
-        fine-pointer block last, and the press scale is the SMALLER of the
-        two -- so before this the mouth stayed at 1.08 for the whole press
-        and a mouse could not produce the press state at all. See
-        components/primitives/Button/keycap.ts for the long version.
+        The eye's BALL_MOTION, which is exported and is the same three
+        rules: `not-active:` on the hover half so the fine-pointer block
+        cannot outrank the press, a press that compresses PAST rest rather
+        than sitting between rest and hover, and a down edge with no
+        transition on it. It used to be written out here instead, and
+        drifted -- the mouth kept the 1.02 growth and the 180ms press-in
+        after both were understood to be wrong. Sharing the string is what
+        stops the next fix landing on one face and not the other.
       */}
       <button
         aria-expanded={open}
         aria-label="Contact"
-        className="absolute top-[5px] left-0 block h-[24px] w-[34px] cursor-pointer overflow-hidden transition-transform duration-[180ms] ease-[cubic-bezier(.165,.84,.44,1)] active:scale-[1.02] motion-reduce:transition-none pointer-fine:not-active:hover:scale-[1.08]"
+        className={cn(
+          'absolute top-[5px] left-0 block h-[24px] w-[34px] cursor-pointer overflow-hidden',
+          BALL_MOTION,
+        )}
         data-open={open}
         onClick={toggle}
         style={{
@@ -182,8 +192,18 @@ export const ContactMouth = ({
             Sed do eiusmod tempor incididunt ut labore.
           </p>
           <div className="flex items-center gap-[8px]">
+            {/* Both actions in this panel were hover-only. The link's
+                hover reaches accent-20, so its press takes the deeper
+                step and its hover is guarded; the copy button's hover
+                writes COLOUR, which the press does not touch, so that one
+                needs no guard and takes the ordinary wash against its own
+                transparent rest. */}
             <a
-              className="flex-1 rounded-full border border-accent bg-accent-12 px-[12px] py-[9px] text-center text-fg-2 no-underline transition-[background-color] duration-[140ms] ease-out motion-reduce:transition-none pointer-fine:hover:bg-accent-20"
+              className={cn(
+                'flex-1 rounded-full border border-accent bg-accent-12 px-[12px] py-[9px] text-center text-fg-2 no-underline transition-[background-color] duration-[140ms] ease-out motion-reduce:transition-none pointer-fine:not-active:hover:bg-accent-20',
+                PRESS_WASH_DEEP,
+                PRESS_NOW,
+              )}
               href={MAILTO}
               style={{
                 fontSize: 'var(--type-label-size)',
@@ -194,7 +214,11 @@ export const ContactMouth = ({
             </a>
             <button
               aria-label={`Copy ${email}`}
-              className="box-border flex-none cursor-pointer rounded-full border border-[var(--border-neutral-color)] py-[9px] text-center whitespace-nowrap text-fg-3 transition-[color] duration-[140ms] ease-out motion-reduce:transition-none pointer-fine:hover:text-fg-2"
+              className={cn(
+                'box-border flex-none cursor-pointer rounded-full border border-[var(--border-neutral-color)] py-[9px] text-center whitespace-nowrap text-fg-3 transition-[color] duration-[140ms] ease-out motion-reduce:transition-none pointer-fine:hover:text-fg-2',
+                PRESS_WASH,
+                PRESS_NOW,
+              )}
               onClick={() => {
                 void copy();
               }}

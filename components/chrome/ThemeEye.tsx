@@ -7,6 +7,11 @@ import {
 } from 'react';
 import usePopover from 'components/chrome/usePopover';
 import {
+  PRESS_COMPRESS,
+  PRESS_NOW,
+  PRESS_WASH_DEEP,
+} from 'components/primitives/press';
+import {
   announceThemeEvent,
   applyTheme,
   DEFAULT_THEME,
@@ -73,20 +78,30 @@ export const SWATCH_SIZE = 18;
  * exactly the touch viewport. Press still answers a finger.
  *
  * ...and hover is scoped to `not-active:` as well, because the two write
- * the SAME property with EQUAL specificity and the press scale is the
- * smaller of the two. Tailwind emits its `@media (pointer: fine)` block
- * after every unconditional rule, so the fine-pointer hover rule for the
- * 1.08 scale was beating the press rule for the 1.02 one, and a pressed
- * ball simply stayed at 1.08 -- the mouse could never produce the press
- * state at all. Excluding :active from the hover selector settles it by
- * condition rather than by the compiler's emit order, which is the point:
- * nothing then depends on how Tailwind chooses to sort its output. Same
- * defect, same fix and the same reasoning as
- * components/primitives/Button/keycap.ts, which has the long version;
- * measured in e2e/hermetic/press-state.spec.ts.
+ * the SAME property with EQUAL specificity and Tailwind emits its
+ * `@media (pointer: fine)` block after every unconditional rule, so the
+ * hover rule was beating the press rule and a pressed ball simply stayed at
+ * 1.08. That is rule 2 in components/primitives/press.ts, which now owns
+ * the reasoning for the whole site.
+ *
+ * WHAT THE GUARD ALONE DID NOT FIX, and what this line is for. With hover
+ * out of the way the press was reachable and still unreadable, for two
+ * reasons the guard has nothing to say about:
+ *
+ *   IT WENT THE WRONG WAY.  The press was `scale(1.02)` against a rest of
+ *   1.0. Smaller than hover, yes -- but a GROWTH from rest, so a tap, a
+ *   keyboard activation or a click that beat the hover all read as a weak
+ *   hover. PRESS_COMPRESS goes below rest and reads from any state.
+ *
+ *   IT NEVER ARRIVED.  Both edges ran this same 180ms ease. Measured on an
+ *   80ms click, the ball travelled 1.08 -> 1.030 -- 1.7px on a 34px ball,
+ *   never reaching its own target -- and then reversed. PRESS_NOW makes the
+ *   down edge immediate and leaves the release on the 180ms curve.
+ *
+ * Both are press.ts's rules 1 and 3; measured in
+ * e2e/hermetic/press-state.spec.ts.
  */
-export const BALL_MOTION =
-  'transition-transform duration-[180ms] ease-[cubic-bezier(.165,.84,.44,1)] pointer-fine:not-active:hover:scale-[1.08] active:scale-[1.02] motion-reduce:transition-none';
+export const BALL_MOTION = `transition-transform duration-[180ms] ease-[cubic-bezier(.165,.84,.44,1)] pointer-fine:not-active:hover:scale-[1.08] ${PRESS_COMPRESS} ${PRESS_NOW} motion-reduce:transition-none`;
 
 const SCLERA_FILL =
   'radial-gradient(circle at 32% 26%, #ffffff 0%, var(--sclera) 56%, var(--sclera-edge) 100%)';
@@ -260,9 +275,18 @@ export const ThemeEye = ({
                   aria-pressed={on}
                   className={cn(
                     'flex cursor-pointer items-center gap-[9px] rounded-[var(--radius-sm)] px-[7px] py-[4px] transition-[background-color,color] duration-[140ms] ease-out motion-reduce:transition-none',
+                    /* Picking a theme is the most deliberate click in the
+                       chrome and the row had no press state at all -- only
+                       a hover wash, which a mouse is already wearing when
+                       it presses. PRESS_WASH_DEEP rather than PRESS_WASH
+                       because the SELECTED row hovers to accent-20
+                       already; `not-active:` on both hovers so neither can
+                       outrank it. See components/primitives/press.ts. */
+                    PRESS_WASH_DEEP,
+                    PRESS_NOW,
                     on
-                      ? 'bg-accent-12 pointer-fine:hover:bg-accent-20'
-                      : 'pointer-fine:hover:bg-accent-07',
+                      ? 'bg-accent-12 pointer-fine:not-active:hover:bg-accent-20'
+                      : 'pointer-fine:not-active:hover:bg-accent-07',
                   )}
                   key={id}
                   onClick={() => pick(id)}

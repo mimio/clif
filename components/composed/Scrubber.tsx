@@ -1,4 +1,9 @@
 import type { ReactNode } from 'react';
+import {
+  PRESS_COMPRESS,
+  PRESS_NOW,
+  PRESS_RELEASE,
+} from 'components/primitives/press';
 import Text from 'components/primitives/Text';
 import { cn } from 'utils/cn';
 
@@ -106,8 +111,25 @@ export const Scrubber = ({
             // every inactive tick would announce as an unnamed button. The
             // name is on the control, where the breakpoint cannot reach it.
             aria-label={stop.label}
+            /*
+              The tick had no press state either. It compresses from the
+              top, where the tick bar meets the rail, so the bar shortens
+              into the line rather than drifting off it.
+
+              PRESS_COMPRESS writes the `scale` property, which is what
+              makes it safe here: this button carries `animate-slide-in`,
+              whose keyframes end on `transform: translateY(0)` under
+              `forwards`, and a filling animation outranks every normal
+              author declaration for as long as the element lives. A press
+              written as `transform` would have been dead on arrival on
+              every tick that had entered -- which is all of them.
+            */
             className={cn(
               'absolute top-0 flex animate-slide-in cursor-pointer flex-col gap-2 select-none motion-reduce:animate-none',
+              'origin-top',
+              PRESS_RELEASE,
+              PRESS_COMPRESS,
+              PRESS_NOW,
               live ? '-translate-x-1.5 items-center' : 'items-start',
             )}
             data-live={live}
