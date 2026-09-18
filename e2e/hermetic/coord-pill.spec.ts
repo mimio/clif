@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-import { cameras } from 'content/cameras';
+import { cameras, SPIN_DEG_PER_SECOND } from 'content/cameras';
 import { installSceneDebug, waitForScene } from '../fixtures/app';
 import { stubMapboxNetwork } from '../fixtures/mapbox-stub';
 
@@ -52,18 +52,37 @@ const SAMPLE_MS = 120;
 const MIN_TRAVEL_DEG = (SPIN_DEG_PER_S * WINDOW_MS) / 1_000 / 4;
 
 /*
- * How far the pill may lag the transform.
+ * How far the pill may lag the transform -- MEASURED, not assumed.
  *
- * The pill is React state driven by mapbox's `move` event, so the text in
- * the DOM is the centre as of the last committed render and the transform
- * is the centre as of now. The gap is at most one frame of rotation plus
- * one React commit. The globe renders at 6-11fps on this runner, so a
- * frame is up to ~170ms, which at 1.5 deg/s is 0.25 degrees; a quarter of
- * a degree again for the commit and the DOM read. Half a degree is
- * generous for the lag and still two orders of magnitude tighter than the
- * error it exists to catch, which grows without bound.
+ * The pill is React state driven by mapbox's `move` event and committed
+ * on the next animation frame, so the text in the DOM is the centre as of
+ * the last painted frame and the transform is the centre as of now. The
+ * gap is therefore ONE FRAME OF ROTATION plus one React commit, and a
+ * frame is whatever the machine manages.
+ *
+ * This used to be the constant 0.5, reasoned from "6-11fps on this
+ * runner". That held here and failed on CI, twice, at 0.63 and 0.54 --
+ * because a two-core runner driving a WebGL globe draws slower than this
+ * box, and the bound is a rate times a frame interval. Pinning it to a
+ * number pins it to one machine's cadence, which is the same mistake as
+ * the spin floor that used to sit exactly on the clamp's quantum.
+ *
+ * So the window meters its own frames and the bound follows: the slowest
+ * frame actually observed, plus an allowance for the commit and the DOM
+ * read, times the rotation rate. FLOOR_DEG keeps a suspiciously fast run
+ * from tightening it into flake. The error this guards against -- a pill
+ * reading the route table rather than the map -- grows without bound, so
+ * it is caught at any of these scales.
  */
-const MAX_LAG_DEG = 0.5;
+const COMMIT_ALLOWANCE_MS = 250;
+const FLOOR_DEG = 0.5;
+
+const lagBudget = (slowestFrameMs: number): number =>
+  Math.max(
+    FLOOR_DEG,
+    (SPIN_DEG_PER_SECOND * (slowestFrameMs + COMMIT_ALLOWANCE_MS)) /
+      1_000,
+  );
 
 type Sample = {
   /** The longitude printed on the pill. */
@@ -96,9 +115,32 @@ const sample = (page: Page): Promise<Sample | null> =>
     };
   });
 
+const meterFrames = async (page: Page): Promise<void> => {
+  await page.evaluate(() => {
+    const store = { slowest: 0, last: performance.now() };
+    (window as unknown as { __FRAMES__: typeof store }).__FRAMES__ =
+      store;
+    const tick = (): void => {
+      const now = performance.now();
+      store.slowest = Math.max(store.slowest, now - store.last);
+      store.last = now;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+};
+
+const slowestFrame = (page: Page): Promise<number> =>
+  page.evaluate(
+    () =>
+      (window as unknown as { __FRAMES__?: { slowest: number } })
+        .__FRAMES__?.slowest ?? 0,
+  );
+
 const watch = async (page: Page, ms: number): Promise<Sample[]> => {
   const samples: Sample[] = [];
   const deadline = Date.now() + ms;
+  await meterFrames(page);
   while (Date.now() < deadline) {
     const one = await sample(page);
     if (one !== null) samples.push(one);
@@ -181,6 +223,7 @@ test.describe('the coordinate pill', () => {
 
     /* ---- (b) it agrees with the map ---------------------------------- */
 
+    const budget = lagBudget(await slowestFrame(page));
     for (const one of samples) {
       /*
        * Compared as a wrapped coordinate. The camera crosses the
@@ -193,8 +236,9 @@ test.describe('the coordinate pill', () => {
       );
       expect(
         gap,
-        `the pill read ${one.shown} while the map was at ${one.actual}`,
-      ).toBeLessThan(MAX_LAG_DEG);
+        `the pill read ${one.shown} while the map was at ${one.actual}; ` +
+          `budget ${budget.toFixed(3)} deg from the slowest frame seen`,
+      ).toBeLessThan(budget);
     }
 
     /* ---- and it still reads like a coordinate ------------------------ */
