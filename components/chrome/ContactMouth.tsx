@@ -42,7 +42,8 @@ import { cn } from 'utils/cn';
  * Growth is scoped to a fine pointer for the same reason as the eye's: the
  * site's `hover` variant is bare `:hover`, so on a touch screen the tap
  * that opened the panel left the mouth stuck 8% oversized. Escape closes
- * the panel (usePopover).
+ * the panel, and so does a press anywhere outside the lips and the panel,
+ * which is what `ref` below is for (usePopover).
  */
 export const COPIED_MS = 1600;
 
@@ -92,7 +93,7 @@ export const ContactMouth = ({
   defaultOpen = false,
   className,
 }: ContactMouthProps) => {
-  const { open, toggle } = usePopover(defaultOpen);
+  const { open, ref, toggle } = usePopover(defaultOpen);
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -108,6 +109,7 @@ export const ContactMouth = ({
   return (
     <div
       className={cn('relative select-none', className)}
+      ref={ref}
       style={{ width: MOUTH_WIDTH, height: MOUTH_HEIGHT }}
     >
       {/*

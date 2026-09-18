@@ -50,7 +50,8 @@ import { cn } from 'utils/cn';
  * Picking does NOT close the panel: themes are meant to be compared back to
  * back, and the tokens crossfade over 400ms (tokens/themes.css) while the
  * camera holds position -- the one case where the scene changes without a
- * camera move. Escape closes it (usePopover).
+ * camera move. Escape closes it, and so does a press anywhere outside the
+ * eye and its panel, which is what `ref` below is for (usePopover).
  *
  * THE TRIGGER COMES FIRST IN THE DOM and the panel follows it, even though
  * the panel is drawn above and to the left. Tab order is DOM order: with
@@ -153,7 +154,7 @@ export const ThemeEye = ({
   defaultOpen = false,
   className,
 }: ThemeEyeProps) => {
-  const { open, toggle } = usePopover(defaultOpen);
+  const { open, ref, toggle } = usePopover(defaultOpen);
   // The panel's visible caption names the group, so the name a screen
   // reader announces and the word on screen cannot drift apart.
   const captionId = `clif-theme-${useId().replace(/:/g, '')}`;
@@ -180,6 +181,7 @@ export const ThemeEye = ({
   return (
     <div
       className={cn('relative select-none', className)}
+      ref={ref}
       style={{ width: EYE_SIZE, height: EYE_SIZE }}
     >
       <button

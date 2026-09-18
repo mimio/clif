@@ -710,6 +710,28 @@ describe('ThemeEye', () => {
     expect(themePanel()).toBeVisible();
   });
 
+  it('closes when a press lands outside it', async () => {
+    render(
+      <>
+        <ThemeEye defaultOpen />
+        <button type="button">elsewhere</button>
+      </>,
+    );
+    expect(themePanel()).toBeVisible();
+
+    // Inside is the whole wrapper, trigger included, and a press inside
+    // leaves it alone -- picking a theme is the point of the panel.
+    await userEvent.click(
+      screen.getByRole('button', { name: 'lime' }),
+    );
+    expect(themePanel()).toBeVisible();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'elsewhere' }),
+    );
+    expect(queryThemePanel()).toBeNull();
+  });
+
   it('gaps its border where the tail joins, in this order', () => {
     // The panel border and the tail's edge are both 30% accent. The edge
     // triangle's base covers the border, so the border is erased first --
@@ -908,6 +930,26 @@ describe('ContactMouth', () => {
     render(<ContactMouth defaultOpen />);
     expect(screen.getByRole('link')).toBeVisible();
     await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('closes when a press lands outside it', async () => {
+    render(
+      <>
+        <ContactMouth defaultOpen />
+        <button type="button">elsewhere</button>
+      </>,
+    );
+    expect(screen.getByRole('link')).toBeVisible();
+
+    // A press on the address is inside, and the panel is select-text: a
+    // drag across it must not pull the address out from under the pointer.
+    await userEvent.click(screen.getByRole('link'));
+    expect(screen.getByRole('link')).toBeVisible();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'elsewhere' }),
+    );
     expect(screen.queryByRole('link')).toBeNull();
   });
 
