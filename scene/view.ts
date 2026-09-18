@@ -14,9 +14,10 @@
  *
  *   labels        The map's own place labels. Off wherever the route's own
  *                 type would overprint them -- artboards 1c and 1g both
- *                 carry data-labels="0". Browse-all is a state of the
- *                 page, not of the viewport, so the viewport cannot derive
- *                 it.
+ *                 carry data-labels="0". /projects carries the whole
+ *                 catalogue in one full-bleed table, which is a fact about
+ *                 the page rather than about the viewport, so the viewport
+ *                 cannot derive it.
  *   selectedStop  Which work-history stop is the live element. Artboard
  *                 1e's yellow budget allows exactly one live thing per
  *                 view, and on /about that is the *selected* stop -- the
@@ -67,8 +68,8 @@ export const sameView = (a: SceneView, b: SceneView): boolean =>
 /**
  * Whether map type is drawn at all. Both inputs matter and either can
  * veto: below the tablet breakpoint there is no band where the table and
- * the map labels can both be read (1g), and in browse-all the table is
- * full bleed over the map (1c).
+ * the map labels can both be read (1g), and on /projects the table is
+ * full bleed over the map at every width (1c).
  */
 export const showLabels = (
   view: SceneView,

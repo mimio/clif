@@ -1,9 +1,17 @@
 # clif
 
 Clifton Campbell's personal site. One globe, three routes: `hello`,
-`projects` and `about`. The scene is a single persistent Mapbox map mounted
-behind the whole app; changing route moves the camera rather than rebuilding
-anything.
+`projects` and `about` — the last of which a visitor reads as **about me**;
+the id, the path and the scene keep the shorter name. The scene is a single
+persistent Mapbox map mounted behind the whole app; changing route moves the
+camera rather than rebuilding anything.
+
+On `/about` the map is also the route's control. The stage passes the
+pointer through to it (`SceneStage`'s `passThrough`), so the camera is the
+visitor's to drag and zoom, and clicking a work-history stop drives the copy
+above it rather than moving the camera. The other two routes keep the press:
+their own controls live in the foreground, and a drag begun on a table row
+must not pan the globe under it.
 
 Built with Next.js (Pages Router, Turbopack), React, TypeScript, Tailwind
 CSS, mapbox-gl and three.js. Tested with Vitest and Playwright. Deployed on
@@ -34,6 +42,10 @@ Five layers. Each may import the ones below it, plus `content/` and
 | L0    | `styles/`                 | Design tokens, the type faces, the theme id     |
 | L1    | `components/primitives/`  | Text PageWord Button Glyph Icon Pill Chip Rule  |
 | L2    | `components/composed/`    | SceneStage ProjectTable Sheet Scrubber Pager …  |
+
+`Sheet` and `Scrubber` are still part of the system and still specimen'd and
+tested, but no route renders them since `/about` was simplified: they are
+the panel and the timeline rail that route used to carry.
 | L3    | `components/chrome/`      | Altimeter ThemeEye ContactMouth CoordPill       |
 | L4    | `pagesComponents/<route>/`| One component per route                         |
 | L4    | `pages/`                  | Data, composition and one `useSceneCamera()`    |

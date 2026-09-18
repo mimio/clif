@@ -58,7 +58,10 @@ const isExternal = (href: string): boolean =>
   href.startsWith('http') || href.startsWith('mailto:');
 
 /**
- * The four-corner registration mark, for "browse all" and "all 14". The
+ * The four-corner registration mark. Drawn for the caps that opened
+ * browse-all, which the projects index no longer has; the specimen board is
+ * its only consumer now, and it stays because the mark is part of the
+ * keycap's spec rather than part of that one page. The
  * backing stroke is a soft rim under a two-stop gradient outline plus the
  * four diagonals; both colours come from the variant through --k-mark*.
  */

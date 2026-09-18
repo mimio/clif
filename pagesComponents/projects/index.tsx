@@ -1,92 +1,77 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Button from 'components/primitives/Button';
 import PageWord from 'components/primitives/PageWord';
 import Text from 'components/primitives/Text';
 import ProjectTable, {
   type ProjectRow,
 } from 'components/composed/ProjectTable';
 import SceneStage from 'components/composed/SceneStage';
+import ScreenshotPlane from 'components/composed/ScreenshotPlane';
 import { anchors, type AnchorId } from 'content/anchors';
 import type { Project } from 'content/projects';
 import { projectPath } from 'content/routes';
 import { foregroundEnter } from 'scene/enter';
 import { useSceneHover, useSceneView } from 'scene/MapProvider';
-import { useIsMobile, useReducedMotion } from 'scene/useViewport';
+import { useReducedMotion } from 'scene/useViewport';
 import { cn } from 'utils/cn';
 
 /*
- * 1b / 1c / 1g. One page, two states.
+ * 1b / 1c / 1g, now one state instead of two.
  *
- * There is no card grid, no filmstrip and no filter row: the index is a
- * six-row SELECTED WORK table lying on the bare map, and BROWSE ALL widens
- * that same table to all fourteen. `all` is a VIEW, not a route -- nothing
- * navigates, the camera holds ("browsing is not travelling"), and the
- * table, the header and the wash are the only things that move. The city /
- * regional view that used to sit between the index and a project is gone
- * too: every row is a link straight to a detail.
+ * There is no card grid, no filmstrip and no filter row, and there is no
+ * longer a SELECTED WORK / BROWSE ALL pair either: the index is the whole
+ * catalogue in one table lying on the bare map, arrived at already open.
+ * The owner's call -- "we're just going to put all the work into the table,
+ * you can hide the browse all button" -- so the six featured ids, the second
+ * table title, the second body line, the row stagger and the 420ms cinch
+ * between the two states are all gone with it. The city / regional view that
+ * used to sit between the index and a project went earlier: every row is a
+ * link straight to a detail.
  *
  * What this component owns, in order of how much of it is not obvious:
  *
- *   - the header cinch. The table's own geometry is ProjectTable's; the
- *     word dropping 52 -> 40px and the subtitle tightening 16/26 -> 14/20
- *     are this page's, and they run on the same 420ms ease-in-out-cubic
- *     the table widens on so the two read as one move.
- *   - the height the `all` table scrolls inside. It asks for `flex-1
- *     min-h-0` on itself and its own tbody, which resolves to nothing
- *     unless the column above it is a bounded flex column -- so the stack
- *     is `flex-1 min-h-0` inside the stage and the table grows into it.
- *   - the hover channel: a row lights its city point and nudges the camera
- *     8% toward it, which is scene/MapProvider's `setHover`. Closing it is
- *     this page's job too, and is not the same thing as ProjectTable's
- *     onMouseLeave: nothing synthesises a mouseleave for an element that
- *     was removed, and MapProvider lives in _app and never unmounts -- so
- *     leaving /projects with the pointer parked on a row used to carry
- *     that row's city into every route after it. On /about, at zoom 10.5,
- *     a stale `vail` nudge is 1.30 degrees of longitude: the route points
- *     at empty ground instead of Portland.
- *   - the map's own type. Browse-all is a state of this page rather than
- *     of the viewport, so the scene cannot derive it; the route declares
- *     it through useSceneView and the scene vetoes on either input.
+ *   - the hover channel, which now has three consumers rather than two. A
+ *     row lights its city point and nudges the camera 8% toward it
+ *     (scene/MapProvider's `setHover`), and it flies that project's capture
+ *     into the stage's rail -- the same ScreenshotPlane a detail pins there,
+ *     with 1d's own note honoured: "-16deg when it flies in on a projects
+ *     hover and -18deg on a detail route".
+ *   - closing that channel, which is this page's job too and is not the same
+ *     thing as ProjectTable's onMouseLeave: nothing synthesises a mouseleave
+ *     for an element that was removed, and MapProvider lives in _app and
+ *     never unmounts -- so leaving /projects with the pointer parked on a
+ *     row used to carry that row's city into every route after it. On
+ *     /about, at zoom 10.5, a stale `vail` nudge is 1.30 degrees of
+ *     longitude: the route points at empty ground instead of Portland.
+ *   - the height the table scrolls inside. It asks for `flex-1 min-h-0` on
+ *     itself and its own tbody, which resolves to nothing unless the column
+ *     above it is a bounded flex column -- so the stack is `flex-1 min-h-0`
+ *     inside the stage and the table grows into it.
+ *   - NOT the column's width. That is the stage's, because the rail on the
+ *     right is the stage's: see --reading-max in styles/tokens/spacing.css.
+ *     The whole point of putting the plane in a stage slot is that /projects
+ *     and a detail cannot disagree about where the reading column ends.
+ *   - the map's own type. The table is over the label band at every width
+ *     now, so the route vetoes labels outright -- 1c's data-labels="0",
+ *     which used to apply only in browse-all.
  *
  * Copy is lorem ipsum on purpose, and stays that way: the owner asked that
  * nothing placeholder be written in words that could survive into
- * production by accident. The two table titles are not copy -- they are
- * the artboards' own labels for the two states.
+ * production by accident.
  */
 
-/** 1b. The six projects worth opening first, in the artboard's order. */
-export const FEATURED_IDS = [
-  'gopro',
-  'winter',
-  '970',
-  'harvard',
-  'developers',
-  'haikumi',
-];
-
-/** 1b's body copy and 1c's one-line subtitle, verbatim from the bundle. */
+/** 1b's body copy, verbatim from the bundle, and the page's only prose. */
 export const BODY_COPY =
   'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.';
 
-export const SUBTITLE_COPY =
-  'Lorem ipsum dolor sit amet, consectetur adipiscing elit.';
-
 /*
- * `index` is the project's ordinal, not the row's -- 1b shows 10, 13, 12,
- * 08, 01, 00 in that order, so the number has to survive the filter.
- *
  * `href` is what makes the row a row and not a div with a click handler:
  * ProjectTable stretches one link over the whole row when it is set, so
  * the table gets keyboard access, middle-click, a status-bar target and a
  * crawlable path to all fourteen details. Without it a row is a mouse
  * gesture and nothing else.
  */
-export const toRow = (
-  project: Project,
-  index: number,
-): ProjectRow => ({
+export const toRow = (project: Project): ProjectRow => ({
   id: project.id,
-  index,
   title: project.title,
   client: project.client,
   city: anchors[project.anchor].name,
@@ -95,106 +80,112 @@ export const toRow = (
   href: projectPath(project.id),
 });
 
+/** The project a row is pointing at, or null for "nothing is hovered". */
+export const projectFor = (
+  projects: Project[],
+  id: string | null,
+): Project | null =>
+  projects.find((project) => project.id === id) ?? null;
+
 /** The city a row is pointing at, or null for "nothing is hovered". */
 export const anchorFor = (
   projects: Project[],
   id: string | null,
-): AnchorId | null =>
-  projects.find((project) => project.id === id)?.anchor ?? null;
+): AnchorId | null => projectFor(projects, id)?.anchor ?? null;
 
 /*
- * 420ms ease-in-out-cubic is the 1c number, and --scene-ease IS
- * cubic-bezier(.65,0,.35,1), so `ease-scene` is that curve rather than a
- * near miss. Everything that moves between the two states quotes this.
+ * The capture crossfades rather than flying in per row: a pointer running
+ * down fourteen rows would otherwise restart a 420ms entrance fourteen
+ * times. --scene-ease IS cubic-bezier(.65,0,.35,1), so `ease-scene` is that
+ * curve rather than a near miss.
+ *
+ * `pointer-events-none` because the plane is a preview of a row, not a
+ * target: it lies over the map at the one place the globe is still
+ * draggable, and a preview that swallowed that drag would be a bug the
+ * pointer could not report.
  */
-const CINCH =
-  'duration-[420ms] ease-scene motion-reduce:transition-none';
+const PREVIEW =
+  'pointer-events-none transition-opacity duration-[240ms] ease-scene motion-reduce:transition-none';
 
 /*
- * The widening, as a max-width rather than a width, so the column is the
- * artboard's 620px on 1b and takes whatever the stage gives it on 1c.
- * 1400px is past every stage width there is -- it reads as "no limit" and
- * still interpolates, which `none` would not.
+ * THE DRIFT: how far the capture moves between the first row and the last,
+ * in CSS pixels, centred on the rail's resting position.
+ *
+ * "Offset it a tasteful amount depending on the hovered item so it tracks
+ * down and up according to same in table a bit" -- so it is a share of the
+ * row's place in the list rather than the row's own y. Measuring the row
+ * would tie the rail to a scroll position, a resize listener and a layout
+ * read on every hover, to say the same thing about a list that is always
+ * fourteen rows in one order.
+ *
+ * 120px against a table about 560px tall is a little over a fifth of the
+ * travel: enough to read as following the pointer, not enough to look like
+ * the capture is being dragged. The plane rests at --plane-top 230 and is
+ * about 255px tall at 1440, so +/-60 keeps it between 170 and 545 of a
+ * 900px viewport with room at both ends.
  */
-const COLUMN = {
-  featured: 'max-w-[620px]',
-  all: 'max-w-[1400px]',
+export const PLANE_DRIFT_PX = 120;
+
+/**
+ * Where the capture sits for row `index` of `count`, as an offset either
+ * side of the rail's resting top. Nothing hovered -- index below zero --
+ * rests at 0, and so does a list too short to have a direction.
+ */
+export const planeDrift = (index: number, count: number): number => {
+  if (index < 0 || count <= 1) return 0;
+  return Math.round((index / (count - 1) - 0.5) * PLANE_DRIFT_PX);
 };
-
-/*
- * 1c: "the eight held-back rows fade in 40ms apart behind the six that
- * were already there." Written out per row because Tailwind reads source
- * text -- a delay built by a loop is a class that never gets compiled.
- */
-const ROW_STAGGER = [
-  '[&_tbody_tr:nth-child(n+7)]:animate-slide-in-sheet',
-  '[&_tbody_tr:nth-child(n+7)]:[animation-fill-mode:both]',
-  '[&_tbody_tr:nth-child(8)]:[animation-delay:40ms]',
-  '[&_tbody_tr:nth-child(9)]:[animation-delay:80ms]',
-  '[&_tbody_tr:nth-child(10)]:[animation-delay:120ms]',
-  '[&_tbody_tr:nth-child(11)]:[animation-delay:160ms]',
-  '[&_tbody_tr:nth-child(12)]:[animation-delay:200ms]',
-  '[&_tbody_tr:nth-child(13)]:[animation-delay:240ms]',
-  '[&_tbody_tr:nth-child(14)]:[animation-delay:280ms]',
-  'motion-reduce:[&_tbody_tr:nth-child(n+7)]:animate-none',
-].join(' ');
 
 export type ProjectsPageProps = {
   projects: Project[];
-  /**
-   * Forces the browse-all view. Left undefined -- which is how the route
-   * renders it -- the page owns the state and the two caps toggle it.
-   */
-  all?: boolean;
   onHoverProject?: (id: string | null) => void;
 };
 
 export const ProjectsPage = ({
   projects,
-  all,
   onHoverProject,
 }: ProjectsPageProps) => {
-  const [browsing, setBrowsing] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const showAll = all ?? browsing;
+  /*
+   * The last project hovered, which is NOT the same as the hovered one: it
+   * is never cleared, so the capture fades out carrying its own image
+   * instead of blanking to the placeholder weave on the way. It starts
+   * null so nothing loads a texture before a pointer has asked for one.
+   */
+  const [preview, setPreview] = useState<Project | null>(null);
 
   const { setHover } = useSceneHover();
-  const isMobile = useIsMobile();
   const reduced = useReducedMotion();
 
   /*
-   * 1c and 1g both carry data-labels="0", for the reason stated twice:
-   * "there is no band where both can be read, so the table carries the
-   * names and the points carry the places." Mobile is the viewport's own
-   * call and the scene already makes it; browse-all is this page's, at
-   * any width. Both are vetoes -- the scene ANDs them -- so declaring it
-   * here cannot switch the mobile suppression back on.
+   * 1c carries data-labels="0", for the reason it states: "there is no band
+   * where both can be read, so the table carries the names and the points
+   * carry the places." That was a browse-all rule while browse-all existed;
+   * the table is full bleed on arrival now, so it is the route's rule. It
+   * is a veto -- the scene ANDs it with the viewport's own -- so declaring
+   * it here cannot switch the mobile suppression back on.
    *
    * Written inline on purpose: useSceneView compares the patch by value.
    */
-  useSceneView({ labels: !showAll });
+  useSceneView({ labels: false });
 
   /*
    * 1b and 1g: the foreground arrives once the camera move is 60% done
-   * and steps 40ms apart -- word, subtitle, table, cap. The delay is not
-   * a number this route keeps; scene/enter.ts derives it from the move
-   * /projects actually arrives on, so retiming the camera retimes this.
+   * and steps 40ms apart -- word, copy, table. The delay is not a number
+   * this route keeps; scene/enter.ts derives it from the move /projects
+   * actually arrives on, so retiming the camera retimes this.
    */
   const step = (index: number) =>
     foregroundEnter(index, { reduced, scene: 'projects' });
 
-  const rows = useMemo(
-    () =>
-      projects
-        .map(toRow)
-        .filter((row) => showAll || FEATURED_IDS.includes(row.id)),
-    [projects, showAll],
-  );
+  const rows = useMemo(() => projects.map(toRow), [projects]);
 
   const handleHover = useCallback(
     (id: string | null) => {
       setActiveId(id);
-      setHover(anchorFor(projects, id));
+      const project = projectFor(projects, id);
+      if (project !== null) setPreview(project);
+      setHover(project?.anchor ?? null);
       onHoverProject?.(id);
     },
     [onHoverProject, projects, setHover],
@@ -212,92 +203,61 @@ export const ProjectsPage = ({
     <SceneStage
       align="center"
       className="clif-projects"
-      vignette={showAll ? 'sheet' : 'left'}
+      plane={
+        <ScreenshotPlane
+          alt={preview === null ? '' : preview.title}
+          className={cn(PREVIEW, activeId === null && 'opacity-0')}
+          src={preview?.imgSrc}
+          tilt={-16}
+        />
+      }
+      planeFold={false}
+      planeShift={planeDrift(
+        preview === null ? -1 : projects.indexOf(preview),
+        projects.length,
+      )}
+      vignette="sheet"
     >
       <div
         className={cn(
           'flex min-h-0 w-full flex-1 flex-col justify-center gap-5',
-          // The stage pads its own bottom and nothing else, and browse-all
+          // The stage pads its own bottom and nothing else, and the table
           // fills the column top to bottom -- so without this the word sits
           // on the viewport edge. Mirrors the stage's bottom inset.
           'pt-[var(--foreground-bottom-mobile)] tablet:pt-[var(--foreground-bottom)]',
-          'transition-[max-width]',
-          CINCH,
-          COLUMN[showAll ? 'all' : 'featured'],
         )}
-        data-view={showAll ? 'all' : 'featured'}
       >
         <div className="flex flex-col gap-2.5">
           {/* The word gets its own box: PageWord is w-fit so its clipped
               gradient samples the word itself, and the arrival belongs to
               the box rather than to the glyphs. */}
           <div style={step(0)}>
-            <PageWord
-              className={cn(
-                'whitespace-nowrap transition-[font-size,padding-bottom]',
-                CINCH,
-              )}
-              size={showAll ? 'sm' : 'md'}
-            >
+            <PageWord className="whitespace-nowrap" size="sm">
               projects
             </PageWord>
           </div>
-          {/* 1g has no subtitle: at 390px the word and the table are the
-              whole page, and a third block would push the table off. */}
+          {/* 1g drops it: at 390px the word and the table are the whole
+              page, and a third block would push the table off. */}
           <Text
-            className={cn(
-              'transition-[font-size,line-height] max-tablet:hidden',
-              CINCH,
-            )}
+            className="max-tablet:hidden"
             style={step(1)}
-            variant={showAll ? 'detail' : 'body'}
+            variant="detail"
           >
-            {showAll ? SUBTITLE_COPY : BODY_COPY}
+            {BODY_COPY}
           </Text>
         </div>
-        {/* The table's step is a box around it: the arrival and the growth
+        {/* The table's step is a box around it: the arrival and the height
             are two different properties of the same element, and
             ProjectTable takes a className rather than a style. The box is
             also the bounded flex parent its own flex-1 resolves against. */}
-        <div
-          className={cn(
-            'flex min-h-0 flex-col transition-[flex-grow]',
-            CINCH,
-            showAll && 'flex-1',
-          )}
-          style={step(2)}
-        >
+        <div className="flex min-h-0 flex-1 flex-col" style={step(2)}>
           <ProjectTable
             activeId={activeId}
-            className={cn(showAll && ROW_STAGGER)}
-            columns={showAll ? 'all' : 'featured'}
-            count={`${String(rows.length).padStart(2, '0')} of ${
-              projects.length
-            }`}
-            eyebrow={showAll ? 'all projects' : 'selected work'}
+            count={String(projects.length)}
+            eyebrow="all projects"
             onHoverRow={handleHover}
             rows={rows}
           />
-        </div>
-        <div className="flex pt-2" style={step(3)}>
-          {showAll ? (
-            <Button
-              lead="←"
-              onClick={() => setBrowsing(false)}
-              size="sm"
-            >
-              selected work
-            </Button>
-          ) : (
-            // 1g reads "all 14" at xs: "browse all" does not fit 390px.
-            <Button
-              expand
-              onClick={() => setBrowsing(true)}
-              size={isMobile ? 'xs' : 'sm'}
-            >
-              {isMobile ? 'all 14' : 'browse all'}
-            </Button>
-          )}
         </div>
       </div>
     </SceneStage>

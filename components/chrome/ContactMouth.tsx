@@ -5,6 +5,12 @@ import {
   useState,
   type CSSProperties,
 } from 'react';
+import { BALL_MOTION } from 'components/chrome/ThemeEye';
+import {
+  PRESS_NOW,
+  PRESS_WASH,
+  PRESS_WASH_DEEP,
+} from 'components/primitives/press';
 import usePopover from 'components/chrome/usePopover';
 import { EMAIL, MAILTO } from 'content/contact';
 import { cn } from 'utils/cn';
@@ -42,7 +48,8 @@ import { cn } from 'utils/cn';
  * Growth is scoped to a fine pointer for the same reason as the eye's: the
  * site's `hover` variant is bare `:hover`, so on a touch screen the tap
  * that opened the panel left the mouth stuck 8% oversized. Escape closes
- * the panel (usePopover).
+ * the panel, and so does a press anywhere outside the lips and the panel,
+ * which is what `ref` below is for (usePopover).
  */
 export const COPIED_MS = 1600;
 
@@ -92,7 +99,7 @@ export const ContactMouth = ({
   defaultOpen = false,
   className,
 }: ContactMouthProps) => {
-  const { open, toggle } = usePopover(defaultOpen);
+  const { open, ref, toggle } = usePopover(defaultOpen);
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -108,21 +115,26 @@ export const ContactMouth = ({
   return (
     <div
       className={cn('relative select-none', className)}
+      ref={ref}
       style={{ width: MOUTH_WIDTH, height: MOUTH_HEIGHT }}
     >
       {/*
-        The same growth as the eye's BALL_MOTION, written out rather than
-        shared. `not-active:` on the hover half is load bearing: both
-        halves set `scale` at equal specificity, Tailwind emits the
-        fine-pointer block last, and the press scale is the SMALLER of the
-        two -- so before this the mouth stayed at 1.08 for the whole press
-        and a mouse could not produce the press state at all. See
-        components/primitives/Button/keycap.ts for the long version.
+        The eye's BALL_MOTION, which is exported and is the same three
+        rules: `not-active:` on the hover half so the fine-pointer block
+        cannot outrank the press, a press that compresses PAST rest rather
+        than sitting between rest and hover, and a down edge with no
+        transition on it. It used to be written out here instead, and
+        drifted -- the mouth kept the 1.02 growth and the 180ms press-in
+        after both were understood to be wrong. Sharing the string is what
+        stops the next fix landing on one face and not the other.
       */}
       <button
         aria-expanded={open}
         aria-label="Contact"
-        className="absolute top-[5px] left-0 block h-[24px] w-[34px] cursor-pointer overflow-hidden transition-transform duration-[180ms] ease-[cubic-bezier(.165,.84,.44,1)] active:scale-[1.02] motion-reduce:transition-none pointer-fine:not-active:hover:scale-[1.08]"
+        className={cn(
+          'absolute top-[5px] left-0 block h-[24px] w-[34px] cursor-pointer overflow-hidden',
+          BALL_MOTION,
+        )}
         data-open={open}
         onClick={toggle}
         style={{
@@ -158,6 +170,24 @@ export const ContactMouth = ({
           className="absolute right-[58px] bottom-[2px] z-[9] box-border animate-slide-in-card rounded-[16px_16px_6px_16px] bg-surface-2 p-[15px] shadow-[var(--shadow-panel)] select-text [border:var(--border-cta-soft)]"
           style={{ ...PANEL_ENTER, width: PANEL_WIDTH }}
         >
+          {/*
+            The tail, in three parts, and the order is the whole point --
+            the eye's panel carries the same note. The panel's border is
+            30% accent (--border-cta-soft) and so is the tail's edge, and
+            the edge triangle's base sat ON that border: two translucent
+            paints of the same colour, compositing to ~51% in the two
+            shoulders the fill triangle does not reach, which lit a bright
+            1px point at each of the joints where the tail meets the body.
+
+            So the border is ERASED first, across exactly the 14px the edge
+            triangle's base covers, and the edge is drawn over the gap. Now
+            every part of the outline is a single 30% paint and the border
+            butts into the tail's shoulders instead of running under them.
+            The strip is 2px wide to land its outer edge on the border's
+            outer edge; the inner pixel falls on the panel's own padding,
+            which is this colour already.
+          */}
+          <span className="absolute right-[-1px] bottom-[8px] h-[14px] w-[2px] bg-surface-2" />
           <span className="absolute right-[-11px] bottom-[8px] h-0 w-0 border-y-[7px] border-l-[11px] border-y-transparent border-l-accent-30" />
           <span className="absolute right-[-9px] bottom-[9px] h-0 w-0 border-y-[6px] border-l-[10px] border-y-transparent border-l-surface-2" />
 
@@ -182,8 +212,18 @@ export const ContactMouth = ({
             Sed do eiusmod tempor incididunt ut labore.
           </p>
           <div className="flex items-center gap-[8px]">
+            {/* Both actions in this panel were hover-only. The link's
+                hover reaches accent-20, so its press takes the deeper
+                step and its hover is guarded; the copy button's hover
+                writes COLOUR, which the press does not touch, so that one
+                needs no guard and takes the ordinary wash against its own
+                transparent rest. */}
             <a
-              className="flex-1 rounded-full border border-accent bg-accent-12 px-[12px] py-[9px] text-center text-fg-2 no-underline transition-[background-color] duration-[140ms] ease-out motion-reduce:transition-none pointer-fine:hover:bg-accent-20"
+              className={cn(
+                'flex-1 rounded-full border border-accent bg-accent-12 px-[12px] py-[9px] text-center text-fg-2 no-underline transition-[background-color] duration-[140ms] ease-out motion-reduce:transition-none pointer-fine:not-active:hover:bg-accent-20',
+                PRESS_WASH_DEEP,
+                PRESS_NOW,
+              )}
               href={MAILTO}
               style={{
                 fontSize: 'var(--type-label-size)',
@@ -194,7 +234,11 @@ export const ContactMouth = ({
             </a>
             <button
               aria-label={`Copy ${email}`}
-              className="box-border flex-none cursor-pointer rounded-full border border-[var(--border-neutral-color)] py-[9px] text-center whitespace-nowrap text-fg-3 transition-[color] duration-[140ms] ease-out motion-reduce:transition-none pointer-fine:hover:text-fg-2"
+              className={cn(
+                'box-border flex-none cursor-pointer rounded-full border border-[var(--border-neutral-color)] py-[9px] text-center whitespace-nowrap text-fg-3 transition-[color] duration-[140ms] ease-out motion-reduce:transition-none pointer-fine:hover:text-fg-2',
+                PRESS_WASH,
+                PRESS_NOW,
+              )}
               onClick={() => {
                 void copy();
               }}

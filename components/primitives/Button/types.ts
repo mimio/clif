@@ -48,7 +48,7 @@ export type ButtonProps = {
   lead?: ReactNode;
   /** A mark after the label. Does not widen the left padding. */
   trail?: ReactNode;
-  /** The four-corner registration mark, for "browse all" and "all 14". */
+  /** The four-corner registration mark. See the note in ./index.tsx. */
   expand?: boolean;
   /** Takes the full width of its row. */
   grow?: boolean;

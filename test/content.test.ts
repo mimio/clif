@@ -8,6 +8,7 @@ import {
   cameras,
   fogPresets,
   NO_PADDING,
+  PROJECTS_FRAME,
   SCENE_EASE,
   SCENE_HANDOFF,
   SCENE_MOVE_LONG_MS,
@@ -68,9 +69,18 @@ describe('cameras', () => {
       cameras.hello.spinDegPerSecond,
     );
     expect(cameras.projects.center).toEqual([-98.0, 39.0]);
-    expect(cameras.projects.zoom).toBe(2.6);
     expect(cameras.projects.pitch).toBe(25);
     expect(cameras.projects.bearing).toBe(-12);
+    /*
+     * Not the artboards' 2.6 any more, and the one camera in the table
+     * that has left them. 2.6 paints a disc wider than the artboard is
+     * tall, centred behind the table; the index now runs its table to
+     * 917px and flies a capture into the rail beside it, so the globe is
+     * framed INTO that rail. The zoom below is that frame resolved at
+     * 1440x900, which test/scene-camera.test.ts re-derives.
+     */
+    expect(cameras.projects.frame).toBe(PROJECTS_FRAME);
+    expect(cameras.projects.zoom).toBeLessThan(2.6);
     expect(cameras.about.zoom).toBe(10.5);
     // The only thing on record about the 404: 1a settles "from zoom 0.8"
     // against a hello the same card calls 1.6, so it sits eight tenths of
@@ -92,9 +102,13 @@ describe('cameras', () => {
         'top',
       ]);
     });
-    expect(cameras.projects.padding).toEqual(NO_PADDING);
+    expect(cameras.projectDetail.padding).toEqual(NO_PADDING);
     expect(cameras.hello.padding.left).toBeCloseTo(
       (2 * 0.66 - 1) * ARTBOARD_DESKTOP.width,
+      6,
+    );
+    expect(cameras.projects.padding.left).toBeCloseTo(
+      (2 * PROJECTS_FRAME.at[0] - 1) * ARTBOARD_DESKTOP.width,
       6,
     );
   });

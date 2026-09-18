@@ -33,7 +33,21 @@ import {
  * `view` is the third: everything a route declares about the scene that is
  * not where the camera is -- see scene/view.ts.
  *
- * The hover and view fields are optional, so a consumer can still build a
+ * `stopRequest` is the fourth, and it is the only one that runs UPWARDS
+ * only. The other three are things the page tells the scene; this is the
+ * scene telling the page that somebody clicked a work-history stop on the
+ * map. It cannot be a piece of scene state like `hover`, because the
+ * selected stop is not state the scene owns: it lives in the URL, so the
+ * only thing the map can do is ask, and the route answers by navigating.
+ *
+ * SO IT IS A MAILBOX, not a value. The route reads the request, turns it
+ * into a push, and posts null back. That round trip is what makes a
+ * second click on the SAME stop work -- a plain `selected` value would
+ * already equal that stop and the route would have nothing to react to --
+ * and it is why the field can be read without the route having to
+ * remember which requests it has already served.
+ *
+ * Every field but `camera` is optional, so a consumer can still build a
  * context value out of `{ camera, setCamera }` alone.
  */
 export type SceneContextValue = {
@@ -46,6 +60,9 @@ export type SceneContextValue = {
   /** What the current route says about the scene besides the camera. */
   view?: SceneView;
   setView?: (view: SceneView) => void;
+  /** The history stop a map click is asking for, by id, or null for none. */
+  stopRequest?: number | null;
+  requestStop?: (id: number | null) => void;
 };
 
 const noop = (): void => {};
@@ -77,6 +94,27 @@ export const useSceneHover = (): SceneHover => {
 export const useSceneViewValue = (): SceneView =>
   useScene().view ?? DEFAULT_VIEW;
 
+export type StopRequest = {
+  stopRequest: number | null;
+  requestStop: (id: number | null) => void;
+};
+
+/**
+ * The map's request channel, with the outside-a-provider case resolved.
+ *
+ * Asking without a provider is a no-op rather than a crash, for the
+ * reason useSceneHover gives: the about page is rendered on its own in
+ * the specimen harness and in its unit tests, where there is no scene to
+ * be clicked and nothing to answer.
+ */
+export const useStopRequest = (): StopRequest => {
+  const { stopRequest, requestStop } = useScene();
+  return {
+    stopRequest: stopRequest ?? null,
+    requestStop: requestStop ?? noop,
+  };
+};
+
 /**
  * A route's statement about the scene beyond the camera. Call it with
  * only the fields the route cares about; the rest keep their defaults,
@@ -103,11 +141,19 @@ export const MapProvider = ({ children }: MapProviderProps) => {
   const [camera, setCamera] = useState<CameraSpec | null>(null);
   const [hover, setHoverState] = useState<AnchorId | null>(null);
   const [view, setViewState] = useState<SceneView>(DEFAULT_VIEW);
+  const [stopRequest, setStopRequest] = useState<number | null>(null);
 
   // Stable, because the map's own interaction handlers are registered
   // once per layer set and close over it.
   const setHover = useCallback((anchor: AnchorId | null) => {
     setHoverState(anchor);
+  }, []);
+
+  // Stable for the same reason, and for one more: it is a dependency of
+  // SceneRoot's layer-set memo, so an identity that churned would rebuild
+  // every set on every render and re-sync the map with it.
+  const requestStop = useCallback((id: number | null) => {
+    setStopRequest(id);
   }, []);
 
   // Value-compared, so a route can declare its view inline without the
@@ -119,8 +165,25 @@ export const MapProvider = ({ children }: MapProviderProps) => {
   }, []);
 
   const value = useMemo(
-    () => ({ camera, setCamera, hover, setHover, view, setView }),
-    [camera, hover, setHover, view, setView],
+    () => ({
+      camera,
+      setCamera,
+      hover,
+      setHover,
+      view,
+      setView,
+      stopRequest,
+      requestStop,
+    }),
+    [
+      camera,
+      hover,
+      setHover,
+      view,
+      setView,
+      stopRequest,
+      requestStop,
+    ],
   );
 
   return (
