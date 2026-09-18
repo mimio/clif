@@ -21,6 +21,7 @@ import {
   type BasemapConfig,
   fogFor,
 } from 'scene/theme';
+import { CARTOGRAPHY_MAX_ZOOM } from 'styles/tokens/cartography';
 import type { Palette } from 'styles/tokens/palette';
 
 /*
@@ -971,6 +972,14 @@ const create = async (
       attributionControl: false,
       // A globe needs to zoom out past the old style's minZoom: 7.
       minZoom: 0,
+      /*
+       * And it must not zoom IN past the point where Standard stops
+       * painting water in the colour this theme asked for. That is a
+       * measured property of the style rather than a preference, so the
+       * number and its derivation live with the rest of the cartography
+       * -- see CARTOGRAPHY_MAX_ZOOM.
+       */
+      maxZoom: CARTOGRAPHY_MAX_ZOOM,
     });
   } catch (error) {
     const message =
