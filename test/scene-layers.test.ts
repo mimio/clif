@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { latest } from 'mapbox-gl/dist/style-spec/index.cjs';
 import { type AnchorId, anchors } from 'content/anchors';
 import { historyStops } from 'content/history';
 import { projectsList } from 'content/projects';
@@ -16,9 +17,11 @@ import {
   HISTORY_POINTS,
   HISTORY_RING,
   HISTORY_SET,
+  keepOurColors,
   layerSetsFor,
   type LayerSetOptions,
   LOCALITY_LABELS,
+  paintsAColor,
   PLACE_LABELS,
   PROJECT_SITES_SET,
   projectSites,
@@ -760,10 +763,11 @@ describe('the history stops', () => {
     for (const entry of work.layers) {
       const paint = entry.paint as Record<string, unknown>;
       // Both directions. Deriving the expectation from the same array the
-      // layer was built from can only fail if `layer()` drops something,
-      // and its loop body is skipped entirely for a layer with no patches
-      // at all -- which is exactly what a patch aimed at the wrong id
-      // leaves behind. See "every patch lands on a layer that exists".
+      // layer was built from can only fail if `layerSetsFor`'s seam drops
+      // something, and `paintOf`'s filter yields nothing at all for a
+      // layer with no patches -- which is exactly what a patch aimed at
+      // the wrong id leaves behind. See "every patch lands on a layer that
+      // exists".
       expect(paint).toEqual(
         Object.fromEntries(
           patches
@@ -817,11 +821,12 @@ describe('the history stops', () => {
 /*
  * A PaintPatch aimed at a layer that is not in the set is invisible.
  *
- * `repaint` skips a patch whose layer the map does not have, and `layer()`
- * builds a layer's initial paint by filtering the same array -- so a patch
- * retargeted at a typo'd id does not throw, does not warn and does not
- * show up in any diff of one against the other. The line mounts with
- * `paint: {}` and renders for ever as mapbox's default black hairline.
+ * `repaint` skips a patch whose layer the map does not have, and the seam
+ * in `layerSetsFor` builds a layer's initial paint by filtering the same
+ * array -- so a patch retargeted at a typo'd id does not throw, does not
+ * warn and does not show up in any diff of one against the other. The line
+ * mounts with `paint: {}` and renders for ever as mapbox's default black
+ * hairline.
  *
  * Nor is "there is a patch for it" enough: dropping the city points'
  * circle-radius leaves circle-color behind, and the points render at
@@ -1020,7 +1025,19 @@ describe('the paint the design actually asks for', () => {
       const set = layerSetsFor(scene, options()).find(
         (one) => one.id === setId,
       );
-      expect(set?.paint(FALLBACK_PALETTE)).toEqual(expected);
+      /*
+       * RESTING carries the DESIGN's values, and `keepOurColors` is run
+       * over it here rather than the sentinels being transcribed into it
+       * twice. The division is deliberate: this table's job is to pin
+       * what the site paints -- an accent that slipped from alpha 0.6 to
+       * 0.05 is still "from palette.a" and is also an invisible line --
+       * while the sentinel is a property of the MECHANISM, and "every
+       * colour carries one" is asserted from the other direction, over
+       * every set, state and palette, by the two tests below it.
+       */
+      expect(set?.paint(FALLBACK_PALETTE)).toEqual(
+        keepOurColors(expected),
+      );
     },
   );
 
@@ -1092,5 +1109,188 @@ describe('the paint the design actually asks for', () => {
     expect(PAPER.light).toBe(true);
     expect(FALLBACK_PALETTE.light).toBe(false);
     expect(under(PAPER)).not.toEqual(under(FALLBACK_PALETTE));
+  });
+});
+
+/* ---- our own colours, and the theme that must not reach them ---------- */
+
+/*
+ * THE GUARD FOR THE DOUBLE TINT.
+ *
+ * Our layers are added to the ROOT style, so `Style._reloadColorTheme`
+ * gives them the ROOT stylesheet's colour theme -- Mapbox Standard carries
+ * one, the hermetic stub's style did not, and that gap hid the same bug in
+ * the fog for a release. scene/layers/sets.ts has the mechanism and the
+ * measured deltas; e2e/hermetic/layer-lut.spec.ts photographs the result
+ * against the real library over a root theme.
+ *
+ * What is asserted HERE is the rule, structurally and over every route,
+ * state and palette: nothing colour-shaped reaches mapbox without the
+ * `-use-theme` that keeps the cube off it. That is the half a list of keys
+ * cannot give, because the list is what goes stale -- so these walk the
+ * sets rather than naming layers.
+ */
+describe('the colour theme and our own layers', () => {
+  it('recognises a colour wherever it sits, and nothing else', () => {
+    for (const value of [
+      'rgb(1, 2, 3)',
+      'rgba(1, 2, 3, 0.5)',
+      '  RGBA(1, 2, 3, 0.5)  ',
+      '#fff',
+      '#FFEE00',
+      'hsl(1, 2%, 3%)',
+      ['case', ['==', ['get', 'anchor'], ''], '#fff', '#000'],
+    ]) {
+      expect(paintsAColor(value), String(value)).toBe(true);
+    }
+    for (const value of [
+      1,
+      0,
+      true,
+      null,
+      undefined,
+      'none',
+      'portland',
+      'settlement_subdivision',
+      ['min', 7, ['+', 2.6, ['*', ['get', 'count'], 0.7]]],
+      ['case', ['==', ['get', 'id'], -1], 4.5, 3],
+      ['get', 'symbolrank'],
+      [],
+    ]) {
+      expect(paintsAColor(value), String(value)).toBe(false);
+    }
+  });
+
+  /** Every patch every route can ask for, under every state and palette. */
+  const everyPatch = (): { set: LayerSet; patch: PaintPatch }[] => {
+    const out: { set: LayerSet; patch: PaintPatch }[] = [];
+    for (const palette of PALETTES) {
+      for (const scene of SCENES) {
+        for (const state of STATES) {
+          for (const built of layerSetsFor(
+            scene,
+            options({ ...state, palette }),
+          )) {
+            for (const patch of built.paint(palette)) {
+              out.push({ set: built, patch });
+            }
+          }
+        }
+      }
+    }
+    return out;
+  };
+
+  const SEALED = '-use-theme';
+
+  it('seals every colour it paints, and nothing that is not one', () => {
+    const all = everyPatch();
+    const sealed = (layer: string, property: string) =>
+      all.find(
+        (one) =>
+          one.patch.layer === layer &&
+          one.patch.property === `${property}${SEALED}`,
+      )?.patch.value;
+
+    let colors = 0;
+    for (const { patch } of all) {
+      if (patch.property.endsWith(SEALED)) continue;
+      if (paintsAColor(patch.value)) {
+        colors += 1;
+        expect(
+          sealed(patch.layer, patch.property),
+          `${patch.layer}/${patch.property} would be re-tinted by a root colour theme`,
+        ).toBe('none');
+      } else {
+        expect(
+          sealed(patch.layer, patch.property),
+          `${patch.layer}/${patch.property} is not a colour and must not carry a sentinel`,
+        ).toBeUndefined();
+      }
+    }
+    // Not vacuous: the walk has to have seen colours to have proved
+    // anything about them.
+    expect(colors).toBeGreaterThan(0);
+  });
+
+  /*
+   * A colour reaches mapbox by two roads -- addLayer's `paint`, and
+   * repaint's setPaintProperty -- and the sentinel has to be on both.
+   * Only the first one works: `ProgramConfiguration` reads a property's
+   * `-use-theme` once, when the bucket's binders are built, so a sentinel
+   * that only arrives later is accepted and ignored. Measured against
+   * mapbox-gl 3.30: setPaintProperty('circle-color-use-theme', 'none') on
+   * an already-tinted layer left the drawn pixel at rgb(69, 56, 13), while
+   * the same key in the paint addLayer was given drew rgb(255, 229, 32).
+   *
+   * So this is the assertion that matters, and it is about the road the
+   * layer is MOUNTED by. Both are checked because sets.ts derives them
+   * from one sealed array, and the value of that is that they cannot
+   * disagree.
+   */
+  it('hands the map the sentinel by both roads', () => {
+    const map = fakeMap();
+    const registry = createLayerRegistry();
+    const built = layerSetsFor('about', options());
+    registry.sync(map, built);
+    registry.repaint(map, built, FALLBACK_PALETTE);
+
+    let mounted = 0;
+    for (const set of built) {
+      for (const entry of set.layers) {
+        const paint = map.layers.get(entry.id) as {
+          paint: Record<string, unknown>;
+        };
+        for (const [property, value] of Object.entries(paint.paint)) {
+          if (property.endsWith(SEALED) || !paintsAColor(value))
+            continue;
+          mounted += 1;
+          expect(
+            paint.paint[`${property}${SEALED}`],
+            `${entry.id}/${property} was added without its sentinel`,
+          ).toBe('none');
+          expect(
+            map.paints.some(
+              ([layer, key, sent]) =>
+                layer === entry.id &&
+                key === `${property}${SEALED}` &&
+                sent === 'none',
+            ),
+            `${entry.id}/${property} was repainted without its sentinel`,
+          ).toBe(true);
+        }
+      }
+    }
+    expect(mounted).toBeGreaterThan(0);
+  });
+
+  /*
+   * AND THE SENTINEL NAMES A PROPERTY MAPBOX WILL ACTUALLY READ.
+   *
+   * `keepOurColors` derives `<property>-use-theme` from the VALUE rather
+   * than from the property's name, which is the only recogniser that is
+   * neither short nor wrong (sets.ts argues it out). What makes that safe
+   * is a fact about mapbox's spec rather than about this codebase: a CSS
+   * colour is only ever a legal value for a colour-typed property, and
+   * every colour-typed paint property has a `-use-theme` sibling. So this
+   * reads mapbox's OWN spec back and checks that each property we seal is
+   * one it types as a colour. A mapbox upgrade that renames a property, or
+   * a paint patch that puts a colour string somewhere colour does not
+   * belong, is a red test here rather than a validation error the browser
+   * swallows.
+   */
+  it('seals only properties mapbox itself types as colours', () => {
+    let checked = 0;
+    for (const { set, patch } of everyPatch()) {
+      if (!patch.property.endsWith(SEALED)) continue;
+      const base = patch.property.slice(0, -SEALED.length);
+      const entry = set.layers.find((one) => one.id === patch.layer);
+      const type = entry?.type as string;
+      expect(latest[`paint_${type}`]?.[base]?.type, base).toBe(
+        'color',
+      );
+      checked += 1;
+    }
+    expect(checked).toBeGreaterThan(0);
   });
 });

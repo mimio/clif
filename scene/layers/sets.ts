@@ -60,10 +60,13 @@ import type { Palette } from 'styles/tokens/palette';
  * in scene/mapbox/instance.ts, `dashRuns` in scene/camera.ts, and
  * `greatCircle` in ./geo.ts, which nothing else sampled.
  *
- * Every colour comes out of `paint(palette)` -- theming tier 3 -- and the
- * same patch list builds each layer's initial paint, so a colour is
- * written once and cannot drift between "what the layer was added with"
- * and "what a repaint sets it to".
+ * Every colour comes out of `paint(palette)` -- theming tier 3 -- and a
+ * set's layers declare no paint of their own: `layerSetsFor` at the foot
+ * of this file builds each layer's initial paint from the same patch list
+ * repaint re-applies. So a colour is written once and cannot drift between
+ * "what the layer was added with" and "what a repaint sets it to", and the
+ * `-use-theme` that keeps the ROOT style's colour theme off our own
+ * colours is derived at that one seam rather than remembered per patch.
  */
 
 export const PROJECT_SITES_SET = 'project-sites';
@@ -164,11 +167,110 @@ const paintOf = (
       .map((patch) => [patch.property, patch.value]),
   );
 
-/** Builds a layer with the paint its own patches describe. */
-const layer = (
-  entry: LayerEntry,
-  patches: PaintPatch[],
-): LayerEntry => ({ ...entry, paint: paintOf(entry.id, patches) });
+/* ---- the colour theme must not touch OUR colours ----------------------
+ *
+ * THE SAME BUG THE FOG HAD, ON EVERY LAYER IN THIS FILE.
+ *
+ * mapbox-gl re-tints a layer's colour paint properties through
+ * `style.getLut(layer.scope)`. Our layers are added to the ROOT style, so
+ * their scope is the root's, and `Style._reloadColorTheme` sets
+ * `layer.lut = this._styleColorTheme.lut` for every layer it owns --
+ * which is every layer this file declares. The root's colour theme is the
+ * ROOT STYLESHEET'S, because `setImportColorTheme('basemap', ...)` sets
+ * the FRAGMENT's override and leaves the root's alone.
+ *
+ * The hermetic stub's root style carried no `color-theme`, so `getLut('')`
+ * was null there and every colour below arrived as itself. MAPBOX
+ * STANDARD'S ROOT DOES CARRY ONE. That is the whole reason this was
+ * invisible until the fog's version of it reached a preview, and it is why
+ * the guard in e2e/hermetic/layer-lut.spec.ts runs against
+ * `stubMapboxNetwork(context, { rootColorTheme: true })`.
+ *
+ * MEASURED on that stub, against the real library, at the yellow theme --
+ * the drawn pixel of our own layers, without the sentinel and with it:
+ *
+ *   project-site-points   circle-color         rgb( 69, 56, 13) -> rgb(170, 152, 31)
+ *   history-stop-points   circle-color         rgb( 63, 51, 13) -> rgb(166, 148, 31)
+ *   history-stop-ring     circle-stroke-color  rgb( 60, 49, 15) -> rgb(148, 133, 31)
+ *   history-path-line     line-color           rgb( 48, 31, 17) -> rgb(141,  83, 36)
+ *
+ * and, computed through the same cube because a hermetic run has no glyphs
+ * to photograph, the type: `palette.subInk` rgb(193, 193, 193) comes back
+ * rgb(56, 48, 41), and on `paper` the labels INVERT -- an ink of
+ * rgb(84, 79, 70) comes back rgb(223, 202, 174) on a ground of
+ * rgb(237, 233, 225).
+ *
+ * The fix is the fog's, for the fog's reason: THE LUT EXISTS TO MAP
+ * MAPBOX'S COLOURS INTO THIS PALETTE, AND EVERY COLOUR BELOW IS ALREADY IN
+ * IT -- each one is read straight off the theme's own tokens through
+ * `palette`. Sending them through the cube applies the palette twice.
+ * `<property>-use-theme: 'none'` is mapbox's own opt-out, and
+ * `shouldIgnoreLut` takes exactly the string `none`.
+ *
+ * A RULE, NOT A LIST OF KEYS. The obvious repair is to write the sentinel
+ * beside each of the colour patches below, and it is the wrong one: the
+ * next one is a layer nobody has added yet, and this branch has been
+ * bitten more than once by a hand-kept list a later lane did not know to
+ * widen. So the sentinel is DERIVED from the patch, at the one seam every
+ * set leaves this module through.
+ *
+ * WHAT IS RECOGNISED, and why it is the VALUE rather than the property
+ * name. Mapbox's own naming very nearly works -- 27 of the 30 colour-typed
+ * paint properties in the 3.30 spec end in `-color` -- but `line-gradient`,
+ * `line-border-gradient` and `sky-gradient` are colours that do not, and
+ * `fill-extrusion-vertical-gradient` is a BOOLEAN that does, so a name
+ * test is either three properties short or one property wrong. A value
+ * test is neither: a CSS colour is only ever a legal value for a
+ * colour-typed property, and every colour-typed property in the spec has a
+ * `-use-theme` sibling -- all 30 checked against mapbox-gl 3.30's own
+ * property tables -- so a sentinel derived this way always names a real
+ * property. `circle-radius`, `text-opacity` and the `['case', ['==',
+ * ['get', 'anchor'], 'portland'], ...]` selectors are numbers and ids, and
+ * none of them is a colour.
+ */
+
+/**
+ * A CSS colour as anything in this file can produce one: `rgb()`/`rgba()`
+ * out of `palette`, or a hex token read straight off the stylesheet.
+ */
+const COLOR_VALUE = /^(#[0-9a-f]{3,8}|rgba?\(|hsla?\()/i;
+
+/**
+ * Whether a paint value paints a colour -- directly, or anywhere inside an
+ * expression, because a colour this file sets is as often a `['case', ...]`
+ * over two palette tokens as it is one string.
+ */
+export const paintsAColor = (value: unknown): boolean =>
+  typeof value === 'string'
+    ? COLOR_VALUE.test(value.trim())
+    : Array.isArray(value) && value.some(paintsAColor);
+
+/** mapbox's opt-out, as `shouldIgnoreLut` tests for it. */
+const NO_THEME = 'none';
+
+/**
+ * The patch list a set is actually mounted and repainted with: every
+ * colour patch followed by the `-use-theme` that keeps the root style's
+ * colour theme off it.
+ *
+ * Exported for test/scene-layers.test.ts, which walks every set, state and
+ * palette and asserts that nothing colour-shaped reaches mapbox without its
+ * sentinel -- so a layer added later is covered by the rule and by the
+ * guard, rather than by anyone remembering either.
+ */
+export const keepOurColors = (patches: PaintPatch[]): PaintPatch[] =>
+  patches.flatMap((patch) =>
+    paintsAColor(patch.value)
+      ? [
+          patch,
+          {
+            layer: patch.layer,
+            property: `${patch.property}-use-theme`,
+            value: NO_THEME,
+          },
+        ]
+      : [patch],
+  );
 
 export type SceneEvent = {
   features?: { properties?: Record<string, unknown> }[];
@@ -345,7 +447,6 @@ const projectSitesSet = (options: LayerSetOptions): LayerSet => {
     },
   ];
 
-  const patches = paint(options.palette);
   const text = (offsetY: number) => ({
     ...mapType(),
     'text-field': ['get', 'label'],
@@ -389,32 +490,23 @@ const projectSitesSet = (options: LayerSetOptions): LayerSet => {
       },
     ],
     layers: [
-      layer(
-        {
-          id: SITE_POINTS,
-          type: 'circle',
-          source: PROJECT_SITES_SET,
-        },
-        patches,
-      ),
-      layer(
-        {
-          id: SITE_LABELS,
-          type: 'symbol',
-          source: PROJECT_SITES_SET,
-          layout: text(-0.6),
-        },
-        patches,
-      ),
-      layer(
-        {
-          id: SITE_COUNTS,
-          type: 'symbol',
-          source: SITE_COUNTS,
-          layout: text(0.8),
-        },
-        patches,
-      ),
+      {
+        id: SITE_POINTS,
+        type: 'circle',
+        source: PROJECT_SITES_SET,
+      },
+      {
+        id: SITE_LABELS,
+        type: 'symbol',
+        source: PROJECT_SITES_SET,
+        layout: text(-0.6),
+      },
+      {
+        id: SITE_COUNTS,
+        type: 'symbol',
+        source: SITE_COUNTS,
+        layout: text(0.8),
+      },
     ],
     interactions: [
       {
@@ -521,8 +613,6 @@ const historySet = (options: LayerSetOptions): LayerSet => {
     },
   ];
 
-  const patches = paint(options.palette);
-
   return {
     id: HISTORY_SET,
     sources: [
@@ -554,36 +644,24 @@ const historySet = (options: LayerSetOptions): LayerSet => {
       },
     ],
     layers: [
-      layer(
-        { id: HISTORY_LINE, type: 'line', source: HISTORY_LINE },
-        patches,
-      ),
-      layer(
-        {
-          id: HISTORY_POINTS,
-          type: 'circle',
-          source: HISTORY_SET,
+      { id: HISTORY_LINE, type: 'line', source: HISTORY_LINE },
+      {
+        id: HISTORY_POINTS,
+        type: 'circle',
+        source: HISTORY_SET,
+      },
+      { id: HISTORY_RING, type: 'circle', source: HISTORY_SET },
+      {
+        id: HISTORY_LABELS,
+        type: 'symbol',
+        source: HISTORY_SET,
+        layout: {
+          ...mapType(),
+          'text-field': ['get', 'company'],
+          'text-anchor': 'left',
+          'text-offset': [1.5, 0.3],
         },
-        patches,
-      ),
-      layer(
-        { id: HISTORY_RING, type: 'circle', source: HISTORY_SET },
-        patches,
-      ),
-      layer(
-        {
-          id: HISTORY_LABELS,
-          type: 'symbol',
-          source: HISTORY_SET,
-          layout: {
-            ...mapType(),
-            'text-field': ['get', 'company'],
-            'text-anchor': 'left',
-            'text-offset': [1.5, 0.3],
-          },
-        },
-        patches,
-      ),
+      },
     ],
     interactions: [],
     paint,
@@ -651,42 +729,37 @@ const placeLayer = (
   placeClass: string,
   minzoom: number,
   size: number,
-  patches: PaintPatch[],
-): LayerEntry =>
-  layer(
-    {
-      id,
-      type: 'symbol',
-      source: BASEMAP_LABELS_SET,
-      'source-layer': PLACE_LAYER,
-      minzoom,
-      filter: ['==', ['get', 'class'], placeClass],
-      layout: {
-        ...mapType(size),
-        'text-field': PLACE_NAME,
-        // The scene's own labels are uppercased in JS because they come
-        // from content; these come from a tile, so the same treatment
-        // has to be a layout property.
-        'text-transform': 'uppercase',
-        'text-max-width': 7,
-        // Tracked-out caps need room around them or the collision box
-        // hugs the glyphs and two names touch.
-        'text-padding': 4,
-        /*
-         * Density is left to mapbox's collision detection rather than to
-         * a symbolrank cut-off. Nothing in this repo can see a basemap,
-         * so a hand-tuned rank per zoom would be a number chosen blind;
-         * the sort key gives collision the ranking it needs and lets the
-         * bigger place win, which is the same answer without the guess.
-         */
-        'symbol-sort-key': ['get', 'symbolrank'],
-        // Both routes that show these are terrain routes. Without this a
-        // label sits at sea level and a ridge draws over it.
-        'symbol-z-elevate': true,
-      },
-    },
-    patches,
-  );
+): LayerEntry => ({
+  id,
+  type: 'symbol',
+  source: BASEMAP_LABELS_SET,
+  'source-layer': PLACE_LAYER,
+  minzoom,
+  filter: ['==', ['get', 'class'], placeClass],
+  layout: {
+    ...mapType(size),
+    'text-field': PLACE_NAME,
+    // The scene's own labels are uppercased in JS because they come
+    // from content; these come from a tile, so the same treatment
+    // has to be a layout property.
+    'text-transform': 'uppercase',
+    'text-max-width': 7,
+    // Tracked-out caps need room around them or the collision box
+    // hugs the glyphs and two names touch.
+    'text-padding': 4,
+    /*
+     * Density is left to mapbox's collision detection rather than to
+     * a symbolrank cut-off. Nothing in this repo can see a basemap,
+     * so a hand-tuned rank per zoom would be a number chosen blind;
+     * the sort key gives collision the ranking it needs and lets the
+     * bigger place win, which is the same answer without the guess.
+     */
+    'symbol-sort-key': ['get', 'symbolrank'],
+    // Both routes that show these are terrain routes. Without this a
+    // label sits at sea level and a ridge draws over it.
+    'symbol-z-elevate': true,
+  },
+});
 
 const basemapLabelsSet = (options: LayerSetOptions): LayerSet => {
   const { labels } = options;
@@ -714,8 +787,6 @@ const basemapLabelsSet = (options: LayerSetOptions): LayerSet => {
       },
     ]);
 
-  const patches = paint(options.palette);
-
   return {
     id: BASEMAP_LABELS_SET,
     sources: [
@@ -730,14 +801,12 @@ const basemapLabelsSet = (options: LayerSetOptions): LayerSet => {
         'settlement',
         LABEL_MIN_ZOOM,
         MAP_TYPE_SIZE,
-        patches,
       ),
       placeLayer(
         LOCALITY_LABELS,
         'settlement_subdivision',
         LOCALITY_MIN_ZOOM,
         MAP_TYPE_SIZE_QUIET,
-        patches,
       ),
     ],
     interactions: [],
@@ -763,8 +832,45 @@ const BUILDERS: Record<
   projectDetail: [basemapLabelsSet],
 };
 
+/*
+ * THE ONE SEAM EVERY SET LEAVES THIS MODULE THROUGH.
+ *
+ * A builder above declares two things and never the same thing twice: the
+ * STRUCTURE of its layers, and a `paint` function from the palette. This
+ * is where the two are joined, and it is the only place they are joined --
+ * the initial paint mount() hands to addLayer, and the patch list
+ * repaint() hands to setPaintProperty, are the same sealed array, so a
+ * colour cannot reach the map by one route wearing its `-use-theme` and by
+ * the other without it.
+ *
+ * That single join is the whole reason `keepOurColors` is applied here
+ * rather than beside each patch. The rule is written once; a set added to
+ * BUILDERS, a layer added to a set, or a colour added to a `paint`
+ * function is covered by it without anyone being told it exists.
+ *
+ * (`paint` is re-sealed rather than sealed once because the registry calls
+ * it again on every theme, hover and selection change, with a palette this
+ * function has never seen.)
+ */
+const withOwnColors = (set: LayerSet, palette: Palette): LayerSet => {
+  const paint = (live: Palette): PaintPatch[] =>
+    keepOurColors(set.paint(live));
+  const patches = paint(palette);
+  return {
+    ...set,
+    paint,
+    layers: set.layers.map((entry) => ({
+      ...entry,
+      paint: paintOf(entry.id, patches),
+    })),
+  };
+};
+
 /** The sets a route wants mounted, in draw order. */
 export const layerSetsFor = (
   sceneId: SceneId,
   options: LayerSetOptions,
-): LayerSet[] => BUILDERS[sceneId].map((build) => build(options));
+): LayerSet[] =>
+  BUILDERS[sceneId].map((build) =>
+    withOwnColors(build(options), options.palette),
+  );

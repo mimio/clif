@@ -56,7 +56,7 @@ import {
  *                                does not tell you: a layer whose range
  *                                admits z2 may still draw nothing there.
  *
- * It also answers two questions that decide the shape of the theming
+ * It also answers three questions that decide the shape of the theming
  * work and that nothing else can:
  *
  *   1. WHICH LAYERS EACH CONFIG KEY DRIVES. A config key reaches a
@@ -66,7 +66,17 @@ import {
  *   2. WHICH PAINT PROPERTIES OPT OUT OF THE LUT. mapbox-gl 3.x honours
  *      `<property>-use-theme: "none"` (shouldIgnoreLut in the bundle),
  *      and any property Standard marks that way is one the colour theme
- *      cannot touch at all.
+ *      cannot touch at all. It is also the cross-check on our own use of
+ *      the same key: scene/layers/sets.ts marks every colour the SITE
+ *      paints, on the reasoning that a colour already in the palette must
+ *      not go through the palette's own cube, and this says whether
+ *      Mapbox reaches for the key in the same circumstances.
+ *   3. WHETHER STANDARD'S ROOT CARRIES A COLOUR THEME. `reach.root`
+ *      below. Everything the site draws itself is at the root scope, so
+ *      that one boolean decides whether our own colours are re-tinted on
+ *      the deployed page; it is reasoned to be true and reproduced
+ *      offline, and this is the only tier that can read it off the real
+ *      style.
  *
  * HOW TO READ IT
  *
@@ -169,7 +179,10 @@ type ProbeMap = {
   getStyle: () => {
     layers?: StyleLayer[];
     imports?: StyleImport[];
+    'color-theme'?: unknown;
   };
+  /** The live Style, for the one question only the decoded LUT answers. */
+  style?: { getLut?: (scope: string) => unknown };
   getZoom: () => number;
   getCenter: () => { lng: number; lat: number };
   getPitch: () => number;
@@ -278,9 +291,37 @@ test.describe('standard cartography', () => {
           }
         }
 
+        /*
+         * THE FACT THIS WHOLE BRANCH TURNS ON, AND THE ONLY PLACE IT CAN
+         * BE CHECKED.
+         *
+         * `Style.getLut(scope)` is what re-tints a colour, and the ROOT
+         * scope's theme comes from the ROOT STYLESHEET -- the app only
+         * ever calls setImportColorTheme('basemap', ...), which sets the
+         * fragment's override and leaves the root's alone. Everything the
+         * site draws itself lives at the root scope, so whether Standard's
+         * root carries a `color-theme` decides whether our own colours are
+         * passed through our own cube a second time.
+         *
+         * Reasoned to be TRUE from the fog's behaviour on the first real
+         * preview -- the space behind the globe read rgb(38, 33, 28)
+         * against a ground token of rgb(22, 22, 22) -- and reproduced
+         * offline by putting a root `color-theme` on the hermetic stub. It
+         * has never been read off the real style, because no tier but this
+         * one can. scene/layers/sets.ts and scene/theme.ts are both written
+         * on the assumption it is true and are correct either way; this is
+         * what turns the assumption into a measurement.
+         */
+        const root = {
+          declared: Boolean(map.getStyle()['color-theme']),
+          lut: Boolean(map.style?.getLut?.('')),
+          fragmentLut: Boolean(map.style?.getLut?.(importId)),
+        };
+
         return {
           layerCount: layers.length,
           slots,
+          root,
           /** config key -> how many layers it reaches, and the first twelve. */
           reach: Object.fromEntries(
             Object.keys(byKey)
