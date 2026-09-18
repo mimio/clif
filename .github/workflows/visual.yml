@@ -298,6 +298,38 @@ jobs:
           PREVIEW_BYPASS_TOKEN: ${{ steps.origin.outputs.fork == 'false' && secrets.VERCEL_AUTOMATION_BYPASS_SECRET || '' }}
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/gate
 
+      # THE RECORDER. It asserts nothing, and it answers a question no
+      # machine outside this job can: what Mapbox Standard's
+      # configuration schema actually contains, which layers each config
+      # key reaches, and which of them are on screen at each of the five
+      # cameras. e2e/review/cartography.spec.ts says why that cannot be
+      # looked up anywhere else.
+      #
+      # It runs AFTER the gate and BEFORE the captures, deliberately: the
+      # gate is the step allowed to be slow and red, and the eighteen
+      # captures are the step most likely to exhaust the job, so the
+      # cheap recording goes between them rather than last.
+      #
+      # `if: always()` so a failed gate still yields the record, and
+      # continue-on-error for the same reason the captures step below has
+      # it -- page.goto and settle() sit outside the spec's own try, so
+      # "the file cannot fail" is not the same claim as "the step cannot
+      # fail".
+      #
+      # Its output is read from the job log, where every line is prefixed
+      # CARTO, and from playwright-report/cartography, which the report
+      # upload below already covers.
+      - name: Playwright (tier 2, cartography record)
+        if: always()
+        continue-on-error: true
+        run: >-
+          pnpm exec playwright test e2e/review/cartography.spec.ts
+          --output=test-results/cartography
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+          PREVIEW_BYPASS_TOKEN: ${{ steps.origin.outputs.fork == 'false' && secrets.VERCEL_AUTOMATION_BYPASS_SECRET || '' }}
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/cartography
+
       # continue-on-error, and "the comparison cannot fail" is not a
       # substitute for it.
       #
