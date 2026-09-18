@@ -4,18 +4,23 @@ import {
   BASEMAP_IMPORT,
   collectMapboxFailures,
   collectProblems,
+  describeProfile,
   DESKTOP,
   installBasemapOnly,
   installLutProbe,
   installSceneDebug,
   MAP_IDLE_BUDGET_MS,
+  measureGlobe,
+  notice,
   openThemeLens,
   readBasemapConfig,
   readBasemapLut,
   readLuts,
   readScene,
+  type RingStat,
   ROUTES,
   samplePixels,
+  sampleRadial,
   seedTheme,
   settle,
   showBasemapOnly,
@@ -586,39 +591,62 @@ test('the basemap itself paints differently under two themes', async ({
  * The design is specific and checkable here in a way it is about almost
  * nothing else: the prototype's `paintSphere()` paints flat P.space past
  * 1.34 globe radii, so a pixel further out than that must BE the ground
- * token. The scene used to send mapbox a constant horizon-blend of 0.04,
- * whose glow was still measurable at 1.50 radii on this frame; solving
- * the blend per camera from the design's reach (scene/theme.ts's
- * fogFor) is what brings it in.
+ * token.
  *
- * WHY THIS IS HERE AND NOT ONLY IN TIER 1. The glow itself needs no
- * tiles, so e2e/hermetic/globe-atmosphere.spec.ts already measures it
- * over the stub -- and that is the spec to read first. What only tier 2
- * can say is that nothing ELSE the real style brings with it lights that
- * region up: Mapbox Standard carries its own `fog` in the basemap
- * fragment, and the root style's fog wins only because `Style` applies
- * fragments before the root (`forEachFragmentStyle` is post-order). That
- * ordering is a mapbox implementation detail, and this is the only place
- * it is checked against the real Standard rather than against a
- * two-layer stub.
  *
- * THE CAMERA IS HELLO'S. It spins, but the atmosphere is isotropic about
- * the globe's centre, so rotation cannot move this sample -- and the
- * review project runs under reducedMotion anyway, which turns the spin
- * off. The sample sits LEFT of the globe because 1a pushes the sphere to
- * 66% of the width and the right side runs out of viewport at 1.23r.
+ * WHAT THE FIRST VERSION OF THIS TEST GOT WRONG, because it matters more
+ * than what it got right.
  *
- * PENDING: this assertion has never run. The review tier only runs in CI
- * on a deployment_status event, so its first result comes with the next
- * preview.
+ * It located its sample from the artboard's ratios -- centre at 0.66 of
+ * the viewport width, radius 0.44 of its height -- and sampled one 24x24
+ * box "1.45 radii out" from those numbers. Against the first real
+ * preview it reported the far field sixteen levels of red above the
+ * ground and failed, twice, which was the right outcome from the wrong
+ * instrument: sixteen levels is not what any atmosphere leaves at 1.45r,
+ * and it is about what the globe's own limb region reads. A sample that
+ * is not where it thinks it is cannot tell an over-bright atmosphere from
+ * a mislocated box, and this one could not say which it had found.
+ *
+ * So it now MEASURES the sphere -- `measureGlobe` bisects on mapbox's own
+ * inverse, the method e2e/hermetic/globe-frame.spec.ts argues for at
+ * length -- and works outward from that. It samples a RING at each
+ * radius and takes the median, because the glow is isotropic about the
+ * centre and anything that is not isotropic is not the glow. And it
+ * reports the whole profile, the measured framing and the fog both
+ * styles carry as `::notice::` lines, because check-run annotations are
+ * the only channel out of this job that anyone can read.
+ *
+ *
+ * WHAT WAS RULED OUT BEFORE CHANGING ANYTHING, measured against the real
+ * mapbox-gl over a stubbed style at this frame:
+ *
+ *   STARS. `star-intensity` is 0.15 on a dark theme and mapbox draws
+ *   sixteen thousand white stars in the space region, positioned by the
+ *   camera's centre -- so a fixed screen point genuinely sees a different
+ *   sky in a tier that spins the globe and one that does not. But the
+ *   worst 24x24 box on a ring at 1.45r reads 22.4 with them on and 22.1
+ *   with them off, against a ground of 22. They cannot make sixteen
+ *   levels. The median is taken anyway.
+ *
+ *   STANDARD'S OWN FOG COMPOSITING WITH OURS. Re-run with a fragment
+ *   that declares its own fog -- wide horizon-blend, its own high-color
+ *   and star-intensity -- the rendered profile is identical to the
+ *   fragment carrying none. The root's fog wins outright; it does not
+ *   add. `map.getFog()` and the fragment's own fog are both reported
+ *   below so that this stops being an inference about `forEachFragment
+ *   Style` being post-order and becomes a reading off the real Standard.
+ *
+ * THE CAMERA IS HELLO'S, and the review project runs under reducedMotion,
+ * so the globe is still.
  */
 test('no glow survives past the design reach, over the real basemap', async ({
   page,
 }) => {
-  test.setTimeout(MAP_IDLE_BUDGET_MS + 60_000);
+  test.setTimeout(MAP_IDLE_BUDGET_MS + 90_000);
 
   const mapbox = collectMapboxFailures(page);
 
+  await installSceneDebug(page);
   await page.setViewportSize(DESKTOP);
   await page.goto('/', { waitUntil: 'load' });
   await waitForScene(page, 'live');
@@ -636,53 +664,220 @@ test('no glow survives past the design reach, over the real basemap', async ({
   const [red, green, blue] = parseRgb(ground, [-1, -1, -1]);
   expect(red).toBeGreaterThanOrEqual(0);
 
-  // 1a's globe: centre at 66% of the width, radius 44% of the height.
-  const centreX = DESKTOP.width * 0.66;
-  const centreY = DESKTOP.height * 0.5;
-  const radius = DESKTOP.height * 0.44;
-  const size = 24;
-  const at = (dd: number) => ({
-    x: Math.round(centreX - radius * dd - size / 2),
-    y: Math.round(centreY - size / 2),
-    width: size,
-    height: size,
-  });
+  /* ---- what the page is actually showing --------------------------- */
 
-  const far = await samplePixels(page, at(1.45));
-  const rim = await samplePixels(page, at(1.04));
+  /*
+   * The raw camera first, unconditionally. measureGlobe waits for the
+   * flight to land and throws if it never does, and on a network-backed
+   * preview that is a real possibility -- so what the camera was doing at
+   * the time is worth having even when the measurement itself fails.
+   */
+  notice(
+    'atmosphere: camera',
+    await page.evaluate(() => {
+      const scene = window.__SCENE__;
+      if (!scene) return 'no scene handle';
+      const map = scene.map as unknown as {
+        getCenter: () => { lng: number; lat: number };
+        getZoom: () => number;
+        getPadding: () => Record<string, number>;
+        isEasing: () => boolean;
+      };
+      return (
+        `centre ${JSON.stringify(map.getCenter())} zoom ${map.getZoom()} ` +
+        `padding ${JSON.stringify(map.getPadding())} ` +
+        `easing ${map.isEasing()} passes ${scene.passes()} ` +
+        `viewport ${window.innerWidth}x${window.innerHeight} ` +
+        `layout ${document.documentElement.clientWidth}x${document.documentElement.clientHeight} ` +
+        `dpr ${window.devicePixelRatio}`
+      );
+    }),
+  );
+
+  const framing = await measureGlobe(page);
+
+  /*
+   * The artboard's ratios, which the first version of this test ASSUMED.
+   * They are reported beside the measurement rather than used, so a
+   * future divergence is visible in an annotation instead of silently
+   * moving every sample.
+   */
+  const assumed = {
+    x: DESKTOP.width * 0.66,
+    y: DESKTOP.height * 0.5,
+    radius: DESKTOP.height * 0.44,
+  };
+  notice(
+    'atmosphere: framing',
+    `measured centre (${framing.centre.x.toFixed(1)}, ` +
+      `${framing.centre.y.toFixed(1)}) radius ${framing.radius.toFixed(1)} ` +
+      `rays [${framing.radii.map((r) => r.toFixed(1)).join(', ')}] ` +
+      `zoom ${framing.zoom.toFixed(4)} ` +
+      `box ${framing.box.width}x${framing.box.height} ` +
+      `canvas ${framing.canvas.width}x${framing.canvas.height} | ` +
+      `assumed centre (${assumed.x}, ${assumed.y}) radius ${assumed.radius}`,
+  );
+
+  const fogs = await page.evaluate(() => {
+    const scene = window.__SCENE__;
+    if (!scene) throw new Error('window.__SCENE__ is not published');
+    const map = scene.map as unknown as {
+      getFog: () => unknown;
+      getStyle: () => {
+        fog?: unknown;
+        imports?: { id: string; data?: { fog?: unknown } }[];
+      };
+    };
+    const style = map.getStyle();
+    return {
+      applied: map.getFog(),
+      root: style.fog ?? null,
+      fragments: (style.imports ?? []).map((one) => ({
+        id: one.id,
+        fog: one.data?.fog ?? null,
+      })),
+    };
+  });
+  notice(
+    'atmosphere: fog',
+    `applied ${JSON.stringify(fogs.applied)} | root ${JSON.stringify(
+      fogs.root,
+    )} | fragments ${JSON.stringify(fogs.fragments)}`,
+  );
+
+  /* ---- the profile -------------------------------------------------- */
+
+  const rings = await sampleRadial(
+    page,
+    framing,
+    [1.02, 1.08, 1.2, 1.34, 1.45, 1.6],
+  );
+
+  /*
+   * TWO CONTROLS, run before anything is asserted so that a red gate
+   * still carries them.
+   *
+   * THE CORNER. With the foreground hidden the top-left corner is pure
+   * space: no globe, no rim, nothing. If it reads the ground, the page is
+   * hidden and the measurement is of the map. If it reads hot, something
+   * is painting over the whole viewport -- a foreground that did not
+   * hide, a scrim -- and every other number in this test is about that
+   * instead of about the atmosphere.
+   *
+   * THE FOG TURNED OFF. Then the rim is re-measured with `color` and
+   * `high-color` fully transparent. Whatever is left at 1.45r is
+   * something OTHER than the fog the scene sends, which is the one
+   * question tier 1 cannot answer and the reason this test exists. The
+   * scene's own fog is put back immediately afterwards.
+   *
+   * Both are wrapped: a probe that cannot run is a finding, not a
+   * failure, and the assertions below are what this file is allowed to
+   * fail on.
+   */
+  const corner = await samplePixels(page, {
+    x: 8,
+    y: 8,
+    width: 24,
+    height: 24,
+  });
+  notice(
+    'atmosphere: corner control',
+    `top-left 24x24 rgb(${corner.red.toFixed(1)}, ` +
+      `${corner.green.toFixed(1)}, ${corner.blue.toFixed(1)}) ` +
+      `against a ground of rgb(${red}, ${green}, ${blue})`,
+  );
+
+  try {
+    const restore = await page.evaluate(() => {
+      const scene = window.__SCENE__;
+      if (!scene) throw new Error('no scene handle');
+      const map = scene.map as unknown as {
+        getFog: () => Record<string, unknown>;
+        setFog: (fog: Record<string, unknown>) => void;
+      };
+      const current = map.getFog();
+      map.setFog({
+        ...current,
+        color: 'rgba(0, 0, 0, 0)',
+        'high-color': 'rgba(0, 0, 0, 0)',
+        'star-intensity': 0,
+      });
+      return current;
+    });
+    await page.waitForTimeout(600);
+    const bare = await sampleRadial(page, framing, [1.02, 1.45]);
+    notice(
+      'atmosphere: with our rim removed',
+      `ground ${ground} — ${describeProfile(bare)}`,
+    );
+    await page.evaluate((fog) => {
+      const scene = window.__SCENE__;
+      if (!scene) return;
+      (
+        scene.map as unknown as {
+          setFog: (next: Record<string, unknown>) => void;
+        }
+      ).setFog(fog);
+    }, restore);
+    await page.waitForTimeout(300);
+  } catch (error) {
+    notice('atmosphere: rim-removal probe failed', String(error));
+  }
+
   await showBasemapOnly(page, false);
 
+  notice(
+    'atmosphere: profile',
+    `ground ${ground} — ${describeProfile(rings)}`,
+  );
   test.info().annotations.push({
     type: 'atmosphere',
-    description:
-      `ground ${ground} — at 1.45r rgb(${far.red.toFixed(1)}, ` +
-      `${far.green.toFixed(1)}, ${far.blue.toFixed(1)}), ` +
-      `at 1.04r rgb(${rim.red.toFixed(1)}, ${rim.green.toFixed(1)}, ` +
-      `${rim.blue.toFixed(1)})`,
+    description: `ground ${ground} — ${describeProfile(rings)}`,
   });
 
-  expect(far.pixels).toBeGreaterThan(0);
+  const ringAt = (dd: number): RingStat => {
+    const found = rings.find((one) => one.dd === dd);
+    if (!found) throw new Error(`no ring measured at ${dd}`);
+    return found;
+  };
+
+  const far = ringAt(1.45);
+  const rim = ringAt(1.02);
+  expect(
+    far.boxes,
+    'no box on the 1.45r ring was wholly on screen: the globe is larger than the viewport can show past the design reach',
+  ).toBeGreaterThan(3);
+
   /*
-   * Three levels, not one. Over a real basemap the frame carries the tile
-   * fade and Standard's own exposure, and the ground token is itself
-   * rounded to 8 bits on its way through the fog. It is still tight
-   * enough to catch what shipped: measured against the real mapbox-gl at
-   * this frame, the constant blend put rgb(20, 20, 19) here against a
-   * ground of rgb(22, 22, 22) -- glow on top of a space colour that was
-   * the ground shaded to 0.9 -- which is two to three levels out.
+   * Three levels, and the number has not moved since this assertion was
+   * written -- what moved is WHERE it is applied. Over a real basemap the
+   * frame carries the tile fade and Standard's own exposure, and the
+   * ground token is itself rounded to 8 bits on its way through the fog.
+   * Measured against the real mapbox-gl at this frame, the design's fog
+   * leaves 0.3 of a level here and the constant blend that preceded it
+   * left two to three, so three is the smallest threshold that separates
+   * them without being noise-bound.
    */
   const SLACK = 3;
   expect(
     Math.abs(far.red - red),
-    `the atmosphere is still lit 1.45 radii out: red ${far.red.toFixed(1)} against a ground of ${red}`,
+    `the atmosphere is still lit 1.45 radii out: red ${far.red.toFixed(1)} ` +
+      `against a ground of ${red}. Profile: ${describeProfile(rings)}`,
   ).toBeLessThanOrEqual(SLACK);
   expect(Math.abs(far.green - green)).toBeLessThanOrEqual(SLACK);
   expect(Math.abs(far.blue - blue)).toBeLessThanOrEqual(SLACK);
 
-  // The rim itself is still drawn -- a fog turned off would pass above.
-  // The design puts about forty levels of red here; the constant blend
-  // put about eleven. Fifteen separates them with room for tile noise.
-  expect(rim.red).toBeGreaterThan(far.red + 15);
+  /*
+   * And the rim is still drawn -- a fog that had simply been turned off
+   * would pass everything above. At 1.02r the design puts about fifty
+   * levels of red over the ground on the default theme; the constant
+   * blend put about four. Twenty separates them with room to spare.
+   */
+  expect(
+    rim.red,
+    `the rim at 1.02r is not drawn: red ${rim.red.toFixed(1)} against a ` +
+      `far field of ${far.red.toFixed(1)}`,
+  ).toBeGreaterThan(far.red + 20);
 
   expect(mapbox).toEqual([]);
 });

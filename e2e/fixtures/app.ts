@@ -871,3 +871,323 @@ export const samplePixels = async (
     shot.toString('base64'),
   );
 };
+
+/* ---- the globe, measured rather than assumed -------------------------
+ *
+ * WHY THIS EXISTS, AND WHY IT IS IN THE FIXTURES RATHER THAN IN ONE SPEC.
+ *
+ * e2e/review/scene.spec.ts's atmosphere assertion used to locate its
+ * sample from the artboard's ratios -- centre at 0.66 of the width,
+ * radius 0.44 of the height -- and then sample "1.45 radii out" from
+ * those numbers. That is an assumption about the running page dressed up
+ * as a measurement, and the first time the assertion ran against a real
+ * preview it failed with the far field sixteen levels hotter than the
+ * ground. Sixteen levels is not what an atmosphere leaves at 1.45r; it is
+ * roughly what the globe's own limb region reads. A sample that is not
+ * where it thinks it is cannot tell those apart.
+ *
+ * So both tiers now find the sphere the way e2e/hermetic/globe-frame.spec
+ * .ts finds it -- by bisecting on mapbox's own inverse -- and measure
+ * outward from THAT. The method is sound for the reason that file
+ * argues at length: `unproject` round-trips through `project` on the
+ * globe and clamps to the horizon off it, so "the outermost point whose
+ * round trip still closes" is exactly the silhouette, with no model of
+ * the projection involved.
+ */
+
+export type GlobeFraming = {
+  /** The projection centre, in CSS pixels. */
+  centre: { x: number; y: number };
+  /** The silhouette radius, in CSS pixels, median of three rays. */
+  radius: number;
+  /** Per-ray radii, so a disagreement is visible rather than averaged away. */
+  radii: number[];
+  zoom: number;
+  /** The layout viewport the scene framed itself against. */
+  box: { width: number; height: number };
+  /** mapbox's own idea of the same box. */
+  canvas: { width: number; height: number };
+};
+
+/**
+ * Where the globe actually is, off the live map.
+ *
+ * Requires the scene debug handle, so `installSceneDebug` has to have run
+ * before the app booted.
+ */
+export const measureGlobe = (page: Page): Promise<GlobeFraming> =>
+  page.evaluate(async () => {
+    type Point = { x: number; y: number };
+    type Probe = {
+      project: (at: [number, number]) => Point;
+      unproject: (at: [number, number]) => {
+        lng: number;
+        lat: number;
+      };
+      getCenter: () => { lng: number; lat: number };
+      getZoom: () => number;
+      getPadding: () => Record<string, number>;
+      isEasing: () => boolean;
+      transform: { width: number; height: number };
+    };
+    const scene = window.__SCENE__;
+    if (!scene) throw new Error('window.__SCENE__ is not published');
+    const map = scene.map as unknown as Probe;
+
+    const wait = (ms: number) =>
+      new Promise((done) => {
+        setTimeout(done, ms);
+      });
+    // The same settle globe-frame.spec.ts uses: a completed scene pass,
+    // no easing, and the framing holding still across three reads. The
+    // hello camera spins for ever, so `idle` is not available here.
+    const snapshot = (): string =>
+      `${map.getZoom()}/${JSON.stringify(map.getPadding())}`;
+    let previous = '';
+    let still = 0;
+    for (let tries = 0; tries < 300 && still < 3; tries += 1) {
+      await wait(100);
+      const now = snapshot();
+      const settled =
+        tries >= 3 &&
+        scene.passes() >= 1 &&
+        !map.isEasing() &&
+        now === previous;
+      still = settled ? still + 1 : 0;
+      previous = now;
+    }
+    if (still < 3) throw new Error('the camera never settled');
+
+    const centre = map.project([
+      map.getCenter().lng,
+      map.getCenter().lat,
+    ]);
+    const onGlobe = (x: number, y: number): boolean => {
+      const place = map.unproject([x, y]);
+      const back = map.project([place.lng, place.lat]);
+      return Math.hypot(back.x - x, back.y - y) < 0.01;
+    };
+    const limb = (dx: number, dy: number): number => {
+      let inside = 0;
+      let outside = 8_000;
+      while (outside - inside > 0.005) {
+        const middle = (inside + outside) / 2;
+        if (onGlobe(centre.x + dx * middle, centre.y + dy * middle)) {
+          inside = middle;
+        } else {
+          outside = middle;
+        }
+      }
+      return inside;
+    };
+    // Right, left and down. Up is left out because it crosses the north
+    // pole at this latitude, where the round trip breaks for a reason
+    // that has nothing to do with the limb.
+    const radii = [limb(1, 0), limb(-1, 0), limb(0, 1)];
+    const sorted = [...radii].sort((a, b) => a - b);
+    const root = document.documentElement;
+    return {
+      centre: { x: centre.x, y: centre.y },
+      radius: sorted[1],
+      radii,
+      zoom: map.getZoom(),
+      box: { width: root.clientWidth, height: root.clientHeight },
+      canvas: {
+        width: map.transform.width,
+        height: map.transform.height,
+      },
+    };
+  });
+
+/** One ring of the radial profile. */
+export type RingStat = {
+  /** Distance from the centre, in globe radii. */
+  dd: number;
+  /** How many boxes on the ring were wholly on screen. */
+  boxes: number;
+  /** Median of the per-box mean red, and the same for green and blue. */
+  red: number;
+  green: number;
+  blue: number;
+  /** The hottest per-box mean red on the ring, and the hottest pixel. */
+  maxBoxRed: number;
+  maxPixelRed: number;
+};
+
+/**
+ * The atmosphere's radial profile, as MEDIANS around a ring.
+ *
+ * Three deliberate choices, each of which the point sample it replaces
+ * got wrong:
+ *
+ *   A RING, NOT A POINT. The glow is isotropic about the globe's centre
+ *   -- the shader's only spatial input is the angle from it -- so every
+ *   box on a ring should read the same. One that does not is something
+ *   else: a star, a piece of foreground that did not hide, the limb
+ *   itself if the geometry is wrong. A point sample cannot tell.
+ *
+ *   THE MEDIAN, NOT THE MEAN. mapbox draws sixteen thousand white stars
+ *   in the space region whenever `star-intensity` is above zero, and
+ *   their positions rotate with the camera's centre -- so a fixed screen
+ *   point sees a different sky in a tier that spins the globe and a tier
+ *   that does not. Measured against the real library, the worst 24x24 box
+ *   on a ring at 1.45r reads 0.4 levels above the ground with stars on
+ *   and 0.1 with them off, so they cannot produce a failure on their own;
+ *   the median removes what is left of them anyway.
+ *
+ *   ONE SCREENSHOT, DECODED IN THE PAGE. A screenshot per box is dozens
+ *   of round trips and dozens of chances for the frame to change under
+ *   the measurement.
+ */
+export const sampleRadial = async (
+  page: Page,
+  framing: GlobeFraming,
+  ddValues: number[],
+  boxSize = 24,
+): Promise<RingStat[]> => {
+  const shot = await page.screenshot();
+  return page.evaluate(
+    ({ encoded, centre, radius, ddValues: dds, boxSize: size }) =>
+      new Promise<RingStat[]>((resolve, reject) => {
+        const image = new Image();
+        image.onerror = () =>
+          reject(new Error('the capture did not decode'));
+        image.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = image.naturalWidth;
+          canvas.height = image.naturalHeight;
+          const context = canvas.getContext('2d');
+          if (!context) {
+            reject(
+              new Error('no 2d context to decode the capture in'),
+            );
+            return;
+          }
+          context.drawImage(image, 0, 0);
+          const { data, width, height } = context.getImageData(
+            0,
+            0,
+            canvas.width,
+            canvas.height,
+          );
+          /*
+           * The capture is in device pixels; everything else is CSS.
+           * innerWidth, not documentElement.clientWidth: the screenshot
+           * covers the whole viewport INCLUDING a classic scrollbar,
+           * while clientWidth excludes it, and the difference would slide
+           * every box a few pixels outward on a page that scrolls.
+           * map.project's origin is the fixed, inset-0 scene container,
+           * which shares the screenshot's top-left corner.
+           */
+          const scale = canvas.width / window.innerWidth;
+          const half = (size * scale) / 2;
+          const out = dds.map((dd) => {
+            const ring = radius * dd * scale;
+            const cx = centre.x * scale;
+            const cy = centre.y * scale;
+            const reds: number[] = [];
+            const greens: number[] = [];
+            const blues: number[] = [];
+            let maxPixelRed = 0;
+            for (let degrees = 0; degrees < 360; degrees += 6) {
+              const angle = (degrees * Math.PI) / 180;
+              const bx = cx + ring * Math.cos(angle);
+              const by = cy + ring * Math.sin(angle);
+              if (
+                bx - half < 0 ||
+                bx + half >= width ||
+                by - half < 0 ||
+                by + half >= height
+              ) {
+                continue;
+              }
+              let r = 0;
+              let g = 0;
+              let b = 0;
+              let n = 0;
+              for (let dy = -half; dy < half; dy += 1) {
+                for (let dx = -half; dx < half; dx += 1) {
+                  const at =
+                    (Math.round(by + dy) * width +
+                      Math.round(bx + dx)) *
+                    4;
+                  r += data[at];
+                  g += data[at + 1];
+                  b += data[at + 2];
+                  if (data[at] > maxPixelRed) maxPixelRed = data[at];
+                  n += 1;
+                }
+              }
+              reds.push(r / n);
+              greens.push(g / n);
+              blues.push(b / n);
+            }
+            const mid = (values: number[]): number =>
+              values.length === 0
+                ? Number.NaN
+                : [...values].sort((a, b) => a - b)[
+                    Math.floor(values.length / 2)
+                  ];
+            return {
+              dd,
+              boxes: reds.length,
+              red: mid(reds),
+              green: mid(greens),
+              blue: mid(blues),
+              maxBoxRed:
+                reds.length === 0 ? Number.NaN : Math.max(...reds),
+              maxPixelRed,
+            };
+          });
+          resolve(out);
+        };
+        image.src = `data:image/png;base64,${encoded}`;
+      }),
+    {
+      encoded: shot.toString('base64'),
+      centre: framing.centre,
+      radius: framing.radius,
+      ddValues,
+      boxSize,
+    },
+  );
+};
+
+/* ---- getting a measurement out of CI ---------------------------------
+ *
+ * The review tier runs only on a deployment_status event, on a runner
+ * nobody in this project can reach: its logs redirect to blob storage the
+ * egress policy denies, and its artifacts need the same. What DOES come
+ * back is check-run annotations. GitHub creates one for every `::notice::`
+ * workflow command a step writes to stdout, so that is the channel, and a
+ * console.log is not.
+ *
+ * Locally it is an ordinary line of output, which is what it should be.
+ */
+const escapeData = (value: string): string =>
+  value
+    .replace(/%/g, '%25')
+    .replace(/\r/g, '%0D')
+    .replace(/\n/g, '%0A');
+
+const escapeProperty = (value: string): string =>
+  escapeData(value).replace(/:/g, '%3A').replace(/,/g, '%2C');
+
+/** Emits a GitHub notice, which is the only reading this job gets out. */
+export const notice = (title: string, message: string): void => {
+  console.log(
+    `::notice title=${escapeProperty(title)}::${escapeData(message)}`,
+  );
+};
+
+/** A radial profile as one line, for a notice or a failure message. */
+export const describeProfile = (rings: RingStat[]): string =>
+  rings
+    .map(
+      (ring) =>
+        `${ring.dd.toFixed(2)}r rgb(${ring.red.toFixed(1)}, ` +
+        `${ring.green.toFixed(1)}, ${ring.blue.toFixed(1)}) ` +
+        `[n=${ring.boxes} hottestBox=${ring.maxBoxRed.toFixed(1)} ` +
+        `hottestPx=${ring.maxPixelRed}]`,
+    )
+    .join('; ');
