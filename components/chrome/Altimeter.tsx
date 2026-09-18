@@ -32,7 +32,12 @@ import { cn } from 'utils/cn';
  *           wrapper pinned to the rail's centre so they scale about that
  *           point instead of snapping subpixel. 3 is the smallest odd size
  *           that straddles a 1px line symmetrically.
- *   rows    34px hit rows at right:14, label then glyph, right-aligned.
+ *   rows    34px hit rows at right:14, label then glyph, right-aligned,
+ *           and every row the SAME width -- the width the longest label
+ *           needs, not each label's own measurement. See LABEL_WIDTH.
+ *   ring    2px at offset 1 on :focus-visible, so the ring's own box is
+ *           34 + 2*(1 + 2) = 40 tall: exactly the notch pitch, meeting the
+ *           rows either side without ever crossing into them.
  *
  * Every element on the notch line is odd-sized for that reason: the rail is
  * 1px so its centre is at x.5, and only an odd size can sit symmetrically
@@ -51,6 +56,63 @@ export const DOT_SIZE = 3;
 
 /** A hovered dot grows to exactly the bead's width, still a circle. */
 export const DOT_HOVER_SCALE = BEAD_WIDTH / DOT_SIZE;
+
+/*
+ * ONE WIDTH FOR ALL THREE ROWS, AND IT IS THE LONGEST LABEL'S.
+ *
+ * Each row used to be a shrink-to-fit flex box pinned by its right edge,
+ * so its width was whatever its own label happened to measure: `hello` and
+ * `about` are five characters and `projects` is eight, which at
+ * --type-detail-size came out as 83.55px against 109.67px. Three different
+ * boxes 40px apart is a ragged left edge, and -- since a focus ring is
+ * drawn around the box it is given -- three different focus rings.
+ *
+ * So the LABEL CELL carries the width and the row inherits it: cell +
+ * 6px gap + the 34px glyph, identical on every row. The cell is right-
+ * aligned, so a short label still sits against its glyph exactly where it
+ * did before; only the empty half of the box moved.
+ *
+ * The number is DERIVED, never typed. LABEL_CHARS is the longest label in
+ * content/routes.ts, and the width is that many `ch` -- the advance of `0`
+ * in the rail's own monospace face, so it tracks the rendered font rather
+ * than a guess at it -- plus the same tracking the labels are set with,
+ * once per character. Rename a route to something longer and the cell
+ * grows with it; nothing here has to be edited, and test/chrome.test.tsx
+ * holds LABEL_CHARS to content/routes so a hand-typed number cannot creep
+ * back in.
+ *
+ * `ch` rather than measuring in JS because a measured width would be wrong
+ * for the first frame, wrong again the moment the webfont swaps in
+ * (styles/fonts.ts loads Roboto Mono with display: swap), and would put a
+ * layout read in the render path of a component that never unmounts.
+ */
+export const LABEL_CHARS = routes.reduce(
+  (longest, route) => Math.max(longest, route.label.length),
+  0,
+);
+
+/** The labels' tracking, in em. Used for the letter-spacing AND the cell. */
+export const LABEL_TRACKING = 0.02;
+
+export const LABEL_WIDTH = `calc(${LABEL_CHARS}ch + ${
+  LABEL_CHARS * LABEL_TRACKING
+}em)`;
+
+/*
+ * The focus ring, and it is the only one in the app so far.
+ *
+ * The UA ring was what showed before: `outline-style: auto`, which draws
+ * its own shape in its own colour and is therefore neither rectangular by
+ * contract nor themed. This replaces it with a plain 2px rectangle at
+ * offset 1 -- 40px tall in total, exactly the notch pitch -- in
+ * --text-accent-small, the ladder step each of the eight themes defines as
+ * the first one that separates from its own ground (a pastel lift on the
+ * six dark themes, a darkened accent on paper and chalk).
+ *
+ * :focus-visible, not :focus, so a pointer click does not paint it.
+ */
+export const FOCUS_RING =
+  'rounded-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-small';
 
 export const TRAVEL_MS = 340;
 export const TRAVEL_EASE = 'cubic-bezier(.22,1,.36,1)';
@@ -372,7 +434,10 @@ export const Altimeter = ({
             </span>
             <button
               aria-current={on}
-              className="absolute right-[14px] flex h-[34px] cursor-pointer items-center justify-end gap-[6px] select-none"
+              className={cn(
+                'absolute right-[14px] flex h-[34px] cursor-pointer items-center justify-end gap-[6px] select-none',
+                FOCUS_RING,
+              )}
               data-route={route.id}
               onBlur={() => setHover(null)}
               onClick={() => go(route.id)}
@@ -388,13 +453,17 @@ export const Altimeter = ({
             >
               <span
                 className={cn(
-                  'whitespace-nowrap transition-[opacity,color,transform] motion-reduce:transition-none',
+                  'flex-none text-right whitespace-nowrap transition-[opacity,color,transform] motion-reduce:transition-none',
                   on ? 'text-accent' : 'text-fg-2',
                 )}
                 style={{
+                  // The shared cell. Right-aligned, so a short label still
+                  // sits against its glyph and only the empty half of the
+                  // box grew.
+                  width: LABEL_WIDTH,
                   fontSize: 'var(--type-detail-size)',
                   lineHeight: 'var(--type-detail-line)',
-                  letterSpacing: '.02em',
+                  letterSpacing: `${LABEL_TRACKING}em`,
                   opacity: hot ? 1 : 0,
                   transform: `translateX(${hot ? 0 : 8}px)`,
                   transitionDuration: '180ms, 120ms, 220ms',

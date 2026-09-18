@@ -22,8 +22,12 @@ import Altimeter, {
   DOT_HOVER_SCALE,
   DOT_SIZE,
   dotTiming,
+  FOCUS_RING,
   JIGGLE_EASE,
   JIGGLE_MS,
+  LABEL_CHARS,
+  LABEL_TRACKING,
+  LABEL_WIDTH,
   playBead,
   RAIL_BOTTOM,
   RAIL_TOP,
@@ -54,6 +58,7 @@ import ThemeEye, {
 } from 'components/chrome/ThemeEye';
 import { POPOVER_EVENT } from 'components/chrome/usePopover';
 import type { AnchorId } from 'content/anchors';
+import { routes } from 'content/routes';
 import { prefersReducedMotion } from 'scene/budget';
 import {
   cameraForHover,
@@ -161,6 +166,71 @@ describe('Altimeter geometry', () => {
     // Odd sizes only: a 1px rail has its centre at x.5.
     expect(DOT_SIZE % 2).toBe(1);
     expect(BEAD_WIDTH % 2).toBe(1);
+  });
+
+  /*
+   * THE SHARED ROW WIDTH, AND THE GUARD ON ITS DERIVATION.
+   *
+   * "all altimeter items become the width of their widest member". The
+   * width is one expression shared by all three label cells, and it is
+   * built from content/routes.ts rather than typed, so renaming a route to
+   * a longer word widens every row on its own. These two assertions are
+   * what makes that a fact rather than an intention: the first fails the
+   * moment LABEL_CHARS stops tracking the longest label -- including when
+   * someone renames `projects` to something longer -- and the second fails
+   * if the width is ever rewritten as a px number, which would then quietly
+   * clip whatever outgrew it.
+   *
+   * The RENDERED equality is measured in e2e/hermetic/altimeter-widths.spec
+   * against real boxes; jsdom has no layout and cannot resolve `ch`.
+   */
+  it('derives one label width from the longest route label', () => {
+    const longest = Math.max(
+      ...routes.map((route) => route.label.length),
+    );
+    expect(LABEL_CHARS).toBe(longest);
+    expect(LABEL_CHARS).toBeGreaterThan(0);
+
+    expect(LABEL_WIDTH).toBe(
+      `calc(${longest}ch + ${longest * LABEL_TRACKING}em)`,
+    );
+    // No px anywhere in it: a hardcoded width is the failure mode this
+    // whole approach exists to avoid.
+    expect(LABEL_WIDTH).not.toMatch(/px/);
+  });
+
+  it('gives every row the same label cell and the same ring', () => {
+    render(<Altimeter active="hello" />);
+
+    const cells = routes.map((route) =>
+      screen.getByText(route.label),
+    );
+    // One width expression, not three -- jsdom resolves `calc()` to its own
+    // px on the way in, so what is asserted is that all three cells resolve
+    // to the SAME thing and that none of them is `auto`.
+    const widths = new Set(cells.map((cell) => cell.style.width));
+    expect(widths.size).toBe(1);
+    expect([...widths][0]).not.toBe('');
+
+    cells.forEach((cell) => {
+      expect(cell.style.letterSpacing).toBe(`${LABEL_TRACKING}em`);
+      expect(cell.className).toContain('text-right');
+    });
+
+    /*
+     * The ring is one class list on all three, and it is square and
+     * keyboard-only. `rounded-none` is what makes "rectangular" a
+     * property of the markup rather than of the UA default, and
+     * focus-visible is what keeps a pointer click from painting it.
+     */
+    screen.getAllByRole('button').forEach((row) => {
+      FOCUS_RING.split(' ').forEach((token) => {
+        expect(row.className).toContain(token);
+      });
+    });
+    expect(FOCUS_RING).toContain('rounded-none');
+    expect(FOCUS_RING).toContain('focus-visible:outline-2');
+    expect(FOCUS_RING).not.toMatch(/(^|\s)outline-2/);
   });
 
   it('sits on a notch, and on the first when nothing is active', () => {
