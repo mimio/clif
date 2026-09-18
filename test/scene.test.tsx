@@ -1556,12 +1556,34 @@ describe('the persistent map', () => {
       formatCoordinates(...cameras.hello.center),
     );
 
-    // The globe turns once the route's flight has landed.
+    /*
+     * The globe turns once the route's flight has landed.
+     *
+     * TWO FRAMES, and the centre is read BETWEEN them, which is the
+     * shape of the readout rather than a convenience. The first frame is
+     * the spin's own tick: it writes the centre and mapbox fires `move`.
+     * The pill does not render on that event -- it holds the newest
+     * value and commits it on the NEXT animation frame, which is what
+     * bounds the chrome to one render per frame however fast the events
+     * arrive (see components/chrome/LiveCoordPill.tsx). So the transform
+     * is sampled where the pill was handed it, and the second frame is
+     * the commit.
+     *
+     * The claim is unchanged and is the one that matters: the number on
+     * screen is A CENTRE THE MAP ANNOUNCED, not the route table's. On a
+     * globe that never stops turning the two can never be compared at
+     * the same instant -- the transform has always moved on by a frame,
+     * which is what e2e/hermetic/coord-pill.spec.ts bounds at half a
+     * degree against the real library.
+     */
     map.endEase();
     await act(async () => {
       await frame();
     });
     const { lng, lat } = map.getCenter();
+    await act(async () => {
+      await frame();
+    });
     expect(lng).toBeGreaterThan(cameras.hello.center[0]);
     expect(readout()).toBe(formatCoordinates(lng, lat));
     expect(readout()).not.toBe(

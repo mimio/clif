@@ -1,6 +1,10 @@
 import { expect, type Page, test } from '@playwright/test';
 import { cameras } from 'content/cameras';
-import { installSceneDebug, waitForScene } from '../fixtures/app';
+import {
+  installSceneDebug,
+  waitForMapIdle,
+  waitForScene,
+} from '../fixtures/app';
 import { stubMapboxNetwork } from '../fixtures/mapbox-stub';
 
 /*
@@ -286,5 +290,72 @@ test.describe('the globe turns', () => {
         6,
       );
     }
+  });
+});
+
+/*
+ * AND IT DOES NOT TURN FOR A VISITOR WHO ASKED FOR LESS MOTION.
+ *
+ * scene/camera.ts's spinRateFor answers the preference by returning null
+ * rather than a smaller number, and SceneRoot hands that straight to
+ * setAnimation, which never starts the loop. That is the app's own
+ * switch, and it is asserted here because TIER 2 RESTS ITS WHOLE BUDGET
+ * ON IT.
+ *
+ * The review project sets reducedMotion: 'reduce' (see
+ * playwright.config.ts) and e2e/review/scene.spec.ts settles by waiting
+ * on the map's `idle` event with a 30s budget per route. A globe that
+ * kept turning under the preference would keep the transform dirty for
+ * as long as the tab is open, so every settle would spend its whole
+ * budget and then carry on with a 3s tail -- five routes, twice over,
+ * against a 150s timeout. It would not fail loudly; it would time out,
+ * and the report would say the page had closed.
+ *
+ * So: the centre does not move, and the map reaches idle well inside the
+ * budget.
+ */
+test.describe('under reduced motion', () => {
+  test.use({ reducedMotion: 'reduce' });
+
+  test.beforeEach(async ({ context, page }) => {
+    await stubMapboxNetwork(context);
+    await installSceneDebug(page);
+  });
+
+  test('the globe stands still and the map goes idle', async ({
+    page,
+  }) => {
+    await page.goto('/', { waitUntil: 'load' });
+    await waitForScene(page, 'live');
+    // Past the route's own flight, which reduced motion shortens to
+    // 200ms rather than removing.
+    await page.waitForTimeout(2_000);
+
+    const opened = Date.now();
+    expect(
+      await waitForMapIdle(page, 10_000),
+      'the map never went idle, which is tier 2 spending its whole budget',
+    ).toBe(true);
+    expect(
+      Date.now() - opened,
+      'idle arrived, but only after a wait tier 2 cannot afford five times over',
+    ).toBeLessThan(10_000);
+
+    const first = await page.evaluate(
+      () => window.__SCENE__?.map.getCenter().lng,
+    );
+    await page.waitForTimeout(2_500);
+    const second = await page.evaluate(
+      () => window.__SCENE__?.map.getCenter().lng,
+    );
+    /*
+     * Exactly, to six places. At 1.5 degrees a second a spin that was
+     * merely slowed rather than stopped would move 3.75 degrees over
+     * this window, and one that was stopped moves nothing at all.
+     */
+    expect(
+      second,
+      'the globe turned under reduced motion',
+    ).toBeCloseTo(first as number, 6);
   });
 });

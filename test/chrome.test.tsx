@@ -4,6 +4,7 @@ import {
   render,
   screen,
 } from '@testing-library/react';
+import { Profiler, type ReactNode } from 'react';
 import userEvent from '@testing-library/user-event';
 import {
   afterEach,
@@ -50,6 +51,7 @@ import CoordPill, {
   REST,
   WAKE,
 } from 'components/chrome/CoordPill';
+import LiveCoordPill from 'components/chrome/LiveCoordPill';
 import ThemeEye, {
   announceTheme,
   currentTheme,
@@ -79,6 +81,40 @@ const push = vi.hoisted(() => vi.fn());
 
 vi.mock('next/router', () => ({
   useRouter: () => ({ pathname: pathname.current, push }),
+}));
+
+/*
+ * The map's camera feed, driven by hand.
+ *
+ * scene/liveCamera re-exports watchCamera from scene/mapbox/instance, and
+ * with no token there is never a map for it to attach to -- so the real
+ * one is silent here, which is right for every test that only wants the
+ * fallback and useless for the ones below that are about WHEN the pill
+ * renders. This stands in for the map: `camera.emit()` is one `move`.
+ */
+const camera = vi.hoisted(() => {
+  const listeners = new Set<(center: [number, number]) => void>();
+  return {
+    listeners,
+    stops: 0,
+    emit(center: [number, number]) {
+      for (const listener of [...listeners]) listener(center);
+    },
+    reset() {
+      listeners.clear();
+      this.stops = 0;
+    },
+  };
+});
+
+vi.mock('scene/liveCamera', () => ({
+  watchCamera: (listener: (center: [number, number]) => void) => {
+    camera.listeners.add(listener);
+    return () => {
+      camera.listeners.delete(listener);
+      camera.stops += 1;
+    };
+  },
 }));
 
 /*
@@ -1142,5 +1178,127 @@ describe('the coordinate pill reads the driven camera', () => {
     pathname.current = DETAIL_PATH;
     chrome(null);
     expect(screen.getByText('held')).toBeVisible();
+  });
+});
+
+/*
+ * B1. THE CHROME RENDERS WHEN WHAT IT SHOWS CHANGES, AND NOT OTHERWISE.
+ *
+ * The globe walks its centre meridian by setCenter every animation frame,
+ * and setCenter is jumpTo, and jumpTo fires `move`. The live centre used
+ * to be ChromeRoot's own state, set from that event with a freshly
+ * allocated pair, so the whole chrome -- rail, altimeter, eye, mouth --
+ * was rendered again at the display's refresh rate for the life of the
+ * tab. e2e/hermetic/chrome-churn.spec.ts measures that end to end against
+ * the real library; this measures the two gates that bound it, with the
+ * camera feed driven by hand.
+ *
+ * Renders are counted through React's own Profiler rather than by
+ * counting DOM writes: a component that renders to identical output
+ * writes nothing, so the DOM cannot see the storm this is about.
+ */
+describe('the live coordinate pill', () => {
+  /** One animation frame, which is a 16ms timer in jsdom. */
+  const tick = async (): Promise<void> => {
+    await act(async () => {
+      await new Promise((done) => {
+        requestAnimationFrame(() => done(null));
+      });
+    });
+  };
+
+  const counted = (node: ReactNode) => {
+    const renders = { count: 0 };
+    const view = render(
+      <Profiler
+        id="pill"
+        onRender={() => {
+          renders.count += 1;
+        }}
+      >
+        {node}
+      </Profiler>,
+    );
+    return { ...view, renders };
+  };
+
+  const readout = (): string =>
+    screen.getByTestId('coord-readout').textContent ?? '';
+
+  beforeEach(() => {
+    camera.reset();
+  });
+
+  it('prints the fallback until the map says otherwise', () => {
+    counted(
+      <LiveCoordPill fallback={[-122.7, 45.5]} label="camera" />,
+    );
+    expect(readout()).toBe('45.500, -122.700');
+    // And it did subscribe: a pill that never listens reads the table
+    // for ever, which is the bug the live feed exists to fix.
+    expect(camera.listeners.size).toBe(1);
+  });
+
+  it('commits on a frame rather than on an event', async () => {
+    const { renders } = counted(
+      <LiveCoordPill fallback={[-122.7, 45.5]} label="camera" />,
+    );
+    const mounted = renders.count;
+
+    // Three moves inside one frame, which is an ordinary drag: a
+    // high-polling pointer delivers them faster than the screen paints.
+    camera.emit([-100, 10]);
+    camera.emit([-101, 11]);
+    camera.emit([-102, 12]);
+    expect(renders.count, 'an event rendered the pill').toBe(mounted);
+
+    await tick();
+    // One render, carrying the NEWEST value: bounding the rate must not
+    // cost the visitor the up-to-date reading.
+    expect(renders.count).toBe(mounted + 1);
+    expect(readout()).toBe('12.000, -102.000');
+  });
+
+  it('does not render for a move it would print identically', async () => {
+    const { renders } = counted(
+      <LiveCoordPill fallback={[-122.7, 45.5]} label="camera" />,
+    );
+    camera.emit([-122.7, 45.5]);
+    await tick();
+    const shown = renders.count;
+    expect(readout()).toBe('45.500, -122.700');
+
+    /*
+     * A pan of four ten-thousandths of a degree. It is a real move and
+     * the transform really changed -- it is about forty metres -- but
+     * the pill carries three decimals, so there is nothing to redraw.
+     * This is the gate that makes a slow drag, the last frames of an
+     * ease and the held detail route cost nothing.
+     */
+    camera.emit([-122.7004, 45.5004]);
+    await tick();
+    expect(renders.count, 'the chrome rendered the same text').toBe(
+      shown,
+    );
+    expect(readout()).toBe('45.500, -122.700');
+
+    // ...and a move that DOES change the text still gets through.
+    camera.emit([-122.699, 45.501]);
+    await tick();
+    expect(renders.count).toBe(shown + 1);
+    expect(readout()).toBe('45.501, -122.699');
+  });
+
+  it('lets go of the map and of its pending frame', async () => {
+    const { unmount } = counted(
+      <LiveCoordPill fallback={[-122.7, 45.5]} label="camera" />,
+    );
+    // A move with its commit still queued, and then the component goes.
+    camera.emit([-100, 10]);
+    unmount();
+    expect(camera.stops).toBe(1);
+    expect(camera.listeners.size).toBe(0);
+    // The queued frame must not arrive at an unmounted component.
+    await tick();
   });
 });

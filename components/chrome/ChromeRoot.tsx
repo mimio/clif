@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import type { AnchorId } from 'content/anchors';
 import type { CameraSpec } from 'content/cameras';
 import Altimeter from 'components/chrome/Altimeter';
 import ContactMouth from 'components/chrome/ContactMouth';
-import CoordPill from 'components/chrome/CoordPill';
+import LiveCoordPill from 'components/chrome/LiveCoordPill';
 import ThemeEye from 'components/chrome/ThemeEye';
 import { ABOUT, routes, type RouteId } from 'content/routes';
 import {
@@ -14,7 +13,6 @@ import {
   resolveCamera,
   sceneIdForPath,
 } from 'scene/camera';
-import { watchCamera } from 'scene/liveCamera';
 import { useScene, useSceneHover } from 'scene/MapProvider';
 import { useIsMobile } from 'scene/useViewport';
 import { cn } from 'utils/cn';
@@ -160,8 +158,10 @@ export type ChromeRootProps = {
  *                is a hundred and eighty degrees away two minutes later,
  *                while the pill goes on printing the table.
  *
- * So ChromeRoot subscribes to `watchCamera` below and prefers the live
- * transform. This function stays, and is still load-bearing twice over:
+ * So the pill subscribes to `watchCamera` -- in LiveCoordPill, which is
+ * the only component in the chrome that displays a centre -- and prefers
+ * the live transform. This function stays, and is still load-bearing
+ * twice over:
  * as the FALLBACK for every case with no map to read -- no token, the
  * fallback plate, unit tests, the server render -- and as the
  * DESTINATION, which is what `coordLabel` is asked about, because
@@ -192,19 +192,6 @@ export const ChromeRoot = ({ className }: ChromeRootProps) => {
   const isMobile = useIsMobile();
   const active = routeIdForPath(pathname);
 
-  /*
-   * The map's own centre, or null until there is a map to read.
-   *
-   * Subscribing before the map exists is the normal case -- the chrome
-   * mounts before ensureMap resolves -- and watchCamera attaches itself
-   * when the map arrives, so there is nothing to retry here and no
-   * dependency to re-run on. A visitor with no token never hears
-   * anything and `live` stays null for the life of the tab, which is
-   * exactly what the fallback below is for.
-   */
-  const [live, setLive] = useState<[number, number] | null>(null);
-  useEffect(() => watchCamera(setLive), []);
-
   const camera = liveCamera(pathname, declared, isMobile, hover);
   /*
    * THE READOUT TRACKS THE GLOBE; THE CAPTION DESCRIBES THE ROUTE.
@@ -223,8 +210,20 @@ export const ChromeRoot = ({ className }: ChromeRootProps) => {
    * the detail route is a statement about whose camera it is, which
    * `spec.interactive` answers and a centre cannot. So coordLabel is
    * asked about the declared camera either way.
+   *
+   * WHAT MOVED, AND WHY IT HAD TO. The live centre used to be held HERE,
+   * in ChromeRoot's own state. A rotating globe sets it once per
+   * animation frame -- `setCenter` is `jumpTo`, and `jumpTo` fires
+   * `move` -- so the rail, the altimeter, the eye and the mouth were all
+   * rendered again at the display's refresh rate, for the life of the
+   * tab, to show values none of them had been handed. The subscription
+   * lives in LiveCoordPill now, which is the only thing in the chrome
+   * that displays a centre; its header holds the two gates that bound
+   * the rate inside that boundary. The DECISION above is unchanged --
+   * the pill still tracks the globe through a flight -- and this
+   * component is once again a function of the route, the viewport and
+   * the hover alone.
    */
-  const center = live ?? camera.center;
   const sheeted = active === ABOUT;
 
   return (
@@ -251,11 +250,10 @@ export const ChromeRoot = ({ className }: ChromeRootProps) => {
       >
         <ThemeEye />
         <ContactMouth />
-        <CoordPill
+        <LiveCoordPill
           className={cn(sheeted && 'max-tablet:hidden')}
+          fallback={camera.center}
           label={coordLabel(camera)}
-          lat={center[1]}
-          lng={center[0]}
         />
       </div>
     </div>
