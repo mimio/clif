@@ -262,7 +262,12 @@ export const ProjectTable = ({
                 'relative cursor-pointer items-center rounded-[var(--radius-sm)] border-b border-surface-3 select-none',
                 'text-[length:var(--type-detail-size-mobile)] leading-[var(--type-detail-line-mobile)] tablet:text-[length:var(--type-detail-size)] tablet:leading-[var(--type-detail-line)]',
                 'transition-[background-color,transform] duration-[120ms] ease-out',
-                'pointer-fine:hover:translate-x-[3px] pointer-fine:hover:bg-accent-07',
+                /* `not-active:`, because hover and press write the same
+                   two properties at the same specificity and Tailwind
+                   emits the fine-pointer block last -- so hover won and a
+                   pressed row never nudged or deepened. See the note in
+                   components/primitives/Button/keycap.ts. */
+                'pointer-fine:not-active:hover:translate-x-[3px] pointer-fine:not-active:hover:bg-accent-07',
                 'focus-within:translate-x-[3px] focus-within:bg-accent-07',
                 'active:translate-x-px active:scale-[0.997] active:bg-accent-12',
                 'data-[active=true]:bg-accent-07',

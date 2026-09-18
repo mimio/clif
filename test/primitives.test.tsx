@@ -147,7 +147,7 @@ describe('Pill', () => {
       .className.split(' ')
       .filter((name) => name.includes('hover:'))
       .forEach((name) =>
-        expect(name.startsWith('pointer-fine:hover:')).toBe(true),
+        expect(name.startsWith('pointer-fine:')).toBe(true),
       );
   });
 });

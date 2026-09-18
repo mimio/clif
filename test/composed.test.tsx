@@ -409,7 +409,7 @@ describe('ProjectTable', () => {
       .split(' ')
       .filter((name) => name.includes('hover:'))
       .forEach((name) =>
-        expect(name.startsWith('pointer-fine:hover:')).toBe(true),
+        expect(name.startsWith('pointer-fine:')).toBe(true),
       );
     expect(row).toHaveClass('focus-within:bg-accent-07');
     expect(row).toHaveClass('focus-within:translate-x-[3px]');

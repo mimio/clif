@@ -57,6 +57,32 @@ import type { ButtonStyle, ButtonTone } from './types';
  * fires the cap leaves it lifted, hot-lipped and grown until the next tap
  * lands somewhere else. A coarse pointer gets rest and press, which are the
  * two states a finger can actually produce.
+ *
+ * ...AND IT IS ALSO SCOPED TO `not-active:`, WHICH IS NOT DECORATION.
+ * Hover and press write the same ten variables, and `pointer-fine:hover:`
+ * and `active:` compile to selectors of EQUAL specificity -- one class plus
+ * one pseudo-class each -- so on a cap that is both (which is every cap a
+ * mouse ever presses) the winner is whichever Tailwind emits last. Tailwind
+ * v4 groups its output by variant, and the whole `@media (pointer: fine)`
+ * block is emitted AFTER every unconditional rule, so hover was last and
+ * hover won: a pressed cap stayed lifted, hot-lipped and hot-inked, and the
+ * only press declaration that survived was --k-shade, the one hover does
+ * not also set. The symptom was not a slow press. It was NO press, and then
+ * a 70ms drop out of the hover lift whenever the pointer finally left the
+ * cap -- which is what "i dont see their active state until way later"
+ * actually was.
+ *
+ * `not-active:` settles it by CONDITION rather than by order:
+ * `&:not(:active):hover` does not match while the cap is down, so the press
+ * rules apply unopposed however Tailwind chooses to sort them. Reordering
+ * or a specificity bump would both have been hostage to the compiler's emit
+ * order, which is precisely what went wrong the first time. It is also the
+ * honest description of the cap: a plate that has bottomed out on its skirt
+ * is not simultaneously floating 1px above it.
+ *
+ * e2e/hermetic/press-state.spec.ts measures this in a browser under trusted
+ * input, because every class involved was present before the fix and is
+ * present after it -- only the rendered cap can tell the two apart.
  */
 
 /**
@@ -122,23 +148,28 @@ const INK: Record<ButtonTone, string> = {
 };
 
 /* Hover: the lip goes hot, the skirt and cast grow by the bump scalars and
-   the whole cap rises 1px into the wrapper's reserved padding. */
+   the whole cap rises 1px into the wrapper's reserved padding -- but only
+   while the cap is NOT down. See the note on `not-active:` at the top. */
 const HOVER = [
-  'pointer-fine:hover:[--k-y:-1px]',
-  'pointer-fine:hover:[--g-mul:1.3]',
-  'pointer-fine:hover:[--k-face:var(--surface-hover)]',
-  'pointer-fine:hover:[--k-lip:var(--cap-lip-hot)]',
-  'pointer-fine:hover:[--k-ink:var(--cap-ink-hot)]',
-  'pointer-fine:hover:[--k-skirt-y:var(--k-skirt-hot)]',
-  'pointer-fine:hover:[--k-edge-y:var(--k-edge-hot)]',
-  'pointer-fine:hover:[--k-amb-y:var(--k-amb-hot)]',
-  'pointer-fine:hover:[--k-amb-blur:var(--k-amb-blur-hot)]',
-  'pointer-fine:hover:[--k-amb-tint:rgba(0,0,0,.6)]',
+  'pointer-fine:not-active:hover:[--k-y:-1px]',
+  'pointer-fine:not-active:hover:[--g-mul:1.3]',
+  'pointer-fine:not-active:hover:[--k-face:var(--surface-hover)]',
+  'pointer-fine:not-active:hover:[--k-lip:var(--cap-lip-hot)]',
+  'pointer-fine:not-active:hover:[--k-ink:var(--cap-ink-hot)]',
+  'pointer-fine:not-active:hover:[--k-skirt-y:var(--k-skirt-hot)]',
+  'pointer-fine:not-active:hover:[--k-edge-y:var(--k-edge-hot)]',
+  'pointer-fine:not-active:hover:[--k-amb-y:var(--k-amb-hot)]',
+  'pointer-fine:not-active:hover:[--k-amb-blur:var(--k-amb-blur-hot)]',
+  'pointer-fine:not-active:hover:[--k-amb-tint:rgba(0,0,0,.6)]',
 ].join(' ');
 
 /* Press: travel == skirt, skirt collapsed to zero, cast pulled in tight and
-   the ink flipped to the accent. Tailwind emits `active:` after `hover:`, so
-   a cap that is both hovered and pressed lands on these. */
+   the ink flipped to the accent. These are bare `active:` -- a finger can
+   press and cannot hover -- and they beat the hover block above because
+   that block excludes :active, NOT because of the order Tailwind emits
+   them in. It does not emit them in that order: measured against the
+   compiled stylesheet, every `pointer-fine:` rule lands after every
+   unconditional one. */
 const PRESS = [
   'active:[--k-y:var(--k-skirt-press)]',
   'active:[--g-mul:1.22]',
