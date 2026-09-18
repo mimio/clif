@@ -122,6 +122,51 @@ export const BASEMAP_COLOR_KEYS = Object.keys(
   BASEMAP_COLORS,
 ) as BasemapColorKey[];
 
+/**
+ * The deepest zoom at which the basemap is still painted in the colours
+ * these tokens name, and therefore the map's `maxZoom`.
+ *
+ * WHERE THE NUMBER COMES FROM, read off the real style's paint
+ * expressions by e2e/review/cartography.spec.ts rather than chosen.
+ * Standard's `water` layer is:
+ *
+ *   fill-color: ["interpolate", ["linear"], ["zoom"],
+ *     13, ["config", "colorWater"],
+ *     14, ["interpolate", ["linear"], ["measure-light", "brightness"],
+ *          0,    ["hsla", h, s, ["max", 0, ["-", l, 55]], a],
+ *          0.02, ["config", "colorWater"]]]
+ *
+ * -- so above z13 it slides `colorWater` toward its own lightness MINUS
+ * 55 percentage points, and lands there at z14 whenever the light preset
+ * is dark enough that `measure-light brightness` is near zero.
+ *
+ * That subtraction is survivable on a pale basemap and is not on this
+ * one. Mapbox's default water is hsl(200, 100%, 80%), so 80 - 55 leaves
+ * a dark blue. Every dark theme here authors water between L 17.6% and
+ * L 22.0% -- deliberately, because water is the biggest shape on the
+ * globe and it has to sit between the page and the land -- and `max(0,
+ * 17.6 - 55)` is ZERO. Black. On all six.
+ *
+ * It is reachable: /about (z10.5) and a project detail (z10) both carry
+ * the `night` fog, which on a dark theme is Standard's `night` preset,
+ * and both are interactive -- so a visitor who keeps scrolling arrives
+ * at a city whose rivers and lakes have gone black.
+ *
+ * Capping is the right lever of the three. Lifting the tokens would mean
+ * water brighter than land, which inverts the whole ladder and changes
+ * the globe -- the thing the site is actually looked at for -- to rescue
+ * a zoom nothing on the site uses. Changing the light preset would
+ * change the design's mood. The cap costs a visitor nothing that exists:
+ * the deepest camera in content/cameras.ts is 10.5, the site draws its
+ * own place names and asks Standard for no labels or POIs at all, so
+ * past z13 there is nothing down there that this site put there.
+ *
+ * 13 rather than 13.9 because 13 is the last zoom at which water is
+ * EXACTLY the token: the interpolation starts at 13, so anything above
+ * it is already part-way to the dimmed branch.
+ */
+export const CARTOGRAPHY_MAX_ZOOM = 13;
+
 const rgb = (c: Rgb): string => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
 
 /**

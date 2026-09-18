@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anchors } from 'content/anchors';
+import { type AnchorId, anchors } from 'content/anchors';
 import {
   ARTBOARD_DESKTOP,
   ARTBOARD_MOBILE,
@@ -38,6 +38,47 @@ import {
   terrainFor,
 } from 'scene/camera';
 import { cubicBezier } from 'scene/ease';
+import { CARTOGRAPHY_MAX_ZOOM } from 'styles/tokens/cartography';
+
+/*
+ * THE CAP AND THE CAMERAS HAVE TO AGREE, and nothing else would say so.
+ *
+ * scene/mapbox/instance.ts constructs the map with
+ * `maxZoom: CARTOGRAPHY_MAX_ZOOM`, because above z13 Standard stops
+ * painting water in the colour the theme asked for. mapbox CLAMPS a
+ * camera to maxZoom rather than refusing it, so a route declared deeper
+ * than the cap would fly to the wrong place, silently, and every
+ * assertion about its zoom that reads the route table rather than the
+ * map would still pass.
+ *
+ * The deepest route today is /about at 10.5, so there is 2.5 of headroom.
+ * This fails the moment either number moves toward the other.
+ */
+describe('the cartography cap', () => {
+  it('is above every camera the site declares', () => {
+    for (const [id, spec] of Object.entries(cameras)) {
+      expect(
+        spec.zoom,
+        `${id} is declared deeper than the map's maxZoom, so mapbox ` +
+          'will clamp it and the route will not arrive where it says',
+      ).toBeLessThanOrEqual(CARTOGRAPHY_MAX_ZOOM);
+    }
+  });
+
+  /*
+   * And a hover refinement is a camera too: cameraForHover nudges the
+   * zoom, and a nudge off the deepest route is the one that could cross
+   * the cap without any route table changing.
+   */
+  it('is above every camera a hover can produce', () => {
+    for (const id of Object.keys(anchors) as AnchorId[]) {
+      const hovered = cameraForHover(cameras.projects, id);
+      expect(hovered.zoom, id).toBeLessThanOrEqual(
+        CARTOGRAPHY_MAX_ZOOM,
+      );
+    }
+  });
+});
 
 describe('route -> camera', () => {
   it('resolves every route in the design table', () => {

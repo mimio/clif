@@ -82,7 +82,10 @@ import {
   useViewportSize,
 } from 'scene/useViewport';
 import { applyTheme, THEME_IDS } from 'styles/theme-bootstrap';
-import { BASEMAP_COLOR_KEYS } from 'styles/tokens/cartography';
+import {
+  BASEMAP_COLOR_KEYS,
+  CARTOGRAPHY_MAX_ZOOM,
+} from 'styles/tokens/cartography';
 import { FALLBACK_PALETTE } from 'styles/tokens/palette';
 import {
   CONFIG_FRAGMENT,
@@ -670,7 +673,7 @@ describe('the persistent map', () => {
     });
   };
 
-  it('builds one map, on a globe, unpinned at the bottom', async () => {
+  it('builds one map, on a globe, unpinned at the bottom and capped at the top', async () => {
     await mount();
     expect(FakeMap.instances).toHaveLength(1);
     expect(FakeMap.last.options.projection).toEqual({
@@ -678,6 +681,17 @@ describe('the persistent map', () => {
     });
     // The old style pinned minZoom at 7, which no globe can live with.
     expect(FakeMap.last.options.minZoom).toBe(0);
+    /*
+     * And the top is pinned where Standard stops painting water in the
+     * colour the theme asked for. Above z13 its `water` fill-color
+     * interpolates toward `colorWater`'s own lightness minus 55 points,
+     * which on every dark theme here -- water at L 17.6-22% -- clamps to
+     * ZERO. A visitor scrolling into a city on /about or a project
+     * detail, both interactive and both on the `night` preset, would
+     * find the rivers black. CARTOGRAPHY_MAX_ZOOM has the expression it
+     * is read from.
+     */
+    expect(FakeMap.last.options.maxZoom).toBe(CARTOGRAPHY_MAX_ZOOM);
     expect(screen.getByTestId('scene-root')).toHaveAttribute(
       'data-scene-state',
       'live',
