@@ -710,6 +710,24 @@ describe('ThemeEye', () => {
     expect(themePanel()).toBeVisible();
   });
 
+  it('gaps its border where the tail joins, in this order', () => {
+    // The panel border and the tail's edge are both 30% accent. The edge
+    // triangle's base covers the border, so the border is erased first --
+    // before the edge, or the two composite to ~51% and light a bright
+    // 1px point at each joint.
+    render(<ThemeEye defaultOpen />);
+    const tail = [
+      ...(themePanel().parentElement as HTMLElement).querySelectorAll(
+        ':scope > span',
+      ),
+    ].map((node) => node.className);
+    expect(tail).toHaveLength(3);
+    expect(tail[0]).toMatch(/bg-surface-2/);
+    expect(tail[0]).toMatch(/h-\[14px\]/);
+    expect(tail[1]).toMatch(/border-l-accent-30/);
+    expect(tail[2]).toMatch(/border-l-surface-2/);
+  });
+
   it('scopes the eye and its rows to a fine pointer', () => {
     render(<ThemeEye defaultOpen />);
     [
@@ -891,6 +909,23 @@ describe('ContactMouth', () => {
     expect(screen.getByRole('link')).toBeVisible();
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('gaps its border where the tail joins, in this order', () => {
+    // As the eye's panel: the border goes first, then the 30% edge over
+    // the gap, then the fill. See the note on the tail in ContactMouth.
+    render(<ContactMouth defaultOpen />);
+    const panel = screen
+      .getByRole('link')
+      .closest('[class*="select-text"]');
+    const tail = [
+      ...(panel as HTMLElement).querySelectorAll(':scope > span'),
+    ].map((node) => node.className);
+    expect(tail).toHaveLength(3);
+    expect(tail[0]).toMatch(/bg-surface-2/);
+    expect(tail[0]).toMatch(/h-\[14px\]/);
+    expect(tail[1]).toMatch(/border-l-accent-30/);
+    expect(tail[2]).toMatch(/border-l-surface-2/);
   });
 
   it('leaves the address selectable, as the copy fallback assumes', () => {
