@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { vi } from 'vitest';
+import { type CameraPadding, NO_PADDING } from 'content/cameras';
 import type { MapboxModule } from 'scene/mapbox/loader';
 
 /*
@@ -200,12 +201,21 @@ const CONFIG_DEFAULTS: Record<string, unknown> = {
   font: 'DIN Pro',
 };
 
-/** Events the scene's own lifecycle owns, rather than a layer set. */
+/**
+ * Events the scene's own lifecycle owns, rather than a layer set.
+ *
+ * `move` is one of them. Two subscriptions in scene/mapbox/instance.ts
+ * read the transform back off it -- the coordinate readout's centre and
+ * the star field's disc -- and neither belongs to a route's layers, so
+ * counting them here would make `handlers` report a set that never
+ * unmounted every time something was watching the camera.
+ */
 const LIFECYCLE_EVENTS = [
   'style.load',
   'error',
   'sourcedata',
   'render',
+  'move',
 ];
 
 export type Recorded = {
@@ -287,6 +297,15 @@ export type FakeMapOptions = {
   basemap?: boolean;
 };
 
+/** easeTo's padding, as the scene always sends it: all four sides. */
+const isPadding = (value: unknown): value is CameraPadding =>
+  value !== null &&
+  typeof value === 'object' &&
+  ['top', 'right', 'bottom', 'left'].every(
+    (side) =>
+      typeof (value as Record<string, unknown>)[side] === 'number',
+  );
+
 let installed: FakeMapOptions = {};
 
 export class FakeMap {
@@ -364,6 +383,21 @@ export class FakeMap {
 
   /** The transform's centre, as easeTo leaves it. */
   private center: [number, number] = [0, 0];
+
+  /*
+   * And the two the star field reads back: the zoom that decides how big
+   * the globe's disc is, and the padding that decides where its centre
+   * lands. Real mapbox interpolates both across a flight; like `center`
+   * above, the fake lands them in one step, because what a unit test can
+   * settle is that the seam is wired and not what the curve looked like
+   * halfway.
+   *
+   * mapbox's own defaults, so a map nobody has moved reads the way one
+   * does in a browser: zoom 0, and no padding at all.
+   */
+  private zoom = 0;
+
+  private padding: CameraPadding = { ...NO_PADDING };
 
   /*
    * WHETHER A CAMERA FLIGHT OWNS THE TRANSFORM, which is the one thing
@@ -686,6 +720,9 @@ export class FakeMap {
     if (Array.isArray(options.center)) {
       this.center = [...options.center] as [number, number];
     }
+    if (typeof options.zoom === 'number') this.zoom = options.zoom;
+    if (isPadding(options.padding))
+      this.padding = { ...options.padding };
     // A zero-duration ease is a jump: real mapbox runs the frame and
     // finishes inside the call rather than scheduling one.
     this.easing = options.duration !== 0;
@@ -707,6 +744,20 @@ export class FakeMap {
 
   getBearing(): number {
     return this.bearing;
+  }
+
+  getZoom(): number {
+    return this.zoom;
+  }
+
+  /*
+   * A COPY, because mapbox hands back its transform's own object and
+   * scene/mapbox/instance.ts snapshots it for exactly that reason. A
+   * fake that returned the same reference every time would let that
+   * snapshot look correct while the real one was not.
+   */
+  getPadding(): CameraPadding {
+    return { ...this.padding };
   }
 
   setBearing(value: number): void {

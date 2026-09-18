@@ -6,6 +6,7 @@ import {
 } from 'react';
 import type { Specimen } from 'pagesComponents/specimens/types';
 import {
+  ARTBOARD_DESKTOP,
   type CameraSpec,
   cameras,
   type FogColor,
@@ -16,17 +17,32 @@ import {
   SCENE_MOVE_LONG_MS,
   SCENE_MOVE_MS,
   type SceneId,
+  type Viewport,
 } from 'content/cameras';
 import {
   coordLabel,
   forViewport,
+  frameCamera,
   moveDurationFor,
   REDUCED_MOVE_MS,
   SCENE_BY_PATH,
   SCENE_REFRAME_MS,
   terrainFor,
 } from 'scene/camera';
+import { globeDisc } from 'scene/globe';
 import { layerSetsFor } from 'scene/layers/sets';
+import StarField from 'scene/StarField';
+import {
+  mapboxStarDiameter,
+  STAR_ALPHA_MAX,
+  STAR_ALPHA_MIN,
+  STAR_COLUMNS,
+  STAR_COUNT,
+  STAR_MAX_SCALE,
+  STAR_MIN_SCALE,
+  STAR_ROWS,
+  stars,
+} from 'scene/stars';
 import { basemapConfig, lutFor } from 'scene/theme';
 import { buildLut } from 'styles/tokens/lut';
 import { FALLBACK_PALETTE, readPalette } from 'styles/tokens/palette';
@@ -355,6 +371,97 @@ const AllStrips = ({ active }: { active: string }) => {
   );
 };
 
+/* ---- the star field --------------------------------------------------- */
+
+/**
+ * Half the artboard, so the patch below is the real field at exactly half
+ * scale: the positions are fractions of the box, the radii scale with its
+ * height, and the globe is reframed against it the way a resize reframes
+ * the live one.
+ */
+const STAR_BOARD: Viewport = {
+  width: ARTBOARD_DESKTOP.width / 2,
+  height: ARTBOARD_DESKTOP.height / 2,
+};
+
+const BIGGER_THAN_MAPBOX = stars.filter(
+  (star) => star.scale > 1,
+).length;
+
+/**
+ * The field, over a stand-in for the globe it keeps out of.
+ *
+ * The disc is not the map. It is a CSS sphere at the radius the hello
+ * camera resolves to in this box, wearing the design's two rims at their
+ * peak alphas, so that the hole the mask cuts can be seen landing on it.
+ *
+ * Mounted only once the live snapshot exists, which is why it is a
+ * component of its own: it reads the token scope directly, and this page
+ * is prerendered.
+ */
+const StarSky = () => {
+  const palette = readPalette();
+  const camera = frameCamera(cameras.hello, STAR_BOARD);
+  const disc = globeDisc(camera, STAR_BOARD);
+  return (
+    <>
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          left: disc.cx,
+          top: disc.cy,
+          width: 2 * disc.r,
+          height: 2 * disc.r,
+          transform: 'translate(-50%, -50%)',
+          borderRadius: '50%',
+          background:
+            'radial-gradient(circle at 34% 30%, var(--map-land), var(--map-deep) 68%)',
+          // A tight accent limb inside a wide accent2 halo, which is what
+          // content/cameras.ts states the prototype's surround as.
+          boxShadow: `0 0 0 1px ${palette.a(0.2)}, 0 0 ${Math.round(
+            0.2 * disc.r,
+          )}px ${Math.round(0.08 * disc.r)}px ${palette.b(0.13)}`,
+        }}
+      />
+      <StarField
+        camera={camera}
+        follow={false}
+        palette={palette}
+        viewport={STAR_BOARD}
+      />
+    </>
+  );
+};
+
+/**
+ * The box the patch is drawn in, and the one thing in this lane besides
+ * the LUT strip that has to be LOOKED at rather than read: there is no
+ * Mapbox token in development, so the live scene shows its fallback
+ * plate and the real field is never mounted.
+ *
+ * An empty `lut` is the server's snapshot and the one React hydrates
+ * against, so the box comes up empty and fills on the pass after --
+ * exactly as the strips below do.
+ */
+const StarBoard = () => {
+  const { lut } = useThemeSnapshot();
+  return (
+    <div
+      className="border border-surface-3"
+      style={{
+        position: 'relative',
+        width: STAR_BOARD.width,
+        height: STAR_BOARD.height,
+        overflow: 'hidden',
+        background: 'var(--surface-ground)',
+      }}
+    >
+      {lut === '' ? null : <StarSky />}
+    </div>
+  );
+};
+
 const Section = ({
   title,
   note,
@@ -436,6 +543,13 @@ const Scene = () => {
         title="Fog presets"
       >
         <FogTable />
+      </Section>
+
+      <Section
+        note={`${STAR_COUNT} accent stars, one per cell of a ${STAR_COLUMNS} x ${STAR_ROWS} grid, ${STAR_MIN_SCALE} to ${STAR_MAX_SCALE} times mapbox's largest star (${mapboxStarDiameter(ARTBOARD_DESKTOP.height).toFixed(2)}px on the artboard) at alpha ${STAR_ALPHA_MIN} to ${STAR_ALPHA_MAX} -- ${BIGGER_THAN_MAPBOX} of them wider than anything mapbox draws. Drawn over the canvas and masked out of the globe's disc, at half scale here. Nothing at all on a light theme, which is the rule that also sends mapbox a star-intensity of zero.`}
+        title="Star field"
+      >
+        <StarBoard />
       </Section>
 
       <Section

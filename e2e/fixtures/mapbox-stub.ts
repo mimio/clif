@@ -223,6 +223,14 @@ const stubScript = (options: StubOptions): void => {
      */
     let terrainDirty = false;
     let center: [number, number] = [0, 0];
+    /*
+     * The two the star field reads back. mapbox's own defaults, so a
+     * map nobody has moved answers the way one does in a browser; the
+     * scene sends both on every easeTo, including the routes that want
+     * no padding at all.
+     */
+    let zoom = 0;
+    let padding = { top: 0, right: 0, bottom: 0, left: 0 };
     const layers = new Map<string, unknown>();
     const disabled = new Set<string>();
     let bearing = 0;
@@ -312,12 +320,20 @@ const stubScript = (options: StubOptions): void => {
         if (Array.isArray(spec.center)) {
           center = [...spec.center] as [number, number];
         }
+        if (typeof spec.zoom === 'number') zoom = spec.zoom;
+        if (spec.padding) {
+          padding = { ...(spec.padding as typeof padding) };
+        }
         fire('move');
       },
       getCenter: (): { lng: number; lat: number } => ({
         lng: center[0],
         lat: center[1],
       }),
+      getZoom: (): number => zoom,
+      // A copy: mapbox hands back its transform's own object, and
+      // scene/mapbox/instance.ts snapshots it for that reason.
+      getPadding: (): typeof padding => ({ ...padding }),
       getBearing: (): number => bearing,
       setBearing: (next: number): void => {
         // jumpTo, in the real library, and jumpTo stops the flight. The

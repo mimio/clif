@@ -1,10 +1,12 @@
-import type { Map as MapboxMap } from 'mapbox-gl';
+import type { Map as MapboxMap, PaddingOptions } from 'mapbox-gl';
 import {
+  type CameraPadding,
   type CameraSpec,
   SCENE_EASE,
   type Viewport,
 } from 'content/cameras';
 import { cubicBezier } from 'scene/ease';
+import type { GlobeGeometry } from 'scene/globe';
 import { createLayerRegistry } from 'scene/layers/registry';
 import type { LayerSet, SceneMap } from 'scene/layers/types';
 import {
@@ -206,6 +208,94 @@ export const watchCamera = (
   return () => {
     sub.detach();
     cameraSubs.delete(sub);
+  };
+};
+
+/* ---- reading the globe's placement back ------------------------------ */
+
+export type GlobeListener = (geometry: GlobeGeometry) => void;
+
+type GlobeSub = { listener: GlobeListener; detach: () => void };
+
+const globeSubs = new Set<GlobeSub>();
+
+/** mapbox's PaddingOptions, with every side present. */
+const sides = (padding: PaddingOptions): CameraPadding => ({
+  top: padding.top ?? 0,
+  right: padding.right ?? 0,
+  bottom: padding.bottom ?? 0,
+  left: padding.left ?? 0,
+});
+
+const samePadding = (a: CameraPadding, b: CameraPadding): boolean =>
+  a.top === b.top &&
+  a.right === b.right &&
+  a.bottom === b.bottom &&
+  a.left === b.left;
+
+/*
+ * The same discipline attachCamera argues for above, over a different
+ * pair of fields: an unchanged transform is not an event, and the
+ * listener is handed a fresh object only when one of the two numbers it
+ * carries has actually moved.
+ *
+ * It matters more here, not less. The centre genuinely changes on every
+ * frame of the hello route's rotation, so watchCamera announces one per
+ * frame for the life of the tab and its consumer quantises. THESE two do
+ * not: a spin turns the planet inside a disc that does not move, so this
+ * subscription is silent for every frame of it and speaks only while a
+ * route's flight is actually resizing or re-centring the globe. Which is
+ * what makes it safe for a consumer to hold in React state.
+ */
+const attachGlobe = (map: MapboxMap, sub: GlobeSub): void => {
+  let last: GlobeGeometry | null = null;
+  const onMove = (): void => {
+    const zoom = map.getZoom();
+    const padding = sides(map.getPadding());
+    if (
+      last !== null &&
+      last.zoom === zoom &&
+      samePadding(last.padding, padding)
+    ) {
+      return;
+    }
+    // Copied rather than held: mapbox hands back its own transform's
+    // padding, and a snapshot that the map can edit under the consumer
+    // is not a snapshot. Its four sides are optional on mapbox's type
+    // and never absent on the transform, so an absent one is zero --
+    // which is also what mapbox's own default padding is.
+    const next: GlobeGeometry = { zoom, padding };
+    last = next;
+    sub.listener(next);
+  };
+  map.on('move', onMove);
+  sub.detach = () => map.off('move', onMove);
+  // The current transform, not the next move -- a subscriber that
+  // arrives mid-flight still needs somewhere to start.
+  onMove();
+};
+
+/**
+ * Follows the disc the globe is painted as: how big it is, and where its
+ * centre sits.
+ *
+ * Both are derivable from the route's camera, and scene/SceneRoot.tsx
+ * does derive them -- right up until the camera is in flight, where the
+ * zoom is whatever mapbox's ease has reached and the padding is
+ * interpolated alongside it. The star field has to agree with the globe
+ * frame by frame rather than at the ends of the move, because the sky it
+ * is cut out of is defined by the globe's edge. So it reads the
+ * transform, for the reason watchCamera gives above and with the same
+ * lifecycle: subscribe before the map exists and the subscription simply
+ * attaches when it arrives.
+ */
+export const watchGlobe = (listener: GlobeListener): (() => void) => {
+  const sub: GlobeSub = { listener, detach: noop };
+  globeSubs.add(sub);
+  if (instance) attachGlobe(instance, sub);
+  return () => {
+    sub.detach();
+    globeSubs.delete(sub);
   };
 };
 
@@ -934,6 +1024,7 @@ const create = async (
   // Everything that subscribed before the map existed, including the
   // first read of the transform.
   for (const sub of [...cameraSubs]) attachCamera(map, sub);
+  for (const sub of [...globeSubs]) attachGlobe(map, sub);
 
   map.once('style.load', () => {
     setStatus('ready');
@@ -1308,6 +1399,8 @@ export const resetMapForTests = (): void => {
   terrainDirty = false;
   for (const sub of [...cameraSubs]) sub.detach();
   cameraSubs.clear();
+  for (const sub of [...globeSubs]) sub.detach();
+  globeSubs.clear();
   requestedLut = null;
   styleUrl = '';
   colorThemeSupported = null;

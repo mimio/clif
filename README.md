@@ -64,6 +64,12 @@ Outside the stack:
   The lower layers and the leaves may not touch it. Only `scene/` may import
   `scene/mapbox/**`, which is the one place mapbox-gl is loaded, lazily and
   only when a token exists.
+  One thing `scene/` draws is not on the map at all: `scene/StarField.tsx`
+  paints the accent stars as an SVG over the canvas, because mapbox's own
+  star field takes an intensity and no colour, and nothing in a style can
+  join the pass it is drawn in. It cuts itself out of the globe's disc with
+  a mask read off the live transform — `scene/stars.ts` has the field and
+  the numbers mapbox's own stars were measured at.
 - `content/` is data, not components: projects, work history, city anchors,
   per-route cameras and the route table. It imports nothing from the layers.
 

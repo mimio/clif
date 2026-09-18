@@ -379,14 +379,22 @@ export type FogSpec = {
  * `paintSphere`'s two rims, verbatim. Both globe cameras get them,
  * because the prototype draws both globes with the same function --
  * `orbit()` (hello) and `projectsGlobe()` (projects) each call it.
+ *
+ * `satisfies` rather than a `FogGlow` annotation, and exported, because
+ * `haloReach` is the number scene/stars.ts cuts the sky out at -- past
+ * it there is nothing but the space token, so that is where space
+ * begins. Reaching it through `fogPresets.space.glow` would mean
+ * narrowing the union at the other end and carrying a branch that can
+ * never be taken; this way the reach is simply available, once, from
+ * the place that states it.
  */
-const SPHERE_RIMS: FogGlow = {
+export const SPHERE_RIMS = {
   at: 'limb',
   limbReach: 0.14,
   limbFalloff: 2,
   haloReach: 0.34,
   haloFalloff: 2.2,
-};
+} satisfies FogGlow;
 
 export const fogPresets: Record<FogPreset, FogSpec> = {
   space: {

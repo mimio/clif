@@ -20,6 +20,7 @@ import {
   terrainFor,
 } from 'scene/camera';
 import { layerSetsFor } from 'scene/layers/sets';
+import StarField from 'scene/StarField';
 import {
   useScene,
   useSceneHover,
@@ -386,6 +387,21 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
       style={SCENE_BOX}
     >
       {state === 'fallback' ? <FallbackPlate /> : null}
+      {/*
+       * Only over a live map. The field cuts itself out of the globe's
+       * disc and reads that disc off the transform, so with no map there
+       * is nothing for it to agree with -- and the plate above draws a
+       * sphere of its own, at its own size, which is not the one
+       * scene/stars.ts would be masking against.
+       */}
+      {state === 'live' ? (
+        <StarField
+          camera={target}
+          follow
+          palette={palette}
+          viewport={viewport}
+        />
+      ) : null}
     </div>
   );
 };

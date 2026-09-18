@@ -1,3 +1,9 @@
+import {
+  ARTBOARD_DESKTOP,
+  type CameraPadding,
+  type Viewport,
+} from 'content/cameras';
+
 /*
  * How big the globe is on screen, and what zoom makes it a given size.
  *
@@ -100,8 +106,15 @@ export const globeWorldRadius = (zoom: number): number =>
 export const globeZoomForWorldRadius = (radius: number): number =>
   Math.log2((2 * Math.PI * radius) / TILE_SIZE);
 
-/** The focal length, in pixels, for a viewport this tall. */
-const focalLength = (height: number): number => FOCAL_RATIO * height;
+/**
+ * The focal length, in pixels, for a viewport this tall.
+ *
+ * Exported because it is not only the globe's: mapbox sizes its own
+ * stars through the same camera, and scene/stars.ts has to measure them
+ * to sit beside them. This file is where the field of view is known.
+ */
+export const focalLength = (height: number): number =>
+  FOCAL_RATIO * height;
 
 /** Camera to the centre of the screen, in pixels. Height decides it. */
 const cameraToCenter = (height: number): number =>
@@ -164,3 +177,52 @@ export const globeLimbAngle = (
   height: number,
 ): number =>
   Math.atan(globeScreenRadius(zoom, height) / focalLength(height));
+
+/* ---- where the disc lands -------------------------------------------- */
+
+/**
+ * The globe's placement, as only the map knows it during a flight.
+ *
+ * Two fields because two things move the disc and they are independent:
+ * the zoom decides how big it is, the padding decides where its centre
+ * sits. Everything else about the camera -- centre, pitch, bearing --
+ * turns the planet inside the disc without moving the disc itself.
+ */
+export type GlobeGeometry = {
+  zoom: number;
+  padding: CameraPadding;
+};
+
+/** The painted disc, in CSS pixels: where its centre is and how wide. */
+export type GlobeDisc = {
+  cx: number;
+  cy: number;
+  r: number;
+};
+
+/**
+ * The disc this camera paints in this box.
+ *
+ * The centre is scene/camera.ts's `paddingFor` read backwards. That
+ * function turns a fraction of the viewport into the padding mapbox
+ * takes; this turns the padding back into pixels, because a camera read
+ * off the map carries the padding and not the fraction it came from.
+ * Both sides of the round trip are held together by
+ * test/scene-stars.test.ts.
+ *
+ * A null viewport is the server's and jsdom's answer, and it is treated
+ * the way scene/theme.ts's fogFor treats it: the artboard, which is the
+ * box the table's own numbers were resolved at.
+ */
+export const globeDisc = (
+  geometry: GlobeGeometry,
+  viewport: Viewport | null,
+): GlobeDisc => {
+  const box = viewport ?? ARTBOARD_DESKTOP;
+  const { padding } = geometry;
+  return {
+    cx: box.width / 2 + (padding.left - padding.right) / 2,
+    cy: box.height / 2 + (padding.top - padding.bottom) / 2,
+    r: globeScreenRadius(geometry.zoom, box.height),
+  };
+};
