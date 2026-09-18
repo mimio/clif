@@ -1,5 +1,10 @@
 import { expect, type Page, test } from '@playwright/test';
-import { STAR_COUNT, STAR_SPACE_EDGE } from 'scene/stars';
+import {
+  type PaintedStar,
+  paintedStars,
+  type SkyView,
+  STAR_SPACE_EDGE,
+} from 'scene/stars';
 import {
   installBasemapOnly,
   installSceneDebug,
@@ -12,33 +17,35 @@ import {
 import { stubMapboxNetwork } from '../fixtures/mapbox-stub';
 
 /*
- * THE ACCENT STARS KEEP OUT OF THE GLOBE.
+ * THE ACCENT STARS KEEP OUT OF THE GLOBE, AND TURN WITH THE SKY.
  *
- * scene/StarField.tsx paints its field over the map's canvas rather than
- * inside it, because mapbox's own stars go down in a pass no style layer
- * can join. Everything that buys is free -- the colours, the sizes, and
- * a field that does not need a shader -- and the one thing it costs is
- * the occlusion: mapbox's stars are covered by the planet because the
- * planet is drawn after them, and these are not covered by anything.
- * They cut their own hole instead, out of an SVG mask whose circle is
- * the globe grown to the design's atmosphere reach.
+ * scene/StarField.tsx paints its field onto a canvas over the map's own,
+ * because mapbox's stars go down in a pass no style layer can join.
+ * Everything that buys is free -- the colours, the sizes, and a field
+ * that needs no shader -- and it costs two things mapbox would otherwise
+ * have done for us, which are the two this file measures.
  *
- * That is a claim about pixels and it is checked as one. The unit suite
- * can say the mask circle carries the right cx, cy and r; only a browser
- * can say whether a mask with those numbers actually hides anything, and
- * jsdom does not render one. So this takes the frame twice -- with the
- * field and with it display:none -- and requires every pixel the field
- * changed to lie outside the globe's own silhouette.
+ * THE OCCLUSION. mapbox's stars are covered by the planet because the
+ * planet is drawn after them; ours are covered by nothing, so they fade
+ * themselves out across the band between the globe's limb and the
+ * design's atmosphere reach. Only a browser can say whether that lands
+ * on the right pixels, so this takes the frame twice -- with the field
+ * and with it display:none -- and requires every pixel it changed to lie
+ * outside the globe's own silhouette.
+ *
+ * THE MOTION, which is the regression this field was rebuilt for. The
+ * first version authored the stars in SCREEN space, fixed in the frame,
+ * while mapbox's are fixed to a celestial sphere the camera turns
+ * through -- so on the hello route theirs swept past at about 28 pixels
+ * a second and ours sat still. scene/stars.ts now rebuilds mapbox's own
+ * star rotation, and the second test below watches the two fields move
+ * together over four seconds of the real spin. They are separable in a
+ * screenshot because ours are the only coloured things in the sky.
  *
  * THE REAL LIBRARY, over a stubbed network, for the reason
  * e2e/hermetic/globe-atmosphere.spec.ts gives: the globe and its
- * atmosphere need no tiles, so the silhouette this measures against is
- * the real one.
- *
- * REDUCED MOTION, because the diff is between two screenshots and the
- * hello camera turns for ever otherwise. It also settles mapbox's own
- * per-frame dither in the atmosphere, which the threshold below would
- * survive anyway.
+ * atmosphere need no tiles, so the silhouette this measures against and
+ * the stars it measures are the real ones.
  */
 
 /** How many levels a channel has to move before it counts as painted. */
@@ -53,6 +60,30 @@ const CHANGED = 6;
  */
 
 const HIDDEN = 'data-no-stars';
+
+/**
+ * mapbox's own attribution, hidden for the measurement.
+ *
+ * It is a control rather than a layer, so it is a child of the scene and
+ * `installBasemapOnly` -- which hides the scene's SIBLINGS -- leaves it
+ * up. That matters to exactly one assertion: the wordmark is white, it
+ * is out in the flat space past the globe, and it never moves, so it
+ * lands in the sample of mapbox's stars and drags their persistence from
+ * near zero to two thirds. Measured before this rule existed: 875 lit
+ * neutral pixels of which 549 were the logo.
+ *
+ * Nothing else in the suite needs it. e2e/fixtures/app.ts's radial
+ * profile takes medians around a ring, which a mark in one corner cannot
+ * move.
+ */
+const installHideAttribution = (page: Page): Promise<void> =>
+  page
+    .addStyleTag({
+      content: `html[data-basemap-only] .mapboxgl-control-container {
+        visibility: hidden !important;
+      }`,
+    })
+    .then(() => undefined);
 
 const installHideStars = (page: Page): Promise<void> =>
   page
@@ -187,85 +218,446 @@ const diffField = (
     },
   );
 
-test.describe('the accent star field', () => {
-  test.use({ reducedMotion: 'reduce' });
+/* ---- following the two fields across the sky --------------------------- */
 
+/**
+ * How far above the space token a pixel has to sit to be a star core.
+ *
+ * mapbox's brightest is white at alpha 0.30 over --surface-ground, which
+ * is 92 against 22 -- seventy levels -- and its faintest is nothing at
+ * all, so any floor picks a share of its field rather than all of it.
+ * High enough that the atmosphere's own last levels past 1.34r cannot
+ * reach it, and low enough to leave a few hundred pixels to count.
+ */
+const STAR_FLOOR = 30;
+
+type SkyStep = {
+  /** How many of the predicted stars were found where they were predicted. */
+  found: number;
+  checked: number;
+  /** The worst miss, in CSS pixels, among the ones that were found. */
+  worst: number;
+  /**
+   * How much of mapbox's own field is unchanged between the two frames.
+   *
+   * Their stars are the only white things in the sky, so this is the
+   * share of lit neutral pixels in the first frame that are still lit in
+   * the second. A sky that turned leaves almost none; a field pinned to
+   * the frame leaves nearly all of them.
+   */
+  theirOverlap: number;
+  theirPixels: number;
+  /** The same measure over our own field, which is known to have moved. */
+  ourOverlap: number;
+  ourPixels: number;
+};
+
+/**
+ * Whether each field is where it should be, in both frames.
+ *
+ * OURS IS CHECKED AGAINST ITS OWN ARITHMETIC. `paintedStars` is pure and
+ * the unit suite pins it; what only a browser can say is whether the
+ * canvas actually draws that, and whether it redraws when the transform
+ * moves. So the camera is read off the live map beside each screenshot,
+ * the field is resolved for it here, and every star that should be out
+ * in flat space is looked for within a pixel or two of where it was
+ * predicted -- in both frames, which are four seconds of spin apart.
+ *
+ * THEIRS IS CHECKED FOR HAVING MOVED AT ALL, by hue: ours are drawn from
+ * --clif-accent and --clif-accent-2, which are warm, and mapbox's are
+ * `vec3(1.0, 1.0, 1.0)`. Without that half the test would pass just as
+ * well on a still sky, which is the one thing it must not do.
+ */
+const skyStep = (
+  page: Page,
+  frames: [Buffer, Buffer],
+  fields: [PaintedStar[], PaintedStar[]],
+  centre: { x: number; y: number },
+  radius: number,
+  width: number,
+): Promise<SkyStep> =>
+  page.evaluate(
+    ({ shots, predicted, at, r, reach, box, floor }) =>
+      new Promise<SkyStep>((resolve, reject) => {
+        const decode = (encoded: string): Promise<ImageData> =>
+          new Promise((done, fail) => {
+            const image = new Image();
+            image.onerror = () =>
+              fail(new Error('the capture did not decode'));
+            image.onload = () => {
+              const canvas = document.createElement('canvas');
+              canvas.width = image.naturalWidth;
+              canvas.height = image.naturalHeight;
+              const context = canvas.getContext('2d');
+              if (!context) {
+                fail(
+                  new Error('no 2d context to decode the capture in'),
+                );
+                return;
+              }
+              context.drawImage(image, 0, 0);
+              done(
+                context.getImageData(
+                  0,
+                  0,
+                  canvas.width,
+                  canvas.height,
+                ),
+              );
+            };
+            image.src = `data:image/png;base64,${encoded}`;
+          });
+
+        void Promise.all(shots.map(decode))
+          .then(([first, second]) => {
+            const scale = first.width / box;
+            const channel = (
+              frame: ImageData,
+              x: number,
+              y: number,
+              offset: number,
+            ): number => {
+              const px = Math.round(y) * frame.width + Math.round(x);
+              return frame.data[px * 4 + offset];
+            };
+            /** The warmest red-minus-blue within `span` of a point. */
+            const warmestNear = (
+              frame: ImageData,
+              x: number,
+              y: number,
+              span: number,
+            ): number => {
+              let best = -255;
+              const step = 1 / scale;
+              for (let dy = -span; dy <= span; dy += step) {
+                for (let dx = -span; dx <= span; dx += step) {
+                  const px = (x + dx) * scale;
+                  const py = (y + dy) * scale;
+                  if (
+                    px < 0 ||
+                    py < 0 ||
+                    px >= frame.width ||
+                    py >= frame.height
+                  ) {
+                    continue;
+                  }
+                  const hue =
+                    channel(frame, px, py, 0) -
+                    channel(frame, px, py, 2);
+                  if (hue > best) best = hue;
+                }
+              }
+              return best;
+            };
+
+            let found = 0;
+            let checked = 0;
+            let worst = 0;
+            const frames = [first, second];
+            predicted.forEach((field, which) => {
+              for (const star of field) {
+                // Only the ones out in flat space, where the ground is
+                // the space token and a warm pixel can only be a star.
+                if (
+                  Math.hypot(star.x - at.x, star.y - at.y) <
+                  reach * r
+                ) {
+                  continue;
+                }
+                // And only the ones bright and wide enough to register
+                // against the eight bits a screenshot carries.
+                if (star.alpha < 0.3 || star.r < 0.9) continue;
+                checked += 1;
+                const span = star.r + 1.5;
+                if (
+                  warmestNear(frames[which], star.x, star.y, span) >=
+                  18
+                ) {
+                  found += 1;
+                  worst = Math.max(worst, span);
+                }
+              }
+            });
+
+            /*
+             * And how much of each field stayed put, over the same
+             * region and by the same test: a pixel that was a star core
+             * in the first frame, and is still one in the second.
+             */
+            const persistence = (
+              warm: boolean,
+            ): { pixels: number; overlap: number } => {
+              const isStar = (
+                frame: ImageData,
+                px: number,
+              ): boolean => {
+                const lift =
+                  Math.max(
+                    frame.data[px],
+                    frame.data[px + 1],
+                    frame.data[px + 2],
+                  ) - 22;
+                const hue = frame.data[px] - frame.data[px + 2];
+                if (lift < floor) return false;
+                return warm ? hue >= 18 : hue <= 6;
+              };
+              let pixels = 0;
+              let stayed = 0;
+              for (let px = 0; px < first.data.length; px += 4) {
+                const index = px / 4;
+                const x = (index % first.width) / scale;
+                const y = Math.floor(index / first.width) / scale;
+                if (Math.hypot(x - at.x, y - at.y) < reach * r) {
+                  continue;
+                }
+                if (!isStar(first, px)) continue;
+                pixels += 1;
+                if (isStar(second, px)) stayed += 1;
+              }
+              return {
+                pixels,
+                overlap: pixels === 0 ? 1 : stayed / pixels,
+              };
+            };
+
+            const theirs = persistence(false);
+            const ours = persistence(true);
+            resolve({
+              found,
+              checked,
+              worst,
+              theirPixels: theirs.pixels,
+              theirOverlap: theirs.overlap,
+              ourPixels: ours.pixels,
+              ourOverlap: ours.overlap,
+            });
+          })
+          .catch(reject);
+      }),
+    {
+      shots: frames.map((frame) => frame.toString('base64')),
+      predicted: fields,
+      at: centre,
+      r: radius,
+      reach: STAR_SPACE_EDGE,
+      box: width,
+      floor: STAR_FLOOR,
+    },
+  );
+
+/** The transform, read off the live map beside a screenshot. */
+const readView = (page: Page): Promise<SkyView> =>
+  page.evaluate(() => {
+    const scene = window.__SCENE__;
+    if (!scene) throw new Error('window.__SCENE__ is not published');
+    const map = scene.map as unknown as {
+      getCenter: () => { lng: number; lat: number };
+      getBearing: () => number;
+      getPitch: () => number;
+      getZoom: () => number;
+      getPadding: () => Record<string, number>;
+    };
+    const { lng, lat } = map.getCenter();
+    const padding = map.getPadding();
+    return {
+      center: [lng, lat] as [number, number],
+      bearing: map.getBearing(),
+      pitch: map.getPitch(),
+      zoom: map.getZoom(),
+      padding: {
+        top: padding.top ?? 0,
+        right: padding.right ?? 0,
+        bottom: padding.bottom ?? 0,
+        left: padding.left ?? 0,
+      },
+    };
+  });
+
+test.describe('the accent star field', () => {
   test.beforeEach(async ({ context, page }) => {
     await stubMapboxNetwork(context);
     await installSceneDebug(page);
   });
 
-  test('is a field of 160, behind the page and out of the way', async ({
+  test('is a canvas over the map, out of the way of a drag', async ({
     page,
   }) => {
     await page.goto('/', { waitUntil: 'load' });
     await waitForScene(page, 'live');
     const field = page.locator('[data-testid="scene-stars"]');
     await expect(field).toBeAttached();
-    await expect(field.locator('g circle')).toHaveCount(STAR_COUNT);
-    // It is full bleed over a map that is draggable on this route.
-    expect(
-      await field.evaluate(
-        (node) => getComputedStyle(node).pointerEvents,
-      ),
-    ).toBe('none');
+    const shape = await field.evaluate((node) => ({
+      tag: node.tagName,
+      // It is full bleed over a map that is draggable on this route.
+      pointerEvents: getComputedStyle(node).pointerEvents,
+      // And its bitmap is the box, at the scene's own ratio clamp.
+      bitmap: (node as HTMLCanvasElement).width,
+      css: node.getBoundingClientRect().width,
+    }));
+    expect(shape.tag).toBe('CANVAS');
+    expect(shape.pointerEvents).toBe('none');
+    expect(shape.bitmap).toBeGreaterThanOrEqual(shape.css);
+    expect(shape.bitmap).toBeLessThanOrEqual(shape.css * 1.5);
   });
 
-  test('paints nothing inside the globe s silhouette', async ({
+  test.describe('held still', () => {
+    /*
+     * REDUCED MOTION, because the diff below is between two screenshots
+     * and the hello camera turns for ever otherwise. It also settles
+     * mapbox's own per-frame dither in the atmosphere, which the
+     * threshold above would survive anyway.
+     */
+    test.use({ reducedMotion: 'reduce' });
+
+    test('paints nothing inside the globe s silhouette', async ({
+      page,
+    }) => {
+      await page.goto('/', { waitUntil: 'load' });
+      await waitForScene(page, 'live');
+      await settle(page);
+      await installBasemapOnly(page);
+      await installHideStars(page);
+      // The foreground hides; the field does not, because it is a child
+      // of the scene rather than one of its siblings.
+      await showBasemapOnly(page, true);
+
+      const framing = await measureGlobe(page);
+      notice(
+        'stars: framing',
+        `centre=${framing.centre.x.toFixed(1)},${framing.centre.y.toFixed(1)} ` +
+          `r=${framing.radius.toFixed(1)} zoom=${framing.zoom.toFixed(3)} ` +
+          `box=${framing.box.width}x${framing.box.height}`,
+      );
+
+      await showStars(page, true);
+      const lit = await page.screenshot();
+      await showStars(page, false);
+      const unlit = await page.screenshot();
+      await showStars(page, true);
+
+      const diff = await diffField(
+        page,
+        lit,
+        unlit,
+        framing.centre,
+        framing.radius,
+        framing.box.width,
+      );
+      notice(
+        'stars: field',
+        `painted=${diff.painted}px dd=${diff.nearest.toFixed(3)}..${diff.furthest.toFixed(3)} ` +
+          `beyondReach=${diff.beyondReach} opponency=${diff.opponency.toFixed(1)}`,
+      );
+
+      // It painted, and it painted in the accent rather than in white.
+      expect(diff.painted).toBeGreaterThan(0);
+      expect(diff.opponency).toBeGreaterThan(20);
+
+      /*
+       * And every pixel of it is outside the planet. One pixel of slack,
+       * expressed in radii, because the silhouette is a median of three
+       * bisected rays and the screenshot is rounded to whole pixels --
+       * not because the fade is allowed to leak.
+       */
+      expect(diff.nearest).toBeGreaterThanOrEqual(
+        1 - 1 / framing.radius,
+      );
+      // Most of it is out in the flat space the design paints past 1.34r.
+      expect(diff.furthest).toBeGreaterThan(STAR_SPACE_EDGE);
+      expect(diff.beyondReach).toBeGreaterThan(diff.painted / 2);
+    });
+  });
+
+  test('travels with mapbox s own stars as the globe turns', async ({
     page,
   }) => {
+    /*
+     * Four seconds of the real spin, with the frame held still at each
+     * end of it. Reduced motion is what stops the globe -- the scene
+     * reads it through matchMedia and turns its animation loop off -- so
+     * toggling it means the camera cannot advance between the read and
+     * the screenshot, and the field can be checked against the exact
+     * transform that drew it.
+     */
+    test.setTimeout(180_000);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/', { waitUntil: 'load' });
     await waitForScene(page, 'live');
     await settle(page);
     await installBasemapOnly(page);
-    await installHideStars(page);
-    // The foreground hides; the field does not, because it is a child of
-    // the scene rather than one of its siblings.
+    await installHideAttribution(page);
     await showBasemapOnly(page, true);
 
     const framing = await measureGlobe(page);
+    const before = await readView(page);
+    const first = await page.screenshot();
+
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.waitForTimeout(4_000);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await settle(page);
+    const after = await readView(page);
+    const second = await page.screenshot();
+
+    const turned = after.center[0] - before.center[0];
     notice(
-      'stars: framing',
-      `centre=${framing.centre.x.toFixed(1)},${framing.centre.y.toFixed(1)} ` +
-        `r=${framing.radius.toFixed(1)} zoom=${framing.zoom.toFixed(3)} ` +
-        `box=${framing.box.width}x${framing.box.height}`,
+      'stars: spin',
+      `centre ${before.center[0].toFixed(3)} -> ${after.center[0].toFixed(3)} ` +
+        `(${turned.toFixed(3)} degrees)`,
     );
+    // The globe turned east while motion was allowed, or there is
+    // nothing here to measure.
+    expect(turned).toBeGreaterThan(1);
 
-    await showStars(page, true);
-    const lit = await page.screenshot();
-    await showStars(page, false);
-    const unlit = await page.screenshot();
-    await showStars(page, true);
+    const box = {
+      width: framing.box.width,
+      height: framing.box.height,
+    };
+    const fields: [PaintedStar[], PaintedStar[]] = [
+      paintedStars(before, box),
+      paintedStars(after, box),
+    ];
+    // And the field really did move between the two: a sky pinned to the
+    // frame would predict the same positions twice.
+    const moved = fields[0].filter((star) =>
+      fields[1].every(
+        (other) => Math.hypot(other.x - star.x, other.y - star.y) > 8,
+      ),
+    );
+    expect(moved.length).toBeGreaterThan(fields[0].length * 0.9);
 
-    const diff = await diffField(
+    const step = await skyStep(
       page,
-      lit,
-      unlit,
+      [first, second],
+      fields,
       framing.centre,
       framing.radius,
       framing.box.width,
     );
     notice(
-      'stars: field',
-      `painted=${diff.painted}px dd=${diff.nearest.toFixed(3)}..${diff.furthest.toFixed(3)} ` +
-        `beyondReach=${diff.beyondReach} opponency=${diff.opponency.toFixed(1)}`,
+      'stars: sky',
+      `ours ${step.found}/${step.checked} found within ${step.worst.toFixed(1)}px; ` +
+        `kept: ours ${(step.ourOverlap * 100).toFixed(1)}% of ${step.ourPixels}px, ` +
+        `mapbox ${(step.theirOverlap * 100).toFixed(1)}% of ${step.theirPixels}px`,
     );
-
-    // It painted, and it painted in the accent rather than in white.
-    expect(diff.painted).toBeGreaterThan(0);
-    expect(diff.opponency).toBeGreaterThan(20);
 
     /*
-     * And every pixel of it is outside the planet. One pixel of slack,
-     * expressed in radii, because the silhouette is a median of three
-     * bisected rays and the screenshot is rounded to whole pixels --
-     * not because the mask is allowed to leak.
+     * THE ASSERTION THIS FILE EXISTS FOR. The canvas drew the field the
+     * arithmetic specifies, at BOTH cameras -- so it is anchored to the
+     * sky rather than to the frame, and it redraws when the transform
+     * moves.
      */
-    expect(diff.nearest).toBeGreaterThanOrEqual(
-      1 - 1 / framing.radius,
-    );
-    // Most of it is out in the flat space the design paints past 1.34r.
-    expect(diff.furthest).toBeGreaterThan(STAR_SPACE_EDGE);
-    expect(diff.beyondReach).toBeGreaterThan(diff.painted / 2);
+    expect(step.checked).toBeGreaterThan(20);
+    expect(step.found).toBeGreaterThan(step.checked * 0.85);
+
+    /*
+     * And mapbox's own field moved too, which is what makes the first
+     * assertion mean anything: on a sky that happened to be still, a
+     * field pinned to the frame would pass it as well.
+     */
+    expect(step.theirPixels).toBeGreaterThan(100);
+    expect(step.ourPixels).toBeGreaterThan(50);
+    expect(step.theirOverlap).toBeLessThan(0.35);
+    expect(step.ourOverlap).toBeLessThan(0.35);
   });
 });

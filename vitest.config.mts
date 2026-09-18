@@ -110,6 +110,14 @@ export default defineConfig({
         // moved in beside its only consumer, whose own index.tsx stays
         // covered; the e2e suite covers the no-WebGL image fallback.
         'components/composed/ScreenshotPlane/GlitchImage.tsx',
+        // The star field's paint, for the same reason and with the same
+        // split: jsdom's getContext('2d') answers null, so not one line
+        // of the drawing runs here. Every number it draws with is in
+        // scene/stars.ts, which is pure and fully covered, and that the
+        // pixels land where those numbers say is
+        // e2e/hermetic/globe-stars.spec.ts's to answer -- it diffs two
+        // frames of the real thing.
+        'scene/StarField.tsx',
         // next/font/local is a build-time Next construct, mocked in tests.
         'styles/fonts.ts',
         // Trivial Document shell; all its logic lives in theme-bootstrap.ts.

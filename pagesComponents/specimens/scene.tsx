@@ -33,14 +33,13 @@ import { globeDisc } from 'scene/globe';
 import { layerSetsFor } from 'scene/layers/sets';
 import StarField from 'scene/StarField';
 import {
+  MAPBOX_STAR_COUNT,
   mapboxStarDiameter,
   STAR_ALPHA_MAX,
   STAR_ALPHA_MIN,
-  STAR_COLUMNS,
   STAR_COUNT,
   STAR_MAX_SCALE,
   STAR_MIN_SCALE,
-  STAR_ROWS,
   stars,
 } from 'scene/stars';
 import { basemapConfig } from 'scene/theme';
@@ -570,7 +569,7 @@ const Scene = () => {
       </Section>
 
       <Section
-        note={`${STAR_COUNT} accent stars, one per cell of a ${STAR_COLUMNS} x ${STAR_ROWS} grid, ${STAR_MIN_SCALE} to ${STAR_MAX_SCALE} times mapbox's largest star (${mapboxStarDiameter(ARTBOARD_DESKTOP.height).toFixed(2)}px on the artboard) at alpha ${STAR_ALPHA_MIN} to ${STAR_ALPHA_MAX} -- ${BIGGER_THAN_MAPBOX} of them wider than anything mapbox draws. Drawn over the canvas and masked out of the globe's disc, at half scale here. Nothing at all on a light theme, which is the rule that also sends mapbox a star-intensity of zero.`}
+        note={`${STAR_COUNT} accent stars on the same celestial sphere mapbox scatters its own ${MAPBOX_STAR_COUNT.toLocaleString('en')} on — one for every five, turning with the camera rather than fixed in the frame. ${STAR_MIN_SCALE} to ${STAR_MAX_SCALE} times mapbox's largest star (${mapboxStarDiameter(ARTBOARD_DESKTOP.height).toFixed(2)}px on the artboard) at alpha ${STAR_ALPHA_MIN} to ${STAR_ALPHA_MAX}, ${BIGGER_THAN_MAPBOX} of them wider than anything mapbox draws. Drawn on a canvas over the map's and faded out across the globe's atmosphere; half scale here, and one instant of a sky that does not stand still on the route itself. Nothing at all on a light theme, which is the rule that also sends mapbox a star-intensity of zero.`}
         title="Star field"
       >
         <StarBoard />

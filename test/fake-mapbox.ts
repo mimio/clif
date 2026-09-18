@@ -422,17 +422,19 @@ export class FakeMap {
   private center: [number, number] = [0, 0];
 
   /*
-   * And the two the star field reads back: the zoom that decides how big
-   * the globe's disc is, and the padding that decides where its centre
-   * lands. Real mapbox interpolates both across a flight; like `center`
-   * above, the fake lands them in one step, because what a unit test can
-   * settle is that the seam is wired and not what the curve looked like
-   * halfway.
+   * And the rest of what the star field reads back: the zoom and the
+   * padding that put the globe's disc on screen, and the pitch that --
+   * with the bearing and the centre above -- turns the sky. Real mapbox
+   * interpolates all of them across a flight; like `center` above, the
+   * fake lands them in one step, because what a unit test can settle is
+   * that the seam is wired and not what the curve looked like halfway.
    *
    * mapbox's own defaults, so a map nobody has moved reads the way one
-   * does in a browser: zoom 0, and no padding at all.
+   * does in a browser: zoom 0, flat, and no padding at all.
    */
   private zoom = 0;
+
+  private pitch = 0;
 
   private padding: CameraPadding = { ...NO_PADDING };
 
@@ -758,6 +760,10 @@ export class FakeMap {
       this.center = [...options.center] as [number, number];
     }
     if (typeof options.zoom === 'number') this.zoom = options.zoom;
+    if (typeof options.pitch === 'number') this.pitch = options.pitch;
+    if (typeof options.bearing === 'number') {
+      this.bearing = options.bearing;
+    }
     if (isPadding(options.padding))
       this.padding = { ...options.padding };
     // A zero-duration ease is a jump: real mapbox runs the frame and
@@ -785,6 +791,10 @@ export class FakeMap {
 
   getZoom(): number {
     return this.zoom;
+  }
+
+  getPitch(): number {
+    return this.pitch;
   }
 
   /*

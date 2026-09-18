@@ -1,20 +1,8 @@
-import {
-  type CSSProperties,
-  useEffect,
-  useId,
-  useMemo,
-  useState,
-} from 'react';
+import { type CSSProperties, useEffect, useRef } from 'react';
 import type { CameraSpec, Viewport } from 'content/cameras';
-import type { GlobeGeometry } from 'scene/globe';
-import { watchGlobe } from 'scene/mapbox/instance';
-import {
-  STAR_SPACE_EDGE,
-  starInk,
-  starRadius,
-  stars,
-  starSpace,
-} from 'scene/stars';
+import { clampDpr } from 'scene/budget';
+import { watchSky } from 'scene/mapbox/instance';
+import { paintedStars, type SkyView, starInk } from 'scene/stars';
 import type { Palette } from 'styles/tokens/palette';
 
 /*
@@ -30,42 +18,43 @@ import type { Palette } from 'styles/tokens/palette';
  * `star-intensity` is the only dial the fog exposes and it takes a
  * number, not a colour.
  *
- * So this field sits over the canvas instead and cuts its own hole,
- * which is the one thing being outside the map costs. scene/stars.ts's
- * `starSpace` says where the hole is, and the mask below fades the field
- * in across the band between the globe's limb and the design's own
- * atmosphere reach rather than cutting it at either edge -- so a star
- * near the planet dims into the halo the way mapbox's do, instead of
- * ending at a circle.
+ * So this field sits over the canvas instead, and pays for it twice:
+ * once in the occlusion, which it does itself by fading each star across
+ * the band between the globe's limb and the design's atmosphere reach,
+ * and once in the motion, which it also does itself -- scene/stars.ts
+ * rebuilds mapbox's own star rotation so the two fields turn together.
  *
- * THE HOLE IS READ OFF THE MAP, NOT OFF THE ROUTE. `spec` is where the
- * camera is going; during the 800-900ms flight the globe is somewhere
- * between, growing along a curve that no CSS transition on a radius
- * follows -- and getting that wrong in the forgiving direction still
- * paints stars over the planet for half a second on the way back from a
- * terrain route. `watchGlobe` reports the transform instead, and reports
- * it only when the disc has actually moved, so the hello route's
- * rotation costs nothing at all.
+ * WHY A CANVAS AND NOT SVG. The field is three thousand two hundred
+ * stars on a sphere, of which about 157 are in frame at any moment, and
+ * on the hello route every one of them moves on every frame the spin
+ * writes. That is a particle field, and a particle field in the DOM is
+ * thousands of attribute writes a second; in a canvas it is one clear
+ * and a few dozen fills. It is also why this component holds no state:
+ * `watchSky` reports and this paints, with no React render in between.
+ *
+ * It is the second WebGL-shaped surface in the frame, so it honours the
+ * same device-pixel-ratio clamp scene/budget.ts argues for -- the cost
+ * of a full-bleed canvas is quadratic in the ratio, and 1.5 is where
+ * that stops being worth it.
  */
 
 export type StarFieldProps = {
   palette: Palette;
   viewport: Viewport | null;
   /**
-   * Where the globe is: the route's own camera, already framed. With
-   * `follow` set it seeds the first paint and the transform takes over;
-   * without it, it is the whole answer.
+   * Where the camera is until the map says otherwise: the route's own
+   * camera, already framed. With `follow` set it paints the first frame
+   * and the transform takes over; without it, it is the whole answer.
    */
   camera: CameraSpec;
   /**
-   * Whether the hole follows the live map.
+   * Whether the field follows the live map.
    *
    * Set wherever the field is over the real scene, which is the only
    * place the two can disagree. The /specimens board draws a half-scale
-   * globe of its own in a box of its own, behind which the live scene is
+   * sky of its own in a box of its own, behind which the live scene is
    * still mounted -- it holds the camera it was handed, or the map
-   * behind the page would reframe a patch that has nothing to do with
-   * it.
+   * behind the page would re-aim a patch that has nothing to do with it.
    */
   follow: boolean;
 };
@@ -88,106 +77,119 @@ const STAR_BOX: CSSProperties = {
   pointerEvents: 'none',
 };
 
+/** The camera a route declares, in the terms the sky is turned by. */
+const skyFor = (camera: CameraSpec): SkyView => ({
+  center: camera.center,
+  bearing: camera.bearing,
+  pitch: camera.pitch,
+  zoom: camera.zoom,
+  padding: camera.padding,
+});
+
 export const StarField = ({
   palette,
   viewport,
   camera,
   follow,
 }: StarFieldProps) => {
-  /*
-   * Unique per mount. The mask and its gradient are named by id, which
-   * is a document-wide name, and this component does not own the
-   * document: /specimens draws a half-scale field of its own on a board
-   * behind which the live scene is still mounted, so a constant would
-   * leave that one masked by the real globe.
-   */
-  const id = useId();
-  const maskId = `${id}-space`;
-  const fadeId = `${id}-limb`;
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const [geometry, setGeometry] = useState<GlobeGeometry>(() => ({
-    zoom: camera.zoom,
-    padding: camera.padding,
-  }));
+  /** Where the camera is now: seeded from the route, fed by the map. */
+  const viewRef = useRef<SkyView>(skyFor(camera));
 
-  useEffect(
-    () => (follow ? watchGlobe(setGeometry) : undefined),
-    [follow],
-  );
+  /** The latest paint, so the subscription below never has to be rebuilt. */
+  const paintRef = useRef<() => void>(() => {});
 
   /*
-   * The stars themselves change with the palette and the viewport and
-   * with nothing else, so the element is built once per change of those
-   * two and handed back by reference. React skips a subtree whose
-   * element it has already seen, which is what keeps a flight's worth of
-   * geometry updates from re-rendering 160 circles sixty times a second.
+   * The paint, rebuilt after every render and run once to show it.
+   *
+   * No dependency list on purpose. A new palette, a resize and -- when
+   * this is not following the map -- a new camera all change what should
+   * be on the canvas and none of them change the subscription, so the
+   * cheap thing is to rebuild the closure that draws rather than the one
+   * that listens.
    */
-  const field = useMemo(
-    () => (
-      <g mask={`url(#${maskId})`}>
-        {stars.map((star, at) => (
-          <circle
-            cx={`${star.at[0] * 100}%`}
-            cy={`${star.at[1] * 100}%`}
-            fill={starInk(palette, star)}
-            key={at}
-            r={starRadius(star, viewport)}
-          />
-        ))}
-      </g>
-    ),
-    [maskId, palette, viewport],
-  );
+  useEffect(() => {
+    if (!follow) viewRef.current = skyFor(camera);
+    /*
+     * The context is fetched per paint rather than once, and the
+     * subscription does not depend on having one. `getContext` hands
+     * back the same object every time, so it costs nothing -- and a
+     * browser that will not give us a 2D context (or a jsdom, which has
+     * none at all) should leave the field unpainted, not leave the
+     * transform unwatched.
+     */
+    paintRef.current = () => {
+      const canvas = canvasRef.current;
+      const context = canvas?.getContext('2d') ?? null;
+      if (canvas === null || context === null) return;
+      const box = viewport;
+      const width = box?.width ?? canvas.clientWidth;
+      const height = box?.height ?? canvas.clientHeight;
+      const ratio = clampDpr(window.devicePixelRatio || 1);
+      if (
+        canvas.width !== Math.round(width * ratio) ||
+        canvas.height !== Math.round(height * ratio)
+      ) {
+        canvas.width = Math.round(width * ratio);
+        canvas.height = Math.round(height * ratio);
+      }
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.clearRect(0, 0, width, height);
+      for (const star of paintedStars(viewRef.current, box)) {
+        context.fillStyle = starInk(palette, star.ink, star.alpha);
+        context.beginPath();
+        context.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        context.fill();
+      }
+    };
+    paintRef.current();
+  });
+
+  /*
+   * And the subscription, opened once. It feeds the ref and asks for a
+   * paint; it never needs rebuilding, because the paint it asks for is
+   * always the latest one.
+   *
+   * ONE PAINT PER FRAME, NOT ONE PER REPORT. A route's flight writes a
+   * camera on every frame mapbox renders, and `move` is dispatched from
+   * inside that render -- so painting synchronously would put a
+   * full-bleed clear and a hundred fills into mapbox's own frame, sixty
+   * times a second, for the length of every move. Coalescing onto the
+   * next animation frame bounds it to the display's rate and collapses a
+   * burst into one, at the cost of the field trailing the globe by a
+   * frame during a flight, which is not a thing anyone can see.
+   */
+  useEffect(() => {
+    if (!follow) return undefined;
+    let frame = 0;
+    const stop = watchSky((view) => {
+      viewRef.current = view;
+      if (frame !== 0) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        paintRef.current();
+      });
+    });
+    return () => {
+      if (frame !== 0) cancelAnimationFrame(frame);
+      stop();
+    };
+  }, [follow]);
 
   // Stars would be noise over a bright ground, which is the same reason
   // scene/theme.ts sends mapbox a star-intensity of zero on a light
   // theme. The two have to agree or the sky is half there.
   if (palette.light) return null;
 
-  const space = starSpace(geometry, viewport);
-
   return (
-    <svg
+    <canvas
       aria-hidden="true"
       className="clif-stars"
       data-testid="scene-stars"
-      focusable="false"
-      height="100%"
+      ref={canvasRef}
       style={STAR_BOX}
-      width="100%"
-    >
-      <defs>
-        {/*
-         * Black out to the limb, white at the reach: the mask is a
-         * luminance mask, so black hides and the ramp between them is
-         * the halo fading the field back in. The stop sits at the
-         * limb's share of the reach -- 1/1.34 -- because the gradient
-         * is in the circle's own units and the circle is the reach.
-         */}
-        <radialGradient id={fadeId}>
-          <stop offset="0" stopColor="#000" />
-          <stop offset={1 / STAR_SPACE_EDGE} stopColor="#000" />
-          <stop offset="1" stopColor="#fff" />
-        </radialGradient>
-        <mask
-          height="100%"
-          id={maskId}
-          maskUnits="userSpaceOnUse"
-          width="100%"
-          x="0"
-          y="0"
-        >
-          <rect fill="#fff" height="100%" width="100%" x="0" y="0" />
-          <circle
-            cx={space.cx}
-            cy={space.cy}
-            fill={`url(#${fadeId})`}
-            r={space.r}
-          />
-        </mask>
-      </defs>
-      {field}
-    </svg>
+    />
   );
 };
 

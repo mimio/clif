@@ -78,11 +78,13 @@ Outside the stack:
   only when a token exists.
 
   One thing `scene/` draws is not on the map at all: `scene/StarField.tsx`
-  paints the accent stars as an SVG over the canvas, because mapbox's own
+  paints the accent stars onto a canvas over mapbox's own, because mapbox's
   star field takes an intensity and no colour, and nothing in a style can
-  join the pass it is drawn in. It cuts itself out of the globe's disc with
-  a mask read off the live transform — `scene/stars.ts` has the field and
-  the numbers mapbox's own stars were measured at.
+  join the pass it is drawn in. That leaves it two jobs mapbox would
+  otherwise do — fading the field out behind the globe and its atmosphere,
+  and turning it with the sky, which means rebuilding mapbox's own star
+  rotation. `scene/stars.ts` has both, along with the field itself and the
+  numbers mapbox's stars were measured at.
 - `content/` is data, not components: projects, work history, city anchors,
   per-route cameras and the route table. It imports nothing from the layers.
 

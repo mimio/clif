@@ -232,12 +232,15 @@ const stubScript = (options: StubOptions): void => {
     let terrainDirty = false;
     let center: [number, number] = [0, 0];
     /*
-     * The two the star field reads back. mapbox's own defaults, so a
-     * map nobody has moved answers the way one does in a browser; the
-     * scene sends both on every easeTo, including the routes that want
+     * The rest of what the star field reads back: the zoom and padding
+     * that place the globe's disc, and the pitch that turns the sky with
+     * the bearing and the centre. mapbox's own defaults, so a map nobody
+     * has moved answers the way one does in a browser; the scene sends
+     * every one of them on every easeTo, including the routes that want
      * no padding at all.
      */
     let zoom = 0;
+    let pitch = 0;
     let padding = { top: 0, right: 0, bottom: 0, left: 0 };
     const layers = new Map<string, unknown>();
     const disabled = new Set<string>();
@@ -329,6 +332,8 @@ const stubScript = (options: StubOptions): void => {
           center = [...spec.center] as [number, number];
         }
         if (typeof spec.zoom === 'number') zoom = spec.zoom;
+        if (typeof spec.pitch === 'number') pitch = spec.pitch;
+        if (typeof spec.bearing === 'number') bearing = spec.bearing;
         if (spec.padding) {
           padding = { ...(spec.padding as typeof padding) };
         }
@@ -339,6 +344,7 @@ const stubScript = (options: StubOptions): void => {
         lat: center[1],
       }),
       getZoom: (): number => zoom,
+      getPitch: (): number => pitch,
       // A copy: mapbox hands back its transform's own object, and
       // scene/mapbox/instance.ts snapshots it for that reason.
       getPadding: (): typeof padding => ({ ...padding }),
