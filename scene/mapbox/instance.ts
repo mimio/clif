@@ -1,8 +1,8 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 import {
   type CameraSpec,
-  fogPresets,
   SCENE_EASE,
+  type Viewport,
 } from 'content/cameras';
 import { cubicBezier } from 'scene/ease';
 import { createLayerRegistry } from 'scene/layers/registry';
@@ -17,6 +17,7 @@ import {
   BASEMAP_IMPORT,
   BASEMAP_PROBE_KEY,
   type BasemapConfig,
+  fogFor,
 } from 'scene/theme';
 import type { Palette } from 'styles/tokens/palette';
 
@@ -229,7 +230,13 @@ const setStatus = (next: StyleStatus): void => {
  */
 type Desired = {
   camera: { spec: CameraSpec; durationMs: number } | undefined;
-  fog: { spec: CameraSpec; palette: Palette } | undefined;
+  fog:
+    | {
+        spec: CameraSpec;
+        palette: Palette;
+        viewport: Viewport | null;
+      }
+    | undefined;
   config: Map<string, unknown>;
   lut: string | undefined;
   layers: { sets: LayerSet[]; palette: Palette } | undefined;
@@ -719,18 +726,12 @@ const flushOnce = (): void => {
   }
 
   if (desired.fog !== undefined) {
-    const { spec, palette } = desired.fog;
-    const fog = fogPresets[spec.fog];
+    const { spec, palette, viewport } = desired.fog;
     lastAction = `setFog(${spec.fog})`;
-    map.setFog({
-      range: fog.range,
-      color: fog.color,
-      'high-color': fog.highColor,
-      'horizon-blend': 0.04,
-      'space-color': shade(palette, 0.9),
-      // Stars would be noise over a bright ground.
-      'star-intensity': palette.light ? 0 : 0.15,
-    });
+    // Every number in it is derived: the colours from the palette, the
+    // alphas from the prototype's two rims, and horizon-blend solved
+    // against this camera's globe. See fogFor in scene/theme.ts.
+    map.setFog(fogFor(spec, palette, viewport));
     // Cleared only once it is actually on the map: clearing first loses
     // the want outright if the call throws, with nothing to retry from.
     desired.fog = undefined;
@@ -1025,18 +1026,18 @@ export const applyCamera = (
   requestFlush();
 };
 
-const shade = (palette: Palette, k: number): string =>
-  `rgb(${palette.sh(palette.space[0], 0, k)}, ${palette.sh(
-    palette.space[1],
-    1,
-    k,
-  )}, ${palette.sh(palette.space[2], 2, k)})`;
-
+/**
+ * The viewport is part of the want because the atmosphere is: the
+ * design states its halo in globe RADII and mapbox decays its glow with
+ * an ANGLE, so the conversion needs the sphere's angular radius, which
+ * is a function of the zoom AND the height. See fogFor in scene/theme.ts.
+ */
 export const applyFog = (
   spec: CameraSpec,
   palette: Palette,
+  viewport: Viewport | null,
 ): void => {
-  desired.fog = { spec, palette };
+  desired.fog = { spec, palette, viewport };
   requestFlush();
 };
 
