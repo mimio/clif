@@ -24,8 +24,16 @@ import {
  * down its size table's glyph scale) and --g-mul is whatever an ancestor
  * sets on hover or press. The glyph never sets --g-mul itself, so a
  * consumer driving it from its own :hover composes rather than competes.
- * The easing is always the design system's back-out overshoot over 240ms
- * (inventory 3.5).
+ * The easing is always the design system's back-out overshoot, over 240ms
+ * unless a consumer says otherwise (inventory 3.5).
+ *
+ * THE DURATION IS `--g-move`, read with 240ms as its fallback, for the
+ * same reason --g-mul exists: a consumer that owns a state this glyph has
+ * no idea about needs to be able to time the growth from outside. The
+ * keycap declares it 0s under :active, so a pressed cap's glyph is at 1.22
+ * on the frame the pointer lands instead of 240ms of overshoot later --
+ * roughly twice as long as a click. Nothing declares it anywhere else, so
+ * every other consumer keeps the 240ms spring exactly as before.
  *
  * A CONSUMER MUST NOT SCALE A WRAPPER AS WELL. Both transforms would see
  * the same inherited --g-mul and multiply by it, so a 1.30 hover would
@@ -88,7 +96,7 @@ export const Glyph = ({
         '--g-base': scale,
         transform: 'scale(calc(var(--g-base) * var(--g-mul, 1)))',
         transformOrigin: 'center',
-        transition: `transform 240ms ${GLYPH_EASE}`,
+        transition: `transform var(--g-move, 240ms) ${GLYPH_EASE}`,
         willChange: 'transform',
       } as CSSProperties
     }

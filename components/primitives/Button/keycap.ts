@@ -125,19 +125,31 @@ const shadow = (spec: {
     `0 var(--k-amb-y, ${px(spec.amb)}) var(--k-amb-blur, ${px(spec.ambBlur)}) -2px var(--k-amb-tint, rgba(0,0,0,.55))`,
   ].join(', ');
 
+/*
+ * THE DURATIONS ARE PROPERTIES, BECAUSE A PRESS HAS TO BE ASYMMETRIC.
+ *
+ * `--k-move` is the travel and the shadow; `--k-hue` is the ink and the
+ * face. Both are read with their design value as the fallback, exactly
+ * like every other operand here, so the rest, hover and release timings
+ * are the ones the prototype shipped -- and the press rule below declares
+ * them as 0s, which is the whole of the fix. See PRESS.
+ */
 const TRANSITION = [
-  'transform 70ms cubic-bezier(.3,0,.5,1)',
-  'box-shadow 70ms cubic-bezier(.3,0,.5,1)',
-  'color 160ms ease-out',
-  'background 160ms ease-out',
+  'transform var(--k-move, 70ms) cubic-bezier(.3,0,.5,1)',
+  'box-shadow var(--k-move, 70ms) cubic-bezier(.3,0,.5,1)',
+  'color var(--k-hue, 160ms) ease-out',
+  'background var(--k-hue, 160ms) ease-out',
 ].join(', ');
 
 /**
  * The expand mark grows on a spring, not on the cap's ease. The glyph
  * springs on the same curve over the same 240ms, but declares it itself --
- * Glyph owns its transform now, so it owns the transition with it.
+ * Glyph owns its transform now, so it owns the transition with it. Both
+ * read the duration from `--g-move`, so the press can collapse the pair of
+ * them together.
  */
-const SPRING = 'transform 240ms cubic-bezier(.34,1.56,.64,1)';
+const SPRING =
+  'transform var(--g-move, 240ms) cubic-bezier(.34,1.56,.64,1)';
 
 /* The rest ink, as the fallback of the variable the state rules flip. Both
    are written out as whole class names because the scanner reads source
@@ -163,14 +175,61 @@ const HOVER = [
   'pointer-fine:not-active:hover:[--k-amb-tint:rgba(0,0,0,.6)]',
 ].join(' ');
 
-/* Press: travel == skirt, skirt collapsed to zero, cast pulled in tight and
-   the ink flipped to the accent. These are bare `active:` -- a finger can
-   press and cannot hover -- and they beat the hover block above because
-   that block excludes :active, NOT because of the order Tailwind emits
-   them in. It does not emit them in that order: measured against the
-   compiled stylesheet, every `pointer-fine:` rule lands after every
-   unconditional one. */
+/*
+ * Press: travel == skirt, skirt collapsed to zero, cast pulled in tight and
+ * the ink flipped to the accent. These are bare `active:` -- a finger can
+ * press and cannot hover -- and they beat the hover block above because
+ * that block excludes :active, NOT because of the order Tailwind emits
+ * them in. It does not emit them in that order: measured against the
+ * compiled stylesheet, every `pointer-fine:` rule lands after every
+ * unconditional one.
+ *
+ * THE LAST THREE ARE THE TIMING, AND THEY ARE WHY THE PRESS READS AT ALL.
+ *
+ * Every value above was already arriving on the first frame of the press
+ * -- the variables are unregistered, so they do not interpolate. What did
+ * not arrive was the RENDERING of them, because the cap crossed to the
+ * press state on the same easings it uses to settle into hover: 70ms for
+ * the travel and the shadow, 160ms for the ink and the face, 240ms of
+ * back-out overshoot for the glyph. A click is not that long. Measured in
+ * Chromium on the hello route, from a settled hover, with trusted input
+ * (e2e/hermetic/press-feel.spec.ts):
+ *
+ *            hold 50ms      hold 72ms      hold 111ms
+ *   travel      0.00           0.58           1.00
+ *   ink         0.00           0.32           0.59
+ *   glyph       0.00           0.53           0.87
+ *
+ * -- fractions of the way from the hovered value to the pressed one, at
+ * the best frame the pointer was still down for. The 50ms column is not a
+ * rounding artefact: the transitions are created on the style
+ * recalculation that follows the pointerdown, so nothing had moved by one
+ * pixel before the pointer came up again and all three reversed. There was
+ * never a frame in which the cap was down.
+ *
+ * So the press is made IMMEDIATE ON THE WAY IN AND EASED ON THE WAY OUT,
+ * which is what every tactile control does and the only honest answer to
+ * that table. `--k-move`, `--k-hue` and `--g-move` are the durations the
+ * plate's TRANSITION and the glyph's spring read; declaring them 0s under
+ * `:active` means the down state is the computed style on the frame the
+ * pointer lands, with no transition to wait for. The release is untouched:
+ * on pointerup the variables go back to their fallbacks, and the
+ * after-change style -- which is what a transition is generated from --
+ * carries 70/160/240ms again, so the cap rises on the prototype's own
+ * easing rather than snapping back.
+ *
+ * IT IS DONE BY CONDITION, NOT BY ORDER, for the same reason `not-active:`
+ * is: these are ordinary `active:` utilities on the wrapper, inherited by
+ * the plate and the glyph, and nothing about them depends on where
+ * Tailwind chooses to emit them. The durations could not have been
+ * utilities in their own right -- the plate's `transition` is an inline
+ * declaration and an inline declaration outranks any class -- so they ride
+ * down as properties, like the travel and the ink already did.
+ */
 const PRESS = [
+  'active:[--k-move:0s]',
+  'active:[--k-hue:0s]',
+  'active:[--g-move:0s]',
   'active:[--k-y:var(--k-skirt-press)]',
   'active:[--g-mul:1.22]',
   'active:[--k-face:var(--surface-hover)]',

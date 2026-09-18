@@ -123,8 +123,26 @@ describe('Glyph', () => {
     const root = container.querySelector('[data-glyph="home"]');
     expect(root).toHaveStyle({
       transform: 'scale(calc(var(--g-base) * var(--g-mul, 1)))',
-      transition: `transform 240ms ${GLYPH_EASE}`,
+      transition: `transform var(--g-move, 240ms) ${GLYPH_EASE}`,
     });
     expect(root?.getAttribute('style')).toContain('--g-base: 0.62');
+  });
+
+  /*
+   * ...AND ITS DURATION IS AN ANCESTOR'S TO TAKE, for the same reason the
+   * multiplier is. The 240ms spring is the default and every consumer that
+   * says nothing keeps it; a keycap declares --g-move as 0s under :active,
+   * because 240ms of back-out overshoot is about twice as long as a click
+   * and a press that has not finished growing has not been seen. The
+   * rendered proof is e2e/hermetic/press-feel.spec.ts.
+   */
+  it('reads its spring duration from --g-move, defaulting to 240ms', () => {
+    const { container } = render(<Glyph kind="home" />);
+    const style = container
+      .querySelector('[data-glyph="home"]')
+      ?.getAttribute('style');
+    expect(style).toContain('var(--g-move, 240ms)');
+    // The glyph never declares it: an ancestor does, or nobody does.
+    expect(style).not.toContain('--g-move:');
   });
 });
