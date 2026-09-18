@@ -71,9 +71,22 @@ export const SWATCH_SIZE = 18;
  * panel left the eye stuck 8% oversized until the next tap elsewhere -- and
  * these two sit inside a wrapper that only scales BELOW 650px, which is
  * exactly the touch viewport. Press still answers a finger.
+ *
+ * ...and hover is scoped to `not-active:` as well, because the two write
+ * the SAME property with EQUAL specificity and the press scale is the
+ * smaller of the two. Tailwind emits its `@media (pointer: fine)` block
+ * after every unconditional rule, so the fine-pointer hover rule for the
+ * 1.08 scale was beating the press rule for the 1.02 one, and a pressed
+ * ball simply stayed at 1.08 -- the mouse could never produce the press
+ * state at all. Excluding :active from the hover selector settles it by
+ * condition rather than by the compiler's emit order, which is the point:
+ * nothing then depends on how Tailwind chooses to sort its output. Same
+ * defect, same fix and the same reasoning as
+ * components/primitives/Button/keycap.ts, which has the long version;
+ * measured in e2e/hermetic/press-state.spec.ts.
  */
 export const BALL_MOTION =
-  'transition-transform duration-[180ms] ease-[cubic-bezier(.165,.84,.44,1)] pointer-fine:hover:scale-[1.08] active:scale-[1.02] motion-reduce:transition-none';
+  'transition-transform duration-[180ms] ease-[cubic-bezier(.165,.84,.44,1)] pointer-fine:not-active:hover:scale-[1.08] active:scale-[1.02] motion-reduce:transition-none';
 
 const SCLERA_FILL =
   'radial-gradient(circle at 32% 26%, #ffffff 0%, var(--sclera) 56%, var(--sclera-edge) 100%)';

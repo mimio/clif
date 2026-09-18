@@ -71,7 +71,9 @@ describe('Button: press travel', () => {
         `${BUTTON_SIZES[size].reserve}px`,
       );
       expect(cap()).toHaveClass('pb-(--k-reserve)');
-      expect(cap()).toHaveClass('pointer-fine:hover:[--k-y:-1px]');
+      expect(cap()).toHaveClass(
+        'pointer-fine:not-active:hover:[--k-y:-1px]',
+      );
       unmount();
     });
   });
@@ -239,7 +241,7 @@ describe('Button: variants', () => {
         .filter((name) => name.includes('hover:'));
       expect(hovers.length).toBeGreaterThan(0);
       hovers.forEach((name) =>
-        expect(name.startsWith('pointer-fine:hover:')).toBe(true),
+        expect(name.startsWith('pointer-fine:')).toBe(true),
       );
       expect(
         cap()
@@ -248,6 +250,51 @@ describe('Button: variants', () => {
       ).toBe(true);
     },
   );
+
+  /*
+   * THE PRESS HAS TO WIN, AND NOT BY BEING LUCKY.
+   *
+   * Hover and press write the same ten variables, and `pointer-fine:hover:`
+   * and `active:` compile to selectors of equal specificity -- so for a
+   * while the winner was simply whichever Tailwind emitted last, and
+   * Tailwind emits its whole `@media (pointer: fine)` block after every
+   * unconditional rule. Hover won, and a pressed cap never moved.
+   *
+   * The invariant is therefore not "these exact class names exist" but
+   * "no hover rule can reach a variable a press rule also sets": every
+   * shared variable's hover half carries `not-active:`, which makes the
+   * outcome a matter of MATCHING rather than of cascade order. Written as
+   * a set intersection so a new state variable is covered the day it is
+   * added, and so the rendered proof in
+   * e2e/hermetic/press-state.spec.ts has a cheap first line of defence.
+   */
+  it('keeps every hover rule off the variables a press writes', () => {
+    render(<Button>a</Button>);
+    const names = cap().className.split(' ');
+    const varOf = (name: string): string | null => {
+      const match = /\[(--[a-z0-9-]+):/.exec(name);
+      return match === null ? null : match[1];
+    };
+
+    const pressed = new Set(
+      names
+        .filter((name) => name.startsWith('active:'))
+        .map(varOf)
+        .filter((variable): variable is string => variable !== null),
+    );
+    expect(pressed.size).toBeGreaterThan(0);
+
+    const hovers = names.filter((name) => name.includes(':hover:'));
+    expect(hovers.length).toBeGreaterThan(0);
+    hovers.forEach((name) => {
+      const variable = varOf(name);
+      if (variable === null || !pressed.has(variable)) return;
+      expect(
+        name.includes('not-active:'),
+        `${name} would overrule the press state for ${variable}`,
+      ).toBe(true);
+    });
+  });
 
   it('never lets its label be selected', () => {
     render(<Button>projects</Button>);
@@ -403,7 +450,9 @@ describe('Button: layout and slots', () => {
     expect(mark.getAttribute('width')).toBe(
       `${BUTTON_SIZES.md.expand}`,
     );
-    expect(cap()).toHaveClass('pointer-fine:hover:[--g-mul:1.3]');
+    expect(cap()).toHaveClass(
+      'pointer-fine:not-active:hover:[--g-mul:1.3]',
+    );
     expect(cap()).toHaveClass('active:[--g-mul:1.22]');
   });
 });

@@ -110,10 +110,19 @@ export const ContactMouth = ({
       className={cn('relative select-none', className)}
       style={{ width: MOUTH_WIDTH, height: MOUTH_HEIGHT }}
     >
+      {/*
+        The same growth as the eye's BALL_MOTION, written out rather than
+        shared. `not-active:` on the hover half is load bearing: both
+        halves set `scale` at equal specificity, Tailwind emits the
+        fine-pointer block last, and the press scale is the SMALLER of the
+        two -- so before this the mouth stayed at 1.08 for the whole press
+        and a mouse could not produce the press state at all. See
+        components/primitives/Button/keycap.ts for the long version.
+      */}
       <button
         aria-expanded={open}
         aria-label="Contact"
-        className="absolute top-[5px] left-0 block h-[24px] w-[34px] cursor-pointer overflow-hidden transition-transform duration-[180ms] ease-[cubic-bezier(.165,.84,.44,1)] active:scale-[1.02] motion-reduce:transition-none pointer-fine:hover:scale-[1.08]"
+        className="absolute top-[5px] left-0 block h-[24px] w-[34px] cursor-pointer overflow-hidden transition-transform duration-[180ms] ease-[cubic-bezier(.165,.84,.44,1)] active:scale-[1.02] motion-reduce:transition-none pointer-fine:not-active:hover:scale-[1.08]"
         data-open={open}
         onClick={toggle}
         style={{

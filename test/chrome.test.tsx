@@ -615,7 +615,7 @@ describe('ThemeEye', () => {
         .split(' ')
         .filter((name) => name.includes('hover:'))
         .forEach((name) =>
-          expect(name.startsWith('pointer-fine:hover:')).toBe(true),
+          expect(name.startsWith('pointer-fine:')).toBe(true),
         ),
     );
   });
@@ -808,7 +808,7 @@ describe('ContactMouth', () => {
         .split(' ')
         .filter((name) => name.includes('hover:'))
         .forEach((name) =>
-          expect(name.startsWith('pointer-fine:hover:')).toBe(true),
+          expect(name.startsWith('pointer-fine:')).toBe(true),
         ),
     );
   });
