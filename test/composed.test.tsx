@@ -599,9 +599,15 @@ describe('MetaGrid', () => {
       <MetaGrid items={[{ label: 'client', value: '970 Design' }]} />,
     );
     expect(screen.getByText('client')).toBeVisible();
-    expect(container.querySelector('dl')).toHaveStyle({
-      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-    });
+    /*
+     * The count is a custom property rather than a gridTemplateColumns
+     * declaration because the template itself is now a `tablet:` utility:
+     * below the breakpoint the list stacks, and an inline style would beat
+     * the media query and put three 73px tracks back at 320.
+     */
+    const grid = container.querySelector('dl');
+    expect(grid).toHaveStyle({ '--meta-columns': '3' });
+    expect(grid).toHaveClass('grid-cols-1');
     rerender(
       <MetaGrid
         className="x"
@@ -610,8 +616,24 @@ describe('MetaGrid', () => {
       />,
     );
     expect(container.querySelector('dl')).toHaveStyle({
-      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+      '--meta-columns': '2',
     });
+  });
+
+  it('lets a cell shrink and an unbroken value break', () => {
+    const { container } = render(
+      <MetaGrid
+        items={[{ label: 'client', value: 'Wieden+Kennedy' }]}
+      />,
+    );
+    // The grid item has to be allowed under its own content width, and the
+    // value has to be breakable, or a track stops honouring minmax(0,1fr).
+    expect(container.querySelector('dl > div')).toHaveClass(
+      'min-w-0',
+    );
+    expect(screen.getByText('Wieden+Kennedy')).toHaveClass(
+      '[overflow-wrap:anywhere]',
+    );
   });
 });
 

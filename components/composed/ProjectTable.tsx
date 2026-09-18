@@ -107,6 +107,23 @@ const CELL_VISIBILITY: Record<ProjectColumnKey, string> = {
   users: 'hidden desktop:block',
 };
 
+/*
+ * Which cells can plausibly lose their tail to the ellipsis, and so carry
+ * the whole value in a `title` for a pointer to recover. The clipped text is
+ * still text, so a screen reader was never the one losing it -- this is for
+ * the reader who can see the ellipsis and cannot see past it. The ordinal,
+ * the year and the bucketed user count are two to ten characters in tracks
+ * measured for them; a tooltip on `2017` is noise, not help.
+ */
+const CELL_CAN_TRUNCATE: Record<ProjectColumnKey, boolean> = {
+  index: false,
+  title: true,
+  client: true,
+  city: true,
+  year: false,
+  users: false,
+};
+
 /** Cell ink. The row is body ink; everything but the title steps back. */
 const CELL_INK: Record<ProjectColumnKey, string> = {
   index: 'text-fg-5',
@@ -117,17 +134,61 @@ const CELL_INK: Record<ProjectColumnKey, string> = {
   users: 'text-fg-4',
 };
 
+/*
+ * WHAT THE FIXED TRACKS COST, WORKED OUT, because the flexible column can
+ * shrink to nothing and still not save a row whose px tracks alone are wider
+ * than the stage gives it. Each floor is the fixed tracks plus every gap plus
+ * the row's own padding; each column width is the SceneStage inset pair at
+ * that step (16/52 mobile, 16/92 tablet, 112/120 desktop):
+ *
+ *   <650   all+featured  24+42 + 2x10 + 16   = 102px   at 320: 252px column
+ *   650+   all           264   + 3x16 + 24   = 336px   at 650: 542px column
+ *   650+   featured      250   + 3x14 + 20   = 312px   at 650: 542px column
+ *   1000+  all           510   + 5x16 + 24   = 614px   at 1000: 768px column
+ *
+ * So every set clears its narrowest viewport with 150px or more left for the
+ * title, and the reason it does is the column drops themselves -- six tracks
+ * become four below 1000 and three below 650, exactly as 1c becomes 1g. The
+ * six-track set at 320 would need 614px of a 252px column; there is no
+ * truncation rule that survives that, which is why the answer is dropping
+ * columns rather than shrinking them.
+ */
 const GRID: Record<ProjectTableColumns, string> = {
   featured:
     'grid grid-cols-[24px_minmax(0,1fr)_42px] gap-2.5 tablet:grid-cols-[28px_minmax(0,1fr)_170px_52px] tablet:gap-3.5',
   all: 'grid grid-cols-[24px_minmax(0,1fr)_42px] gap-2.5 tablet:grid-cols-[30px_minmax(0,1fr)_180px_54px] tablet:gap-4 desktop:grid-cols-[30px_minmax(0,1fr)_180px_150px_54px_96px]',
 };
 
-/** Row padding, with the negative margin that lets the fill overhang. */
+/*
+ * The row box, and the one place the artboards disagree with each other.
+ *
+ * 1b and 1g give the featured row `padding:11px 10px;margin:0 -10px` and
+ * `padding:10px 8px;margin:0 -8px` -- the negative margin is what lets the
+ * hover fill overhang the type on both sides. 1c does NOT: the browse-all
+ * row is `padding:12px 12px` with no margin at all, and that is not an
+ * oversight in the board, it is the only shape that can work. Browse-all is
+ * the state whose tbody scrolls, and `overflow-y: auto` computes overflow-x
+ * from `visible` to `auto` -- so in that state a row 24px wider than the box
+ * it sits in is not an overhang, it is a horizontal scrollbar on the table.
+ * It measured +9px at 1440/1280/1024/768/650 and +5px at 390/320, at every
+ * width there is, which is exactly the sideways scroll this table is never
+ * allowed to have.
+ *
+ * So `all` carries the 1c box at every width, not just at tablet, because
+ * its tbody scrolls at every width. HEAD_BOX repeats the horizontal half of
+ * each so the heading row sits in the same box as the rows under it -- they
+ * used to differ, which put the headings 8-12px right of the column they
+ * name.
+ */
 const ROW_BOX: Record<ProjectTableColumns, string> = {
   featured:
     '-mx-2 px-2 py-2.5 tablet:-mx-2.5 tablet:px-2.5 tablet:py-[11px]',
-  all: '-mx-2 px-2 py-2.5 tablet:-mx-3 tablet:px-3 tablet:py-3',
+  all: 'px-2 py-2.5 tablet:px-3 tablet:py-3',
+};
+
+const HEAD_BOX: Record<ProjectTableColumns, string> = {
+  featured: '-mx-2 px-2 pb-2.5 tablet:-mx-2.5 tablet:px-2.5',
+  all: 'px-2 pb-2.5 tablet:px-3',
 };
 
 export type ProjectRow = {
@@ -227,7 +288,8 @@ export const ProjectTable = ({
           <tr
             className={cn(
               GRID[columns],
-              'border-b px-2 pb-2.5 tablet:px-3',
+              HEAD_BOX[columns],
+              'border-b',
               scrolls ? 'border-accent-30' : 'border-surface-3',
             )}
             role="row"
@@ -235,7 +297,7 @@ export const ProjectTable = ({
             {model.map((column) => (
               <th
                 className={cn(
-                  'text-left text-[length:var(--type-caption-size)] font-normal [letter-spacing:var(--type-label-tracking)] text-fg-5 uppercase',
+                  'min-w-0 truncate text-left text-[length:var(--type-caption-size)] font-normal [letter-spacing:var(--type-label-tracking)] text-fg-5 uppercase',
                   CELL_VISIBILITY[column.key],
                 )}
                 key={column.key}
@@ -250,7 +312,18 @@ export const ProjectTable = ({
         <tbody
           className={cn(
             'block',
-            scrolls && 'min-h-0 flex-1 overflow-y-auto pr-1.5',
+            /*
+             * `overflow-x: clip` rather than the `auto` this would compute
+             * to on its own. A scroll container whose other axis is
+             * `visible` gets `auto` on this one, so the day something in a
+             * row is one pixel wider than the box -- a padding change, a
+             * cell that forgot to shrink -- the table answers with a
+             * sideways scrollbar instead of a clipped cell. `clip` makes
+             * that impossible to reintroduce, and the rows are sized to fit
+             * so it has nothing to cut.
+             */
+            scrolls &&
+              'min-h-0 flex-1 overflow-x-clip overflow-y-auto pr-1.5',
           )}
           role="rowgroup"
         >
@@ -285,9 +358,19 @@ export const ProjectTable = ({
               {model.map((column) => (
                 <td
                   className={cn(
+                    /*
+                     * EVERY cell, not just the flexible one. A grid item
+                     * refuses to go under its own content width until its
+                     * automatic minimum is zeroed, and the fixed tracks are
+                     * only safe from that by accident -- widen one, or hand
+                     * it a value longer than the number it was measured
+                     * for, and the track stops honouring its px size. It is
+                     * free here and it is the whole reason the flexible
+                     * column already behaves.
+                     */
+                    'min-w-0',
                     CELL_INK[column.key],
                     CELL_VISIBILITY[column.key],
-                    column.key === 'title' && 'min-w-0',
                   )}
                   key={column.key}
                   role="cell"
@@ -299,16 +382,27 @@ export const ProjectTable = ({
                     <Link
                       className="block truncate after:absolute after:inset-0 after:content-['']"
                       href={row.href}
+                      title={row.title}
                     >
                       {row.title}
                     </Link>
                   ) : (
-                    <span className="block truncate">
+                    <span
+                      className="block truncate"
+                      title={
+                        CELL_CAN_TRUNCATE[column.key]
+                          ? cellValue(row, column.key)
+                          : undefined
+                      }
+                    >
                       {cellValue(row, column.key)}
                     </span>
                   )}
                   {column.key === 'title' ? (
-                    <span className="block truncate text-[length:var(--type-readout-size)] text-fg-4 tablet:hidden">
+                    <span
+                      className="block truncate text-[length:var(--type-readout-size)] text-fg-4 tablet:hidden"
+                      title={row.client}
+                    >
                       {row.client}
                     </span>
                   ) : null}
