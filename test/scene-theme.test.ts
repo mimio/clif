@@ -28,6 +28,7 @@ import {
   type FogOptions,
   LABEL_MIN_ZOOM,
   livePalette,
+  LOCALITY_MIN_ZOOM,
   lutFor,
   resetLutCacheForTests,
   subscribeTheme,
@@ -97,66 +98,75 @@ afterEach(() => {
 
 describe('the basemap config', () => {
   it('maps the three fog presets onto light presets', () => {
-    expect(basemapConfig('space', 1.6, false).lightPreset).toBe(
-      'dawn',
-    );
-    expect(basemapConfig('dusk', 2.6, false).lightPreset).toBe(
-      'dusk',
-    );
-    expect(basemapConfig('night', 10, false).lightPreset).toBe(
-      'night',
-    );
+    expect(basemapConfig('space', false).lightPreset).toBe('dawn');
+    expect(basemapConfig('dusk', false).lightPreset).toBe('dusk');
+    expect(basemapConfig('night', false).lightPreset).toBe('night');
   });
 
   it('lifts every preset a step on a light theme', () => {
-    expect(basemapConfig('space', 1.6, true).lightPreset).toBe('day');
-    expect(basemapConfig('dusk', 2.6, true).lightPreset).toBe('day');
-    expect(basemapConfig('night', 10, true).lightPreset).toBe('dusk');
+    expect(basemapConfig('space', true).lightPreset).toBe('day');
+    expect(basemapConfig('dusk', true).lightPreset).toBe('day');
+    expect(basemapConfig('night', true).lightPreset).toBe('dusk');
   });
 
   it('fades the basemap under a light theme and not a dark one', () => {
-    expect(basemapConfig('night', 10, true).theme).toBe('faded');
-    expect(basemapConfig('night', 10, false).theme).toBe('default');
+    expect(basemapConfig('night', true).theme).toBe('faded');
+    expect(basemapConfig('night', false).theme).toBe('default');
   });
 
-  it('hides roads and labels below z8', () => {
-    const world = basemapConfig('space', 1.6, false);
-    expect(world.showRoadLabels).toBe(false);
-    expect(world.showPlaceLabels).toBe(false);
-
-    const city = basemapConfig('night', LABEL_MIN_ZOOM, false);
-    expect(city.showRoadLabels).toBe(true);
-    expect(city.showPlaceLabels).toBe(true);
-  });
-
-  it('never wants Standard POI, transit or 3D objects', () => {
-    const config = basemapConfig('night', 12, false);
-    expect(config.showPointOfInterestLabels).toBe(false);
-    expect(config.showTransitLabels).toBe(false);
-    expect(config.show3dObjects).toBe(false);
+  /*
+   * THE WHOLE OF THE WHITE-LABEL BUG, AS ONE ASSERTION.
+   *
+   * It used to be "hides roads and labels below z8", off the route's
+   * declared zoom, and above z8 it asked Standard for place and road
+   * names. Both routes above z8 carry the `night` fog, which on the two
+   * light themes is Standard's `dusk` preset, whose labels are white.
+   *
+   * Lifting the preset does not fix it: the import's colour LUT is
+   * applied to a symbol layer's text exactly as to a fill, so Standard's
+   * label colour is an input to the terrain ramp -- and the tests below
+   * measure what that ramp does to both ends of the range. There is
+   * nothing to ask Standard for. Every toggle is off, at every zoom, and
+   * the scene draws the names itself.
+   */
+  it('never lets Standard draw text, at any zoom or theme', () => {
+    for (const fog of ['space', 'dusk', 'night'] as const) {
+      for (const light of [false, true]) {
+        const config = basemapConfig(fog, light);
+        expect(config.showRoadLabels, `${fog}/${light}`).toBe(false);
+        expect(config.showPlaceLabels, `${fog}/${light}`).toBe(false);
+        expect(config.showPointOfInterestLabels).toBe(false);
+        expect(config.showTransitLabels).toBe(false);
+        expect(config.show3dObjects).toBe(false);
+      }
+    }
   });
 
   it('sends every property on the first apply', () => {
-    const config = basemapConfig('space', 1.6, false);
+    const config = basemapConfig('space', false);
     expect(configChanges(config, null)).toHaveLength(
       Object.keys(config).length,
     );
   });
 
   it('sends nothing when nothing changed', () => {
-    const config = basemapConfig('space', 1.6, false);
+    const config = basemapConfig('space', false);
     expect(
-      configChanges(basemapConfig('space', 1.6, false), config),
+      configChanges(basemapConfig('space', false), config),
     ).toEqual([]);
   });
 
-  it('sends only what changed when the camera crosses z8', () => {
-    const world = basemapConfig('night', 7, false);
-    const city = basemapConfig('night', 9, false);
+  it('sends only the preset when the route changes its fog', () => {
+    const world = basemapConfig('space', false);
+    const city = basemapConfig('night', false);
     expect(configChanges(city, world)).toEqual([
-      ['showRoadLabels', true],
-      ['showPlaceLabels', true],
+      ['lightPreset', 'night'],
     ]);
+  });
+
+  it('starts naming places at z8 and districts two steps later', () => {
+    expect(LABEL_MIN_ZOOM).toBe(8);
+    expect(LOCALITY_MIN_ZOOM).toBe(LABEL_MIN_ZOOM + 2);
   });
 });
 

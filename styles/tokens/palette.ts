@@ -148,6 +148,55 @@ const rgba = (c: Rgb, alpha: number): string =>
 export const luma = (c: Rgb): number =>
   (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
 
+/**
+ * Relative luminance, 0-1, as WCAG 2 defines it: each channel LINEARISED
+ * out of sRGB first, then the same Rec. 709 weights.
+ *
+ * This is the other half of the pair the note above warns about, and the
+ * two are not interchangeable in either direction. `luma` picks
+ * perceptual tone steps out of an 8-bit palette and has to stay
+ * gamma-encoded; this one feeds `contrastRatio`, which is defined on
+ * linear light and means nothing without it. Mid grey is 0.502 there and
+ * 0.216 here.
+ *
+ * Nothing but contrast should call this.
+ */
+export const relativeLuminance = (c: Rgb): number => {
+  const channel = (value: number): number => {
+    const s = value / 255;
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return (
+    0.2126 * channel(c[0]) +
+    0.7152 * channel(c[1]) +
+    0.0722 * channel(c[2])
+  );
+};
+
+/**
+ * The WCAG 2 contrast ratio between two colours: 1 when they match, 21
+ * for black on white. Order does not matter.
+ *
+ * THE MAP NEEDED THIS AND THE PAGE DID NOT.
+ *
+ * The design's contrast guarantee is stated and measured against the
+ * GROUND -- body ink, secondary ink and small accent text all sit on
+ * --surface-ground, so the ladder in themes.css was derived once per
+ * theme against one background. Map type does not sit there. It sits on
+ * land, water and terrain, which are the colour theme's OUTPUT and not a
+ * token at all, so nothing in the token layer could have measured it.
+ * styles/tokens/lut.ts's `basemapColor` is what those surfaces actually
+ * are, and this is what turns the pair into a number.
+ */
+export const contrastRatio = (a: Rgb, b: Rgb): number => {
+  const first = relativeLuminance(a);
+  const second = relativeLuminance(b);
+  return (
+    (Math.max(first, second) + 0.05) /
+    (Math.min(first, second) + 0.05)
+  );
+};
+
 /** Wraps the nine numbers in everything derived from them. */
 export const makePalette = (colors: PaletteColors): Palette => {
   const { accent, accent2, space, body, sub, muted, accentSmall } =

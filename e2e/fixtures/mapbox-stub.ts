@@ -733,6 +733,52 @@ const DEM_TILEJSON = {
   bounds: [-180, -85.051129, 180, 85.051129],
 };
 
+/*
+ * The streets tileset, which is the second source the scene now carries.
+ *
+ * Mapbox Standard's place and road labels are off -- scene/theme.ts's
+ * basemapConfig has the whole of why, and the short version is that the
+ * import's colour LUT reaches a symbol layer's text as surely as it
+ * reaches a fill, so no colour Standard picks survives into a legible
+ * label. scene/layers/sets.ts draws the place names itself instead, from
+ * `mapbox://mapbox.mapbox-streets-v8` at the ROOT scope, where there is
+ * no LUT and a palette token arrives as itself.
+ *
+ * That URL normalises to /v4/mapbox.mapbox-streets-v8.json, which the
+ * DEM handler below would otherwise answer with a raster TileJSON -- PNG
+ * tiles handed to a vector source, which is a worker error per tile and
+ * not a test failure anyone could read. So it is answered specifically,
+ * and the answer is deliberately narrow in the same way BASEMAP_SCHEMA
+ * is: `vector_layers` lists exactly the source-layers the scene names,
+ * and mapbox's own Style._validateLayer fires an ErrorEvent for a layer
+ * that asks for one this does not have. A renamed source-layer is
+ * therefore a red hermetic run rather than a map with no names on it.
+ *
+ * The tiles themselves are empty -- a zero-length body is a valid
+ * VectorTile with no layers. There are no place names to draw without a
+ * real tileset, and nothing hermetic could assert about them if there
+ * were: what this tier can settle is that the layers exist, on the right
+ * source, wearing the right colour from the right token.
+ */
+const STREETS_TILESET = 'mapbox.mapbox-streets-v8';
+
+/** The same id as a regex literal: the dot is not a wildcard here. */
+const STREETS_PATH = STREETS_TILESET.replaceAll('.', '\\.');
+
+const STREETS_TILE_URL = `https://api.mapbox.com/v4/${STREETS_TILESET}/{z}/{x}/{y}.mvt`;
+
+const STREETS_TILEJSON = {
+  tilejson: '2.2.0',
+  name: 'e2e-streets',
+  format: 'pbf',
+  scheme: 'xyz',
+  tiles: [STREETS_TILE_URL],
+  minzoom: 0,
+  maxzoom: 16,
+  bounds: [-180, -85.051129, 180, 85.051129],
+  vector_layers: [{ id: 'place_label' }],
+};
+
 /** 256x256 of rgb(1, 134, 160): sea level everywhere. */
 const DEM_TILE_PNG =
   'iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAB/0lEQVR42u3TQQ0AAAjEsMM8OpDKGw00qYIlS/XAW5EAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwAAYQAUMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA2AAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAOogAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgArgWh1RFKMF4sNAAAAABJRU5ErkJggg==';
@@ -798,6 +844,28 @@ export const stubMapboxNetwork = async (
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(DEM_TILEJSON),
+      }),
+  );
+  await context.route(
+    new RegExp(
+      `https://api\\.mapbox\\.com/v4/${STREETS_PATH}\\.json.*`,
+    ),
+    (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(STREETS_TILEJSON),
+      }),
+  );
+  await context.route(
+    new RegExp(
+      `https://api\\.mapbox\\.com/v4/${STREETS_PATH}/\\d+/\\d+/\\d+\\.mvt.*`,
+    ),
+    (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/x-protobuf',
+        body: Buffer.alloc(0),
       }),
   );
   await context.route(

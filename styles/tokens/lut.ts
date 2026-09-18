@@ -299,9 +299,102 @@ export const toBase64 = (bytes: Uint8Array): string => {
 /* ---- the LUT --------------------------------------------------------- */
 
 /**
+ * The ramp's top anchor: the theme's body ink warmed toward the accent
+ * on a dark theme, its ground faintly tinted by the accent on a light
+ * one -- because a light theme's body ink is nearly black and would turn
+ * every road into a scar.
+ */
+const highlightOf = (palette: Palette): Rgb =>
+  palette.light
+    ? mix(palette.space, palette.accent, LIGHT_TINT)
+    : mix(palette.body, palette.accent, DARK_TINT);
+
+const byte = (value: number): number =>
+  Math.round(Math.min(255, Math.max(0, value)));
+
+/**
+ * WHAT THE COLOUR THEME TURNS ONE BASEMAP PIXEL INTO.
+ *
+ * The five steps in this file's header, as a function of one incoming
+ * colour, so that the transform is written once and can be asked
+ * questions as well as baked into a cube. buildLut below is a sweep of
+ * this over every cell, and test/map-text.test.ts measures the scene's
+ * type against it -- which is the only way to know what map type is
+ * actually drawn on, because the surfaces under a label are this
+ * function's output and not a token.
+ *
+ * It matters that this is REACHABLE rather than inlined, because it is
+ * what makes the basemap's own labels impossible to theme. mapbox-gl
+ * applies the import's LUT to a symbol layer's text exactly as it does
+ * to a fill -- `SymbolBucket.createArrays` hands `this.lut` to the text
+ * binder, and the bucket's lut is `style.getLut(scope)` for the SOURCE's
+ * scope, which for every layer inside Standard is `basemap`. So whatever
+ * colour Standard picks for a place name arrives here first, and comes
+ * out somewhere on the deep -> land -> highlight ramp. On a light theme
+ * that ramp spans about 1.4:1 end to end, so white labels and black
+ * labels land within a level or two of the land they are drawn on, and
+ * no light preset can separate them. Text the site wants, the site has
+ * to draw itself, at the root scope, where there is no LUT.
+ *
+ * Returns the 8-bit pixel, because that is what is actually shown.
+ */
+export const basemapColor = (palette: Palette, src: Rgb): Rgb => {
+  const { deep, land, light, sh } = palette;
+  const highlight = highlightOf(palette);
+  const keep = light ? CHROMA_LIGHT : CHROMA_DARK;
+  const tint = luma(src);
+  const tone = clamp01((tint - SOURCE_FLOOR) / (1 - SOURCE_FLOOR));
+  const k = SHADE_FLOOR + (1 - SHADE_FLOOR) * tone;
+  const out: number[] = [];
+  for (let ch = 0; ch < 3; ch += 1) {
+    const base =
+      tone <= LAND_STOP
+        ? lerp(deep[ch], land[ch], tone / LAND_STOP)
+        : lerp(
+            land[ch],
+            highlight[ch],
+            (tone - LAND_STOP) / (1 - LAND_STOP),
+          );
+    const carried = base + (src[ch] - tint * 255) * keep;
+    out.push(byte(sh(carried, ch as Channel, k)));
+  }
+  return [out[0], out[1], out[2]];
+};
+
+/**
+ * The tones the ramp is anchored at, as SOURCE lumas: the floor, the
+ * land stop, and the top. Anything Standard emits lands between them.
+ */
+export const RAMP_SAMPLES: readonly number[] = [
+  SOURCE_FLOOR,
+  SOURCE_FLOOR + LAND_STOP * (1 - SOURCE_FLOOR),
+  1,
+];
+
+/**
+ * The themed basemap's spine: the three ramp anchors, as colours.
+ *
+ * Neutral greys go in, so what comes back carries no chroma of its own
+ * -- step 4's `(src - luma) * keep` is zero on a grey. Chroma moves a
+ * real fill off this spine (that is what keeps water blue), but it moves
+ * it at roughly constant tone, so the spine is the right thing to
+ * measure type against: it is the full RANGE of ground the map can put
+ * under a label, from the deepest water to the brightest road.
+ */
+export const basemapRamp = (palette: Palette): Rgb[] =>
+  RAMP_SAMPLES.map((tone) => {
+    const grey = tone * 255;
+    return basemapColor(palette, [grey, grey, grey]);
+  });
+
+/**
  * Builds the colour-theme LUT for a palette. Pure, deterministic, and
  * safe to call during SSR: pass FALLBACK_PALETTE when there is no
  * document to read.
+ *
+ * A sweep of `basemapColor` over every cell of the cube, so that "what
+ * the theme does to a colour" has one definition and the answer a test
+ * asks is the answer the map is painted with.
  */
 export const buildLut = (
   palette: Palette,
@@ -309,12 +402,6 @@ export const buildLut = (
 ): string => {
   const { size: requested = LUT_SIZE, strength = 1 } = options;
   const size = clampSize(requested);
-  const { deep, land, space, accent, body, light, sh } = palette;
-
-  const highlight = light
-    ? mix(space, accent, LIGHT_TINT)
-    : mix(body, accent, DARK_TINT);
-  const keep = light ? CHROMA_LIGHT : CHROMA_DARK;
 
   const last = size - 1;
   const width = size * size;
@@ -329,29 +416,9 @@ export const buildLut = (
           (green / last) * 255,
           (blue / last) * 255,
         ];
-        const tint = luma(src);
-        const tone = clamp01(
-          (tint - SOURCE_FLOOR) / (1 - SOURCE_FLOOR),
-        );
-        const k = SHADE_FLOOR + (1 - SHADE_FLOOR) * tone;
-
+        const themed = basemapColor(palette, src);
         for (let ch = 0; ch < 3; ch += 1) {
-          const base =
-            tone <= LAND_STOP
-              ? lerp(deep[ch], land[ch], tone / LAND_STOP)
-              : lerp(
-                  land[ch],
-                  highlight[ch],
-                  (tone - LAND_STOP) / (1 - LAND_STOP),
-                );
-          const carried = base + (src[ch] - tint * 255) * keep;
-          const shaded = sh(carried, ch as Channel, k);
-          pixels[at] = Math.round(
-            Math.min(
-              255,
-              Math.max(0, lerp(src[ch], shaded, strength)),
-            ),
-          );
+          pixels[at] = byte(lerp(src[ch], themed[ch], strength));
           at += 1;
         }
         pixels[at] = 255;

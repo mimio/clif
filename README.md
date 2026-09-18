@@ -196,6 +196,15 @@ Variables for Production, Preview and Development.
   returning — no throw, no warning, no error event — so a site pointed at any
   other style comes up looking entirely healthy and wears none of its themes.
 
+  Every one of those label toggles is **off**, and the site draws the place
+  names itself from `mapbox://mapbox.mapbox-streets-v8` instead. That is not a
+  preference: the colour LUT is applied to a symbol layer's text exactly as to
+  a fill, so Standard's label colour is an input to the theme's terrain ramp
+  rather than something the site can choose — on a light theme the whole ramp
+  spans about 1.4:1, and every colour Mapbox could pick lands inside it.
+  `scene/theme.ts`'s `basemapConfig` has the derivation and
+  `test/map-text.test.ts` has the measurement, per theme.
+
   That is not hypothetical: this variable is inlined at build time, so a value
   left on the Vercel project from the old hand-maintained
   `mapbox://styles/chiefkleef/…` style is invisible everywhere except on the

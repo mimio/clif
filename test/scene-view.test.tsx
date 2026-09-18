@@ -217,10 +217,23 @@ describe('useSceneView', () => {
 
 /* ---- what it reaches -------------------------------------------------- */
 
-const historyPaint = (selectedStop: number | null) =>
-  layerSetsFor('about', options({ selectedStop }))[0].paint(
-    FALLBACK_PALETTE,
+/*
+ * /about mounts two sets now -- the basemap's own place names under the
+ * route's history stops -- so these look the stops up by id rather than
+ * by position. An index was always a guess about draw order; this is the
+ * set the assertions are about.
+ */
+const historySet = (options_: Partial<LayerSetOptions> = {}) => {
+  const set = layerSetsFor('about', options(options_)).find(
+    (one) => one.id === HISTORY_SET,
   );
+  if (!set)
+    throw new Error('/about no longer mounts the history set');
+  return set;
+};
+
+const historyPaint = (selectedStop: number | null) =>
+  historySet({ selectedStop }).paint(FALLBACK_PALETTE);
 
 const patchFor = (
   patches: ReturnType<typeof historyPaint>,
@@ -357,7 +370,7 @@ describe('the live history stop', () => {
     // Not vacuous: /about declares four layers, one of them with a layout
     // block, and two sources -- so the comparison above has something to
     // compare. A set that stopped declaring layers would pass it silently.
-    const [stops] = layerSetsFor('about', options());
+    const stops = historySet();
     expect(stops.layers).toHaveLength(4);
     expect(stops.sources).toHaveLength(2);
     expect(
@@ -366,7 +379,7 @@ describe('the live history stop', () => {
   });
 
   it('carries a stop id on every point, so the paint can find it', () => {
-    const source = layerSetsFor('about', options())[0].sources.find(
+    const source = historySet().sources.find(
       (one) => one.id === HISTORY_SET,
     );
     const data = source?.spec.data as {
@@ -408,9 +421,7 @@ describe('the live history stop', () => {
   it('hides map type when the route or the viewport says so', () => {
     expect(
       patchFor(
-        layerSetsFor('about', options({ labels: false }))[0].paint(
-          FALLBACK_PALETTE,
-        ),
+        historySet({ labels: false }).paint(FALLBACK_PALETTE),
         HISTORY_LABELS,
         'text-opacity',
       ),
