@@ -7,15 +7,12 @@ import {
   describeProfile,
   DESKTOP,
   installBasemapOnly,
-  installLutProbe,
   installSceneDebug,
   MAP_IDLE_BUDGET_MS,
   measureGlobe,
   notice,
   openThemeLens,
   readBasemapConfig,
-  readBasemapLut,
-  readLuts,
   readScene,
   type RingStat,
   ROUTES,
@@ -31,6 +28,7 @@ import {
   type ThemeId,
   waitForScene,
 } from '../fixtures/app';
+import { BASEMAP_COLOR_KEYS } from 'styles/tokens/cartography';
 import { parseRgb } from 'styles/tokens/palette';
 
 /*
@@ -44,45 +42,25 @@ import { parseRgb } from 'styles/tokens/palette';
  * assertion that cannot be made green teaches its reader to ignore it.
  * These can be green, and if they are not, something is actually wrong.
  *
- * TWO THINGS HERE HAVE NEVER BEEN VERIFIED ANYWHERE, by anyone, at any
- * point in this project, because both need a real Mapbox account:
+ * THE ONE THING HERE THAT CANNOT BE VERIFIED ANYWHERE ELSE, because it
+ * needs a real Mapbox account: whether the nineteen setConfigProperty
+ * keys the scene sends are keys Standard actually has.
  *
- *   1. whether Mapbox Standard accepts the runtime colour-theme LUT;
- *   2. whether the seven setConfigProperty keys are keys Standard has.
+ * It fails silently, completely. Style.setConfigProperty opens
  *
- * Both fail silently. A refused LUT is one `warnOnce` inside a promise
- * catch -- no error event, so neither the app nor window.__SCENE__.errors()
- * ever hears about it. An unknown config key is not even that:
- * Style.setConfigProperty opens `if (!schema || !schema[key]) return`, so
- * it is a no-op with no trace of any kind. In both cases the site comes
- * up looking perfectly reasonable and wearing the wrong thing.
+ *   const fragmentStyle = this.getFragmentStyle(importId);
+ *   if (!fragmentStyle) return;
+ *   ...
+ *   if (!schema || !schema[key]) return;
  *
- * So each is checked from more than one side:
+ * so a wrong fragment or a wrong key is a no-op with no trace of any
+ * kind -- no throw, no warning, no error event -- and the site comes up
+ * looking perfectly reasonable and wearing the wrong thing. TWELVE of
+ * those nineteen keys are the cartography now, so what used to be one
+ * cube quietly not applied is twelve feature classes quietly keeping
+ * Mapbox's own colours.
  *
- *   appliedLut()          the scene handed a LUT to the colour-theme API.
- *   the console watcher   mapbox did not say it could not use the LUT,
- *                         and did not say it could not load the one in
- *                         the stylesheet. Both are warnOnce lines inside
- *                         a promise catch, so they reach nothing else.
- *   the LUT probe         mapbox actually decoded it, and its dimensions
- *                         passed mapbox's own height <= 32 and
- *                         width === height^2 check.
- *   getConfigProperty()   the Standard import knows each key.
- *
- * AND THREE THAT ARE NEW, BECAUSE EVERY ONE OF THE FOUR ABOVE WAS GREEN
- * ON A SITE WHOSE BASEMAP WORE NO THEME AT ALL.
- *
- * The owner loaded the deployed preview and said "it's not styled at all
- * with a theme" while this file was passing. Both were right. The scene
- * was calling `map.setColorTheme(lut)`, which sets the ROOT style's
- * colour theme -- and Mapbox Standard is not a flat style: it is a thin
- * root importing a `basemap` fragment, and every layer the globe is made
- * of is painted with `style.getLut(layer.scope)` from THAT scope. So the
- * LUT was built, sent, decoded, accepted and applied, to the handful of
- * layers this app adds itself, and the globe kept every colour Mapbox
- * shipped it with. Nothing in the list above can tell those two apart,
- * because the difference is not in the payload, it is in which scope
- * received it.
+ * So it is checked from more than one side:
  *
  *   styleUrl()            which style this build is actually running.
  *                         NEXT_PUBLIC_MAPBOX_STYLE is inlined at build
@@ -93,62 +71,67 @@ import { parseRgb } from 'styles/tokens/palette';
  *                         themed AT ALL -- the calls return without a
  *                         word -- so this is checked before anything
  *                         downstream of it is believed.
- *   getLut('basemap')     the scope the globe is painted from is holding
- *                         a LUT, and it is the one the scene sent. This
- *                         is the structural fact the whole feature comes
- *                         down to.
+ *   getConfigProperty()   the Standard import knows each key, AND is
+ *                         holding the colour the scene sent for it. The
+ *                         second half is the structural fact the whole
+ *                         feature comes down to.
+ *   the console watcher   mapbox did not say it could not load the
+ *                         stylesheet. That is a warnOnce line inside a
+ *                         promise catch, so it reaches nothing else.
  *   the pixels            and, last, that two themes actually paint the
  *                         globe differently. See the final test for what
  *                         that can and cannot honestly claim.
+ *
+ * THIS FILE USED TO GATE A COLOUR LUT, and the story is worth keeping
+ * because the failure mode has not changed, only the mechanism. The
+ * owner loaded the deployed preview and said "it's not styled at all
+ * with a theme" while every check here was green: the scene was calling
+ * `map.setColorTheme(lut)`, which sets the ROOT style's colour theme,
+ * and Mapbox Standard is a thin root importing a `basemap` fragment
+ * whose layers are painted from THAT scope. The LUT was built, sent,
+ * decoded, accepted and applied -- to the handful of layers this app
+ * adds itself. Nothing then in this file could tell the two calls apart,
+ * because the difference was not in the payload but in which scope
+ * received it. The cartography is addressed to the same fragment and can
+ * miss it the same way, which is why the read-back below is not
+ * optional.
  */
 
 test.use({ viewport: DESKTOP });
 
-/** Style._loadColorTheme decodes a 1024x32 PNG before it assigns it. */
-const LUT_DECODE_MS = 15_000;
-
 /**
- * Asserts the scope the globe is painted from is wearing exactly the LUT
- * the scene sent.
+ * The cartography the basemap import is actually holding, per key.
  *
- * Polled, not read once: setImportColorTheme hands the base64 to an
- * `Image` and assigns the LUT in its onload, so the call returns before
- * the scope holds anything. A single read here would be a race, and a
- * racy assertion in the one job that gates the build is worse than none.
- *
- * `map.style.getLut` is internal to mapbox-gl, which is why
- * readBasemapLut reports what it found instead of assuming:
- * 'no-style-api' means this read needs rewriting for a newer version and
- * is a failure about the test rather than about the site -- but a loud
- * one, which is the right way for an internal read to break.
+ * getConfigProperty resolves the fragment and then its schema -- the
+ * exact path the setter takes -- so a null here is precisely the silent
+ * drop this file exists to catch, and a value that is not ours is a
+ * colour Standard kept.
  */
 const expectBasemapWearing = async (
   page: Page,
-  sent: string | null,
   label = '',
-): Promise<void> => {
+): Promise<Record<string, unknown>> => {
   const where = label === '' ? '' : `${label}: `;
-  await expect
-    .poll(async () => (await readBasemapLut(page)).fingerprint, {
-      message:
-        `${where}the "${BASEMAP_IMPORT}" scope is not wearing the LUT ` +
-        "the scene sent, so the globe is showing Standard's own " +
-        'colours whatever the lens says',
-      timeout: LUT_DECODE_MS,
-    })
-    .toBe(sent);
-
-  const worn = await readBasemapLut(page);
-  expect(
-    worn.outcome,
-    `${where}mapbox-gl no longer answers style.getLut(scope); the ` +
-      'reader in e2e/fixtures/app.ts needs updating for this version',
-  ).toBe('ok');
+  const config = await readBasemapConfig(page, [
+    ...BASEMAP_COLOR_KEYS,
+  ]);
+  for (const key of BASEMAP_COLOR_KEYS) {
+    expect(
+      config[key],
+      `${where}the "${BASEMAP_IMPORT}" import is not holding a colour ` +
+        `for "${key}", so that feature class is showing Standard's own ` +
+        'colour whatever the lens says',
+    ).not.toBeNull();
+    expect(
+      String(config[key]),
+      `${where}${key} is not a colour`,
+    ).toMatch(/\d/);
+  }
+  return config;
 };
 
 test.beforeEach(async ({ page }) => {
   await installSceneDebug(page);
-  await installLutProbe(page);
 });
 
 for (const route of ROUTES) {
@@ -213,60 +196,23 @@ for (const route of ROUTES) {
       `the style in use (${scene.styleUrl}) has no "${BASEMAP_IMPORT}" import`,
     ).toBe(true);
 
-    expect(
-      scene.lut,
-      'the scene never handed a colour-theme LUT to the map',
-    ).not.toBeNull();
-
-    // What mapbox did with it, which is the half the handle cannot see.
-    const luts = await readLuts(page);
-    expect(luts.filter((lut) => lut.failed)).toEqual([]);
-    expect(
-      luts.filter((lut) => lut.ok).length,
-      `no colour-theme LUT was decoded and accepted; saw ${JSON.stringify(
-        luts,
-      )}`,
-    ).toBeGreaterThan(0);
-
     /*
-     * AND IT IS THE SCENE'S LUT, not merely some accepted image.
+     * AND THE BASEMAP IS HOLDING THE CARTOGRAPHY.
      *
-     * The line above says an image mapbox decoded passed mapbox's own
-     * height <= 32 / width === height^2 check. It does not say WHICH
-     * image: a 1x1 PNG from anywhere on the page satisfies `ok` just as
-     * well, and nothing tied the probe's record back to what the scene
-     * sent. The tie is free, because the two fingerprints are byte
-     * identical by construction -- readScene() hashes appliedLut() as
-     * `${length}:${fnv}` and the probe hashes value.slice(PREFIX.length)
-     * with the same FNV-1a constants over the same payload.
+     * This is the fact the whole feature comes down to. The build that
+     * shipped an entirely unthemed globe passed every check above it:
+     * the theming was built, sent and accepted, and it went somewhere
+     * that was not the scope the globe is painted from. The only
+     * question that settles it is what that scope actually holds.
      */
-    expect(
-      luts.some(
-        (lut) => `${lut.bytes}:${lut.hash}` === scene.lut && lut.ok,
-      ),
-      `mapbox accepted a LUT, but not the one the scene sent (${
-        scene.lut
-      }); saw ${JSON.stringify(
-        luts.map((lut) => `${lut.bytes}:${lut.hash} ok=${lut.ok}`),
-      )}`,
-    ).toBe(true);
+    await expectBasemapWearing(page);
 
     /*
-     * AND IT IS ON THE SCOPE THE GLOBE IS PAINTED FROM.
-     *
-     * Everything above this line was equally true of the build that
-     * shipped an entirely unthemed basemap: the LUT was sent, decoded
-     * and accepted, and it went to the root style, whose layers are not
-     * the globe. mapbox-gl paints each layer with style.getLut(scope),
-     * so the only question that settles it is which scope holds a LUT.
-     */
-    await expectBasemapWearing(page, scene.lut);
-
-    /*
-     * Every config key the route sent is a key the Standard import has.
-     * The bogus key is not padding: without it this assertion would pass
-     * just as happily against a getConfigProperty that answered
-     * everything, and the whole point is that it discriminates.
+     * Every config key the route sent is a key the Standard import has --
+     * the structural knobs and the twelve colours alike. The bogus key is
+     * not padding: without it this assertion would pass just as happily
+     * against a getConfigProperty that answered everything, and the whole
+     * point is that it discriminates.
      */
     const config = await readBasemapConfig(page, [
       ...BASEMAP_CONFIG_KEYS,
@@ -301,10 +247,10 @@ test('the bootstrap theme reaches the map before first paint', async ({
 
   // No crossfade happened at all: the blocking script in _document set
   // the attribute before the scene ever read the palette, so the first
-  // LUT the map saw was chalk's.
+  // cartography the map saw was chalk's.
   const scene = await readScene(page);
-  expect(scene.lut).not.toBeNull();
   expect(scene.errors).toEqual([]);
+  await expectBasemapWearing(page, 'chalk');
   expect(mapbox).toEqual([]);
 });
 
@@ -330,8 +276,10 @@ test('all eight themes repaint the live basemap', async ({
    * of the cause. That is the failure this file's own note on the review
    * project's timeout describes having already been had once.
    *
-   * A healthy run is nowhere near this: setImportColorTheme reloads the
-   * visible tiles and the map goes idle in seconds. The ceiling is the one the
+   * A healthy run is now nowhere near this, and got faster when the
+   * colour LUT was retired: setImportColorTheme reloaded every visible
+   * tile by design, and setConfigProperty reloads none, so the map goes
+   * idle in a fraction of what it used to. The ceiling is the one the
    * fixtures already imply, so that a slow preview is reported by the
    * wait that actually timed out.
    */
@@ -364,7 +312,6 @@ test('all eight themes repaint the live basemap', async ({
    */
   const panel = await openThemeLens(page);
 
-  const seen = new Set<string>();
   const wornByTheme = new Set<string>();
   for (const theme of THEME_IDS) {
     await themeOption(panel, theme).click();
@@ -372,8 +319,8 @@ test('all eight themes repaint the live basemap', async ({
       'data-theme',
       theme,
     );
-    // The painter debounces by 120ms, the tokens crossfade over 400ms,
-    // and setImportColorTheme then reloads every visible tile.
+    // The painter debounces by 120ms and the tokens crossfade over
+    // 400ms. Nothing reloads a tile any more.
     await page.waitForTimeout(THEME_SETTLE_MS);
     await settle(page);
 
@@ -382,33 +329,26 @@ test('all eight themes repaint the live basemap', async ({
       scene.errors,
       `${theme}: mapbox reported failures after ${scene.lastAction}`,
     ).toEqual([]);
-    expect(scene.lut, `${theme}: no LUT on the map`).not.toBeNull();
-    if (scene.lut !== null) seen.add(scene.lut);
-
     /*
-     * And on the basemap's own scope, per theme.
+     * What the basemap's own scope is holding, per theme.
      *
-     * "Eight distinct LUTs reached the map" was the assertion this
+     * "Eight distinct payloads reached the map" was the assertion this
      * test used to end on, and it passed for weeks against a globe that
      * wore none of them: distinct is not the same as applied, and
      * applied to the root style is not the same as applied to the
-     * basemap. This is the same fact per theme.
+     * basemap. So the set below is built from what the FRAGMENT answers,
+     * not from what the scene says it sent.
      */
-    await expectBasemapWearing(page, scene.lut, theme);
-    const worn = await readBasemapLut(page);
-    if (worn.fingerprint !== null) wornByTheme.add(worn.fingerprint);
+    const worn = await expectBasemapWearing(page, theme);
+    wornByTheme.add(JSON.stringify(worn));
   }
 
-  // Eight themes, eight different LUTs actually on the map...
-  expect(seen.size).toBe(THEME_IDS.length);
-  // ...and eight different LUTs on the scope the globe is painted from.
-  expect(wornByTheme.size).toBe(THEME_IDS.length);
-
-  const luts = await readLuts(page);
-  expect(luts.filter((lut) => lut.failed)).toEqual([]);
-  expect(luts.filter((lut) => lut.ok).length).toBeGreaterThanOrEqual(
-    THEME_IDS.length,
-  );
+  // Eight themes, eight different cartographies on the scope the globe
+  // is painted from.
+  expect(
+    wornByTheme.size,
+    'two themes left the basemap holding the same colours',
+  ).toBe(THEME_IDS.length);
   expect(mapbox).toEqual([]);
 });
 

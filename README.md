@@ -189,21 +189,39 @@ Variables for Production, Preview and Development.
   this site can theme.
 
   The eight themes are applied at runtime rather than baked into a style, and
-  the whole of that mechanism is addressed to Standard's `basemap` import:
-  `setImportColorTheme('basemap', …)` for the colour LUT and
-  `setConfigProperty('basemap', …)` for the light preset and the label
-  toggles. mapbox-gl answers both calls on a style that has no such import by
-  returning — no throw, no warning, no error event — so a site pointed at any
-  other style comes up looking entirely healthy and wears none of its themes.
+  the whole of that mechanism is addressed to Standard's `basemap` import
+  through `setConfigProperty('basemap', …)` — the light preset and the label
+  toggles, and the **cartography**: one colour key per feature class
+  (`colorWater`, `colorGreenspace`, `colorLand`, the roads, the buildings,
+  the boundaries), each set straight from that theme's `--map-*` tokens.
+  mapbox-gl answers a call on a style that has no such import by returning —
+  no throw, no warning, no error event — so a site pointed at any other style
+  comes up looking entirely healthy and wears none of its themes.
+
+  There used to be a colour LUT above all that, a 3D cube handed to
+  `setImportColorTheme('basemap', …)` that re-graded every basemap pixel. It
+  is gone. A grade sees a pixel value rather than a feature, so it could tint
+  Mapbox's cartography but never re-author it — on a blue theme a forest came
+  out a blue-tinted *green*. It was also the expensive tier: mapbox-gl
+  reloads every visible tile when an import's colour theme changes, by
+  design, and `setConfigProperty` reloads none, so switching themes got
+  dramatically cheaper as a side effect. `styles/tokens/cartography.ts` has
+  the measurement that retired it, including why a cube and the colour keys
+  cannot both be primary.
 
   Every one of those label toggles is **off**, and the site draws the place
-  names itself from `mapbox://mapbox.mapbox-streets-v8` instead. That is not a
-  preference: the colour LUT is applied to a symbol layer's text exactly as to
-  a fill, so Standard's label colour is an input to the theme's terrain ramp
-  rather than something the site can choose — on a light theme the whole ramp
-  spans about 1.4:1, and every colour Mapbox could pick lands inside it.
-  `scene/theme.ts`'s `basemapConfig` has the derivation and
+  names itself from `mapbox://mapbox.mapbox-streets-v8` instead. That started
+  as a workaround — the colour LUT was applied to a symbol layer's text
+  exactly as to a fill, so Standard's label colour was an input to a tone
+  compressor spanning about 1.4:1 on a light theme — and it is a choice now
+  that the LUT is gone and `colorPlaceLabels` would work: the map is set in
+  the site's own mono, and two typefaces naming the same places is worse than
+  either alone. `scene/theme.ts`'s `basemapConfig` has the derivation and
   `test/map-text.test.ts` has the measurement, per theme.
+
+  The `--map-*` tokens live in `styles/tokens/themes.css`, one block per
+  theme, as literals a designer can move one at a time. `/specimens` renders
+  all eight side by side.
 
   That is not hypothetical: this variable is inlined at build time, so a value
   left on the Vercel project from the old hand-maintained

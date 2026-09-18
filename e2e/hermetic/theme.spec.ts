@@ -6,9 +6,7 @@ import {
   installBasemapOnly,
   samplePixels,
   showBasemapOnly,
-  installLutProbe,
   openThemeLens,
-  readLuts,
   readScene,
   installSceneDebug,
   THEME_IDS,
@@ -20,10 +18,23 @@ import {
 } from '../fixtures/app';
 import {
   installMapboxGl,
-  measureRecordedLuts,
   readStub,
   stubMapboxNetwork,
 } from '../fixtures/mapbox-stub';
+import { BASEMAP_COLOR_KEYS } from 'styles/tokens/cartography';
+
+/**
+ * The cartography half of what the stub recorded.
+ *
+ * The scene sends its structural knobs and its colours through the same
+ * setConfigProperty loop, so they land in one list; filtering by the
+ * colour keys is what separates "the route changed its light preset"
+ * from "the theme changed the map".
+ */
+const colorsIn = (config: [string, unknown][]): [string, unknown][] =>
+  config.filter(([key]) =>
+    (BASEMAP_COLOR_KEYS as readonly string[]).includes(key),
+  );
 
 /*
  * The theme round trip, hermetically.
@@ -32,23 +43,17 @@ import {
  *
  *   1. picking a theme sets [data-theme] and survives a reload, which is
  *      localStorage plus the blocking bootstrap in _document;
- *   2. picking a theme reaches the map, once, with a different LUT, AND
- *      it reaches it through setImportColorTheme on the `basemap`
- *      fragment rather than through the root style's setColorTheme --
- *      the stub records the two apart, so which call was made is a fact
- *      rather than an assumption. That distinction is the whole of the
- *      bug this spec now guards: both calls succeed, both decode, and
- *      only one of them re-tints the globe;
- *   3. the LUT buildLut produced is one Mapbox will actually take. That is
- *      a 32-tall, 1024-wide PNG and nothing else: mapbox-gl rejects
- *      height > 32 or width !== height * height, and it rejects it inside a
- *      promise catch that ends in warnOnce -- no error event, so nothing the
- *      app listens to ever hears about it and the basemap simply keeps
- *      Standard's own colours. (scene/mapbox/instance.ts no longer drops
- *      what it DOES hear; it logs at error or warn by severity. The LUT
- *      rejection is not one of those, which is why it needs its own check.)
- *      Tier 2 watches the real library make that check; this makes it here,
- *      for free, with no network at all.
+ *   2. picking a theme reaches the map, once, with a different
+ *      cartography -- twelve colour keys sent to the `basemap` fragment
+ *      through setConfigProperty, and no colour theme on either scope.
+ *      The stub records every door separately, so which call was made is
+ *      a fact rather than an assumption;
+ *   3. every theme sends a COMPLETE and DISTINCT set of those colours.
+ *      Complete because Style.setConfigProperty drops a key its schema
+ *      does not carry without a word, so a typo is a feature class left
+ *      wearing Mapbox's own colour with nothing anywhere saying so;
+ *      distinct because eight themes that sent the same twelve colours
+ *      would be a globe that does not retheme.
  *
  * The lens itself is driven through the shared accessor in
  * e2e/fixtures/app.ts, which e2e/review/scene.spec.ts also uses -- see the
@@ -83,16 +88,19 @@ test('a picked theme reaches the map and survives a reload', async ({
   await waitForScene(page);
 
   const first = await readStub(page);
-  expect(first.colorTheme.length).toBe(1);
+  expect(colorsIn(first.config)).toHaveLength(
+    BASEMAP_COLOR_KEYS.length,
+  );
   /*
    * THE CALL, and the style it was made against.
    *
-   * `map.setColorTheme(lut)` and
-   * `map.setImportColorTheme('basemap', lut)` are indistinguishable from
-   * everything else this suite can see: both succeed, both decode, both
-   * leave appliedLut() reporting a LUT. Only the second re-tints
-   * Standard's own layers, which live in the `basemap` import and take
-   * their LUT from that scope.
+   * The cartography goes to the `basemap` fragment and nowhere else.
+   * Neither colour-theme door may be opened: the root one was always
+   * wrong (it re-tints the layers the SCENE adds and leaves the globe
+   * exactly as Mapbox shipped it), and the import one would now re-grade
+   * the very colours the config keys just set -- Standard marks no paint
+   * property `-use-theme: "none"`, so a LUT and the colour keys cannot
+   * both be primary.
    *
    * And the style URL: NEXT_PUBLIC_MAPBOX_STYLE overrides the default and
    * is inlined at build time, so a stale value is invisible everywhere
@@ -101,7 +109,7 @@ test('a picked theme reaches the map and survives a reload', async ({
    * to restate because scene/mapbox/** is out of reach.
    */
   expect(first.styleUrl).toBe(THEMEABLE_STYLE);
-  expect(first.colorThemeImports).toEqual([BASEMAP_IMPORT]);
+  expect(first.colorTheme).toEqual([]);
   expect(first.rootColorTheme).toEqual([]);
   expect(first.colorThemeDiscarded).toEqual([]);
   await expect(page.locator('html')).toHaveAttribute(
@@ -121,14 +129,15 @@ test('a picked theme reaches the map and survives a reload', async ({
   await page.waitForTimeout(THEME_SETTLE_MS);
 
   const second = await readStub(page);
-  // Exactly one more: setColorTheme reloads every tile, so a lens click
-  // that produced two would be a performance bug as well as a wrong one.
-  expect(second.colorTheme.length).toBe(2);
-  expect(second.colorTheme[1]).not.toBe(second.colorTheme[0]);
-  expect(second.colorThemeImports).toEqual([
-    BASEMAP_IMPORT,
-    BASEMAP_IMPORT,
-  ]);
+  // Exactly one more cartography, and a different one: a lens click that
+  // produced two would be re-sending every colour for nothing.
+  const sent = colorsIn(second.config);
+  expect(sent).toHaveLength(BASEMAP_COLOR_KEYS.length * 2);
+  const teal = sent.slice(BASEMAP_COLOR_KEYS.length);
+  expect(teal.map(([, value]) => value)).not.toEqual(
+    sent.slice(0, BASEMAP_COLOR_KEYS.length).map(([, v]) => v),
+  );
+  expect(second.colorTheme).toEqual([]);
   expect(second.rootColorTheme).toEqual([]);
   // The camera holds through a theme change -- it is the one scene change
   // with no camera move.
@@ -142,16 +151,18 @@ test('a picked theme reaches the map and survives a reload', async ({
   await waitForScene(page);
 
   const afterReload = await readStub(page);
-  // A fresh document: one map, one LUT, and it is teal's rather than the
-  // default's -- so the bootstrap ran before the scene read the palette,
-  // which is the whole point of its being a blocking script.
+  /*
+   * A fresh document: one map, one cartography, and it is teal's rather
+   * than the default's -- so the bootstrap ran before the scene read the
+   * palette, which is the whole point of its being a blocking script.
+   */
   expect(afterReload.constructed).toBe(1);
-  expect(afterReload.colorTheme).toEqual([second.colorTheme[1]]);
+  expect(colorsIn(afterReload.config)).toEqual(teal);
 
   expect(problems).toEqual([]);
 });
 
-test('every theme builds a LUT mapbox-gl will accept', async ({
+test('every theme sends a complete, distinct cartography', async ({
   page,
 }) => {
   await page.goto('/', { waitUntil: 'load' });
@@ -163,57 +174,34 @@ test('every theme builds a LUT mapbox-gl will accept', async ({
     await page.waitForTimeout(THEME_SETTLE_MS);
   }
 
-  const luts = await measureRecordedLuts(page);
-  // yellow is already on the map when the panel opens, so re-picking it
-  // costs nothing: the painter refuses to repaint an unchanged key. Eight
-  // distinct LUTs for eight themes is the assertion.
-  expect(luts.length).toBe(THEME_IDS.length);
+  const sent = colorsIn((await readStub(page)).config);
+  /*
+   * yellow is already on the map when the panel opens, so re-picking it
+   * costs nothing: the painter refuses to repaint an unchanged key. Eight
+   * themes, each sending all twelve colours once, is the assertion.
+   */
+  expect(sent).toHaveLength(
+    THEME_IDS.length * BASEMAP_COLOR_KEYS.length,
+  );
 
-  for (const lut of luts) {
-    expect(lut.prefixed).toBe(false);
-    expect(lut.height).toBeGreaterThan(0);
-    expect(lut.height).toBeLessThanOrEqual(32);
-    expect(lut.width).toBe(lut.height ** 2);
+  const perTheme = new Set<string>();
+  for (
+    let at = 0;
+    at < sent.length;
+    at += BASEMAP_COLOR_KEYS.length
+  ) {
+    const batch = sent.slice(at, at + BASEMAP_COLOR_KEYS.length);
+    // Complete: every key, every time, and each one a real colour.
+    expect(batch.map(([key]) => key).sort()).toEqual(
+      [...BASEMAP_COLOR_KEYS].sort(),
+    );
+    for (const [key, value] of batch) {
+      expect(String(value), key).toMatch(/^rgb\(\d+, \d+, \d+\)$/);
+    }
+    perTheme.add(JSON.stringify(batch));
   }
-});
-
-/*
- * The instrument tier 2 leans on, exercised where it can be checked.
- *
- * e2e/fixtures/app.ts patches the src setter on HTMLImageElement so that
- * tier 2 can watch mapbox-gl decode a colour-theme LUT -- which is the
- * only place a real Map's colour theme is observable from outside, since
- * nothing publishes the Map instance. That patch cannot be exercised
- * against the real library here, but it can be exercised against the
- * thing it is looking for: an `Image` whose src is a base64 PNG. If it
- * ever stops seeing one, tier 2 fails for a reason that has nothing to do
- * with the site, so it is worth knowing here instead.
- */
-test('the colour-theme probe sees a LUT assignment', async ({
-  page,
-}) => {
-  await installLutProbe(page);
-  await page.goto('/', { waitUntil: 'load' });
-  await waitForScene(page);
-
-  // The LUT the scene actually sent, replayed through an Image exactly as
-  // Style._loadColorTheme() would.
-  await page.evaluate(async () => {
-    const lut = window.__ONEGLOBE_STUB__?.colorTheme[0] ?? '';
-    await new Promise<void>((resolve) => {
-      const image = new Image();
-      image.onload = () => resolve();
-      image.onerror = () => resolve();
-      image.src = `data:image/png;base64,${lut}`;
-    });
-  });
-
-  const seen = await readLuts(page);
-  expect(seen.length).toBe(1);
-  expect(seen[0].failed).toBe(false);
-  expect(seen[0].ok).toBe(true);
-  expect(seen[0].height).toBe(32);
-  expect(seen[0].width).toBe(1024);
+  // Distinct: eight themes, eight different basemaps.
+  expect(perTheme.size).toBe(THEME_IDS.length);
 });
 
 /*
@@ -263,7 +251,16 @@ test('a style with no basemap import fails loudly and keeps the scene up', async
   // Nothing reached the basemap, and nothing crashed.
   const stub = await readStub(page);
   expect(stub.colorTheme).toEqual([]);
-  expect(stub.colorThemeDiscarded.length).toBeGreaterThan(0);
+  /*
+   * And every colour went nowhere. That is the shape of the failure: not
+   * one cube quietly refused, but twelve feature classes left wearing
+   * Mapbox's own, each dropped by a call that returned normally.
+   */
+  expect(stub.config).toEqual([]);
+  expect(stub.configDiscarded.length).toBeGreaterThan(0);
+  expect(stub.configDiscarded.map(([key]) => key)).toContain(
+    'colorWater',
+  );
   await expect(
     page.locator('[data-testid="scene-root"]'),
   ).toHaveAttribute('data-scene-state', 'live');

@@ -1,6 +1,9 @@
 import { useSyncExternalStore } from 'react';
 import type { Specimen } from 'pagesComponents/specimens/types';
-import { buildLut } from 'styles/tokens/lut';
+import {
+  BASEMAP_COLOR_KEYS,
+  basemapColors,
+} from 'styles/tokens/cartography';
 import { readPalette } from 'styles/tokens/palette';
 import {
   applyTheme,
@@ -100,6 +103,11 @@ const GROUPS: Group[] = [
       '--map-land',
       '--map-deep',
       '--map-water',
+      '--map-green',
+      '--map-building',
+      '--map-road',
+      '--map-road-major',
+      '--map-boundary',
       '--map-path',
       '--map-point-rest',
       '--map-point-live',
@@ -229,27 +237,28 @@ const ALL_TOKENS = GROUPS.flatMap((group) => group.tokens);
 type Snapshot = {
   theme: string;
   values: Record<string, string>;
-  lut: string;
+  /** Standard's colour keys, resolved off the live tokens. */
+  map: Record<string, string>;
 };
 
 const SERVER_SNAPSHOT: Snapshot = {
   theme: 'yellow',
   values: {},
-  lut: '',
+  map: {},
 };
 
 let snapshot: Snapshot = SERVER_SNAPSHOT;
 
 const readSnapshot = (): Snapshot => {
   const theme = document.documentElement.dataset.theme ?? 'yellow';
-  if (theme === snapshot.theme && snapshot.lut !== '')
+  if (theme === snapshot.theme && snapshot !== SERVER_SNAPSHOT)
     return snapshot;
   const style = getComputedStyle(document.documentElement);
   const values: Record<string, string> = {};
   for (const token of ALL_TOKENS) {
     values[token] = style.getPropertyValue(token).trim();
   }
-  snapshot = { theme, values, lut: buildLut(readPalette()) };
+  snapshot = { theme, values, map: basemapColors(readPalette()) };
   return snapshot;
 };
 
@@ -368,27 +377,34 @@ const ThemeRow = ({
 );
 
 /*
- * The Mapbox colour-theme LUT, drawn as the 32 x 1024 strip it is. It is
- * here because it is the one token consumer with no CSS at all: if the
- * strip does not change when the theme does, buildLut is reading a stale
- * palette.
+ * What the --map-* tokens are actually sent to Mapbox as. It is here
+ * because it is the one token consumer with no CSS at all: if these
+ * swatches do not change when the theme does, the basemap is reading a
+ * stale palette. The scene specimen has the same colours keyed to the
+ * feature classes they paint.
  */
-const LutStrip = ({ lut }: { lut: string }) => (
+const BasemapStrip = ({ map }: { map: Record<string, string> }) => (
   <div>
-    <div
-      className="h-16 w-full rounded-sm border border-surface-3 bg-cover [image-rendering:pixelated]"
-      role="img"
-      aria-label="Mapbox colour-theme LUT for the active theme"
-      style={{ backgroundImage: `url(data:image/png;base64,${lut})` }}
-    />
+    <div className="flex h-16 w-full overflow-hidden rounded-sm border border-surface-3">
+      {BASEMAP_COLOR_KEYS.map((key) => (
+        <div
+          aria-label={`${key} is ${map[key]}`}
+          className="flex-1"
+          key={key}
+          role="img"
+          style={{ background: map[key] }}
+        />
+      ))}
+    </div>
     <code className="block text-[10px] text-fg-3">
-      buildLut(readPalette()) — 32 x 1024 cube strip
+      basemapColors(readPalette()) — {BASEMAP_COLOR_KEYS.length}{' '}
+      setConfigProperty keys on the Standard import
     </code>
   </div>
 );
 
 const Tokens = () => {
-  const { theme, values, lut } = useTokenSnapshot();
+  const { theme, values, map } = useTokenSnapshot();
 
   return (
     <div className="bg-surface p-4 text-fg-2">
@@ -415,9 +431,9 @@ const Tokens = () => {
       ))}
       <section className="mb-6">
         <h3 className="mb-1 text-[12px] tracking-[.2em] text-fg uppercase">
-          Mapbox LUT
+          Mapbox cartography
         </h3>
-        <LutStrip lut={lut} />
+        <BasemapStrip map={map} />
       </section>
       <section>
         <h3 className="mb-1 text-[12px] tracking-[.2em] text-fg uppercase">

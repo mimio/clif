@@ -1,74 +1,37 @@
 /*
- * The Mapbox colour-theme LUT.
+ * THE COLOUR LUT THE SITE NO LONGER SENDS, KEPT AS A TEST FIXTURE.
  *
- * WHY THIS EXISTS
- * The site drops its hand-maintained Mapbox style for Mapbox Standard and
- * themes it at runtime instead. Standard takes a 3D colour lookup table:
+ * This was styles/tokens/lut.ts: the 3D colour cube handed to
+ * setImportColorTheme('basemap', ...) to re-grade every basemap pixel.
+ * The site themes Mapbox Standard through its per-feature-class colour
+ * config now -- styles/tokens/cartography.ts has the measurement that
+ * retired this -- so nothing in the app builds a LUT any more.
  *
- *   map.setImportColorTheme('basemap', { data: buildLut(readPalette()) });
+ * IT IS STILL HERE BECAUSE TWO HERMETIC GUARDS NEED A REAL ONE.
  *
- * The IMPORT's colour theme, not the root style's: Standard's layers
- * live in the `basemap` fragment and take their LUT from that scope, so
- * map.setColorTheme() re-tints only the layers WE added and leaves the
- * globe alone -- silently. scene/theme.ts's BASEMAP_IMPORT has the
- * whole of it.
+ * mapbox-gl re-tints a layer's colour paint properties, and the fog's,
+ * through `style.getLut(scope)` unless the matching `-use-theme` is the
+ * string `none`. Everything the site draws itself -- the scene's layers
+ * and the atmosphere -- lives at the ROOT scope, so a root stylesheet
+ * carrying a `color-theme` would re-tint the site's own palette tokens
+ * through a cube a second time. scene/layers/sets.ts and scene/theme.ts
+ * both seal against that, and e2e/hermetic/layer-lut.spec.ts and
+ * globe-atmosphere.spec.ts prove the seals hold by serving a stub whose
+ * ROOT carries a colour theme.
  *
- * `data` is a base64 PNG with NO `data:` prefix (mapbox-gl adds one if it
- * is missing). mapbox-gl decodes it and uploads the raw bytes straight to
- * a Texture3D sized [h, h, h], asserting `width === height * height` and
- * `height <= 32`, so the PNG is a cube strip: 32 tall, 1024 wide.
+ * Those guards need a cube that genuinely decodes and genuinely
+ * re-tints, or they pass for the wrong reason. This builds one. It is a
+ * fixture and nothing but a fixture: it is outside styles/, outside the
+ * coverage tree, and nothing under scene/ or styles/ may import it.
  *
- * THE CUBE LAYOUT, derived rather than guessed
- * The image bytes go to texImage3D as a flat buffer, so texel (x, y, z)
- * sits at (z*N*N + y*N + x) * 4 and image pixel (px, py) sits at
- * (py*N*N + px) * 4. Equate them: py = z, px = y*N + x. The shader then
- * samples with `col.rbg`, so x is RED, y is BLUE and z is GREEN. That
- * gives the layout the loop below writes:
+ * (Standard's own root, measured on the real style by
+ * e2e/review/cartography.spec.ts, carries NO colour theme -- the record
+ * reads `root: {declared: false, lut: false}`. The seals are therefore
+ * guarding a case that production does not currently present. They cost
+ * nothing and they are correct either way, so they stay; that is a
+ * separate thread from this one.)
  *
- *   image row        = green
- *   tile along width = blue
- *   pixel in tile    = red
- *
- * This is NOT the usual z-tiled hald strip, and getting it wrong produces
- * a map that looks plausible until you notice the channels are swapped.
- *
- * THE TRANSFORM
- * A tone ramp with the source's own chroma carried through:
- *
- *   1. Take the cell's colour as the basemap's incoming pixel.
- *   2. Normalise its luma against SOURCE_FLOOR. Standard's basemap fills
- *      live almost entirely in the top third of the range -- its water is
- *      0.762, its land 0.930 -- so a raw 0-1 ramp puts every fill on the
- *      top anchor and the map comes back one flat colour. The floor is
- *      what makes the ramp use its range. Luma, not relative luminance:
- *      palette.ts says why, and why linearising breaks this.
- *   3. Run the normalised tone through three anchors: --map-deep at the
- *      bottom, --map-land at LAND_STOP (where Standard's land beige
- *      lands), and a highlight at the top -- the theme's body ink warmed
- *      toward the accent on a dark theme, the ground faintly tinted by
- *      the accent on a light one, because a light theme's body ink is
- *      nearly black and would turn every road into a scar.
- *   4. Add back a fraction of the source's own colour opponency
- *      (src - luma). Without it every fill collapses onto the ramp
- *      and water, parks and roads become one tone; with it water stays
- *      blue and parks stay green inside the theme's terrain.
- *   5. Shade through palette.sh, which is the whole light/dark story in
- *      one function: dark themes multiply toward black, light themes
- *      wash toward the ground instead, and k >= 1 is a no-op so
- *      highlights are never touched.
- *
- * `strength` lerps the whole transform back toward the input, so
- * strength 0 is an exact identity LUT -- the cheapest way to prove the
- * cube layout is right, and what the tests assert.
- *
- * The PNG is written by hand because jsdom has no canvas and this has to
- * run during SSR and under the unit tests. DEFLATE stored blocks mean no
- * compression library: the file is bigger than it needs to be (about
- * 131 KB before base64) and it is built once per theme change.
- *
- * Nothing here is cached. The function is a pure function of the palette
- * numbers; cache it by `palette.key`, which covers every colour the
- * palette carries and so changes whenever anything read below changes.
+ * What follows is the module as it shipped, unchanged below this note.
  */
 import {
   type Channel,

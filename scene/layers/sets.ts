@@ -135,22 +135,31 @@ const shaded = (
 /*
  * THE HALO BEHIND MAP TYPE: THE GROUND, PUSHED BACK A LITTLE.
  *
- * Measured against what the colour theme actually puts under a label
- * (styles/tokens/lut.ts's basemapColor), this does two different jobs on
- * the two kinds of theme, and it is worth saying which:
+ * Measured against the six surfaces the basemap can actually put under a
+ * label (styles/tokens/cartography.ts's basemapSurfaces), this does two
+ * different jobs on the two kinds of theme, and it is worth saying which.
+ * Numbers are the shipped palettes, ink = --text-secondary:
  *
- *   dark themes  the ink is light and this is near-black, so the halo
- *                is 10-16:1 from the ink and about 3:1 from the land.
- *                That is what carries a label over a bright road fill,
- *                which is the one basemap surface the ink cannot beat.
- *   light themes the ground and the themed land are within 1.05:1 of
- *                each other, so the halo separates almost nothing -- and
- *                does not need to. A light theme's ink runs 5.1:1
- *                against the DARKEST colour the ramp can produce and
- *                7.1:1 against its land, unaided.
+ *   dark themes  the ink is light and this is near-black. The ink alone
+ *                carries water (6.7-7.3:1), greenspace (5.5-5.6) and
+ *                land (4.7-4.8) -- all over AA -- and loses the built
+ *                surfaces: buildings 3.3, roads 2.1, motorways 1.35.
+ *                There the halo is what the eye reads, at 10.4-11.4:1
+ *                from the ink and 3.2 / 5.1 / 7.9 from those three.
+ *   light themes the ink is dark and the halo is the near-white ground,
+ *                so they swap roles. The ink carries land, buildings,
+ *                roads and greenspace unaided (5.3-7.3:1) and loses the
+ *                two strongest tones: water at 3.6 and motorways at 4.2.
+ *                The halo carries those, at 6.7-7.2:1 from the ink and
+ *                1.9 / 1.6 from them.
  *
- * It is left at the ground on both rather than lifted on light themes
- * because there is nowhere to lift it to: paper's --map-land is
+ * THE TIGHT ONE IS A LIGHT THEME'S MOTORWAY, at halo 1.60:1 on paper and
+ * 1.69 on chalk against a bar of 1.5. It is the number to watch if
+ * --map-road-major is ever darkened on a light theme; test/map-text.test.ts
+ * is what will say so.
+ *
+ * The halo is left at the ground on both rather than lifted on light
+ * themes because there is nowhere to lift it to: paper's --map-land is
  * rgb(246, 241, 233), so a brighter halo is barely a halo. sh() is also
  * a no-op at k >= 1 on a light theme, by design.
  */
@@ -175,16 +184,30 @@ const paintOf = (
  * `style.getLut(layer.scope)`. Our layers are added to the ROOT style, so
  * their scope is the root's, and `Style._reloadColorTheme` sets
  * `layer.lut = this._styleColorTheme.lut` for every layer it owns --
- * which is every layer this file declares. The root's colour theme is the
- * ROOT STYLESHEET'S, because `setImportColorTheme('basemap', ...)` sets
- * the FRAGMENT's override and leaves the root's alone.
+ * which is every layer this file declares. The root's colour theme is
+ * whatever the ROOT STYLESHEET carries: the site's own theming has never
+ * set one, and does not set any colour theme at all now that the
+ * cartography is config (styles/tokens/cartography.ts).
  *
  * The hermetic stub's root style carried no `color-theme`, so `getLut('')`
- * was null there and every colour below arrived as itself. MAPBOX
- * STANDARD'S ROOT DOES CARRY ONE. That is the whole reason this was
- * invisible until the fog's version of it reached a preview, and it is why
- * the guard in e2e/hermetic/layer-lut.spec.ts runs against
- * `stubMapboxNetwork(context, { rootColorTheme: true })`.
+ * was null there and every colour below arrived as itself. This was
+ * written believing MAPBOX STANDARD'S ROOT CARRIES ONE, reasoned from the
+ * fog's behaviour on the first real preview and reproduced offline by
+ * putting a root `color-theme` on the stub -- and that is the premise the
+ * review tier has since measured, and contradicted: the CARTO `reach`
+ * record reads `root: {declared: false, lut: false, fragmentLut: true}`.
+ * Standard's root carries no colour theme.
+ *
+ * SO THE SENTINELS ARE GUARDING A CASE PRODUCTION DOES NOT PRESENT, and
+ * they stay anyway. They are free -- one derived key per colour patch, at
+ * addLayer -- they are correct either way, and the thing they guard
+ * against is one stylesheet change away at any time. What that means for
+ * a reader is only this: a failure of the guard in
+ * e2e/hermetic/layer-lut.spec.ts, which runs against
+ * `stubMapboxNetwork(context, { rootColorTheme: true })`, is a statement
+ * about the stub rather than about the deployed site. The measured
+ * numbers below were taken on that stub and are still exactly what a root
+ * colour theme would do.
  *
  * MEASURED on that stub, against the real library, at the yellow theme --
  * the drawn pixel of our own layers, without the sentinel and with it:

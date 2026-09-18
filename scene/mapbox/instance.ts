@@ -42,11 +42,11 @@ import type { Palette } from 'styles/tokens/palette';
  * the moment it is constructed takes the whole app down, which is what it
  * did.
  *
- * setConfigProperty and setImportColorTheme are deferred with them and
- * are NOT among them. Both are unguarded, and for the same reason: each
- * opens with `const fragmentStyle = this.getFragmentStyle(id); if
- * (!fragmentStyle) return;` and there is no _checkLoaded anywhere in
- * either. Called before the style loads they do nothing at all, quietly.
+ * setConfigProperty is deferred with them and is NOT among them. It is
+ * unguarded, for a related reason: it opens with `const fragmentStyle =
+ * this.getFragmentStyle(id); if (!fragmentStyle) return;` and there is no
+ * _checkLoaded anywhere in it. Called before the style loads it does
+ * nothing at all, quietly -- which is every colour the basemap wears.
  * That is a worse failure than throwing, not a better one -- a light
  * preset that never arrives leaves the basemap looking merely wrong, and
  * a colour theme that never arrives leaves it wearing none of the eight
@@ -62,16 +62,16 @@ import type { Palette } from 'styles/tokens/palette';
  * This is a record of desired state, not a queue of callbacks, and the
  * difference is the point. Four route changes during load leave one
  * camera, one layer set and one config to apply, not four of each -- and
- * a theme change during load is never lost, because the newest LUT
- * overwrites the slot rather than joining a line behind an obsolete one.
+ * a theme change during load is never lost, because the newest value for
+ * a key overwrites the slot rather than joining a line behind an obsolete
+ * one.
  *
  * Readiness is the `style.load` event and nothing else. isStyleLoaded()
  * looks like the right test and is not: Style.loaded() additionally
- * requires every source cache, image and model to be loaded and the
- * colour-theme LUT not to be decoding, so it stays false forever behind a
- * token that cannot fetch tiles, and it flaps back to false after each
- * setColorTheme. _checkLoaded() tests _loaded alone, and `style.load` is
- * the event for exactly that flag.
+ * requires every source cache, image and model to be loaded and any
+ * colour theme not to be decoding, so it stays false forever behind a
+ * token that cannot fetch tiles. _checkLoaded() tests _loaded alone, and
+ * `style.load` is the event for exactly that flag.
  *
  * If the stylesheet itself fails -- a bad token 401s it -- `style.load`
  * never fires, so the wants are never applied and the scene stays blank
@@ -273,7 +273,6 @@ type Desired = {
       }
     | undefined;
   config: Map<string, unknown>;
-  lut: string | undefined;
   layers: { sets: LayerSet[]; palette: Palette } | undefined;
 };
 
@@ -281,7 +280,6 @@ const emptyDesired = (): Desired => ({
   camera: undefined,
   fog: undefined,
   config: new Map(),
-  lut: undefined,
   layers: undefined,
 });
 
@@ -313,27 +311,6 @@ let desired: Desired = emptyDesired();
  */
 let wantedTerrain: number | null = null;
 let appliedTerrain: number | null = null;
-
-/**
- * The LUT last handed to the colour theme -- REQUESTED, not confirmed.
- *
- * The dedupe has to live here rather than in the theme painter's closure:
- * setting the colour theme reloads every tile, the painter is rebuilt whenever
- * SceneRoot's effect re-runs, and a rebuilt painter has no memory of what
- * it asked for.
- *
- * It is a record of the request and cannot be more than that. mapbox
- * decodes the LUT asynchronously and swallows a rejection --
- * Style._reloadColorTheme ends in `.catch(e => warnOnce(...))`, a bare
- * console.warn with no error event -- so nothing observable comes back
- * either way. Naming it `applied` was a claim the code could not support,
- * and the debug handle's appliedLut() means this: what the scene asked
- * for. Comparing it against the map's own record is the e2e tier's job.
- *
- * Assigned AFTER the call, so a throw does not leave the scene believing
- * it sent something it did not.
- */
-let requestedLut: string | null = null;
 
 /** True while a terrain want is parked waiting for the DEM to resolve. */
 let waitingForDem = false;
@@ -370,15 +347,14 @@ const markTerrainDirty = (map: MapboxMap): void => {
  * Registering an `error` listener on a Map switches mapbox-gl's own
  * console reporting off: it assumes whoever listened will handle it. The
  * listener here existed only to notice a stylesheet that never arrived,
- * and dropped everything after that on the floor -- so a 401 on tiles, a
- * colour-theme LUT mapbox refused and a `setConfigProperty` key it did
- * not recognise all produced nothing, anywhere. No console, no state, no
- * signal of any kind.
+ * and dropped everything after that on the floor -- so a 401 on tiles and
+ * a `setConfigProperty` key mapbox did not recognise both produced
+ * nothing, anywhere. No console, no state, no signal of any kind.
  *
  * That is the worst possible shape for this subsystem in particular,
- * because the LUT and the basemap config keys are the two things that
- * cannot be verified without a real Mapbox account: if the owner deploys
- * and the LUT is rejected, the globe quietly wears the wrong colours and
+ * because the basemap config keys are the one thing that cannot be
+ * verified without a real Mapbox account: if the owner deploys and a
+ * colour key is dropped, the globe quietly wears the wrong colours and
  * nothing says so.
  *
  * So nothing is swallowed, and severity means one specific thing:
@@ -476,24 +452,24 @@ const reportMapboxError = (event: unknown): void => {
  * addressed to an import that is not there by returning. Not throwing,
  * not warning, not firing an error event: returning.
  *
- *   Style.setImportColorTheme  `const fragmentStyle =
+ *   Style.setConfigProperty    `const fragmentStyle =
  *                              this.getFragmentStyle(importId); if
- *                              (!fragmentStyle) return;`
- *   Style.setConfigProperty    the same two lines, then
+ *                              (!fragmentStyle) return;` and then
  *                              `if (!schema || !schema[key]) return;`
  *
  * So pointing this app at any style that is not Standard-shaped -- the
  * site's own old `mapbox://styles/chiefkleef/...`, say, left behind in
- * NEXT_PUBLIC_MAPBOX_STYLE on a deployment -- produced a globe that
- * silently wore none of the eight themes and reported a clean run from
- * every seam that existed: the scene had sent a LUT, mapbox had decoded
- * and accepted it, and there were no errors anywhere. That is precisely
- * the shape of failure this file's header says must not be allowed to
- * stay quiet.
+ * NEXT_PUBLIC_MAPBOX_STYLE on a deployment -- produces a globe that
+ * silently wears none of the eight themes and reports a clean run from
+ * every seam that exists: every colour key was sent, mapbox accepted
+ * each call, and there are no errors anywhere. That is precisely the
+ * shape of failure this file's header says must not be allowed to stay
+ * quiet, and the cartography made it worse rather than better -- there
+ * are twelve colours to lose now, not one cube.
  *
  * getConfigProperty is the honest probe, because it resolves the
- * fragment and then its schema -- the exact precondition the two setters
- * share -- and it is public API. A style that answers it is one this
+ * fragment and then its schema -- the exact precondition every setter
+ * needs -- and it is public API. A style that answers it is one this
  * scene can theme; a style that does not is one where nothing the theme
  * lens does will ever be visible, and this says so, loudly, once, and
  * carries on: a basemap wearing the wrong colours is still a basemap.
@@ -517,11 +493,10 @@ const checkColorTheme = (map: MapboxMap): void => {
 
   const line =
     `style ${styleUrl} has no "${BASEMAP_IMPORT}" import, so runtime ` +
-    'colour theming does nothing: setImportColorTheme and ' +
-    'setConfigProperty both return without a word, and the basemap will ' +
-    `keep its own colours under every theme. Use ${DEFAULT_STYLE} -- if ` +
-    'this is a deployment, NEXT_PUBLIC_MAPBOX_STYLE is set and should ' +
-    'be removed.';
+    'colour theming does nothing: setConfigProperty returns without a ' +
+    'word, and the basemap will keep its own colours under every ' +
+    `theme. Use ${DEFAULT_STYLE} -- if this is a deployment, ` +
+    'NEXT_PUBLIC_MAPBOX_STYLE is set and should be removed.';
   record(line);
   // console.error, by this file's own rule: wrong, and NOTHING ELSE
   // SAYS SO. There is no mapbox event, no warning and no return value
@@ -561,14 +536,6 @@ export type SceneDebug = {
    * is a no-op on the basemap -- see checkColorTheme above.
    */
   colorThemeSupported: () => boolean | null;
-  /**
-   * The LUT last handed to setImportColorTheme. A request, not a
-   * confirmation: mapbox decodes it asynchronously and swallows a
-   * rejection into a warnOnce, so nothing here can know it was worn.
-   * Reading it back off the style is the e2e tiers' job --
-   * e2e/fixtures/app.ts's readBasemapLut.
-   */
-  appliedLut: () => string | null;
   /** Recent mapbox failures, newest last. Empty is the healthy state. */
   errors: () => string[];
   /** The last thing the scene asked the map to do. */
@@ -611,7 +578,6 @@ const publishDebugHandle = (map: MapboxMap): void => {
     styleStatus: () => status,
     styleUrl: () => styleUrl,
     colorThemeSupported: () => colorThemeSupported,
-    appliedLut: () => requestedLut,
     errors: () => [...sceneErrors],
     lastAction: () => lastAction,
     passes: () => passes,
@@ -735,29 +701,14 @@ const flushOnce = (): void => {
     desired.camera = undefined;
   }
 
-  // Config next: the light preset decides how the fog reads.
+  // Config next: the light preset decides how the fog reads, and the
+  // colour keys are the basemap's own cartography.
   if (desired.config.size > 0) {
     for (const [key, value] of desired.config) {
       lastAction = `setConfigProperty(${key})`;
       map.setConfigProperty(BASEMAP_IMPORT, key, value);
     }
     desired.config.clear();
-  }
-
-  if (desired.lut !== undefined) {
-    const lut = desired.lut;
-    desired.lut = undefined;
-    if (lut !== requestedLut) {
-      /*
-       * The IMPORT's colour theme, not the root style's. The root call
-       * is the one that looks right, succeeds, and leaves the globe
-       * exactly as Mapbox shipped it -- see BASEMAP_IMPORT in
-       * scene/theme.ts for what mapbox-gl does with each.
-       */
-      lastAction = `setImportColorTheme(${lut.length}b)`;
-      map.setImportColorTheme(BASEMAP_IMPORT, { data: lut });
-      requestedLut = lut;
-    }
   }
 
   if (desired.fog !== undefined) {
@@ -1110,15 +1061,10 @@ export const applyInteractivity = (interactive: boolean): void => {
 /* ---- theming --------------------------------------------------------- */
 
 /**
- * Tier 1: the colour LUT. Reloads every tile by design, so it is skipped
- * when the map already wears this LUT -- see `appliedLut`.
+ * Tier 1: the Standard import's own knobs, structural and cartographic.
+ * No tile reload -- which is the whole reason the cartography lives here
+ * rather than in a colour theme. See scene/theme.ts.
  */
-export const applyColorTheme = (lut: string): void => {
-  desired.lut = lut;
-  requestFlush();
-};
-
-/** Tier 2: the Standard import's own knobs. No tile reload. */
 export const applyBasemapConfig = (
   changes: [keyof BasemapConfig, unknown][],
 ): void => {
@@ -1308,7 +1254,6 @@ export const resetMapForTests = (): void => {
   terrainDirty = false;
   for (const sub of [...cameraSubs]) sub.detach();
   cameraSubs.clear();
-  requestedLut = null;
   styleUrl = '';
   colorThemeSupported = null;
   wantedTerrain = null;
