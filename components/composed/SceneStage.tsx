@@ -16,8 +16,9 @@ import { cn } from 'utils/cn';
  * `left` is --scrim-wide rather than --vignette-left on purpose. The plain
  * left vignette is what the cardless table failed on: it decays to 0.39 by
  * the table's right edge, so the last two columns sat on bare terrain.
- * --scrim-wide holds its strength under the full 620px column and only fades
- * past it, which is the whole reason the token exists.
+ * --scrim-wide holds its strength under a column of about 620px and only
+ * fades past it; a stage whose column runs wider than that wants `sheet`,
+ * which is the pairing that protects the whole width.
  *
  * Insets are tokens (--foreground-left 112px, --foreground-right 120px,
  * --foreground-top 208px, --foreground-bottom 80px, each with tablet and
@@ -27,9 +28,9 @@ export type StageVignette =
   'left' | 'atmosphere' | 'night' | 'center' | 'sheet' | 'none';
 
 /*
- * One themed token per name. `sheet` is the browse-all stack the 1c board
+ * One themed token per name. `sheet` is the full-bleed stack the 1c board
  * draws -- the centred ellipse with the sheet wash over it -- which is what
- * deepens the ground when the table goes full bleed.
+ * deepens the ground under a column that runs most of the way across.
  */
 export const STAGE_WASHES: Record<StageVignette, string | null> = {
   left: 'var(--scrim-wide)',
@@ -46,6 +47,20 @@ export type SceneStageProps = {
   children?: ReactNode;
   /** Pinned to the bottom of the stage, e.g. the about scrubber. */
   footer?: ReactNode;
+  /**
+   * The project capture. Passing one opens the rail on the right and
+   * narrows the column to what is left of it -- whether or not the plane
+   * has an image in it yet, because a column that resized on hover would
+   * be worse than one that reserved the space.
+   */
+  plane?: ReactNode;
+  /**
+   * What the plane does below --breakpoint-wide, where there is no rail.
+   * A detail always has a capture, so it folds back into the column; the
+   * index's is a hover preview, and a hover preview with no hover to open
+   * it is nothing, so it is dropped.
+   */
+  planeFold?: boolean;
   vignette?: StageVignette;
   align?: 'center' | 'top';
   className?: string;
@@ -56,10 +71,45 @@ export type SceneStageProps = {
 const INSET_X =
   'left-[var(--foreground-left-tablet)] right-[var(--foreground-right-mobile)] tablet:right-[var(--foreground-right-tablet)] desktop:left-[var(--foreground-left)] desktop:right-[var(--foreground-right)]';
 
+/*
+ * THE RAIL. One wrapper, one plane, whatever the viewport: the breakpoint
+ * moves the same box rather than rendering a second one, because a second
+ * one is a remount and ScreenshotPlane's shader swaps a texture on update.
+ *
+ * `fixed` rather than `absolute`, because the column scrolls and an
+ * absolutely-positioned child of a scroll container is clipped by it. A
+ * viewport-anchored box is not -- as long as nothing between it and the
+ * viewport carries a transform, which is what STILL below is for.
+ *
+ * The `!` widths are aimed at ScreenshotPlane's own inline width/height:
+ * the rail decides how wide the capture is, and the capture keeps the
+ * artboard's 600x380 ratio while it does.
+ */
+const PLANE_RAIL =
+  'z-10 wide:fixed wide:top-[var(--plane-top)] wide:right-[var(--plane-right)] wide:w-[var(--plane-width)] [&>figure]:w-full! wide:[&>figure]:h-auto! wide:[&>figure]:aspect-[600/380]';
+
+/** Folded into the column, below the rail's breakpoint. */
+const PLANE_FOLD =
+  'max-wide:mt-2 max-wide:[&>figure]:h-[260px]! max-tablet:[&>figure]:h-[200px]!';
+
+/*
+ * --enter-page fills `forwards`, so once the column lands it keeps
+ * `transform: translateY(0)` for good -- and any transform other than
+ * `none` makes an element the containing block for its fixed descendants.
+ * With the travel on, the rail's `fixed` quietly means "relative to the
+ * column": the plane lands 120px left of where it was asked for and is
+ * clipped at the column's right edge. Nothing is lost by dropping it,
+ * because both routes that open a rail step their own blocks in with
+ * scene/enter.ts instead.
+ */
+const STILL = 'animate-none';
+
 export const SceneStage = ({
   word,
   children,
   footer,
+  plane,
+  planeFold = true,
   vignette = 'left',
   align = 'center',
   className,
@@ -68,6 +118,7 @@ export const SceneStage = ({
   const washStyle: CSSProperties = {
     backgroundImage: wash ?? undefined,
   };
+  const railed = plane !== undefined;
 
   return (
     <main
@@ -76,6 +127,7 @@ export const SceneStage = ({
         className,
       )}
       data-align={align}
+      data-rail={railed}
       data-vignette={vignette}
     >
       {wash === null ? null : (
@@ -87,19 +139,41 @@ export const SceneStage = ({
       )}
       <div
         className={cn(
+          'clif-stage-column absolute inset-y-0 z-10 flex flex-col gap-6 overflow-x-hidden overflow-y-auto motion-reduce:animate-none',
           // The column's own 600ms travel is the one piece of motion this
           // frame owns; the steps inside it are the routes' inline
-          // animations, which scene/enter.ts already reduces.
-          'absolute inset-y-0 z-10 flex animate-slide-in flex-col gap-6 overflow-x-hidden overflow-y-auto motion-reduce:animate-none',
+          // animations, which scene/enter.ts already reduces. A railed
+          // stage does not get it -- see STILL -- and the two are written
+          // as a branch rather than as an override, because both are plain
+          // `animation` declarations in the same layer and which one won
+          // would otherwise be a question about class order.
+          railed ? STILL : 'animate-slide-in',
           INSET_X,
           'pb-[var(--foreground-bottom-mobile)] tablet:pb-[var(--foreground-bottom)]',
           align === 'center'
-            ? 'justify-center'
+            ? // `safe center`, not `center`. A centred scroll container
+              // overflows at BOTH ends and the top end cannot be scrolled
+              // back to, so a column taller than the stage loses its first
+              // line for good. `safe` centres while it fits and starts at
+              // the top when it does not.
+              '[justify-content:safe_center]'
             : 'justify-start pt-[var(--foreground-top-mobile)] tablet:pt-[var(--foreground-top-tablet)] desktop:pt-[var(--foreground-top)]',
+          railed && 'wide:max-w-[var(--reading-max)]',
         )}
       >
         {word === undefined ? null : <div>{word}</div>}
         {children}
+        {railed ? (
+          <div
+            className={cn(
+              PLANE_RAIL,
+              planeFold ? PLANE_FOLD : 'max-wide:hidden',
+            )}
+            data-slot="plane"
+          >
+            {plane}
+          </div>
+        ) : null}
       </div>
       {footer === undefined ? null : (
         <div

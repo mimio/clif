@@ -26,11 +26,20 @@ import {
  *
  *   SCROLLER  nothing inside the foreground is a horizontal scroll container
  *             with something to scroll. This is the one that was red. The
- *             browse-all tbody asks for `overflow-y: auto`, which computes
- *             the other axis from `visible` to `auto`, and its rows carried
- *             a negative horizontal margin -- so the table answered a
- *             fourteen-row list with a horizontal scrollbar, at 1440, 1280,
- *             1024, 768 and 650 (+9px) and at 390 and 320 (+5px) alike.
+ *             tbody asks for `overflow-y: auto`, which computes the other
+ *             axis from `visible` to `auto`, and its rows carried a negative
+ *             horizontal margin -- so the table answered a fourteen-row list
+ *             with a horizontal scrollbar, at 1440, 1280, 1024, 768 and 650
+ *             (+9px) and at 390 and 320 (+5px) alike.
+ *
+ *   RAIL      the project capture and the reading column do not overlap.
+ *             This is the rule the widened column bought: the two used to be
+ *             two hand-written numbers on two pages -- a 620px table and a
+ *             560px prose block, each measured against a 600px plane pinned
+ *             80px from the right -- and at 1024 they already crossed by
+ *             328px on a detail, which nothing was measuring. They are one
+ *             number now (--reading-max), and this is what holds it to its
+ *             word at every width the rail is open at.
  *
  *   CELL      every element in a table-like surface that holds text of its
  *             own either fits its box or clips with an ellipsis, and lies
@@ -124,6 +133,43 @@ const measure = (): Offender[] => {
   }
 
   /*
+   * The rail, where it is open. Below --breakpoint-wide the plane is a
+   * child of the column by design -- it folds back into the flow -- so the
+   * rule is asked only of a plane that has actually been pinned out of it.
+   * getBoundingClientRect reads the TRANSFORMED box, so the capture's own
+   * -16/-18deg rotateY (which throws its left edge a few pixels further
+   * left than its layout box) is inside the measurement rather than an
+   * allowance nobody remembered to make.
+   */
+  const railed = main.querySelector<HTMLElement>(
+    '[data-slot="plane"]',
+  );
+  const column = main.querySelector<HTMLElement>(
+    '.clif-stage-column',
+  );
+  if (
+    railed !== null &&
+    column !== null &&
+    getComputedStyle(railed).position === 'fixed'
+  ) {
+    const plane = (
+      railed.querySelector('figure') ?? railed
+    ).getBoundingClientRect();
+    const reading = column.getBoundingClientRect();
+    if (plane.left < reading.right - 0.5) {
+      out.push({
+        rule: 'RAIL',
+        where: name(railed),
+        detail: `capture starts at ${plane.left.toFixed(1)}, ${(
+          reading.right - plane.left
+        ).toFixed(
+          1,
+        )}px inside a column that ends at ${reading.right.toFixed(1)}`,
+      });
+    }
+  }
+
+  /*
    * The table-like surfaces: the project index table and the detail's meta
    * grid. Reached by role and element rather than by class, so a rewrite of
    * either one stays under the same microscope.
@@ -209,10 +255,10 @@ test.beforeEach(async ({ context, page }) => {
 });
 
 /*
- * The index, in both states. Browse-all is the one whose tbody scrolls and
- * the one carrying all fourteen rows and all six columns, so it is where the
- * fixed tracks have the least room; the featured state is the one the route
- * lands on, so neither can be skipped.
+ * The index, which has one state now: fourteen rows, five tracks and a
+ * scrolling tbody on arrival, which is where the fixed tracks have the
+ * least room. The hover is measured too, because a capture in the rail is
+ * the one thing on this route that can reach the table's side of the page.
  */
 for (const width of WIDTHS) {
   test(`/projects holds its columns at ${width}px`, async ({
@@ -221,7 +267,7 @@ for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/projects', { waitUntil: 'load' });
     await waitForScene(page);
-    await expect(page.locator('tbody tr').first()).toBeVisible();
+    await expect(page.locator('tbody tr')).toHaveCount(14);
 
     expect(report(await page.evaluate(measure))).toBe('');
 
@@ -233,15 +279,11 @@ for (const width of WIDTHS) {
     ).toBeGreaterThan(0);
     expect(report(await page.evaluate(measure))).toBe('');
 
-    // Browse-all: fourteen rows, six tracks, and a scrolling tbody.
+    // With a row's capture up: same rules, plus RAIL against a real plane.
     await page.reload({ waitUntil: 'load' });
     await waitForScene(page);
-    await page
-      .getByRole('button', { name: /browse all|all 14/i })
-      .click();
-    await expect(page.locator('tbody tr')).toHaveCount(14);
-    // The eight held-back rows fade in 40ms apart behind the six.
-    await page.waitForTimeout(600);
+    await page.locator('tbody tr').first().hover();
+    await page.waitForTimeout(400);
 
     expect(report(await page.evaluate(measure))).toBe('');
 

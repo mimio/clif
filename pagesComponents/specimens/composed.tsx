@@ -1,4 +1,3 @@
-import Button from 'components/primitives/Button';
 import Pill from 'components/primitives/Pill';
 import Text from 'components/primitives/Text';
 import MetaGrid from 'components/composed/MetaGrid';
@@ -27,7 +26,6 @@ import type { Specimen } from 'pagesComponents/specimens/types';
 const ROWS: ProjectRow[] = [
   {
     id: 'gopro',
-    index: 10,
     title: 'GoPro Mountain Games Event Map',
     client: '970 Design',
     city: 'Vail CO',
@@ -37,7 +35,6 @@ const ROWS: ProjectRow[] = [
   },
   {
     id: 'winter',
-    index: 13,
     title: 'Birds of Prey Winter Sports Map',
     client: '970 Design',
     city: 'Beaver Creek CO',
@@ -47,7 +44,6 @@ const ROWS: ProjectRow[] = [
   },
   {
     id: 'sage',
-    index: 12,
     title: 'Interactive Trailmap',
     client: 'Sage Outdoor',
     city: 'Wolcott CO',
@@ -57,7 +53,6 @@ const ROWS: ProjectRow[] = [
   },
   {
     id: 'harvard',
-    index: 8,
     title: 'Gentrification Analysis Application',
     client: 'Harvard JCHS',
     city: 'Cambridge MA',
@@ -67,7 +62,6 @@ const ROWS: ProjectRow[] = [
   },
   {
     id: 'developers',
-    index: 1,
     title: 'salesforce developers',
     client: 'Salesforce',
     city: 'San Francisco',
@@ -77,7 +71,6 @@ const ROWS: ProjectRow[] = [
   },
   {
     id: 'haikumi',
-    index: 0,
     title: 'Haikumi',
     client: 'Wieden+Kennedy',
     city: 'Portland OR',
@@ -90,7 +83,6 @@ const ROWS: ProjectRow[] = [
 const MORE: ProjectRow[] = [
   {
     id: 'pricing',
-    index: 2,
     title: 'Heroku Pricing Page',
     client: 'Salesforce',
     city: 'San Francisco',
@@ -100,7 +92,6 @@ const MORE: ProjectRow[] = [
   },
   {
     id: 'emote',
-    index: 3,
     title: 'Emote Widget',
     client: 'Salesforce',
     city: 'San Francisco',
@@ -110,7 +101,6 @@ const MORE: ProjectRow[] = [
   },
   {
     id: 'settings',
-    index: 4,
     title: 'Ubiquiti Local Device Settings',
     client: 'Ubiquiti',
     city: 'Portland OR',
@@ -120,7 +110,6 @@ const MORE: ProjectRow[] = [
   },
   {
     id: 'setup',
-    index: 5,
     title: 'Ubiquiti Device Setup Flow',
     client: 'Ubiquiti',
     city: 'Portland OR',
@@ -130,7 +119,6 @@ const MORE: ProjectRow[] = [
   },
   {
     id: 'portal',
-    index: 6,
     title: 'Ubiquiti Device Portal',
     client: 'Ubiquiti',
     city: 'Portland OR',
@@ -140,7 +128,6 @@ const MORE: ProjectRow[] = [
   },
   {
     id: 'shair',
-    index: 7,
     title: 'Air Quality Analysis Application',
     client: 'Ramboll Shair',
     city: 'Portland OR',
@@ -150,7 +137,6 @@ const MORE: ProjectRow[] = [
   },
   {
     id: 'ngwsd',
-    index: 9,
     title: 'Sports Events Finder',
     client: "Women's Sports Fdn",
     city: 'New York NY',
@@ -160,7 +146,6 @@ const MORE: ProjectRow[] = [
   },
   {
     id: 'poly',
-    index: 11,
     title: '3D Asset Searching & Viewing Tool',
     client: 'Deadlock Interactive',
     city: 'Portland OR',
@@ -170,7 +155,7 @@ const MORE: ProjectRow[] = [
   },
 ];
 
-const ALL = [...ROWS, ...MORE].sort((a, b) => a.index - b.index);
+const ALL = [...ROWS, ...MORE];
 
 const STOPS: ScrubberStop[] = [
   { id: 'parks', label: 'NY STATE PARKS', at: 0 },
@@ -252,50 +237,39 @@ export const composed: Specimen = {
   note: 'Project table, sheet, scrubber, pager, meta grid, screenshot plane — each on a stand-in scene.',
   render: () => (
     <div className="flex flex-col gap-14 py-8">
+      {/* One table and one state: browse-all is not a view any more, so
+          there is no second board to draw. The capture goes in the stage's
+          own rail, which is what narrows the column beside it. */}
       <Frame
-        caption="1b — selected work, on the bare map"
-        id="spec-table-featured"
+        caption="1b/1c — every project, with a row's capture in the rail"
+        id="spec-table-all"
       >
-        <SceneStage align="top" vignette="left">
+        <SceneStage
+          align="top"
+          plane={
+            <ScreenshotPlane
+              alt="Ubiquiti Local Device Settings"
+              caption="device settings · rgb-split wave shader"
+              src="/ubiquiti_settings.webp"
+              tilt={-16}
+            />
+          }
+          planeFold={false}
+          vignette="sheet"
+        >
           <Text
-            className="text-[length:var(--type-body-size)] leading-[var(--type-body-line)] text-fg-2"
-            variant="body"
+            className="text-[length:var(--type-detail-size)] leading-[var(--type-detail-line)] text-fg-2"
+            variant="detail"
           >
             Lorem ipsum dolor sit amet, consectetur adipiscing elit,
             sed do eiusmod tempor.
           </Text>
-          <div className="w-full max-w-[620px]">
-            <ProjectTable
-              count="06 of 14"
-              eyebrow="selected work"
-              rows={ROWS}
-            />
-            <div className="pt-8">
-              <Button expand size="sm">
-                browse all
-              </Button>
-            </div>
-          </div>
-        </SceneStage>
-      </Frame>
-
-      <Frame
-        caption="1c — browse all, the same table widened"
-        id="spec-table-all"
-      >
-        <SceneStage align="top" vignette="sheet">
           <ProjectTable
             activeId="settings"
-            columns="all"
-            count="14 of 14"
+            count="14"
             eyebrow="all projects"
             rows={ALL}
           />
-          <div className="flex pt-8">
-            <Button lead="←" size="sm">
-              selected work
-            </Button>
-          </div>
         </SceneStage>
       </Frame>
 
@@ -367,38 +341,34 @@ export const composed: Specimen = {
         caption="1d — screenshot plane, meta grid and pager"
         id="spec-plane"
       >
-        <SceneStage vignette="left">
-          <div className="w-full max-w-[560px]">
-            <Text
-              className="text-[length:var(--type-heading2-size)] leading-[1.22] font-[number:var(--weight-light)] text-fg-2"
-              variant="heading2"
-            >
-              GoPro Mountain Games Event Map
-            </Text>
-            <div className="pt-6">
-              <MetaGrid
-                items={[
-                  { label: 'client', value: '970 Design' },
-                  { label: 'year', value: 2017 },
-                  { label: 'product', value: 'Event map' },
-                ]}
-              />
-            </div>
-            <div className="pt-6">
-              <Pager
-                next={{ href: '#', label: '11 3d asset viewer' }}
-                prev={{ href: '#', label: '09 sports events finder' }}
-              />
-            </div>
-          </div>
-        </SceneStage>
-        <div className="absolute top-[230px] right-[80px] max-desktop:hidden">
-          <ScreenshotPlane
-            alt="GoPro Mountain Games Event Map"
-            caption="event map sheet · rgb-split wave shader"
-            src="/gopro.webp"
+        <SceneStage
+          plane={
+            <ScreenshotPlane
+              alt="GoPro Mountain Games Event Map"
+              caption="event map sheet · rgb-split wave shader"
+              src="/gopro.webp"
+            />
+          }
+          vignette="sheet"
+        >
+          <Text
+            className="text-[length:var(--type-heading2-size)] leading-[1.22] font-[number:var(--weight-light)] text-fg-2"
+            variant="heading2"
+          >
+            GoPro Mountain Games Event Map
+          </Text>
+          <MetaGrid
+            items={[
+              { label: 'client', value: '970 Design' },
+              { label: 'year', value: 2017 },
+              { label: 'product', value: 'Event map' },
+            ]}
           />
-        </div>
+          <Pager
+            next={{ href: '#', label: '3d asset viewer' }}
+            prev={{ href: '#', label: 'sports events finder' }}
+          />
+        </SceneStage>
       </Frame>
     </div>
   ),

@@ -307,7 +307,7 @@ const COLLAPSED: Partial<Record<AnchorId, Anchor>> = {
  * is in `wolcott`, but both are drawn as the one VAIL VALLEY point,
  * whose id is `beaverCreek`. Comparing a hovered project's own anchor
  * against `['get', 'anchor']` therefore matched nothing for two of the
- * six featured rows -- no point lit, no halo -- while the camera still
+ * table's rows -- no point lit, no halo -- while the camera still
  * nudged toward the city, so the globe drifted with nothing lit.
  *
  * Anything that has to line a project up with its point goes through
@@ -358,7 +358,7 @@ export type LayerSetOptions = {
   palette: Palette;
   /** The anchor a hovered project row is lighting, if any. */
   hover: AnchorId | null;
-  /** False below the tablet breakpoint (1g) or in browse-all (1c). */
+  /** False below the tablet breakpoint (1g), and on /projects (1c). */
   labels: boolean;
   /**
    * The history stop drawn live, by id. Artboard 1e's yellow budget

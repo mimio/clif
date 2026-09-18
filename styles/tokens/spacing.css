@@ -36,6 +36,54 @@
   --foreground-bottom: 80px;
   --foreground-bottom-mobile: 40px;
 
+  /*
+   * THE PLANE RAIL, and the reading column left of it.
+   *
+   * A project capture can be on screen on either of the two project
+   * routes -- pinned right on a detail, and flown in on a row hover on the
+   * index -- so the space it needs is reserved by the stage rather than by
+   * whichever page happens to be showing one. That is what makes the two
+   * columns the same width: the index's table and a detail's prose are both
+   * "everything left of the rail", not two numbers that have to be kept in
+   * step by hand.
+   *
+   * The rail only exists from --breakpoint-wide up; below it the capture
+   * folds into the column (a detail) or is not shown at all (the index),
+   * and the column is the full stage.
+   *
+   * --plane-width is fluid because the column is: at 1280 the pair has
+   * 1088px to split and the table needs the larger half, at 1920 it has
+   * 1728 and the capture may as well be the size the artboard drew it.
+   * clamp() is the whole negotiation -- there is no second breakpoint
+   * inside the rail.
+   */
+  --plane-right: 80px;
+  --plane-top: 230px;
+  --plane-width: clamp(300px, 26vw, 540px);
+  --plane-gap: 40px;
+
+  /*
+   * What the reading column is allowed to grow to once the rail has taken
+   * its share. The cap matters only past ~1700px, where the rail stops
+   * growing and the column would otherwise run to a line length nothing
+   * on either route wants.
+   */
+  --reading-column: 900px;
+
+  /*
+   * What a railed stage caps its column at. The percentage is resolved
+   * where the token is USED -- as a max-width on the stage's column, whose
+   * containing block is the viewport-wide <main> -- so this reads
+   * "everything from the left inset to the near edge of the rail", capped.
+   */
+  --reading-max: min(
+    var(--reading-column),
+    calc(
+      100% - var(--foreground-left) - var(--plane-gap) -
+        var(--plane-width) - var(--plane-right)
+    )
+  );
+
   --popup-width: 384px;
   --popup-max-height: 260px;
 

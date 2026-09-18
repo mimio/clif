@@ -23,10 +23,7 @@ import NotFoundPage from 'pagesComponents/notFound';
 import ProjectDetailPage, {
   richTextToString,
 } from 'pagesComponents/projectDetail';
-import ProjectsPage, {
-  FEATURED_IDS,
-  toRow,
-} from 'pagesComponents/projects';
+import ProjectsPage, { toRow } from 'pagesComponents/projects';
 import MapProvider, { useScene } from 'scene/MapProvider';
 
 const pathname = vi.hoisted(() => ({ current: '/' }));
@@ -88,14 +85,13 @@ describe('route components', () => {
     ).toHaveAttribute('href', '/');
   });
 
-  it('projects shows six featured rows, and all fourteen on request', () => {
-    const { rerender } = render(
-      <ProjectsPage projects={projectsList} />,
-    );
-    expect(FEATURED_IDS).toHaveLength(6);
-    expect(screen.getByText('06 of 14')).toBeVisible();
-    rerender(<ProjectsPage all projects={projectsList} />);
-    expect(screen.getByText('14 of 14')).toBeVisible();
+  it('projects shows every project, with no state to open first', () => {
+    render(<ProjectsPage projects={projectsList} />);
+    expect(screen.getByText('all projects')).toBeVisible();
+    expect(
+      screen.getByText(String(projectsList.length)),
+    ).toBeVisible();
+    expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('projects reports the hovered row so the camera can nudge', async () => {
@@ -113,7 +109,7 @@ describe('route components', () => {
   });
 
   it('projects rows carry the anchor city', () => {
-    expect(toRow(projectsById.gopro, 10).city).toBe('Vail CO');
+    expect(toRow(projectsById.gopro).city).toBe('Vail CO');
   });
 
   it('the detail route renders the prose, links and all', () => {
