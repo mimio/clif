@@ -600,6 +600,42 @@ describe('ProjectTable', () => {
     expect(tbody).toMatch(/overflow-y-auto/);
     expect(tbody).toMatch(/overflow-x-clip/);
   });
+
+  /*
+   * The closing rule is an OVERFLOW MARK now, not a border: one accent line
+   * under the table means "there is more of this", so a list that ends
+   * where you can see it end draws nothing. jsdom lays nothing out, which
+   * is the not-scrolling case for free; the scrolling one is two measured
+   * properties, which is exactly what the component reads.
+   */
+  it('closes the table with an accent rule only while it is scrolling', () => {
+    const { container } = render(<ProjectTable rows={rows} />);
+    const root = container.querySelector(
+      '[data-slot="project-table"]',
+    );
+    const tbody = container.querySelector('tbody');
+
+    expect(root).toHaveAttribute('data-overflow', 'false');
+    expect(container.querySelector('hr')).toBeNull();
+
+    Object.defineProperty(tbody, 'scrollHeight', {
+      configurable: true,
+      value: 640,
+    });
+    Object.defineProperty(tbody, 'clientHeight', {
+      configurable: true,
+      value: 420,
+    });
+    act(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+
+    expect(root).toHaveAttribute('data-overflow', 'true');
+    expect(container.querySelector('hr')).toHaveAttribute(
+      'data-tone',
+      'accent',
+    );
+  });
 });
 
 describe('Sheet', () => {
