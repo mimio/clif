@@ -8,6 +8,8 @@ import type { Specimen } from 'pagesComponents/specimens/types';
 import {
   type CameraSpec,
   cameras,
+  type FogColor,
+  type FogInk,
   type FogPreset,
   fogPresets,
   SCENE_HANDOFF,
@@ -170,8 +172,9 @@ const FogTable = () => (
       <tr className="border-b border-surface-3">
         <th className={head}>preset</th>
         <th className={head}>range</th>
-        <th className={head}>colour</th>
-        <th className={head}>high (rim)</th>
+        <th className={head}>rim (`color`)</th>
+        <th className={head}>halo (`high-color`)</th>
+        <th className={head}>reach</th>
         <th className={head}>light preset</th>
         <th className={head}>used by</th>
       </tr>
@@ -179,6 +182,20 @@ const FogTable = () => (
     <tbody>
       {(Object.keys(fogPresets) as FogPreset[]).map((id) => {
         const fog = fogPresets[id];
+        // The colours are the LIVE theme's, because that is the whole
+        // point of the change this table documents: nothing here is a
+        // fixed hex any more.
+        const TOKEN: Record<FogInk, string> = {
+          accent: '--clif-accent',
+          accent2: '--clif-accent-2',
+          space: '--surface-ground',
+        };
+        const swatch = (color: FogColor) =>
+          `color-mix(in srgb, var(${TOKEN[color.ink]}) ${
+            color.alpha * 100
+          }%, var(--surface-ground))`;
+        const label = (color: FogColor) =>
+          `${TOKEN[color.ink].replace('--', '')} @ ${color.alpha}`;
         const used = SCENE_ORDER.filter(
           (scene) => cameras[scene].fog === id,
         );
@@ -189,12 +206,17 @@ const FogTable = () => (
               {fog.range.join(' ')}
             </td>
             <td className={`${cell} text-fg-3`}>
-              <Swatch color={fog.color} />
-              {fog.color}
+              <Swatch color={swatch(fog.color)} />
+              {label(fog.color)}
             </td>
             <td className={`${cell} text-fg-3`}>
-              <Swatch color={fog.highColor} />
-              {fog.highColor}
+              <Swatch color={swatch(fog.highColor)} />
+              {label(fog.highColor)}
+            </td>
+            <td className={`${cell} text-fg-4`}>
+              {fog.glow.at === 'limb'
+                ? `${fog.glow.limbReach}r / ${fog.glow.haloReach}r, solved`
+                : `${fog.glow.horizonBlend} (mercator)`}
             </td>
             <td className={`${cell} text-fg-4`}>
               {basemapConfig(id, 1.6, false).lightPreset} / dark

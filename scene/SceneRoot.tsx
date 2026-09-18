@@ -347,7 +347,7 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
      * one tick throws from inside mapbox and takes the tree down.
      */
     batchScene(() => {
-      applyFog(spec, palette);
+      applyFog(spec, palette, viewport);
       applyTerrain(terrainFor(spec));
       applyInteractivity(spec.interactive);
 
@@ -370,6 +370,9 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
     reduced,
     sceneId,
     unresolved,
+    // The atmosphere is resolved against the viewport, not just the
+    // camera: see fogFor in scene/theme.ts. A resize has to re-solve it.
+    viewport,
   ]);
 
   return (

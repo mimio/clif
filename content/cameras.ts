@@ -289,28 +289,154 @@ export const cameras: Record<SceneId, CameraSpec> = {
   },
 };
 
+/*
+ * THE ATMOSPHERE, AS THE DESIGN STATES IT.
+ *
+ * The prototype paints the sphere and its surround per pixel in
+ * `paintSphere()`, and outside the limb it is TWO RIMS and nothing else.
+ * With `dd` the distance from the centre in units of the globe's RADIUS:
+ *
+ *   if (dd < 1.34) {
+ *     const a2 = 0.13 * Math.pow(1 - (dd - 1) / 0.34, 2.2);  // accent2
+ *     ...lerp P.space -> P.accent2 by a2
+ *     if (dd < 1.14) {
+ *       const a = 0.2 * Math.pow(1 - (dd - 1) / 0.14, 2);    // accent
+ *       ...lerp that -> P.accent by a
+ *     }
+ *   }
+ *   // past dd = 1.34 it is flat P.space
+ *
+ * So: a tight `accent` limb peaking at alpha 0.2 and gone by 1.14r,
+ * inside a wide, soft `accent2` halo peaking at 0.13 and gone by 1.34r,
+ * over P.space. Both colours are THEME TOKENS, not fixed yellow.
+ *
+ * This table therefore states the DESIGN's numbers, not mapbox's.
+ * scene/theme.ts's `fogFor` is the translation, and the comment there is
+ * where the design-to-mapbox mapping -- including the parts mapbox
+ * cannot express -- is argued.
+ */
+
+/**
+ * How the glow is anchored, which decides how `horizon-blend` is found.
+ *
+ * `limb` is a globe camera: the design's reaches are in globe radii, and
+ * mapbox's falloff is angular, so the blend has to be SOLVED against the
+ * sphere's angular radius at the camera in question. `horizon` is a
+ * pitched mercator camera -- the terrain routes -- which has no limb to
+ * measure against, and carries mapbox's own number instead.
+ */
+export type FogGlow =
+  | {
+      at: 'limb';
+      /** `paintSphere`'s accent rim: reach in globe radii, and exponent. */
+      limbReach: number;
+      limbFalloff: number;
+      /** `paintSphere`'s accent2 halo, in the same terms. */
+      haloReach: number;
+      haloFalloff: number;
+    }
+  | { at: 'horizon'; horizonBlend: number };
+
+/** Which palette token a fog colour is drawn from. */
+export type FogInk = 'accent' | 'accent2' | 'space';
+
+/** One of mapbox's fog colours: which palette token, and its peak alpha. */
+export type FogColor = { ink: FogInk; alpha: number };
+
 export type FogSpec = {
-  /** Mapbox fog `range`, in units of the camera's field of view. */
+  /**
+   * Mapbox fog `range`, in units of the camera's field of view.
+   *
+   * IT DOES NOTHING ON A GLOBE, and that is mapbox's rule rather than a
+   * claim about these numbers: `Fog.state` lerps the authored range
+   * toward a fixed `[2, 4.5]` by `globeToMercatorTransition(zoom)`,
+   * which is `smoothstep(5, 6, zoom)` -- zero below zoom 5. hello
+   * resolves to about 2.2 and projects sits at 2.6, so both run on
+   * mapbox's fixed range and neither reads the number below. It is kept
+   * because the cameras are interactive -- zoom past 5 and it starts to
+   * apply -- and because on the terrain routes (mercator, pitch 60) it
+   * is the distance haze and is fully live.
+   */
   range: [number, number];
-  color: string;
-  highColor: string;
+  /**
+   * mapbox's `color`: the TIGHT rim, weighted `alpha * t^2`.
+   *
+   * On the terrain routes this alpha is DOUBLE-DUTY: mapbox reads it as
+   * the strength of the distance haze as well (`Fog.state.alpha`, and
+   * `u_fog_color.a` in the fog prelude), so it cannot be lowered there
+   * without taking the haze with it.
+   */
+  color: FogColor;
+  /**
+   * mapbox's `high-color`: the WIDE halo, weighted
+   * `alpha * t * (1 - color.alpha * t)`. Alpha zero removes it outright.
+   */
+  highColor: FogColor;
+  glow: FogGlow;
+};
+
+/**
+ * `paintSphere`'s two rims, verbatim. Both globe cameras get them,
+ * because the prototype draws both globes with the same function --
+ * `orbit()` (hello) and `projectsGlobe()` (projects) each call it.
+ */
+const SPHERE_RIMS: FogGlow = {
+  at: 'limb',
+  limbReach: 0.14,
+  limbFalloff: 2,
+  haloReach: 0.34,
+  haloFalloff: 2.2,
 };
 
 export const fogPresets: Record<FogPreset, FogSpec> = {
   space: {
     range: [0.6, 12],
-    color: '#161616',
-    highColor: 'rgba(255, 229, 32, 0.2)',
+    color: { ink: 'accent', alpha: 0.2 },
+    highColor: { ink: 'accent2', alpha: 0.13 },
+    glow: SPHERE_RIMS,
   },
   dusk: {
     range: [0.4, 6],
-    color: '#1b1a14',
-    highColor: 'rgba(255, 229, 32, 0.3)',
+    color: { ink: 'accent', alpha: 0.2 },
+    highColor: { ink: 'accent2', alpha: 0.13 },
+    glow: SPHERE_RIMS,
   },
+  /*
+   * The terrain routes, and the one preset NOT re-derived from
+   * `paintSphere` -- said plainly rather than left to be inferred.
+   *
+   * about and projectDetail sit at zoom 10+, where mapbox has long since
+   * left the globe (the transition finishes at zoom 6), so there is no
+   * limb and no atmosphere ring here at all: what `horizon-blend`
+   * spreads is the band of sky above the horizon line. The prototype's
+   * matching scene is `surface(..., curved = false)` -- every terrain
+   * artboard is `data-scene="terrain"` -- whose sky is
+   * `0.1 * Math.pow(k, 1.6)` of P.ACCENT over P.space across the top
+   * 22.5% of the frame. That is why the accent is on `highColor` here
+   * and on `color` above.
+   *
+   * Measured against that band, what ships is TIGHTER than the design,
+   * not wider: horizon-blend 0.04 spreads it over about 0.049 of the
+   * viewport height, roughly a fifth of what `surface()` draws. The
+   * over-glow this branch is fixing is a globe problem and these two
+   * routes have no globe, so the GEOMETRY here is left exactly as it
+   * shipped and only the colours move onto the theme.
+   *
+   * Widening it to `surface()` is a real change and a separate one,
+   * blocked on the double duty noted on `color`: the design's 0.1 sky
+   * alpha would also cut the terrain haze to a tenth of its strength.
+   *
+   * `color` is the ground token rather than the `#121212` that shipped.
+   * That hex is a dark grey on all eight themes, which on paper and
+   * chalk meant a near-black haze and a near-black band of sky over a
+   * near-white page. The design has no fixed colour anywhere: distance
+   * washes toward P.space, and P.space is the ground.
+   */
   night: {
     range: [0.2, 4],
-    color: '#121212',
-    highColor: 'rgba(255, 229, 32, 0.12)',
+    color: { ink: 'space', alpha: 1 },
+    highColor: { ink: 'accent', alpha: 0.12 },
+    glow: { at: 'horizon', horizonBlend: 0.04 },
   },
 };
 

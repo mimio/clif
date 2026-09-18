@@ -26,6 +26,7 @@ import {
   type ThemeId,
   waitForScene,
 } from '../fixtures/app';
+import { parseRgb } from 'styles/tokens/palette';
 
 /*
  * TIER 2, THE HARD GATE. This file is allowed to fail the build.
@@ -575,6 +576,113 @@ test('the basemap itself paints differently under two themes', async ({
       `R-B was ${cool.toFixed(2)} and ${warm.toFixed(2)}. The colour ` +
       'theme is reaching mapbox and not reaching the basemap.',
   ).toBeGreaterThan(MIN_OPPONENCY_SHIFT);
+
+  expect(mapbox).toEqual([]);
+});
+
+/*
+ * HOW MUCH LIGHT COMES OUT FROM BEHIND THE GLOBE, OVER THE REAL BASEMAP.
+ *
+ * The design is specific and checkable here in a way it is about almost
+ * nothing else: the prototype's `paintSphere()` paints flat P.space past
+ * 1.34 globe radii, so a pixel further out than that must BE the ground
+ * token. The scene used to send mapbox a constant horizon-blend of 0.04,
+ * whose glow was still measurable at 1.50 radii on this frame; solving
+ * the blend per camera from the design's reach (scene/theme.ts's
+ * fogFor) is what brings it in.
+ *
+ * WHY THIS IS HERE AND NOT ONLY IN TIER 1. The glow itself needs no
+ * tiles, so e2e/hermetic/globe-atmosphere.spec.ts already measures it
+ * over the stub -- and that is the spec to read first. What only tier 2
+ * can say is that nothing ELSE the real style brings with it lights that
+ * region up: Mapbox Standard carries its own `fog` in the basemap
+ * fragment, and the root style's fog wins only because `Style` applies
+ * fragments before the root (`forEachFragmentStyle` is post-order). That
+ * ordering is a mapbox implementation detail, and this is the only place
+ * it is checked against the real Standard rather than against a
+ * two-layer stub.
+ *
+ * THE CAMERA IS HELLO'S. It spins, but the atmosphere is isotropic about
+ * the globe's centre, so rotation cannot move this sample -- and the
+ * review project runs under reducedMotion anyway, which turns the spin
+ * off. The sample sits LEFT of the globe because 1a pushes the sphere to
+ * 66% of the width and the right side runs out of viewport at 1.23r.
+ *
+ * PENDING: this assertion has never run. The review tier only runs in CI
+ * on a deployment_status event, so its first result comes with the next
+ * preview.
+ */
+test('no glow survives past the design reach, over the real basemap', async ({
+  page,
+}) => {
+  test.setTimeout(MAP_IDLE_BUDGET_MS + 60_000);
+
+  const mapbox = collectMapboxFailures(page);
+
+  await page.setViewportSize(DESKTOP);
+  await page.goto('/', { waitUntil: 'load' });
+  await waitForScene(page, 'live');
+  await settle(page);
+  await installBasemapOnly(page);
+  await showBasemapOnly(page, true);
+
+  const ground = await page.evaluate(() =>
+    getComputedStyle(document.documentElement)
+      .getPropertyValue('--surface-ground')
+      .trim(),
+  );
+  // The tokens are authored as hex, so this is the app's own parser
+  // rather than a regex that would read `#161616` as the number 161616.
+  const [red, green, blue] = parseRgb(ground, [-1, -1, -1]);
+  expect(red).toBeGreaterThanOrEqual(0);
+
+  // 1a's globe: centre at 66% of the width, radius 44% of the height.
+  const centreX = DESKTOP.width * 0.66;
+  const centreY = DESKTOP.height * 0.5;
+  const radius = DESKTOP.height * 0.44;
+  const size = 24;
+  const at = (dd: number) => ({
+    x: Math.round(centreX - radius * dd - size / 2),
+    y: Math.round(centreY - size / 2),
+    width: size,
+    height: size,
+  });
+
+  const far = await samplePixels(page, at(1.45));
+  const rim = await samplePixels(page, at(1.04));
+  await showBasemapOnly(page, false);
+
+  test.info().annotations.push({
+    type: 'atmosphere',
+    description:
+      `ground ${ground} — at 1.45r rgb(${far.red.toFixed(1)}, ` +
+      `${far.green.toFixed(1)}, ${far.blue.toFixed(1)}), ` +
+      `at 1.04r rgb(${rim.red.toFixed(1)}, ${rim.green.toFixed(1)}, ` +
+      `${rim.blue.toFixed(1)})`,
+  });
+
+  expect(far.pixels).toBeGreaterThan(0);
+  /*
+   * Three levels, not one. Over a real basemap the frame carries the tile
+   * fade and Standard's own exposure, and the ground token is itself
+   * rounded to 8 bits on its way through the fog. It is still tight
+   * enough to catch what shipped: measured against the real mapbox-gl at
+   * this frame, the constant blend put rgb(20, 20, 19) here against a
+   * ground of rgb(22, 22, 22) -- glow on top of a space colour that was
+   * the ground shaded to 0.9 -- which is two to three levels out.
+   */
+  const SLACK = 3;
+  expect(
+    Math.abs(far.red - red),
+    `the atmosphere is still lit 1.45 radii out: red ${far.red.toFixed(1)} against a ground of ${red}`,
+  ).toBeLessThanOrEqual(SLACK);
+  expect(Math.abs(far.green - green)).toBeLessThanOrEqual(SLACK);
+  expect(Math.abs(far.blue - blue)).toBeLessThanOrEqual(SLACK);
+
+  // The rim itself is still drawn -- a fog turned off would pass above.
+  // The design puts about forty levels of red here; the constant blend
+  // put about eleven. Fifteen separates them with room for tile noise.
+  expect(rim.red).toBeGreaterThan(far.red + 15);
 
   expect(mapbox).toEqual([]);
 });

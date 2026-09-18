@@ -20,7 +20,9 @@ import ChromeRoot from 'components/chrome/ChromeRoot';
 import { formatCoordinates } from 'components/chrome/CoordPill';
 import { anchors } from 'content/anchors';
 import {
+  ARTBOARD_DESKTOP,
   cameras,
+  fogPresets,
   SCENE_MOVE_LONG_MS,
   SCENE_MOVE_MS,
 } from 'content/cameras';
@@ -63,7 +65,13 @@ import {
 import { watchCamera } from 'scene/liveCamera';
 import { loadMapboxGl } from 'scene/mapbox/loader';
 import SceneRoot from 'scene/SceneRoot';
-import { resetLutCacheForTests, THEME_EVENT } from 'scene/theme';
+import { globeLimbAngle } from 'scene/globe';
+import {
+  horizonBlendFor,
+  livePalette,
+  resetLutCacheForTests,
+  THEME_EVENT,
+} from 'scene/theme';
 import useSceneCamera from 'scene/useSceneCamera';
 import {
   MOBILE_QUERY,
@@ -1580,11 +1588,37 @@ describe('the persistent map', () => {
     );
   });
 
-  it('fogs the scene from the route preset', async () => {
+  /*
+   * The fog that reaches the map is THEME COLOUR at DESIGN ALPHA, not a
+   * fixed hex. Every number here comes from somewhere: the alphas are
+   * `paintSphere`'s two rim peaks, the colours are the palette's, and
+   * horizon-blend is solved per camera -- see fogFor in scene/theme.ts.
+   * The solve itself is pinned in test/scene-theme.test.ts; what this
+   * asserts is that the scene sends the solved value rather than a
+   * constant.
+   */
+  it('fogs the scene from the route preset, in the theme', async () => {
     await mount();
     const fog = FakeMap.last.calls.fog.at(-1);
+    const palette = livePalette();
     expect(fog?.range).toEqual([0.6, 12]);
-    expect(fog?.color).toBe('#161616');
+    expect(fog?.color).toBe(palette.a(0.2));
+    expect(fog?.['high-color']).toBe(palette.b(0.13));
+    expect(fog?.['space-color']).toBe(
+      `rgb(${palette.space[0]}, ${palette.space[1]}, ${palette.space[2]})`,
+    );
+    // jsdom has no layout, so the viewport is null and the artboard is
+    // what the atmosphere is solved against -- the same fallback
+    // frameCamera takes for the camera itself.
+    expect(fog?.['horizon-blend']).toBeCloseTo(
+      horizonBlendFor(
+        fogPresets.space,
+        globeLimbAngle(cameras.hello.zoom, ARTBOARD_DESKTOP.height),
+      ),
+      12,
+    );
+    // And it is NOT the constant the scene used to send.
+    expect(fog?.['horizon-blend']).not.toBeCloseTo(0.04, 3);
   });
 });
 

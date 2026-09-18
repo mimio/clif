@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   clampGlobeZoom,
   GLOBE_MIN_ZOOM,
+  globeLimbAngle,
   globeScreenRadius,
   globeWorldRadius,
   globeZoomForScreenRadius,
@@ -111,5 +112,42 @@ describe('the globe projection', () => {
       GLOBE_MIN_ZOOM,
     );
     expect(clampGlobeZoom(Number.NaN)).toBe(GLOBE_MIN_ZOOM);
+  });
+});
+
+describe('the globe angular radius', () => {
+  /*
+   * The angle mapbox's atmosphere shader measures its falloff from --
+   * `u_horizon_angle`, which `drawAtmosphereGlow` computes as
+   * `acos(sqrt(D^2 - R^2) / D)`, i.e. `asin(R / D)`. This module reaches
+   * it the other way round, through the painted radius and the focal
+   * length, so the two are worth holding together.
+   */
+  it('is the painted radius over the focal length', () => {
+    for (const height of [900, 800, 844, 1440]) {
+      for (const zoom of [0.5, 1.4, 2.2, 2.6, 3]) {
+        expect(globeLimbAngle(zoom, height)).toBeCloseTo(
+          Math.atan(globeScreenRadius(zoom, height) / (1.5 * height)),
+          12,
+        );
+        // ...and the same as asin(R / (d + R)), which is the form the
+        // shader uses and this file's header derives the radius from.
+        const r = globeWorldRadius(zoom);
+        const d = 1.5 * height * Math.SQRT1_2;
+        expect(globeLimbAngle(zoom, height)).toBeCloseTo(
+          Math.asin(r / (d + r)),
+          12,
+        );
+      }
+    }
+  });
+
+  it('shrinks with the globe, which is why the fog is solved per camera', () => {
+    // 1a's desktop hello against 1f's mobile one: the mobile sphere
+    // subtends nearly half the angle, so an angular fadeout that is
+    // right for one covers 1.7x as many RADII on the other.
+    const desktop = globeLimbAngle(2.198198043081919, 900);
+    const mobile = globeLimbAngle(1.0455375319488909, 844);
+    expect(desktop).toBeGreaterThan(mobile * 1.7);
   });
 });

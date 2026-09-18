@@ -1,4 +1,13 @@
-import type { FogPreset } from 'content/cameras';
+import {
+  ARTBOARD_DESKTOP,
+  type CameraSpec,
+  type FogColor,
+  type FogPreset,
+  type FogSpec,
+  fogPresets,
+  type Viewport,
+} from 'content/cameras';
+import { globeLimbAngle } from 'scene/globe';
 import { buildLut } from 'styles/tokens/lut';
 import {
   FALLBACK_PALETTE,
@@ -256,5 +265,315 @@ export const createThemePainter = (
       clearTimeout(timer);
       timer = null;
     },
+  };
+};
+
+/* ---- the fog, and the design it comes from ---------------------------
+ *
+ * THE DESIGN
+ *
+ * content/cameras.ts's fogPresets carry the prototype's own numbers: a
+ * tight `accent` limb, alpha 0.2 at the limb and gone 0.14 radii out, and
+ * a wide `accent2` halo, alpha 0.13 and gone at 0.34 radii, over P.space.
+ * The prototype composites them in that order -- halo first, limb over
+ * it -- so at the limb itself a pixel is
+ *
+ *   0.696 * space  +  0.104 * accent2  +  0.2 * accent
+ *
+ * (0.104 rather than 0.13 because the accent rim covers 20% of the halo).
+ *
+ *
+ * WHAT MAPBOX ACTUALLY PAINTS
+ *
+ * Read off mapbox-gl 3.30 rather than the docs, which this sandbox cannot
+ * reach: `atmosphereFrag` in dist/mapbox-gl-dev.js, plus
+ * `drawAtmosphereGlow`. Outside the sphere the shader computes
+ *
+ *   theta          the angle between the view ray and the globe's centre
+ *   u_horizon_angle  asin(R / D) -- the sphere's ANGULAR radius, i.e. the
+ *                  limb
+ *   t = exp(-(theta - u_horizon_angle) / (PI * u_fadeout_range))
+ *
+ * and then, with a0 = `color`'s alpha and a1 = `high-color`'s,
+ *
+ *   c0 = mix(space-color, high-color, a1)
+ *   c1 = mix(c0, color, a0)
+ *   c2 = mix(c0, c1, t)          out = vec4(c2 * t, t), blended premultiplied
+ *
+ * which multiplies out, over a background that is `space-color`, to
+ *
+ *   space-color * (1 - w_color - w_high)
+ *     + high-color * w_high  + color * w_color
+ *   w_color = a0 * t^2        w_high = a1 * t * (1 - a0 * t)
+ *
+ * `u_fadeout_range` is the AUTHORED horizon-blend remapped by
+ * `mapValue(hb, 0, 1, 5e-4, 0.25)`.
+ *
+ *
+ * THE MAPPING, AND WHERE IT IS EXACT
+ *
+ * Mapbox's two colour stops nest exactly the way the prototype's two rims
+ * do -- `high-color` under `color`, over `space-color`, just as accent2
+ * sits under accent over space. So the colours map straight across:
+ *
+ *   color        <- accent    (the tight rim)
+ *   high-color   <- accent2   (the wide halo)
+ *   space-color  <- space     (what the prototype paints past 1.34r)
+ *
+ * and at the limb, where t = 1, the alphas map EXACTLY:
+ *
+ *   w_color = a0 = 0.2                  = the design's accent alpha
+ *   w_high  = a1 * (1 - a0) = 0.13*0.8  = 0.104 = the design's accent2
+ *
+ * So `color` at alpha 0.2 and `high-color` at alpha 0.13 reproduce the
+ * design's limb pixel to the last decimal, on every theme, with no fitting
+ * involved. That is the half of this that is a derivation.
+ *
+ *
+ * WHERE IT CANNOT BE EXACT, SAID PLAINLY
+ *
+ * The design's two rims have TWO DIFFERENT REACHES -- 0.14r and 0.34r --
+ * and two different exponents. Mapbox has ONE falloff, `t`, and both
+ * colour weights are functions of it: w_color = a0 t^2 and
+ * w_high = a1 t (1 - a0 t). One scalar cannot carry two ranges, and an
+ * exponential has no end at all where the prototype has a hard one at
+ * 1.34r. Mapbox's fog is a physical atmosphere, not two rings, and it
+ * will not be made into two rings.
+ *
+ * So the reach is FITTED, and the criterion is the one the complaint is
+ * about -- how much light comes out from behind the globe. horizonBlendFor
+ * solves for the horizon-blend whose glow integrates, over the annulus
+ * and area-weighted, to the same total as the design's two rims. Nothing
+ * here is chosen by eye.
+ *
+ * What that costs, in colour weight at the hello frame (1440x900):
+ *
+ *   dd     design acc / acc2      mapbox acc / acc2
+ *   1.00   0.2000 / 0.1040        0.2000 / 0.1040   <- exact
+ *   1.05   0.0827 / 0.0840        0.0732 / 0.0691
+ *   1.10   0.0163 / 0.0594        0.0270 / 0.0443
+ *   1.20   0.0000 / 0.0185        0.0038 / 0.0174
+ *   1.34   0.0000 / 0.0000        0.0003 / 0.0046   <- design has stopped
+ *   1.50   0.0000 / 0.0000        0.0000 / 0.0010
+ *
+ * Per rim the fit is loose in the middle -- at 1.10r mapbox puts 1.7x the
+ * design's accent and 0.75x its accent2 -- because one falloff cannot be
+ * tight and wide at once. COMBINED, which is what the eye reads, it is
+ * within 15% of the design everywhere inside 1.2r: 0.304/0.304 at the
+ * limb, 0.167/0.142 at 1.05r, 0.076/0.071 at 1.10r, 0.019/0.021 at 1.20r.
+ * Past the design's hard edge mapbox leaves a tail of about 0.005, one
+ * 8-bit level of the accent against the ground, and the glow is
+ * effectively over by 1.36r against the design's 1.27r (both measured at
+ * the level where the weight drops under 1/255).
+ *
+ *
+ * WHY IT IS SOLVED PER CAMERA RATHER THAN BEING A CONSTANT
+ *
+ * `t` decays with an ANGLE and the design states its reach in globe
+ * RADII, so the conversion runs through the sphere's angular radius --
+ * which is a function of the zoom and the viewport height. A constant
+ * horizon-blend therefore means a different halo on every frame. Measured
+ * at the level where the glow drops under one 8-bit step of the accent,
+ * the shipped 0.04 ran to 1.50r on 1a's desktop hello, 1.74r on the 404's
+ * smaller globe, 1.85r on 1f's mobile hello and 2.35r on the mobile 404 --
+ * against a design that says 1.34r everywhere. Solved per camera it is
+ * 1.36r at all four. That spread is exactly what "much less light behind
+ * the globe" looks like on a phone, and solving is what removes it rather
+ * than moving it.
+ */
+
+/** mapbox remaps the authored horizon-blend onto this range. */
+const FADEOUT_MIN = 5e-4;
+const FADEOUT_MAX = 0.25;
+
+/** `u_fadeout_range`, from an authored horizon-blend. */
+export const fadeoutRange = (horizonBlend: number): number =>
+  FADEOUT_MIN + horizonBlend * (FADEOUT_MAX - FADEOUT_MIN);
+
+/** One of the prototype's rims at `dd`, in globe radii from the centre. */
+const rim = (
+  peak: number,
+  reach: number,
+  falloff: number,
+  dd: number,
+): number =>
+  dd < 1 + reach ? peak * Math.pow(1 - (dd - 1) / reach, falloff) : 0;
+
+/**
+ * Simpson over [1, hi] of `weight(dd) * dd` -- the annulus area weight,
+ * so a ring far out counts for the extra ground it covers. The constant
+ * 2 * PI is common to both sides of the fit and is left out.
+ */
+const STEPS = 512;
+
+const light = (
+  weight: (dd: number) => number,
+  hi: number,
+): number => {
+  const h = (hi - 1) / STEPS;
+  let sum = weight(1) * 1 + weight(hi) * hi;
+  for (let i = 1; i < STEPS; i += 1) {
+    const dd = 1 + i * h;
+    sum += (i % 2 === 0 ? 2 : 4) * weight(dd) * dd;
+  }
+  return (sum * h) / 3;
+};
+
+/**
+ * How far out the fit integrates mapbox's side.
+ *
+ * The exponential has no end, so one has to be chosen. Six design reaches
+ * is far enough that the remaining tail is below 1e-6 of the total at
+ * every camera in the table -- test/scene-theme.test.ts pins that -- and
+ * near enough that the integral keeps its precision.
+ */
+const FIT_REACH = 6;
+
+/** Bisection bounds. mapbox clamps horizon-blend to [0, 1] itself. */
+const BLEND_LO = 1e-6;
+const BLEND_HI = 1;
+const BISECTIONS = 60;
+
+/**
+ * The horizon-blend whose atmosphere emits as much light as the design's
+ * two rims, for a globe of this angular radius.
+ *
+ * Monotonic in the blend -- a wider fadeout can only add light at every
+ * radius -- so a bisection is exact to the bit in 60 steps.
+ */
+const solve = (fog: FogSpec, limbAngle: number): number => {
+  if (fog.glow.at === 'horizon') return fog.glow.horizonBlend;
+  const glow = fog.glow;
+
+  const designed = light((dd) => {
+    const a = rim(
+      fog.color.alpha,
+      glow.limbReach,
+      glow.limbFalloff,
+      dd,
+    );
+    const a2 = rim(
+      fog.highColor.alpha,
+      glow.haloReach,
+      glow.haloFalloff,
+      dd,
+    );
+    // The prototype lays the halo down first and the limb over it.
+    return a + a2 * (1 - a);
+  }, 1 + glow.haloReach);
+
+  const tanLimb = Math.tan(limbAngle);
+  const painted = (blend: number): number =>
+    light(
+      (dd) => {
+        const t = Math.exp(
+          -(Math.atan(tanLimb * dd) - limbAngle) /
+            (Math.PI * fadeoutRange(blend)),
+        );
+        return (
+          fog.color.alpha * t * t +
+          fog.highColor.alpha * t * (1 - fog.color.alpha * t)
+        );
+      },
+      1 + glow.haloReach * FIT_REACH,
+    );
+
+  let lo = BLEND_LO;
+  let hi = BLEND_HI;
+  for (let i = 0; i < BISECTIONS; i += 1) {
+    const mid = (lo + hi) / 2;
+    if (painted(mid) > designed) hi = mid;
+    else lo = mid;
+  }
+  return (lo + hi) / 2;
+};
+
+/*
+ * One slot, like lutFor's.
+ *
+ * The solve is about thirty thousand exp() calls and this is a render
+ * path: SceneRoot re-applies the fog on every scene pass, including the
+ * ones that are only a repaint or a hover. The answer is a pure function
+ * of the preset and the angle, and both hold still for the whole of a
+ * route, so remembering the last one is enough -- a route change or a
+ * resize misses once and then hits for ever. A Map keyed on the viewport
+ * would only accumulate window sizes nobody is looking at any more.
+ */
+let lastFog: FogSpec | null = null;
+let lastLimb = Number.NaN;
+let lastBlend = 0;
+
+export const horizonBlendFor = (
+  fog: FogSpec,
+  limbAngle: number,
+): number => {
+  if (fog !== lastFog || limbAngle !== lastLimb) {
+    lastFog = fog;
+    lastLimb = limbAngle;
+    lastBlend = solve(fog, limbAngle);
+  }
+  return lastBlend;
+};
+
+/** A fog colour, resolved against the live palette. */
+const ink = (palette: Palette, color: FogColor): string => {
+  const rgb =
+    color.ink === 'accent'
+      ? palette.accent
+      : color.ink === 'accent2'
+        ? palette.accent2
+        : palette.space;
+  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${color.alpha})`;
+};
+
+/** Exactly the shape map.setFog takes, so nothing is assembled twice. */
+export type FogOptions = {
+  range: [number, number];
+  color: string;
+  'high-color': string;
+  'space-color': string;
+  'horizon-blend': number;
+  'star-intensity': number;
+};
+
+/**
+ * Stars would be noise over a bright ground, so light themes get none.
+ * The figure is unchanged from the first version of the scene.
+ */
+const STAR_INTENSITY = 0.15;
+
+/**
+ * The fog this camera wants, in this theme.
+ *
+ * A null viewport is the server's and jsdom's answer, and it is treated
+ * the way scene/camera.ts's frameCamera treats it: the artboard. The
+ * camera that ships without a box to measure is 1a's, so the atmosphere
+ * that ships with it is 1a's too.
+ */
+export const fogFor = (
+  spec: CameraSpec,
+  palette: Palette,
+  viewport: Viewport | null,
+): FogOptions => {
+  const fog = fogPresets[spec.fog];
+  const height =
+    viewport === null ? ARTBOARD_DESKTOP.height : viewport.height;
+  return {
+    range: fog.range,
+    // Palette tokens at the design's peak alphas. On the globe that is
+    // the tight `accent` rim inside the wide `accent2` halo, in the
+    // prototype's own order; on the terrain routes the roles differ, so
+    // the preset names the token rather than this function assuming it.
+    color: ink(palette, fog.color),
+    'high-color': ink(palette, fog.highColor),
+    // What the prototype paints past 1.34r: P.space, exactly. It used to
+    // be the ground shaded to 0.9, which drew the space behind the globe
+    // three levels darker than the page it sits on.
+    'space-color': `rgb(${palette.space[0]}, ${palette.space[1]}, ${palette.space[2]})`,
+    'horizon-blend': horizonBlendFor(
+      fog,
+      globeLimbAngle(spec.zoom, height),
+    ),
+    'star-intensity': palette.light ? 0 : STAR_INTENSITY,
   };
 };

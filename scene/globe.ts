@@ -140,3 +140,27 @@ export const globeZoomForScreenRadius = (
     (d * radius * (radius + Math.hypot(radius, f))) / (f * f);
   return globeZoomForWorldRadius(world);
 };
+
+/**
+ * The globe's ANGULAR radius, in radians: half the angle the sphere
+ * subtends at the camera, which is the angle mapbox's atmosphere shader
+ * measures its falloff from.
+ *
+ * The silhouette lands at `f * tan(theta)` from the projection centre, so
+ * this is simply the inverse of globeScreenRadius's last step. It is
+ * separate from that function because the atmosphere wants the ANGLE and
+ * the frame wants the PIXELS, and going pixels -> angle -> pixels through
+ * a caller that only has one of them is how the two drift apart.
+ *
+ * It is the whole reason `horizon-blend` cannot be a constant: mapbox's
+ * glow decays with the angle BEYOND this one, while the design states its
+ * halo in globe RADII. A small globe subtends a small angle, so the same
+ * horizon-blend spreads the halo over proportionally more radii -- 1.73x
+ * more at 1f's mobile frame than at 1a's desktop one. See
+ * scene/theme.ts's horizonBlendFor.
+ */
+export const globeLimbAngle = (
+  zoom: number,
+  height: number,
+): number =>
+  Math.atan(globeScreenRadius(zoom, height) / focalLength(height));
