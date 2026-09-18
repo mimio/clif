@@ -443,6 +443,32 @@ describe('the atmosphere', () => {
     expect(seen.size).toBeGreaterThan(1);
   });
 
+  /*
+   * The fog colours are read straight off the theme's tokens, so the
+   * colour-theme LUT -- which exists to map MAPBOX'S colours into this
+   * palette -- must not be applied to them a second time. mapbox honours
+   * that only for the exact string `none`, per fog colour, and
+   * `drawAtmosphereGlow` reads it off the ROOT scope, which Mapbox
+   * Standard themes and the stub did not. See the note on FogOptions.
+   */
+  it('keeps the colour theme off all three fog colours', () => {
+    for (const id of THEME_IDS) {
+      applyTheme(id);
+      const palette = livePalette();
+      for (const spec of [
+        cameras.hello,
+        cameras.projects,
+        cameras.about,
+      ]) {
+        const fog = fogFor(spec, palette, desktop);
+        expect(fog['color-use-theme']).toBe('none');
+        expect(fog['high-color-use-theme']).toBe('none');
+        expect(fog['space-color-use-theme']).toBe('none');
+      }
+    }
+    applyTheme('yellow');
+  });
+
   it('turns the stars off on a light ground and on elsewhere', () => {
     applyTheme('paper');
     expect(

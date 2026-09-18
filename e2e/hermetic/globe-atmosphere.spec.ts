@@ -163,6 +163,88 @@ test.describe('the globe atmosphere', () => {
     );
   });
 
+  /*
+   * THE ONE THIS SUITE COULD NOT SEE, and now can.
+   *
+   * `drawAtmosphereGlow` resolves every fog colour through
+   * `painter.style.getLut(fog.scope)` unless the matching `-use-theme` is
+   * `none`, and `fog.scope` is the ROOT style's. The stub's root carried
+   * no colour theme, so `getLut('')` was null and the fog rendered
+   * exactly as authored. Mapbox Standard's root does carry one, and on
+   * the first real preview the space behind the globe read
+   * rgb(38, 33, 28) against a ground token of rgb(22, 22, 22) -- flat
+   * across the whole frame, corners included -- with the accent rim
+   * dimmed from about rgb(70, 57, 25) to rgb(44, 36, 22). Our own LUT,
+   * applied a second time to colours that were already the theme's.
+   *
+   * So the stub can now serve a root colour theme, and this is the test
+   * that fails without `fogFor`'s three `-use-theme: none` keys. It is
+   * the whole value of the fix: tier 1 can see the class of bug that got
+   * past it.
+   */
+  test('a colour theme on the ROOT style does not re-tint the fog', async ({
+    context,
+    page,
+  }) => {
+    await stubMapboxNetwork(context, { rootColorTheme: true });
+    await installSceneDebug(page);
+    await page.setViewportSize(DESKTOP);
+    await page.goto('/', { waitUntil: 'load' });
+    await waitForScene(page);
+    await installBasemapOnly(page);
+    await showBasemapOnly(page, true);
+
+    // The LUT really is on the root scope, or this test proves nothing.
+    const scopes = await page.evaluate(() => {
+      const scene = window.__SCENE__;
+      if (!scene) throw new Error('no scene handle');
+      const style = (
+        scene.map as unknown as {
+          style: { getLut: (scope: string) => unknown };
+        }
+      ).style;
+      return {
+        root: Boolean(style.getLut('')),
+        basemap: Boolean(style.getLut('basemap')),
+      };
+    });
+    expect(
+      scopes.root,
+      'the stub did not put a colour theme on the root scope, so this test is vacuous',
+    ).toBe(true);
+    expect(scopes.basemap).toBe(true);
+
+    const ground = await page.evaluate(() =>
+      getComputedStyle(document.documentElement)
+        .getPropertyValue('--surface-ground')
+        .trim(),
+    );
+    const [r, g, b] = parseRgb(ground, MISSING);
+    const framing = await measureGlobe(page);
+    const rings = await sampleRadial(page, framing, [1.02, 1.45]);
+    notice(
+      'atmosphere (tier 1, root colour theme)',
+      `ground ${ground} — ${describeProfile(rings)}`,
+    );
+
+    const far = rings[1];
+    const rim = rings[0];
+    /*
+     * The same one and a half levels the plain test allows. Without the
+     * fix this reads rgb(38, 33, 28) -- sixteen levels of red out, which
+     * is what the preview showed.
+     */
+    expect(
+      Math.abs(far.red - r),
+      `a root colour theme re-tinted space-color: ${describeProfile(rings)}`,
+    ).toBeLessThanOrEqual(1.5);
+    expect(Math.abs(far.green - g)).toBeLessThanOrEqual(1.5);
+    expect(Math.abs(far.blue - b)).toBeLessThanOrEqual(1.5);
+    // And the rim keeps its own brightness rather than being pulled down
+    // toward the basemap's palette.
+    expect(rim.red).toBeGreaterThan(far.red + 20);
+  });
+
   test('sends mapbox the fog the design and the theme resolve to', async ({
     context,
     page,

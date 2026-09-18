@@ -596,6 +596,38 @@ export type FogOptions = {
   'space-color': string;
   'horizon-blend': number;
   'star-intensity': number;
+  /*
+   * THE COLOUR THEME MUST NOT TOUCH THESE THREE, and this is the fix for
+   * a bug that only the deployed site could show.
+   *
+   * `drawAtmosphereGlow` resolves every fog colour through
+   * `painter.style.getLut(fog.scope)` unless the matching `-use-theme` is
+   * the string `none`. `fog.scope` is the ROOT style's, and a root style
+   * that carries a `color-theme` therefore re-tints the fog -- including
+   * `space-color`, which is the flat field behind the whole globe.
+   *
+   * Mapbox Standard's root does carry one. Nothing in a sandbox can see
+   * that: the stub style tier 1 runs against has no root theme, so
+   * `getLut('')` is null there and the fog renders exactly as authored.
+   * On the preview it is not null, and the first review run showed it --
+   * the space behind the globe read rgb(38, 33, 28) against a ground
+   * token of rgb(22, 22, 22), flat across the entire frame including the
+   * corners, with the accent rim dimmed from rgb(70, 57, 25) to about
+   * rgb(44, 36, 22). Reproduced offline to the digit by putting a
+   * `color-theme` on a stub ROOT style, and removed to the digit by these
+   * three keys.
+   *
+   * It is the right fix rather than a workaround, because the LUT exists
+   * to map MAPBOX'S colours into this palette, and these three are
+   * already in it -- they are read straight off the theme's own tokens by
+   * `ink` below. Sending them through the cube applies the palette twice.
+   *
+   * e2e/hermetic/globe-atmosphere.spec.ts now runs a stub whose root
+   * carries a colour theme, so tier 1 can see this class of bug at last.
+   */
+  'color-use-theme': 'none';
+  'high-color-use-theme': 'none';
+  'space-color-use-theme': 'none';
 };
 
 /**
@@ -637,5 +669,9 @@ export const fogFor = (
       globeLimbAngle(spec.zoom, height),
     ),
     'star-intensity': palette.light ? 0 : STAR_INTENSITY,
+    // Already in the theme's own colours: see the note on FogOptions.
+    'color-use-theme': 'none',
+    'high-color-use-theme': 'none',
+    'space-color-use-theme': 'none',
   };
 };

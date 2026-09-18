@@ -745,6 +745,44 @@ test('no glow survives past the design reach, over the real basemap', async ({
     )} | fragments ${JSON.stringify(fogs.fragments)}`,
   );
 
+  /*
+   * WHICH SCOPES CARRY A COLOUR THEME, which is the whole of the bug the
+   * first run of this assertion found.
+   *
+   * `drawAtmosphereGlow` resolves each fog colour through
+   * `style.getLut(fog.scope)` unless its `-use-theme` is `none`, and
+   * `fog.scope` is the ROOT's. Mapbox Standard's root carries a
+   * `color-theme`; the stub tier 1 runs against did not, which is exactly
+   * why tier 1 could not see this. Reported rather than inferred so the
+   * next reader does not have to take the reproduction's word for it.
+   */
+  notice(
+    'atmosphere: colour theme scopes',
+    await page.evaluate(() => {
+      const scene = window.__SCENE__;
+      if (!scene) return 'no scene handle';
+      const map = scene.map as unknown as {
+        style: { getLut: (scope: string) => unknown };
+        getStyle: () => {
+          'color-theme'?: unknown;
+          imports?: { id: string; data?: Record<string, unknown> }[];
+        };
+      };
+      const style = map.getStyle();
+      const fragments = (style.imports ?? []).map(
+        (one) =>
+          `${one.id}:${one.data?.['color-theme'] ? 'has' : 'none'}`,
+      );
+      return (
+        `getLut('') ${map.style.getLut('') ? 'SET' : 'null'} ` +
+        `getLut('basemap') ${map.style.getLut('basemap') ? 'SET' : 'null'} | ` +
+        `root stylesheet color-theme ${
+          style['color-theme'] ? 'present' : 'absent'
+        } | fragment color-themes ${fragments.join(', ')}`
+      );
+    }),
+  );
+
   /* ---- the profile -------------------------------------------------- */
 
   const rings = await sampleRadial(
