@@ -131,16 +131,25 @@ export const NOT_FOUND_FRAME_MOBILE: GlobeFrame = {
  * It is sized off the WIDTH because the box is a width. The height never
  * binds: 0.168 of any viewport is a third of its own height at worst.
  *
- * AND 0.376 IS NOT A TYPO FOR 0.5. `at` is where the PROJECTION CENTRE
- * goes, and on a pitched camera that is not where the sphere lands: at
- * pitch 25 the globe is painted about 0.124 of the viewport height BELOW
- * it -- measured, at four viewports, in e2e/hermetic/globe-frame.spec.ts,
- * which is also what holds this number honest. Lifting the projection
- * centre by that much is what puts the DISC in the middle of the box.
- * hello and the 404 need no such correction because they are pitch 0.
+ * AND 0.45 IS NOT A TYPO FOR 0.5, for two reasons at once.
+ *
+ * `at` is where the PROJECTION CENTRE goes, and on a pitched camera that is
+ * not where the sphere lands: at pitch 25 the globe is painted about 0.077
+ * of the viewport WIDTH below it. Width, not height -- the drop tracks the
+ * sphere's own radius rather than the camera's distance, and it measured
+ * 0.546 of that radius at every viewport tried. So the correction is worth
+ * roughly 0.12 of the height at a 16:10 window and more at a wider one.
+ *
+ * On top of that the disc is meant to sit BELOW the middle: "the globe can
+ * move farther down in page vertically". 0.45 lands it at about 0.57 of the
+ * height on the artboard, which is low enough to read as deliberate and
+ * still leaves the whole disc on screen down to a 16:10 window. Both halves
+ * are measured rather than derived, so e2e/hermetic/globe-frame.spec.ts
+ * measures them too. hello and the 404 need no correction at all: they are
+ * pitch 0, and their sphere lands where their padding puts it.
  */
 export const PROJECTS_FRAME: GlobeFrame = {
-  at: [0.812, 0.376],
+  at: [0.812, 0.45],
   radius: 0.168,
   of: 'width',
   zoomOffset: 0,
@@ -290,8 +299,8 @@ export const cameras: Record<SceneId, CameraSpec> = {
     bearing: -12,
     frame: PROJECTS_FRAME,
     // Half of each gap moves the projection centre: left 898.56 puts it at
-    // 0.812 * 1440 = 1169.3, bottom 223.2 lifts it to 0.376 * 900 = 338.4.
-    padding: { top: 0, right: 0, bottom: 223.2, left: 898.56 },
+    // 0.812 * 1440 = 1169.3, bottom 90 lifts it to 0.45 * 900 = 405.
+    padding: { top: 0, right: 0, bottom: 90, left: 898.56 },
     terrain: null,
     fog: 'dusk',
     interactive: true,

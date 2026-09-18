@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { PRESS_NOW, PRESS_WASH } from 'components/primitives/press';
 import Rule from 'components/primitives/Rule';
@@ -176,6 +177,37 @@ const ROW_BOX = 'px-2 py-2.5 tablet:px-3 tablet:py-3';
 
 const HEAD_BOX = 'px-2 pb-2.5 tablet:px-3';
 
+/*
+ * THE CLOSING RULE IS AN OVERFLOW MARK, not a border.
+ *
+ * It used to be unconditional -- "bounded top and bottom by the same stated
+ * edge" -- which drew a line under a list that ended where you could see it
+ * end, and said nothing. The owner's call: it shows only when the tbody has
+ * something below the fold, so the one accent line under the table means
+ * "there is more of this", and a table that fits carries no line to
+ * misread.
+ *
+ * It is a measurement because nothing else can answer it. There is no CSS
+ * selector for "this box is scrolling" that ships in every browser this
+ * site runs in -- scroll-state container queries are one engine deep -- and
+ * the answer depends on the viewport, on the column above the table and on
+ * the row count at once.
+ *
+ * WHAT IS WATCHED, and why it is the window rather than the element. The
+ * tbody is `flex-1` inside a bounded column, so its own box changes on a
+ * resize and on nothing else; the content's height changes with `rows`,
+ * which is a dependency of the same effect. A ResizeObserver would buy the
+ * same two events at the price of a jsdom shim and a branch no test can
+ * reach. The one case neither covers is a webfont swapping under a
+ * laid-out table, which moves the content by a row at most and shows or
+ * hides a hairline.
+ *
+ * A pixel of slack, because scrollHeight and clientHeight are integers
+ * rounded from fractional layout and a table that fits exactly can measure
+ * one pixel over.
+ */
+const OVERFLOW_SLACK_PX = 1;
+
 export type ProjectRow = {
   id: string;
   title: string;
@@ -232,179 +264,214 @@ export const ProjectTable = ({
   onHoverRow,
   onSelectRow,
   className,
-}: ProjectTableProps) => (
-  <div
-    className={cn('flex min-h-0 w-full flex-1 flex-col', className)}
-    data-slot="project-table"
-  >
-    {/* The second colour belongs to the table title, not to a page eyebrow. */}
-    <div className="flex items-baseline gap-3.5 pb-3.5">
-      <Text
-        className="[letter-spacing:var(--type-caption-tracking)] text-accent2-text uppercase"
-        variant="readout"
-      >
-        {eyebrow}
-      </Text>
-      <Text className="text-fg-5" variant="readout">
-        {count}
-      </Text>
-    </div>
-    <table
-      className="flex min-h-0 w-full min-w-0 flex-1 border-collapse flex-col"
-      role="table"
+}: ProjectTableProps) => {
+  /*
+   * The tbody as STATE rather than as a ref, because the effect below has
+   * to run again once it exists: a ref's `.current` is filled during the
+   * commit and does not re-run anything, so an effect reading it on the
+   * first pass would be measuring a table that is not there yet.
+   */
+  const [body, setBody] = useState<HTMLTableSectionElement | null>(
+    null,
+  );
+  const [overflowing, setOverflowing] = useState(false);
+
+  useEffect(() => {
+    if (body === null) return undefined;
+    const read = () => {
+      setOverflowing(
+        body.scrollHeight - body.clientHeight > OVERFLOW_SLACK_PX,
+      );
+    };
+    read();
+    window.addEventListener('resize', read);
+    return () => window.removeEventListener('resize', read);
+  }, [body, rows]);
+
+  return (
+    <div
+      className={cn('flex min-h-0 w-full flex-1 flex-col', className)}
+      data-overflow={overflowing}
+      data-slot="project-table"
     >
-      <thead className="block" role="rowgroup">
-        <tr
-          className={cn(GRID, HEAD_BOX, 'border-b border-accent-30')}
-          role="row"
+      {/* The second colour belongs to the table title, not to a page eyebrow. */}
+      <div className="flex items-baseline gap-3.5 pb-3.5">
+        <Text
+          className="[letter-spacing:var(--type-caption-tracking)] text-accent2-text uppercase"
+          variant="readout"
         >
-          {PROJECT_TABLE_MODEL.map((column) => (
-            <th
-              className={cn(
-                'min-w-0 truncate text-left text-[length:var(--type-caption-size)] font-normal [letter-spacing:var(--type-label-tracking)] text-fg-5 uppercase',
-                CELL_VISIBILITY[column.key],
-              )}
-              key={column.key}
-              role="columnheader"
-              scope="col"
-            >
-              {column.heading}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody
-        className={cn(
-          'block min-h-0 flex-1 overflow-y-auto pr-1.5',
-          /*
-           * `overflow-x: clip` rather than the `auto` this would compute
-           * to on its own. A scroll container whose other axis is
-           * `visible` gets `auto` on this one, so the day something in a
-           * row is one pixel wider than the box -- a padding change, a
-           * cell that forgot to shrink -- the table answers with a
-           * sideways scrollbar instead of a clipped cell. `clip` makes
-           * that impossible to reintroduce, and the rows are sized to fit
-           * so it has nothing to cut.
-           */
-          'overflow-x-clip',
-        )}
-        role="rowgroup"
+          {eyebrow}
+        </Text>
+        <Text className="text-fg-5" variant="readout">
+          {count}
+        </Text>
+      </div>
+      <table
+        className="flex min-h-0 w-full min-w-0 flex-1 border-collapse flex-col"
+        role="table"
       >
-        {rows.map((row) => (
+        <thead className="block" role="rowgroup">
           <tr
             className={cn(
               GRID,
-              ROW_BOX,
-              'relative cursor-pointer items-center rounded-[var(--radius-sm)] border-b border-surface-3 select-none',
-              'text-[length:var(--type-detail-size-mobile)] leading-[var(--type-detail-line-mobile)] tablet:text-[length:var(--type-detail-size)] tablet:leading-[var(--type-detail-line)]',
-              'transition-[background-color,transform] duration-[120ms] ease-out',
-              /*
-               * EVERY ONE OF THESE THREE IS SCOPED `not-active:`, and the
-               * row is where that rule was learned the hard way.
-               *
-               * Hover was guarded first, because the fine-pointer block is
-               * emitted last and was beating the press. That fixed nothing
-               * a person could see, because the guard went on the wrong
-               * competitor: `data-[active=true]:bg-accent-07` is ALSO one
-               * class plus one simple selector, Tailwind emits the `data-*`
-               * group AFTER the `active:` group, and `data-active` follows
-               * the pointer -- the row's own pointerenter calls onHoverRow,
-               * the projects route stores it as activeId and hands it
-               * straight back here. So on every row a mouse can actually
-               * press, the press wash was overruled by the hover wash
-               * wearing a different hat. Measured: background-color was
-               * identical on the frame before the pointerdown and the frame
-               * after it, and what survived of the press was a 2px nudge
-               * and a 0.3% scale, which is 0.1px of row height.
-               *
-               * So the guard goes on ANYTHING that writes a property the
-               * press writes, per rule 2 in components/primitives/press.ts
-               * -- hover, the data attribute and focus-within alike. The
-               * scale is gone rather than guarded: 0.997 on a 40px row was
-               * never a state, and the wash is what reads.
-               */
-              'pointer-fine:not-active:hover:translate-x-[3px] pointer-fine:not-active:hover:bg-accent-07',
-              'not-active:focus-within:translate-x-[3px] not-active:focus-within:bg-accent-07',
-              `active:translate-x-px ${PRESS_WASH} ${PRESS_NOW}`,
-              'not-active:data-[active=true]:bg-accent-07',
+              HEAD_BOX,
+              'border-b border-accent-30',
             )}
-            data-active={row.id === activeId}
-            key={row.id}
-            onBlur={() => onHoverRow?.(null)}
-            onClick={() => onSelectRow?.(row.id)}
-            onFocus={() => onHoverRow?.(row.id)}
-            onPointerEnter={(event) => {
-              if (isHoverPointer(event.pointerType))
-                onHoverRow?.(row.id);
-            }}
-            onPointerLeave={(event) => {
-              if (isHoverPointer(event.pointerType))
-                onHoverRow?.(null);
-            }}
             role="row"
           >
             {PROJECT_TABLE_MODEL.map((column) => (
-              <td
+              <th
                 className={cn(
-                  /*
-                   * EVERY cell, not just the flexible one. A grid item
-                   * refuses to go under its own content width until its
-                   * automatic minimum is zeroed, and the fixed tracks are
-                   * only safe from that by accident -- widen one, or hand
-                   * it a value longer than the number it was measured
-                   * for, and the track stops honouring its px size. It is
-                   * free here and it is the whole reason the flexible
-                   * column already behaves.
-                   */
-                  'min-w-0',
-                  CELL_INK[column.key],
+                  'min-w-0 truncate text-left text-[length:var(--type-caption-size)] font-normal [letter-spacing:var(--type-label-tracking)] text-fg-5 uppercase',
                   CELL_VISIBILITY[column.key],
                 )}
                 key={column.key}
-                role="cell"
+                role="columnheader"
+                scope="col"
               >
-                {column.key === 'title' && row.href !== undefined ? (
-                  // One link per row, stretched over the whole row, so the
-                  // row is a link to a detail without five links inside it.
-                  <Link
-                    className="block truncate after:absolute after:inset-0 after:content-['']"
-                    href={row.href}
-                    title={row.title}
-                  >
-                    {row.title}
-                  </Link>
-                ) : (
-                  <span
-                    className="block truncate"
-                    title={
-                      CELL_CAN_TRUNCATE[column.key]
-                        ? cellValue(row, column.key)
-                        : undefined
-                    }
-                  >
-                    {cellValue(row, column.key)}
-                  </span>
-                )}
-                {column.key === 'title' ? (
-                  <span
-                    className="block truncate text-[length:var(--type-readout-size)] text-fg-4 tablet:hidden"
-                    title={row.client}
-                  >
-                    {row.client}
-                  </span>
-                ) : null}
-              </td>
+                {column.heading}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
-    {/* Bounded top and bottom by the same stated edge, never a fade. */}
-    <Rule
-      className="m-0 mt-2 h-px border-0 bg-accent-30"
-      tone="accent"
-    />
-  </div>
-);
+        </thead>
+        <tbody
+          className={cn(
+            'block min-h-0 flex-1 overflow-y-auto pr-1.5',
+            /*
+             * `overflow-x: clip` rather than the `auto` this would compute
+             * to on its own. A scroll container whose other axis is
+             * `visible` gets `auto` on this one, so the day something in a
+             * row is one pixel wider than the box -- a padding change, a
+             * cell that forgot to shrink -- the table answers with a
+             * sideways scrollbar instead of a clipped cell. `clip` makes
+             * that impossible to reintroduce, and the rows are sized to fit
+             * so it has nothing to cut.
+             */
+            'overflow-x-clip',
+          )}
+          ref={setBody}
+          role="rowgroup"
+        >
+          {rows.map((row) => (
+            <tr
+              className={cn(
+                GRID,
+                ROW_BOX,
+                'relative cursor-pointer items-center rounded-[var(--radius-sm)] border-b border-surface-3 select-none',
+                'text-[length:var(--type-detail-size-mobile)] leading-[var(--type-detail-line-mobile)] tablet:text-[length:var(--type-detail-size)] tablet:leading-[var(--type-detail-line)]',
+                'transition-[background-color,transform] duration-[120ms] ease-out',
+                /*
+                 * EVERY ONE OF THESE THREE IS SCOPED `not-active:`, and the
+                 * row is where that rule was learned the hard way.
+                 *
+                 * Hover was guarded first, because the fine-pointer block is
+                 * emitted last and was beating the press. That fixed nothing
+                 * a person could see, because the guard went on the wrong
+                 * competitor: `data-[active=true]:bg-accent-07` is ALSO one
+                 * class plus one simple selector, Tailwind emits the `data-*`
+                 * group AFTER the `active:` group, and `data-active` follows
+                 * the pointer -- the row's own pointerenter calls onHoverRow,
+                 * the projects route stores it as activeId and hands it
+                 * straight back here. So on every row a mouse can actually
+                 * press, the press wash was overruled by the hover wash
+                 * wearing a different hat. Measured: background-color was
+                 * identical on the frame before the pointerdown and the frame
+                 * after it, and what survived of the press was a 2px nudge
+                 * and a 0.3% scale, which is 0.1px of row height.
+                 *
+                 * So the guard goes on ANYTHING that writes a property the
+                 * press writes, per rule 2 in components/primitives/press.ts
+                 * -- hover, the data attribute and focus-within alike. The
+                 * scale is gone rather than guarded: 0.997 on a 40px row was
+                 * never a state, and the wash is what reads.
+                 */
+                'pointer-fine:not-active:hover:translate-x-[3px] pointer-fine:not-active:hover:bg-accent-07',
+                'not-active:focus-within:translate-x-[3px] not-active:focus-within:bg-accent-07',
+                `active:translate-x-px ${PRESS_WASH} ${PRESS_NOW}`,
+                'not-active:data-[active=true]:bg-accent-07',
+              )}
+              data-active={row.id === activeId}
+              key={row.id}
+              onBlur={() => onHoverRow?.(null)}
+              onClick={() => onSelectRow?.(row.id)}
+              onFocus={() => onHoverRow?.(row.id)}
+              onPointerEnter={(event) => {
+                if (isHoverPointer(event.pointerType))
+                  onHoverRow?.(row.id);
+              }}
+              onPointerLeave={(event) => {
+                if (isHoverPointer(event.pointerType))
+                  onHoverRow?.(null);
+              }}
+              role="row"
+            >
+              {PROJECT_TABLE_MODEL.map((column) => (
+                <td
+                  className={cn(
+                    /*
+                     * EVERY cell, not just the flexible one. A grid item
+                     * refuses to go under its own content width until its
+                     * automatic minimum is zeroed, and the fixed tracks are
+                     * only safe from that by accident -- widen one, or hand
+                     * it a value longer than the number it was measured
+                     * for, and the track stops honouring its px size. It is
+                     * free here and it is the whole reason the flexible
+                     * column already behaves.
+                     */
+                    'min-w-0',
+                    CELL_INK[column.key],
+                    CELL_VISIBILITY[column.key],
+                  )}
+                  key={column.key}
+                  role="cell"
+                >
+                  {column.key === 'title' &&
+                  row.href !== undefined ? (
+                    // One link per row, stretched over the whole row, so the
+                    // row is a link to a detail without five links inside it.
+                    <Link
+                      className="block truncate after:absolute after:inset-0 after:content-['']"
+                      href={row.href}
+                      title={row.title}
+                    >
+                      {row.title}
+                    </Link>
+                  ) : (
+                    <span
+                      className="block truncate"
+                      title={
+                        CELL_CAN_TRUNCATE[column.key]
+                          ? cellValue(row, column.key)
+                          : undefined
+                      }
+                    >
+                      {cellValue(row, column.key)}
+                    </span>
+                  )}
+                  {column.key === 'title' ? (
+                    <span
+                      className="block truncate text-[length:var(--type-readout-size)] text-fg-4 tablet:hidden"
+                      title={row.client}
+                    >
+                      {row.client}
+                    </span>
+                  ) : null}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {/* Only where there is something below the fold: see the note on
+          OVERFLOW_SLACK_PX. Never a fade, either way. */}
+      {overflowing ? (
+        <Rule
+          className="m-0 mt-2 h-px border-0 bg-accent-30"
+          tone="accent"
+        />
+      ) : null}
+    </div>
+  );
+};
 
 export default ProjectTable;

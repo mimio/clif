@@ -367,22 +367,29 @@ test.describe('the hello globe is framed as the prototype draws it', () => {
  *
  * This is the one framed camera with a pitch on it, and pitch is exactly
  * what a frame cannot express: `at` places the PROJECTION CENTRE, and at
- * pitch 25 the sphere is painted about 0.124 of the viewport height below
- * that point. content/cameras.ts answers it by lifting `at` -- which is a
- * measured correction, so it is measured here rather than argued.
+ * pitch 25 the sphere is painted about 0.077 of the viewport WIDTH below
+ * that point. content/cameras.ts answers it by lifting `at` -- a measured
+ * correction, so it is measured here rather than argued.
  *
  * The claim is stated against the layout instead of against the frame's own
  * ratios, because the frame's ratios are the means and this is the end: the
  * disc clears the reading column, it is inside the viewport on all four
- * sides, and it is near the middle of what is left. Read the column's right
- * edge off the DOM rather than recomputing --reading-max here, so a change
- * to the rail's tokens is caught instead of being duplicated.
+ * sides, and it sits where the design wants it in what is left. Read the
+ * column's right edge off the DOM rather than recomputing --reading-max
+ * here, so a change to the rail's tokens is caught instead of duplicated.
  *
- * The tolerances are generous on purpose. The exact centre of the open box
- * drifts with the viewport once --reading-column caps the table (past about
- * 1700px), and PROJECTS_FRAME is a pair of constants; what must hold at
- * every width is that the whole disc is in the box, not that it is centred
- * to the pixel.
+ * VERTICALLY THE TARGET IS NOT THE MIDDLE. The owner moved the globe down
+ * the page, so what is asserted is the shape of that: below the halfway
+ * line, and by less than a quarter of the height. A globe that drifted back
+ * to centre and one that fell off the bottom are both regressions, and a
+ * band says so where a tolerance around the middle would have called the
+ * first one correct.
+ *
+ * The horizontal tolerance is generous on purpose. The exact centre of the
+ * open box drifts with the viewport once --reading-column caps the table
+ * (past about 1700px), and PROJECTS_FRAME is a pair of constants; what must
+ * hold at every width is that the whole disc is in the box, not that it is
+ * centred to the pixel.
  */
 test.describe('the projects globe is framed into the open space', () => {
   const SIZES = [
@@ -432,9 +439,9 @@ test.describe('the projects globe is framed into the open space', () => {
         `disc is cut off at the bottom: ${detail}`,
       ).toBeLessThanOrEqual(size.height - AIR_PX);
 
-      // And near the middle of the box it is in. An eighth of the box on
-      // each axis: a globe that drifted a quarter of the way out of the
-      // open space is the regression worth catching, not a 20px lean.
+      // Across: near the middle of the box it is in. An eighth of the box
+      // -- a globe that drifted a quarter of the way out of the open space
+      // is the regression worth catching, not a 20px lean.
       const boxCentreX = ((column ?? 0) + size.width) / 2;
       const discCentreX = (disc.x[0] + disc.x[1]) / 2;
       const discCentreY = (disc.y[0] + disc.y[1]) / 2;
@@ -442,10 +449,17 @@ test.describe('the projects globe is framed into the open space', () => {
         Math.abs(discCentreX - boxCentreX),
         `off centre horizontally: ${detail}`,
       ).toBeLessThan((size.width - (column ?? 0)) / 8);
+
+      // Down: below the halfway line by design, and not by a quarter of
+      // the page.
       expect(
-        Math.abs(discCentreY - size.height / 2),
-        `off centre vertically: ${detail}`,
-      ).toBeLessThan(size.height / 8);
+        discCentreY,
+        `the globe drifted back up to the middle: ${detail}`,
+      ).toBeGreaterThan(size.height / 2);
+      expect(
+        discCentreY - size.height / 2,
+        `the globe sank: ${detail}`,
+      ).toBeLessThan(size.height / 4);
     });
   }
 });
