@@ -1,4 +1,6 @@
 import type { BrowserContext, Page } from '@playwright/test';
+import { buildLut } from 'styles/tokens/lut';
+import { FALLBACK_PALETTE } from 'styles/tokens/palette';
 
 /*
  * The hermetic Mapbox seam.
@@ -717,6 +719,25 @@ export type NetworkOptions = {
    * traffic. See TILE_PROBE_HOST above.
    */
   tiled?: boolean;
+  /**
+   * Puts a `color-theme` on the ROOT of the served style, the way Mapbox
+   * Standard does and the way this stub never did.
+   *
+   * That gap hid a real bug for a whole release. `drawAtmosphereGlow`
+   * resolves every fog colour through `style.getLut(fog.scope)`, and
+   * `fog.scope` is the ROOT's -- so a root colour theme re-tints the fog,
+   * including the `space-color` that is the flat field behind the entire
+   * globe. With no root theme in the stub, `getLut('')` is null and tier
+   * 1 saw the fog exactly as authored; the deployed site did not, and the
+   * space behind the globe read rgb(38, 33, 28) against a ground token of
+   * rgb(22, 22, 22).
+   *
+   * It is the app's own LUT rather than an invented one, because the
+   * point is to reproduce the double application: a cube built to map
+   * Mapbox's colours into this palette, applied to colours that are
+   * already in it.
+   */
+  rootColorTheme?: boolean;
 };
 
 const LOCAL_STYLE = {
@@ -885,6 +906,12 @@ export const stubMapboxNetwork = async (
         ],
       }
     : LOCAL_STYLE;
+  const served = options.rootColorTheme
+    ? {
+        ...style,
+        'color-theme': { data: buildLut(FALLBACK_PALETTE) },
+      }
+    : style;
   await context.route(
     /https:\/\/(api|events)\.mapbox\.com\/.*/,
     (route) => route.fulfill({ status: 204, body: '' }),
@@ -895,7 +922,7 @@ export const stubMapboxNetwork = async (
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(style),
+        body: JSON.stringify(served),
       }),
   );
   await context.route(
