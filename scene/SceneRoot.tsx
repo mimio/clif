@@ -352,7 +352,7 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
       applyInteractivity(spec.interactive);
 
       // Tier 2: only the properties that actually changed.
-      const next = basemapConfig(spec.fog, spec.zoom, palette.light);
+      const next = basemapConfig(spec.fog, palette.light);
       applyBasemapConfig(configChanges(next, lastConfig.current));
       lastConfig.current = next;
 

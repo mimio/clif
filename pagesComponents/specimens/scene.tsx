@@ -219,9 +219,9 @@ const FogTable = () => (
                 : `${fog.glow.horizonBlend} (mercator)`}
             </td>
             <td className={`${cell} text-fg-4`}>
-              {basemapConfig(id, 1.6, false).lightPreset} / dark
+              {basemapConfig(id, false).lightPreset} / dark
               {' · '}
-              {basemapConfig(id, 1.6, true).lightPreset} / light
+              {basemapConfig(id, true).lightPreset} / light
             </td>
             <td className={`${cell} text-fg-4`}>{used.join(', ')}</td>
           </tr>

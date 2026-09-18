@@ -967,7 +967,13 @@ describe('the persistent map', () => {
       'lightPreset',
       'dawn',
     ]);
-    // Deep space is a world-zoom camera: no roads, no labels.
+    /*
+     * Standard is never asked for text, on any route. The scene draws
+     * every name it wants itself, because the import's colour LUT
+     * re-maps a symbol layer's text as surely as a fill and there is no
+     * colour Standard could pick that survives it -- scene/theme.ts's
+     * basemapConfig has the measurements.
+     */
     expect(FakeMap.last.calls.config).toContainEqual([
       'basemap',
       'showPlaceLabels',
@@ -977,11 +983,9 @@ describe('the persistent map', () => {
     await navigate('/about');
     const after = FakeMap.last.calls.config.slice(first);
     expect(after).toContainEqual(['basemap', 'lightPreset', 'night']);
-    expect(after).toContainEqual([
-      'basemap',
-      'showPlaceLabels',
-      true,
-    ]);
+    expect(
+      after.filter(([, key]) => key === 'showPlaceLabels'),
+    ).toEqual([]);
     expect(after.length).toBeLessThan(first);
   });
 
@@ -1901,11 +1905,10 @@ describe('the style lifecycle', () => {
     );
     expect(presets).toHaveLength(1);
     expect(presets[0][2]).toBe('night');
-    expect(map.calls.config).toContainEqual([
-      'basemap',
-      'showPlaceLabels',
-      true,
-    ]);
+    // And nothing ever asked Standard for a label.
+    expect(
+      map.calls.config.filter(([, key]) => key === 'showPlaceLabels'),
+    ).toEqual([['basemap', 'showPlaceLabels', false]]);
   });
 
   it('falls back to the plate when the stylesheet itself fails', async () => {

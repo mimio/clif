@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  contrastRatio,
   FALLBACK_PALETTE,
   luma,
   makePalette,
@@ -7,6 +8,7 @@ import {
   PALETTE_TOKENS,
   parseRgb,
   type PaletteColors,
+  relativeLuminance,
   type Rgb,
   readPalette,
 } from 'styles/tokens/palette';
@@ -118,6 +120,80 @@ describe('luma', () => {
     expect(luma([0, 255, 0])).toBeCloseTo(0.7152, 6);
     expect(luma([255, 0, 0])).toBeCloseTo(0.2126, 6);
     expect(luma([0, 0, 255])).toBeCloseTo(0.0722, 6);
+  });
+});
+
+/*
+ * The other half of the pair, and the tests are deliberately the mirror
+ * image of luma's: the same three colours, the same mid-grey probe, and
+ * the opposite answer. These two functions differ only by a
+ * linearisation step and one of them is calibrated against Mapbox
+ * Standard's palette while the other is calibrated against WCAG, so
+ * swapping them silently breaks the basemap or the contrast bar
+ * depending on which way it goes.
+ */
+describe('relativeLuminance', () => {
+  it('is 0 at black and 1 at white', () => {
+    expect(relativeLuminance([0, 0, 0])).toBe(0);
+    expect(relativeLuminance([255, 255, 255])).toBeCloseTo(1, 10);
+  });
+
+  it('is linearised, which is exactly what luma is not', () => {
+    expect(relativeLuminance([128, 128, 128])).toBeCloseTo(
+      0.2158605,
+      6,
+    );
+    expect(luma([128, 128, 128])).toBeGreaterThan(
+      relativeLuminance([128, 128, 128]),
+    );
+  });
+
+  /*
+   * The linear toe. sRGB is a straight line below 0.04045 (a channel of
+   * about 10.3) and a power curve above it, and only the curve is ever
+   * reached by a token -- every ground in themes.css is brighter than
+   * that. The toe still has to be right, because the darkest halo the
+   * scene draws is the ground shaded to 0.72 and a future theme can put
+   * a channel under it.
+   */
+  it('uses the linear segment for the darkest channels', () => {
+    expect(relativeLuminance([10, 10, 10])).toBeCloseTo(
+      10 / 255 / 12.92,
+      10,
+    );
+    /*
+     * And the join is at 0.04045, not somewhere near it. The two
+     * segments are within 2.4e-9 of each other there -- sRGB's published
+     * constants are rounded, so they do not meet exactly -- which is
+     * five orders of magnitude finer than one 8-bit step and is what
+     * "the threshold is in the right place" looks like as a number.
+     */
+    const toe = 0.04045 * 255;
+    const step = 1e-6;
+    expect(
+      Math.abs(
+        relativeLuminance([toe - step, toe - step, toe - step]) -
+          relativeLuminance([toe + step, toe + step, toe + step]),
+      ),
+    ).toBeLessThan(1e-6);
+  });
+});
+
+describe('contrastRatio', () => {
+  it('is 1 for a colour against itself and 21 black on white', () => {
+    expect(contrastRatio([17, 34, 51], [17, 34, 51])).toBe(1);
+    expect(contrastRatio([0, 0, 0], [255, 255, 255])).toBeCloseTo(
+      21,
+      6,
+    );
+  });
+
+  it('does not care which way round the pair is given', () => {
+    const light: Rgb = [235, 235, 235];
+    const dark: Rgb = [26, 24, 21];
+    expect(contrastRatio(light, dark)).toBe(
+      contrastRatio(dark, light),
+    );
   });
 });
 

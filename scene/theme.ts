@@ -112,8 +112,28 @@ export type BasemapConfig = {
   show3dObjects: boolean;
 };
 
-/** The layers card: "no roads or labels below z8". */
+/**
+ * The layers card's "no roads or labels below z8", which is now a
+ * property of the scene's OWN label layers rather than of Standard's.
+ *
+ * It used to be applied as a zoom test on the ROUTE's declared zoom,
+ * feeding showPlaceLabels/showRoadLabels. Two things were wrong with
+ * that and only one of them was the labels themselves: the route's zoom
+ * is not the camera's, so scrolling into a city on an interactive route
+ * never crossed the threshold, and scrolling away from one never left
+ * it. As a layer `minzoom` it is evaluated against the LIVE zoom, every
+ * frame, by mapbox -- and it also means the second vector source pays
+ * nothing above the globe, because Style._updateSources marks a source
+ * unused when every layer that reads it is hidden by its zoom range.
+ */
 export const LABEL_MIN_ZOOM = 8;
+
+/**
+ * Where the scene starts naming neighbourhoods as well as towns. Two
+ * zoom steps past the first label, so a city arrives before its
+ * districts do rather than with them.
+ */
+export const LOCALITY_MIN_ZOOM = LABEL_MIN_ZOOM + 2;
 
 /*
  * The fog presets are the design's three moods, and Standard's light
@@ -136,6 +156,52 @@ const LIGHT_PRESETS: Record<
   night: { dark: 'night', light: 'dusk' },
 };
 
+/*
+ * STANDARD DRAWS NO TEXT AT ALL, AND THAT IS NOT A PREFERENCE.
+ *
+ * The site shipped with showPlaceLabels and showRoadLabels on above z8,
+ * and the two routes that sit above z8 -- /about at 10.5 and a project
+ * detail at 10 -- both carry the `night` fog. On the two light themes
+ * that resolved to Standard's `dusk` preset, whose labels are white
+ * because it is drawn for a dark basemap, and the owner saw "a TON of
+ * text coming through as just white".
+ *
+ * The obvious repair is to lift the preset so Standard picks a dark
+ * label instead. It does not work, and the reason is our own tier 1.
+ *
+ * mapbox-gl applies an import's colour theme to a symbol layer's TEXT
+ * exactly as it does to a fill: SymbolBucket.createArrays hands the
+ * bucket's lut to the text binder, and the bucket's lut is
+ * style.getLut(scope) for the source's scope, which for everything
+ * inside Standard is `basemap`. So Standard's label colour is an INPUT
+ * to styles/tokens/lut.ts's ramp, not an output, and the ramp is a tone
+ * compressor: every source luma from the floor up is mapped onto
+ * deep -> land -> highlight. Measured on the shipped palettes, that span
+ * is about 1.4:1 end to end on a light theme. White labels come out at
+ * 1.21:1 against the land beside them on paper, 1.15:1 on chalk; dark
+ * labels come out at 1.36:1 and 1.38:1. Neither is legible, and no
+ * lightPreset moves either, because both ends of the source range land
+ * in the same place.
+ *
+ * Nor can the colour be set directly. setPaintProperty resolves its
+ * layer through Style._checkLayer -> getOwnLayer -> this._layers, the
+ * ROOT style's own layers, so a layer inside the basemap fragment is not
+ * addressable at all.
+ *
+ * So the toggles are off -- all four of them, at every zoom -- and the
+ * scene names places itself, in mono, from its own symbol layers in the
+ * root scope, where there is no LUT and a palette token arrives
+ * unchanged. scene/layers/sets.ts's `basemapLabelsSet` is that, and
+ * LABEL_MIN_ZOOM above is where it starts.
+ *
+ * WHAT WAS DELIBERATELY NOT CHANGED. The light-preset table and `faded`
+ * are both untouched. They were the suspects, and they are not the
+ * cause: with no basemap text left, the preset only moves the sun on
+ * fills that the LUT re-colours anyway, and the owner's report is that
+ * the basemap colouring already reads correctly. Changing either would
+ * be changing the one part of this that is working.
+ */
+
 /**
  * Tier 2, as data. `faded` on a light theme pulls Standard's own colour
  * back so the LUT's wash is what the eye reads; on a dark theme the LUT
@@ -143,18 +209,14 @@ const LIGHT_PRESETS: Record<
  */
 export const basemapConfig = (
   fog: FogPreset,
-  zoom: number,
   light: boolean,
 ): BasemapConfig => {
-  const labels = zoom >= LABEL_MIN_ZOOM;
   const preset = LIGHT_PRESETS[fog];
   return {
     lightPreset: light ? preset.light : preset.dark,
     theme: light ? 'faded' : 'default',
-    showRoadLabels: labels,
-    showPlaceLabels: labels,
-    // The scene names places itself, in mono, through its own symbol
-    // layers. Standard's POI and transit labels are never wanted.
+    showRoadLabels: false,
+    showPlaceLabels: false,
     showPointOfInterestLabels: false,
     showTransitLabels: false,
     show3dObjects: false,

@@ -10,6 +10,7 @@ import {
 import { createLayerRegistry } from 'scene/layers/registry';
 import {
   anchorFromEvent,
+  BASEMAP_LABELS_SET,
   HISTORY_LABELS,
   HISTORY_LINE,
   HISTORY_POINTS,
@@ -17,6 +18,8 @@ import {
   HISTORY_SET,
   layerSetsFor,
   type LayerSetOptions,
+  LOCALITY_LABELS,
+  PLACE_LABELS,
   PROJECT_SITES_SET,
   projectSites,
   SITE_COUNTS,
@@ -438,17 +441,30 @@ describe('the route layer sets', () => {
     }
   });
 
+  /*
+   * The order is the assertion as much as the membership. The basemap's
+   * own place names go UNDER the route's content, because mapbox places
+   * symbols from the top of the stack down -- so the site's name for a
+   * place has to be the one that wins a collision with the tileset's.
+   */
   it('gives projects the site points and about the stops', () => {
     expect(
       layerSetsFor('projects', options()).map((one) => one.id),
     ).toEqual([PROJECT_SITES_SET]);
     expect(
       layerSetsFor('about', options()).map((one) => one.id),
-    ).toEqual([HISTORY_SET]);
+    ).toEqual([BASEMAP_LABELS_SET, HISTORY_SET]);
   });
 
-  it('gives the held detail route nothing of its own', () => {
-    expect(layerSetsFor('projectDetail', options())).toEqual([]);
+  /*
+   * The held detail route has no data of its own and still has not. What
+   * it has is a place: 1d is a city at z10 under terrain, and with
+   * Standard's labels off it would otherwise carry no text at all.
+   */
+  it('gives the held detail route the place names and nothing else', () => {
+    expect(
+      layerSetsFor('projectDetail', options()).map((one) => one.id),
+    ).toEqual([BASEMAP_LABELS_SET]);
   });
 
   it('mounts cleanly on a real diff between two routes', () => {
@@ -457,8 +473,12 @@ describe('the route layer sets', () => {
     registry.sync(map, layerSetsFor('hello', options()));
     registry.sync(map, layerSetsFor('projects', options()));
     registry.sync(map, layerSetsFor('projectDetail', options()));
-    expect(map.layers.size).toBe(0);
-    expect(map.sources.size).toBe(0);
+    expect([...map.layers.keys()]).toEqual([
+      PLACE_LABELS,
+      LOCALITY_LABELS,
+    ]);
+    expect([...map.sources.keys()]).toEqual([BASEMAP_LABELS_SET]);
+    // The site layers' handlers went with them.
     expect(map.bound).toEqual([]);
   });
 });
@@ -723,9 +743,19 @@ describe('the project sites', () => {
   });
 });
 
+/** /about's own set, looked up by id rather than by draw position. */
+const aboutStops = (overrides: Partial<LayerSetOptions> = {}) => {
+  const set = layerSetsFor('about', options(overrides)).find(
+    (one) => one.id === HISTORY_SET,
+  );
+  if (!set)
+    throw new Error('/about no longer mounts the history set');
+  return set;
+};
+
 describe('the history stops', () => {
   it('builds each layer with the paint its own patches describe', () => {
-    const work = layerSetsFor('about', options())[0];
+    const work = aboutStops();
     const patches = work.paint(FALLBACK_PALETTE);
     for (const entry of work.layers) {
       const paint = entry.paint as Record<string, unknown>;
@@ -752,7 +782,7 @@ describe('the history stops', () => {
    * whatever the route selected; see test/scene-view.test.tsx.
    */
   it('draws every stop, and derives no live one from the data', () => {
-    const stops = layerSetsFor('about', options())[0];
+    const stops = aboutStops();
     const source = stops.sources.find(
       (one) => one.id === HISTORY_SET,
     );
@@ -770,7 +800,7 @@ describe('the history stops', () => {
 
   it('hides the stop labels with the rest of the map type', () => {
     const opacity = (labels: boolean) =>
-      layerSetsFor('about', options({ labels }))[0]
+      aboutStops({ labels })
         .paint(FALLBACK_PALETTE)
         .find(
           (patch) =>
@@ -905,6 +935,39 @@ const RESTING = {
     },
     { layer: HISTORY_LABELS, property: 'text-halo-width', value: 1 },
   ],
+  /*
+   * The names the site draws in Standard's place. The colours are the
+   * UI's own text tokens, straight off the palette and untouched -- which
+   * is the whole point of drawing them at the root scope. A value here
+   * that is not one of those is the bug this set exists to fix, coming
+   * back.
+   */
+  basemapLabels: [
+    {
+      layer: PLACE_LABELS,
+      property: 'text-color',
+      value: 'rgb(193, 193, 193)',
+    },
+    {
+      layer: PLACE_LABELS,
+      property: 'text-halo-color',
+      value: 'rgb(15.84, 15.84, 15.84)',
+    },
+    { layer: PLACE_LABELS, property: 'text-halo-width', value: 1 },
+    { layer: PLACE_LABELS, property: 'text-opacity', value: 1 },
+    {
+      layer: LOCALITY_LABELS,
+      property: 'text-color',
+      value: 'rgb(193, 193, 193)',
+    },
+    {
+      layer: LOCALITY_LABELS,
+      property: 'text-halo-color',
+      value: 'rgb(15.84, 15.84, 15.84)',
+    },
+    { layer: LOCALITY_LABELS, property: 'text-halo-width', value: 1 },
+    { layer: LOCALITY_LABELS, property: 'text-opacity', value: 1 },
+  ],
 } satisfies Record<string, PaintPatch[]>;
 
 /** The route states a set is built under, beyond the resting one. */
@@ -948,14 +1011,16 @@ const SCENES = [
 
 describe('the paint the design actually asks for', () => {
   it.each([
-    ['projects', RESTING.projects],
-    ['about', RESTING.about],
+    ['projects', PROJECT_SITES_SET, RESTING.projects],
+    ['about', HISTORY_SET, RESTING.about],
+    ['about', BASEMAP_LABELS_SET, RESTING.basemapLabels],
   ] as const)(
-    'pins every %s value, not just its source',
-    (scene, expected) => {
-      expect(
-        layerSetsFor(scene, options())[0].paint(FALLBACK_PALETTE),
-      ).toEqual(expected);
+    'pins every %s/%s value, not just its source',
+    (scene, setId, expected) => {
+      const set = layerSetsFor(scene, options()).find(
+        (one) => one.id === setId,
+      );
+      expect(set?.paint(FALLBACK_PALETTE)).toEqual(expected);
     },
   );
 

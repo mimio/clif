@@ -18,6 +18,7 @@ import type {
   PaintPatch,
   SceneListener,
 } from 'scene/layers/types';
+import { LABEL_MIN_ZOOM, LOCALITY_MIN_ZOOM } from 'scene/theme';
 import type { Palette } from 'styles/tokens/palette';
 
 /*
@@ -28,9 +29,18 @@ import type { Palette } from 'styles/tokens/palette';
  *   projects      the clustered project sites, with the three Colorado
  *                 anchors collapsed into VAIL VALLEY at world zoom.
  *   about         the six work-history stops, their chronological line and
- *                 the ring on the live one.
- *   detail        nothing. Artboard 1d is terrain and the shader plane;
- *                 the map is held and carries no data of its own.
+ *                 the ring on the live one, over the place names.
+ *   detail        the place names. Artboard 1d is terrain and the shader
+ *                 plane and the map is held, so it carries no data of its
+ *                 own -- but it is a CITY at z10, and the names of the
+ *                 places on it are now the site's to draw.
+ *
+ * THAT LAST BAND IS NEW, AND IT IS HERE BECAUSE IT CANNOT BE ANYWHERE
+ * ELSE. Standard used to name places itself above z8, in its own font
+ * and at a colour this codebase cannot reach; on the two light themes
+ * the result was white text on a bright ground. `basemapLabelsSet`
+ * below, and scene/theme.ts's basemapConfig, are the two halves of the
+ * answer.
  *
  * HELLO AND THE 404 USED TO CARRY A MID BAND AND DO NOT ANY MORE.
  * The prototype's layer-stack note sketched one -- "mid: great-circle
@@ -58,6 +68,10 @@ import type { Palette } from 'styles/tokens/palette';
 
 export const PROJECT_SITES_SET = 'project-sites';
 export const HISTORY_SET = 'history-stops';
+export const BASEMAP_LABELS_SET = 'basemap-labels';
+
+export const PLACE_LABELS = 'basemap-place-labels';
+export const LOCALITY_LABELS = 'basemap-locality-labels';
 
 export const SITE_POINTS = 'project-site-points';
 export const SITE_LABELS = 'project-site-labels';
@@ -68,8 +82,40 @@ export const HISTORY_POINTS = 'history-stop-points';
 export const HISTORY_RING = 'history-stop-ring';
 export const HISTORY_LABELS = 'history-stop-labels';
 
+/*
+ * THE MAP'S TYPE, IN ONE PLACE.
+ *
+ * Every word on the map is set in this: the site's own mono at 11px,
+ * tracked out, uppercase, over a halo of the ground. It used to be the
+ * scene's own labels only -- the basemap's place and road names were
+ * Standard's, in Standard's font, at a colour no call in this codebase
+ * can reach (scene/theme.ts's basemapConfig has the whole of why). Those
+ * are off now, and everything below draws through `mapType` instead, so
+ * "the map is set in the UI's mono" is one definition rather than a
+ * habit that three call sites happen to share.
+ */
+
 /** Mapbox-hosted mono, with the catalogue's universal fallback. */
 const MONO_FONT = ['Roboto Mono Light', 'Arial Unicode MS Regular'];
+
+/** The one size map type is set at, and the one step below it. */
+export const MAP_TYPE_SIZE = 11;
+export const MAP_TYPE_SIZE_QUIET = 10;
+
+/** Wide enough to read as a caption rather than as a word. */
+const TRACKING = 0.14;
+
+/** One pixel of ground around a glyph is what terrain needs. */
+export const HALO_WIDTH = 1;
+
+/** The shared layout half of a map label. */
+const mapType = (
+  size: number = MAP_TYPE_SIZE,
+): Record<string, unknown> => ({
+  'text-font': MONO_FONT,
+  'text-size': size,
+  'text-letter-spacing': TRACKING,
+});
 
 /** Every colour on the scene passes through sh() before it is drawn. */
 const shaded = (
@@ -83,8 +129,29 @@ const shaded = (
     k,
   )}, ${palette.sh(rgb[2], 2, k)})`;
 
-/** The halo behind map type: the ground, pushed back a little. */
-const haloColor = (palette: Palette): string =>
+/*
+ * THE HALO BEHIND MAP TYPE: THE GROUND, PUSHED BACK A LITTLE.
+ *
+ * Measured against what the colour theme actually puts under a label
+ * (styles/tokens/lut.ts's basemapColor), this does two different jobs on
+ * the two kinds of theme, and it is worth saying which:
+ *
+ *   dark themes  the ink is light and this is near-black, so the halo
+ *                is 10-16:1 from the ink and about 3:1 from the land.
+ *                That is what carries a label over a bright road fill,
+ *                which is the one basemap surface the ink cannot beat.
+ *   light themes the ground and the themed land are within 1.05:1 of
+ *                each other, so the halo separates almost nothing -- and
+ *                does not need to. A light theme's ink runs 5.1:1
+ *                against the DARKEST colour the ramp can produce and
+ *                7.1:1 against its land, unaided.
+ *
+ * It is left at the ground on both rather than lifted on light themes
+ * because there is nowhere to lift it to: paper's --map-land is
+ * rgb(246, 241, 233), so a brighter halo is barely a halo. sh() is also
+ * a no-op at k >= 1 on a light theme, by design.
+ */
+export const haloColor = (palette: Palette): string =>
   shaded(palette, palette.space, 0.72);
 
 const paintOf = (
@@ -251,7 +318,11 @@ const projectSitesSet = (options: LayerSetOptions): LayerSet => {
       property: 'text-halo-color',
       value: haloColor(palette),
     },
-    { layer: SITE_LABELS, property: 'text-halo-width', value: 1 },
+    {
+      layer: SITE_LABELS,
+      property: 'text-halo-width',
+      value: HALO_WIDTH,
+    },
     {
       layer: SITE_COUNTS,
       property: 'text-color',
@@ -267,17 +338,19 @@ const projectSitesSet = (options: LayerSetOptions): LayerSet => {
       property: 'text-halo-color',
       value: haloColor(palette),
     },
-    { layer: SITE_COUNTS, property: 'text-halo-width', value: 1 },
+    {
+      layer: SITE_COUNTS,
+      property: 'text-halo-width',
+      value: HALO_WIDTH,
+    },
   ];
 
   const patches = paint(options.palette);
   const text = (offsetY: number) => ({
+    ...mapType(),
     'text-field': ['get', 'label'],
-    'text-font': MONO_FONT,
-    'text-size': 11,
     'text-anchor': 'left',
     'text-offset': [1.1, offsetY],
-    'text-letter-spacing': 0.14,
   });
 
   return {
@@ -444,7 +517,7 @@ const historySet = (options: LayerSetOptions): LayerSet => {
     {
       layer: HISTORY_LABELS,
       property: 'text-halo-width',
-      value: 1,
+      value: HALO_WIDTH,
     },
   ];
 
@@ -503,12 +576,10 @@ const historySet = (options: LayerSetOptions): LayerSet => {
           type: 'symbol',
           source: HISTORY_SET,
           layout: {
+            ...mapType(),
             'text-field': ['get', 'company'],
-            'text-font': MONO_FONT,
-            'text-size': 11,
             'text-anchor': 'left',
             'text-offset': [1.5, 0.3],
-            'text-letter-spacing': 0.14,
           },
         },
         patches,
@@ -519,6 +590,168 @@ const historySet = (options: LayerSetOptions): LayerSet => {
   };
 };
 
+/* ---- the basemap's own place names ------------------------------------
+ *
+ * THE SITE NAMES THE WORLD, BECAUSE MAPBOX CANNOT BE ASKED TO.
+ *
+ * Mapbox Standard's place and road labels are off (scene/theme.ts's
+ * basemapConfig says why, and the short version is that tier 1's colour
+ * LUT reaches a symbol layer's text as surely as it reaches a fill, so
+ * Standard's label colour is an input to the terrain ramp rather than a
+ * colour the site can choose -- and setPaintProperty cannot address a
+ * layer inside the `basemap` fragment at all). This is what replaces
+ * them: the same names, from the same tileset Standard reads, drawn at
+ * the ROOT scope where there is no LUT and `palette.subInk` arrives as
+ * itself.
+ *
+ * WHAT IT COSTS, PLAINLY. A second vector source. Standard's own copy of
+ * mapbox-streets-v8 lives inside the fragment and Style.getOwnSource
+ * only sees the root's, so a root layer cannot name it: addLayer
+ * resolves a layer's source as makeFQID(source, layer.scope), and an
+ * added layer's scope is always the root's. The tiles are therefore
+ * fetched twice while the map is above LABEL_MIN_ZOOM. They are not
+ * fetched at all below it -- Style._updateSources clears `used` on every
+ * source whose layers are all hidden by their zoom range, so the globe
+ * routes pay nothing -- and the two routes that do pay are the two that
+ * used to be showing Standard's labels anyway.
+ *
+ * (The dodge of naming the fragment's source by its fully-qualified id
+ * was checked and rejected. Style.getLayerSourceCache does look the
+ * merged caches up by FQID, and the separator is just a character, so
+ * `mapbox.mapbox-streets-v8\u001Fbasemap` would probably resolve -- but
+ * `getOwnLayerSourceCache`, which addLayer and the change tracker use,
+ * would not, the separator is private, and the id of the source inside
+ * Standard is not something this repo can see without a token. A
+ * mechanism that cannot be tested and fails silently is the exact shape
+ * of the bug this whole file's history is about.)
+ *
+ * NO ROADS. Standard's road labels are off and nothing redraws them.
+ * They were the bulk of the text the owner objected to; at the two zooms
+ * that show any label at all the tileset carries little more than
+ * motorway names; and a line-placed label on a 60-degree pitch is the
+ * least legible thing on the map. The mechanism is here if they are ever
+ * wanted -- one more layer on the source that is already loaded.
+ */
+
+/** Standard reads this tileset; so, separately, do we. */
+const STREETS_SOURCE = 'mapbox://mapbox.mapbox-streets-v8';
+
+/** The tileset's layer of named populated places. */
+const PLACE_LAYER = 'place_label';
+
+/**
+ * The English name where the tile carries one, the local name where it
+ * does not. The site is written in English and its own labels are, so a
+ * map that switches script halfway across a border is not the same map.
+ */
+const PLACE_NAME = ['coalesce', ['get', 'name_en'], ['get', 'name']];
+
+const placeLayer = (
+  id: string,
+  placeClass: string,
+  minzoom: number,
+  size: number,
+  patches: PaintPatch[],
+): LayerEntry =>
+  layer(
+    {
+      id,
+      type: 'symbol',
+      source: BASEMAP_LABELS_SET,
+      'source-layer': PLACE_LAYER,
+      minzoom,
+      filter: ['==', ['get', 'class'], placeClass],
+      layout: {
+        ...mapType(size),
+        'text-field': PLACE_NAME,
+        // The scene's own labels are uppercased in JS because they come
+        // from content; these come from a tile, so the same treatment
+        // has to be a layout property.
+        'text-transform': 'uppercase',
+        'text-max-width': 7,
+        // Tracked-out caps need room around them or the collision box
+        // hugs the glyphs and two names touch.
+        'text-padding': 4,
+        /*
+         * Density is left to mapbox's collision detection rather than to
+         * a symbolrank cut-off. Nothing in this repo can see a basemap,
+         * so a hand-tuned rank per zoom would be a number chosen blind;
+         * the sort key gives collision the ranking it needs and lets the
+         * bigger place win, which is the same answer without the guess.
+         */
+        'symbol-sort-key': ['get', 'symbolrank'],
+        // Both routes that show these are terrain routes. Without this a
+        // label sits at sea level and a ridge draws over it.
+        'symbol-z-elevate': true,
+      },
+    },
+    patches,
+  );
+
+const basemapLabelsSet = (options: LayerSetOptions): LayerSet => {
+  const { labels } = options;
+
+  const paint = (palette: Palette): PaintPatch[] =>
+    [
+      [PLACE_LABELS, palette.subInk],
+      [LOCALITY_LABELS, palette.mutedInk],
+    ].flatMap(([id, ink]) => [
+      { layer: id, property: 'text-color', value: ink },
+      {
+        layer: id,
+        property: 'text-halo-color',
+        value: haloColor(palette),
+      },
+      {
+        layer: id,
+        property: 'text-halo-width',
+        value: HALO_WIDTH,
+      },
+      {
+        layer: id,
+        property: 'text-opacity',
+        value: labels ? 1 : 0,
+      },
+    ]);
+
+  const patches = paint(options.palette);
+
+  return {
+    id: BASEMAP_LABELS_SET,
+    sources: [
+      {
+        id: BASEMAP_LABELS_SET,
+        spec: { type: 'vector', url: STREETS_SOURCE },
+      },
+    ],
+    layers: [
+      placeLayer(
+        PLACE_LABELS,
+        'settlement',
+        LABEL_MIN_ZOOM,
+        MAP_TYPE_SIZE,
+        patches,
+      ),
+      placeLayer(
+        LOCALITY_LABELS,
+        'settlement_subdivision',
+        LOCALITY_MIN_ZOOM,
+        MAP_TYPE_SIZE_QUIET,
+        patches,
+      ),
+    ],
+    interactions: [],
+    paint,
+  };
+};
+
+/*
+ * `basemapLabelsSet` goes FIRST on a route that has both, which puts its
+ * layers UNDER the route's own. That is not only draw order: mapbox
+ * places symbols from the top of the stack down (PauseablePlacement
+ * walks _mergedOrder backwards), so the layer on top wins a collision.
+ * The site's own names for a place have to beat the tileset's.
+ */
 const BUILDERS: Record<
   SceneId,
   ((options: LayerSetOptions) => LayerSet)[]
@@ -526,8 +759,8 @@ const BUILDERS: Record<
   hello: [],
   notFound: [],
   projects: [projectSitesSet],
-  about: [historySet],
-  projectDetail: [],
+  about: [basemapLabelsSet, historySet],
+  projectDetail: [basemapLabelsSet],
 };
 
 /** The sets a route wants mounted, in draw order. */
