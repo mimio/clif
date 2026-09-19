@@ -2,7 +2,7 @@
 //
 // The previous implementation posted to Universal Analytics, which Google
 // shut down in July 2023. Set NEXT_PUBLIC_GA_MEASUREMENT_ID to a GA4
-// measurement id ("G-XXXXXXXXXX") to enable tracking; pages/_app.tsx loads
+// measurement id ("G-XXXXXXXXXX") to enable tracking; pages/_app.page.tsx loads
 // the gtag script when it is set. Without it every call below is a no-op.
 export const MEASUREMENT_ID =
   process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? '';

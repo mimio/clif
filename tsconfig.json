@@ -15,6 +15,9 @@
     // file whenever it is missing, so it stays.
     "allowJs": true,
     "skipLibCheck": true,
+    // vitest's `globals: true` puts describe/it/expect in scope; listing the
+    // package here is what makes them typed in test files.
+    "types": ["vitest/globals"],
     "incremental": true,
     "paths": {
       "*": ["./*"]
@@ -26,5 +29,5 @@
     ]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "**/*.mts"],
-  "exclude": ["node_modules", ".next", ".smoke-output"]
+  "exclude": ["node_modules", ".next", "coverage", "test-results"]
 }

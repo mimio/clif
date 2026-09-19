@@ -1,0 +1,1504 @@
+/*
+ * The eight baked themes, ported verbatim from the design bundle
+ * (tokens/themes.css). Switch by setting data-theme on <html>; the
+ * blocking script in styles/theme-bootstrap.ts does that before first
+ * paint, so the document never shows yellow and then swaps.
+ *
+ * Every value here is DERIVED, not eyeballed (design inventory 1.9):
+ * terrain is the ground LIFTED, small accent text is the first ladder step
+ * clearing 4.5:1, and gradient stops are opaque mixes over the theme's own
+ * ground so a stage never reveals the page behind it.
+ *
+ * The bundle repeats the whole yellow block twice, once as :root and once
+ * as [data-theme="yellow"]. They are byte-identical, so they share one
+ * selector list here: a value is written once in this codebase or not at
+ * all.
+ *
+ * This file is imported LAST of the token files. It is the only one that
+ * may restate a token colors.css sets, and where they collide it wins.
+ */
+:root,
+[data-theme='yellow'] {
+  color-scheme: dark;
+
+  --clif-accent: #ffe520;
+  --accent-on-dark: rgb(255, 229, 32);
+  --accent2-on-dark: rgb(255, 138, 43);
+  /* the artboard page is a fixed near-black: the page word needs its own lifted pair */
+  --grad-word-on-dark: linear-gradient(
+    104deg,
+    rgb(255, 229, 32) 0%,
+    rgb(255, 229, 32) 34%,
+    rgb(255, 138, 43) 100%
+  );
+  --clif-accent-2: #ff8a2b;
+  --lip: rgb(207, 100, 54);
+  --lip-hi: rgb(227, 138, 107);
+  --lip-lo: rgb(108, 52, 28);
+  /* the second colour as ink and line: "where you're going" — prev/next, travel paths */
+  --accent2-text: rgb(255, 179, 116);
+  --accent2-line: rgba(255, 138, 43, 0.6);
+  --accent2-solid: rgb(162, 92, 35);
+  --iris-rim: rgb(107, 58, 18);
+  --clif-yellow-100: #ffe520;
+  --clif-yellow-60: rgba(255, 229, 32, 0.6);
+  --clif-yellow-35: rgba(255, 229, 32, 0.35);
+  --clif-yellow-30: rgba(255, 229, 32, 0.3);
+  --clif-yellow-12: rgba(255, 229, 32, 0.12);
+  --clif-yellow-20: rgba(255, 229, 32, 0.2);
+  --clif-yellow-07: rgba(255, 229, 32, 0.07);
+
+  --surface-ground: #161616;
+  --shadow-cast: rgba(0, 0, 0, 0.5);
+  /* keycap body: the skirt is the cap's side wall, the well the plate it bottoms out on */
+  --cap-skirt: rgb(72, 51, 34);
+  --cap-face-top: rgba(127, 80, 42, 0.34);
+  --cap-face-solid-top: rgb(64, 48, 35);
+  --cap-face-solid-bottom: rgb(49, 40, 32);
+  --cap-lip: rgba(255, 255, 255, 0.22);
+  --cap-lip-hot: rgba(255, 255, 255, 0.3);
+  --cap-lip-press: rgba(255, 255, 255, 0.1);
+  --cap-shade: rgba(0, 0, 0, 0.4);
+  --cap-shade-press: rgba(0, 0, 0, 0.5);
+  --cap-glass: blur(4px) saturate(1.1) contrast(1.14) brightness(1.18);
+  --cap-face-top-hot: rgba(127, 80, 42, 0.82);
+  --cap-glass-hot: blur(6px) saturate(1) contrast(1) brightness(1.04);
+  --cap-wall-top: rgba(41, 41, 41, 0.22);
+  --cap-wall-bottom: rgba(32, 32, 32, 0.26);
+  --surface-sheet: rgba(32, 32, 32, 0.88);
+  --cap-face-bottom: rgba(103, 66, 36, 0.2);
+  --cap-face-bottom-hot: rgba(103, 66, 36, 0.48);
+  /* keycap legends live on the cap top (--surface-raised), never on the stage ground */
+  --cap-ink: rgb(235, 235, 235);
+  --cap2-ink: rgb(193, 193, 193);
+  --cap-ink-hot: rgb(255, 255, 255);
+  --cap-well: rgb(40, 29, 20);
+  --sclera: #edeae3;
+  --sclera-edge: #9c9890;
+  --eye-shadow: 0 3px 9px rgba(0, 0, 0, 0.55);
+  --surface-raised: #202020;
+  --surface-hover: rgb(41, 41, 41);
+
+  --text-strong: #fff;
+  --text-body: #ebebeb;
+  --ink-on-dark: rgb(235, 235, 235);
+  --text-secondary: rgb(193, 193, 193);
+  --ink-on-dark-muted: rgb(133, 133, 133);
+  --text-muted: rgb(193, 193, 193);
+  /* de-emphasis, but legible: measured against --surface-raised, where it is actually used */
+  --text-faint: rgb(194, 194, 194);
+  --text-accent: #ffe520;
+  --text-on-accent: #161616;
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
+  --text-accent-small: rgb(255, 229, 32);
+  /*
+   * Accent ink for running copy -- Text's body2 (18px) and detail2 (14px).
+   * Declared once here and inherited by every theme, because on six of the
+   * eight the full-strength accent already clears 4.5:1 at those sizes and
+   * darkening it would cost the brand colour for nothing: on rust and pink
+   * --text-accent-small is a PASTEL lift for legibility against a dark
+   * ground, and running copy painted with it would go washed out.
+   *
+   * Only the two paper-white grounds restate it, below. The three accent
+   * inks, tightest first: -small (9-11px), -body (14-18px), plain
+   * --text-accent (24px and up, where AA only asks 3:1).
+   */
+  --text-accent-body: var(--text-accent);
+  /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
+  --tab-fill: #ffe520;
+  --tab-ink: #161616;
+
+  --border-cta-soft: 1px solid rgba(255, 229, 32, 0.3);
+  --border-color: #232323;
+  --border-neutral: 1px solid #232323;
+  --border-content: 1px solid #202020;
+
+  --map-space: #161616;
+  --map-land: rgb(89, 75, 64);
+  --map-deep: rgb(53, 46, 39);
+
+  /*
+   * THE CARTOGRAPHY, IN THIS THEME'S OWN COLOURS.
+   *
+   * Mapbox Standard names each feature class as a config key, so these
+   * are the colours the basemap is actually painted in -- not a grade
+   * over the colours Mapbox ships. A forest here is not a tinted green;
+   * it is this theme's second accent at the tone a forest wants. See
+   * styles/tokens/cartography.ts for which key each one drives.
+   *
+   * Every surface is a hue this theme already owns -- the primary accent
+   * for water and the line work, the secondary for ground cover -- at a
+   * tone stated as a contrast ratio against --map-land and solved for,
+   * because HSL lightness is not perceptual and a ladder written in it
+   * comes out even on one theme and collapsed on the next. Water is the
+   * exception on a dark theme: it is stated upward from --surface-ground
+   * instead, or it lands darker than the page behind the globe.
+   *
+   * They are literals so they can be overridden one at a time. The
+   * contract they have to keep is in test/map-text.test.ts: map type
+   * clears AA against every one of them, by ink or by halo.
+   */
+  --map-water: rgb(57, 55, 34);
+  --map-green: rgb(81, 64, 49);
+  --map-building: rgb(117, 96, 80);
+  --map-road: rgb(148, 129, 113);
+  --map-road-major: rgb(173, 169, 133);
+  --map-boundary: rgb(134, 126, 58);
+  --map-contour: rgba(255, 229, 32, 0.15);
+  --map-atmosphere: rgba(255, 229, 32, 0.2);
+  --map-atmosphere-2: rgba(255, 138, 43, 0.14);
+
+  --grad-word: linear-gradient(
+    104deg,
+    #ffe520 0%,
+    #ffe520 34%,
+    #ff8a2b 100%
+  );
+  --grad-ground: linear-gradient(
+    168deg,
+    #161616 0%,
+    #161616 52%,
+    rgb(38, 30, 23) 100%
+  );
+  --grad-horizon: linear-gradient(
+    180deg,
+    #161616 0%,
+    rgb(45, 34, 24) 62%,
+    rgb(69, 63, 24) 100%
+  );
+  --grad-card: linear-gradient(
+    150deg,
+    rgba(255, 229, 32, 0.12) 0%,
+    rgba(255, 138, 43, 0.09) 100%
+  );
+
+  /* shadow is themed too: paper grounds cast an ink-tinted shadow, dark grounds a deep one,
+     both with a breath of the second colour so the edge belongs to the palette */
+  --shadow-panel:
+    0 24px 60px var(--shadow-cast), 0 0 0 1px rgba(255, 138, 43, 0.07);
+  --shadow-plane: 0 40px 90px var(--shadow-cast);
+
+  --vignette-left: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.24) 45%,
+    rgba(0, 0, 0, 0) 70%
+  );
+  --vignette-night: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.5) 0%,
+    rgba(0, 0, 0, 0.2) 70%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  /* the chrome carries its own protection — it sits on lifted terrain, not on the ground */
+  --chrome-scrim: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.6) 58%,
+    rgba(0, 0, 0, 0.72) 100%
+  );
+  --scrim-wide: radial-gradient(
+    ellipse 68% 140% at -10% 50%,
+    rgba(0, 0, 0, 0.95) 0%,
+    rgba(0, 0, 0, 0.9) 12%,
+    rgba(0, 0, 0, 0.72) 30%,
+    rgba(0, 0, 0, 0.55) 45%,
+    rgba(0, 0, 0, 0.38) 60%,
+    rgba(0, 0, 0, 0.24) 72%,
+    rgba(0, 0, 0, 0.12) 84%,
+    rgba(0, 0, 0, 0.05) 92%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  --scrim-center: radial-gradient(
+    ellipse 46% 40% at 50% 52%,
+    rgba(0, 0, 0, 0.92) 0%,
+    rgba(0, 0, 0, 0.88) 46%,
+    rgba(0, 0, 0, 0.55) 74%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  --scrim-sheet: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.26) 22%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+/* lime — cooler, sharper — reads as instrumentation */
+[data-theme='lime'] {
+  color-scheme: dark;
+
+  --clif-accent: #c8f04b;
+  --accent-on-dark: rgb(200, 240, 75);
+  --accent2-on-dark: rgb(75, 227, 154);
+  /* the artboard page is a fixed near-black: the page word needs its own lifted pair */
+  --grad-word-on-dark: linear-gradient(
+    104deg,
+    rgb(200, 240, 75) 0%,
+    rgb(200, 240, 75) 34%,
+    rgb(75, 227, 154) 100%
+  );
+  --clif-accent-2: #4be39a;
+  --lip: rgb(126, 140, 104);
+  --lip-hi: rgb(180, 161, 136);
+  --lip-lo: rgb(66, 73, 54);
+  /* the second colour as ink and line: "where you're going" — prev/next, travel paths */
+  --accent2-text: rgb(75, 227, 154);
+  --accent2-line: rgba(75, 227, 154, 0.6);
+  --accent2-solid: rgb(52, 144, 99);
+  --iris-rim: rgb(32, 95, 65);
+  --clif-yellow-100: #c8f04b;
+  --clif-yellow-60: rgba(200, 240, 75, 0.6);
+  --clif-yellow-35: rgba(200, 240, 75, 0.35);
+  --clif-yellow-30: rgba(200, 240, 75, 0.3);
+  --clif-yellow-12: rgba(200, 240, 75, 0.12);
+  --clif-yellow-20: rgba(200, 240, 75, 0.2);
+  --clif-yellow-07: rgba(200, 240, 75, 0.07);
+
+  --surface-ground: #121410;
+  --shadow-cast: rgba(0, 0, 0, 0.5);
+  /* keycap body: the skirt is the cap's side wall, the well the plate it bottoms out on */
+  --cap-skirt: rgb(36, 65, 47);
+  --cap-face-top: rgba(52, 114, 81, 0.34);
+  --cap-face-solid-top: rgb(39, 60, 49);
+  --cap-face-solid-bottom: rgb(35, 47, 40);
+  --cap-lip: rgba(255, 255, 255, 0.22);
+  --cap-lip-hot: rgba(255, 255, 255, 0.3);
+  --cap-lip-press: rgba(255, 255, 255, 0.1);
+  --cap-shade: rgba(0, 0, 0, 0.4);
+  --cap-shade-press: rgba(0, 0, 0, 0.5);
+  --cap-glass: blur(4px) saturate(1.1) contrast(1.14) brightness(1.18);
+  --cap-face-top-hot: rgba(52, 114, 81, 0.82);
+  --cap-glass-hot: blur(6px) saturate(1) contrast(1) brightness(1.04);
+  --cap-wall-top: rgba(36, 39, 33, 0.22);
+  --cap-wall-bottom: rgba(27, 30, 24, 0.26);
+  --surface-sheet: rgba(27, 30, 24, 0.88);
+  --cap-face-bottom: rgba(42, 93, 66, 0.2);
+  --cap-face-bottom-hot: rgba(42, 93, 66, 0.48);
+  /* keycap legends live on the cap top (--surface-raised), never on the stage ground */
+  --cap-ink: rgb(233, 237, 228);
+  --cap2-ink: rgb(195, 200, 194);
+  --cap-ink-hot: rgb(255, 255, 255);
+  --cap-well: rgb(20, 36, 26);
+  --sclera: #edeae3;
+  --sclera-edge: #9c9890;
+  --eye-shadow: 0 3px 9px rgba(0, 0, 0, 0.55);
+  --surface-raised: #1b1e18;
+  --surface-hover: rgb(36, 39, 33);
+
+  --text-strong: #fff;
+  --text-body: #e9ede4;
+  --ink-on-dark: rgb(233, 237, 228);
+  --text-secondary: rgb(195, 200, 194);
+  --ink-on-dark-muted: rgb(130, 139, 124);
+  --text-muted: rgb(195, 200, 194);
+  /* de-emphasis, but legible: measured against --surface-raised, where it is actually used */
+  --text-faint: rgb(193, 194, 192);
+  --text-accent: #c8f04b;
+  --text-on-accent: #121410;
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
+  --text-accent-small: rgb(200, 240, 75);
+  /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
+  --tab-fill: #c8f04b;
+  --tab-ink: #121410;
+
+  --border-cta-soft: 1px solid rgba(200, 240, 75, 0.3);
+  --border-color: #242820;
+  --border-neutral: 1px solid #242820;
+  --border-content: 1px solid #1b1e18;
+
+  --map-space: #121410;
+  --map-land: rgb(65, 84, 72);
+  --map-deep: rgb(38, 49, 42);
+
+  /* The cartography, in this theme's own colours: see :root. */
+  --map-water: rgb(50, 54, 36);
+  --map-green: rgb(51, 74, 63);
+  --map-building: rgb(81, 108, 95);
+  --map-road: rgb(113, 141, 127);
+  --map-road-major: rgb(166, 173, 144);
+  --map-boundary: rgb(115, 134, 57);
+  --map-contour: rgba(200, 240, 75, 0.15);
+  --map-atmosphere: rgba(200, 240, 75, 0.2);
+  --map-atmosphere-2: rgba(75, 227, 154, 0.14);
+
+  --grad-word: linear-gradient(
+    104deg,
+    #c8f04b 0%,
+    #c8f04b 34%,
+    #4be39a 100%
+  );
+  --grad-ground: linear-gradient(
+    168deg,
+    #121410 0%,
+    #121410 52%,
+    rgb(22, 34, 26) 100%
+  );
+  --grad-horizon: linear-gradient(
+    180deg,
+    #121410 0%,
+    rgb(24, 41, 30) 62%,
+    rgb(54, 64, 28) 100%
+  );
+  --grad-card: linear-gradient(
+    150deg,
+    rgba(200, 240, 75, 0.12) 0%,
+    rgba(75, 227, 154, 0.09) 100%
+  );
+
+  /* shadow is themed too: paper grounds cast an ink-tinted shadow, dark grounds a deep one,
+     both with a breath of the second colour so the edge belongs to the palette */
+  --shadow-panel:
+    0 24px 60px var(--shadow-cast), 0 0 0 1px rgba(75, 227, 154, 0.07);
+  --shadow-plane: 0 40px 90px var(--shadow-cast);
+
+  --vignette-left: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.24) 45%,
+    rgba(0, 0, 0, 0) 70%
+  );
+  --vignette-night: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.5) 0%,
+    rgba(0, 0, 0, 0.2) 70%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  /* the chrome carries its own protection — it sits on lifted terrain, not on the ground */
+  --chrome-scrim: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.6) 58%,
+    rgba(0, 0, 0, 0.72) 100%
+  );
+  --scrim-wide: radial-gradient(
+    ellipse 68% 140% at -10% 50%,
+    rgba(0, 0, 0, 0.95) 0%,
+    rgba(0, 0, 0, 0.9) 12%,
+    rgba(0, 0, 0, 0.72) 30%,
+    rgba(0, 0, 0, 0.55) 45%,
+    rgba(0, 0, 0, 0.38) 60%,
+    rgba(0, 0, 0, 0.24) 72%,
+    rgba(0, 0, 0, 0.12) 84%,
+    rgba(0, 0, 0, 0.05) 92%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  --scrim-center: radial-gradient(
+    ellipse 46% 40% at 50% 52%,
+    rgba(0, 0, 0, 0.92) 0%,
+    rgba(0, 0, 0, 0.88) 46%,
+    rgba(0, 0, 0, 0.55) 74%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  --scrim-sheet: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.26) 22%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+/* rust — warm earth — printed-map feel */
+[data-theme='rust'] {
+  color-scheme: dark;
+
+  --clif-accent: #e2764a;
+  --accent-on-dark: rgb(226, 118, 74);
+  --accent2-on-dark: rgb(226, 192, 74);
+  /* the artboard page is a fixed near-black: the page word needs its own lifted pair */
+  --grad-word-on-dark: linear-gradient(
+    104deg,
+    rgb(226, 118, 74) 0%,
+    rgb(226, 118, 74) 34%,
+    rgb(226, 192, 74) 100%
+  );
+  --clif-accent-2: #e2c04a;
+  --lip: rgb(194, 124, 68);
+  --lip-hi: rgb(220, 152, 115);
+  --lip-lo: rgb(101, 64, 35);
+  /* the second colour as ink and line: "where you're going" — prev/next, travel paths */
+  --accent2-text: rgb(226, 192, 74);
+  --accent2-line: rgba(226, 192, 74, 0.6);
+  --accent2-solid: rgb(145, 122, 50);
+  --iris-rim: rgb(95, 81, 31);
+  --clif-yellow-100: #e2764a;
+  --clif-yellow-60: rgba(226, 118, 74, 0.6);
+  --clif-yellow-35: rgba(226, 118, 74, 0.35);
+  --clif-yellow-30: rgba(226, 118, 74, 0.3);
+  --clif-yellow-12: rgba(226, 118, 74, 0.12);
+  --clif-yellow-20: rgba(226, 118, 74, 0.2);
+  --clif-yellow-07: rgba(226, 118, 74, 0.07);
+
+  --surface-ground: #17120f;
+  --shadow-cast: rgba(0, 0, 0, 0.5);
+  /* keycap body: the skirt is the cap's side wall, the well the plate it bottoms out on */
+  --cap-skirt: rgb(68, 56, 31);
+  --cap-face-top: rgba(116, 98, 48, 0.34);
+  --cap-face-solid-top: rgb(57, 53, 32);
+  --cap-face-solid-bottom: rgb(43, 42, 28);
+  --cap-lip: rgba(255, 255, 255, 0.22);
+  --cap-lip-hot: rgba(255, 255, 255, 0.3);
+  --cap-lip-press: rgba(255, 255, 255, 0.1);
+  --cap-shade: rgba(0, 0, 0, 0.4);
+  --cap-shade-press: rgba(0, 0, 0, 0.5);
+  --cap-glass: blur(4px) saturate(1.1) contrast(1.14) brightness(1.18);
+  --cap-face-top-hot: rgba(116, 98, 48, 0.82);
+  --cap-glass-hot: blur(6px) saturate(1) contrast(1) brightness(1.04);
+  --cap-wall-top: rgba(42, 35, 31, 0.22);
+  --cap-wall-bottom: rgba(33, 26, 22, 0.26);
+  --surface-sheet: rgba(33, 26, 22, 0.88);
+  --cap-face-bottom: rgba(95, 79, 39, 0.2);
+  --cap-face-bottom-hot: rgba(95, 79, 39, 0.48);
+  /* keycap legends live on the cap top (--surface-raised), never on the stage ground */
+  --cap-ink: rgb(239, 229, 222);
+  --cap2-ink: rgb(203, 195, 192);
+  --cap-ink-hot: rgb(255, 255, 255);
+  --cap-well: rgb(38, 31, 18);
+  --sclera: #edeae3;
+  --sclera-edge: #9c9890;
+  --eye-shadow: 0 3px 9px rgba(0, 0, 0, 0.55);
+  --surface-raised: #211a16;
+  --surface-hover: rgb(42, 35, 31);
+
+  --text-strong: #fff;
+  --text-body: #efe5de;
+  --ink-on-dark: rgb(239, 229, 222);
+  --text-secondary: rgb(203, 195, 192);
+  --ink-on-dark-muted: rgb(145, 130, 122);
+  --text-muted: rgb(203, 195, 192);
+  /* de-emphasis, but legible: measured against --surface-raised, where it is actually used */
+  --text-faint: rgb(194, 192, 188);
+  --text-accent: #e2764a;
+  --text-on-accent: #17120f;
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
+  --text-accent-small: rgb(240, 182, 159);
+  /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
+  --tab-fill: #e2764a;
+  --tab-ink: #17120f;
+
+  --border-cta-soft: 1px solid rgba(226, 118, 74, 0.3);
+  --border-color: #2a211c;
+  --border-neutral: 1px solid #2a211c;
+  --border-content: 1px solid #211a16;
+
+  --map-space: #17120f;
+  --map-land: rgb(86, 78, 62);
+  --map-deep: rgb(52, 46, 36);
+
+  /* The cartography, in this theme's own colours: see :root. */
+  --map-water: rgb(68, 48, 40);
+  --map-green: rgb(75, 68, 46);
+  --map-building: rgb(109, 101, 75);
+  --map-road: rgb(141, 134, 107);
+  --map-road-major: rgb(188, 165, 155);
+  --map-boundary: rgb(179, 106, 77);
+  --map-contour: rgba(226, 118, 74, 0.15);
+  --map-atmosphere: rgba(226, 118, 74, 0.2);
+  --map-atmosphere-2: rgba(226, 192, 74, 0.14);
+
+  --grad-word: linear-gradient(
+    104deg,
+    #e2764a 0%,
+    #e2764a 34%,
+    #e2c04a 100%
+  );
+  --grad-ground: linear-gradient(
+    168deg,
+    #17120f 0%,
+    #17120f 52%,
+    rgb(37, 30, 19) 100%
+  );
+  --grad-horizon: linear-gradient(
+    180deg,
+    #17120f 0%,
+    rgb(43, 35, 21) 62%,
+    rgb(64, 38, 27) 100%
+  );
+  --grad-card: linear-gradient(
+    150deg,
+    rgba(226, 118, 74, 0.12) 0%,
+    rgba(226, 192, 74, 0.09) 100%
+  );
+
+  /* shadow is themed too: paper grounds cast an ink-tinted shadow, dark grounds a deep one,
+     both with a breath of the second colour so the edge belongs to the palette */
+  --shadow-panel:
+    0 24px 60px var(--shadow-cast), 0 0 0 1px rgba(226, 192, 74, 0.07);
+  --shadow-plane: 0 40px 90px var(--shadow-cast);
+
+  --vignette-left: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.24) 45%,
+    rgba(0, 0, 0, 0) 70%
+  );
+  --vignette-night: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.5) 0%,
+    rgba(0, 0, 0, 0.2) 70%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  /* the chrome carries its own protection — it sits on lifted terrain, not on the ground */
+  --chrome-scrim: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.6) 58%,
+    rgba(0, 0, 0, 0.72) 100%
+  );
+  --scrim-wide: radial-gradient(
+    ellipse 68% 140% at -10% 50%,
+    rgba(0, 0, 0, 0.95) 0%,
+    rgba(0, 0, 0, 0.9) 12%,
+    rgba(0, 0, 0, 0.72) 30%,
+    rgba(0, 0, 0, 0.55) 45%,
+    rgba(0, 0, 0, 0.38) 60%,
+    rgba(0, 0, 0, 0.24) 72%,
+    rgba(0, 0, 0, 0.12) 84%,
+    rgba(0, 0, 0, 0.05) 92%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  --scrim-center: radial-gradient(
+    ellipse 46% 40% at 50% 52%,
+    rgba(0, 0, 0, 0.92) 0%,
+    rgba(0, 0, 0, 0.88) 46%,
+    rgba(0, 0, 0, 0.55) 74%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  --scrim-sheet: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.26) 22%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+/* teal — ocean-chart cool, high legibility on terrain */
+[data-theme='teal'] {
+  color-scheme: dark;
+
+  --clif-accent: #63e0ce;
+  --accent-on-dark: rgb(99, 224, 206);
+  --accent2-on-dark: rgb(79, 184, 232);
+  /* the artboard page is a fixed near-black: the page word needs its own lifted pair */
+  --grad-word-on-dark: linear-gradient(
+    104deg,
+    rgb(99, 224, 206) 0%,
+    rgb(99, 224, 206) 34%,
+    rgb(79, 184, 232) 100%
+  );
+  --clif-accent-2: #4fb8e8;
+  --lip: rgb(128, 121, 139);
+  --lip-hi: rgb(181, 150, 156);
+  --lip-lo: rgb(67, 63, 72);
+  /* the second colour as ink and line: "where you're going" — prev/next, travel paths */
+  --accent2-text: rgb(127, 203, 238);
+  --accent2-line: rgba(79, 184, 232, 0.6);
+  --accent2-solid: rgb(53, 118, 148);
+  --iris-rim: rgb(33, 77, 97);
+  --clif-yellow-100: #63e0ce;
+  --clif-yellow-60: rgba(99, 224, 206, 0.6);
+  --clif-yellow-35: rgba(99, 224, 206, 0.35);
+  --clif-yellow-30: rgba(99, 224, 206, 0.3);
+  --clif-yellow-12: rgba(99, 224, 206, 0.12);
+  --clif-yellow-20: rgba(99, 224, 206, 0.2);
+  --clif-yellow-07: rgba(99, 224, 206, 0.07);
+
+  --surface-ground: #0f1417;
+  --shadow-cast: rgba(0, 0, 0, 0.5);
+  /* keycap body: the skirt is the cap's side wall, the well the plate it bottoms out on */
+  --cap-skirt: rgb(33, 58, 70);
+  --cap-face-top: rgba(51, 97, 119, 0.34);
+  --cap-face-solid-top: rgb(39, 50, 55);
+  --cap-face-solid-bottom: rgb(35, 39, 40);
+  --cap-lip: rgba(255, 255, 255, 0.22);
+  --cap-lip-hot: rgba(255, 255, 255, 0.3);
+  --cap-lip-press: rgba(255, 255, 255, 0.1);
+  --cap-shade: rgba(0, 0, 0, 0.4);
+  --cap-shade-press: rgba(0, 0, 0, 0.5);
+  --cap-glass: blur(4px) saturate(1.1) contrast(1.14) brightness(1.18);
+  --cap-face-top-hot: rgba(51, 97, 119, 0.82);
+  --cap-glass-hot: blur(6px) saturate(1) contrast(1) brightness(1.04);
+  --cap-wall-top: rgba(32, 39, 43, 0.22);
+  --cap-wall-bottom: rgba(23, 30, 34, 0.26);
+  --surface-sheet: rgba(23, 30, 34, 0.88);
+  --cap-face-bottom: rgba(41, 79, 97, 0.2);
+  --cap-face-bottom-hot: rgba(41, 79, 97, 0.48);
+  /* keycap legends live on the cap top (--surface-raised), never on the stage ground */
+  --cap-ink: rgb(228, 237, 240);
+  --cap2-ink: rgb(187, 194, 197);
+  --cap-ink-hot: rgb(255, 255, 255);
+  --cap-well: rgb(18, 32, 38);
+  --sclera: #edeae3;
+  --sclera-edge: #9c9890;
+  --eye-shadow: 0 3px 9px rgba(0, 0, 0, 0.55);
+  --surface-raised: #171e22;
+  --surface-hover: rgb(32, 39, 43);
+
+  --text-strong: #fff;
+  --text-body: #e4edf0;
+  --ink-on-dark: rgb(228, 237, 240);
+  --text-secondary: rgb(187, 194, 197);
+  --ink-on-dark-muted: rgb(124, 139, 145);
+  --text-muted: rgb(187, 194, 197);
+  /* de-emphasis, but legible: measured against --surface-raised, where it is actually used */
+  --text-faint: rgb(190, 194, 196);
+  --text-accent: #63e0ce;
+  --text-on-accent: #0f1417;
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
+  --text-accent-small: rgb(99, 224, 206);
+  /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
+  --tab-fill: #63e0ce;
+  --tab-ink: #0f1417;
+
+  --border-cta-soft: 1px solid rgba(99, 224, 206, 0.3);
+  --border-color: #1f272c;
+  --border-neutral: 1px solid #1f272c;
+  --border-content: 1px solid #171e22;
+
+  --map-space: #0f1417;
+  --map-land: rgb(63, 79, 87);
+  --map-deep: rgb(36, 47, 53);
+
+  /* The cartography, in this theme's own colours: see :root. */
+  --map-water: rgb(33, 57, 53);
+  --map-green: rgb(48, 70, 79);
+  --map-building: rgb(78, 102, 114);
+  --map-road: rgb(111, 135, 145);
+  --map-road-major: rgb(135, 173, 168);
+  --map-boundary: rgb(58, 135, 124);
+  --map-contour: rgba(99, 224, 206, 0.15);
+  --map-atmosphere: rgba(99, 224, 206, 0.2);
+  --map-atmosphere-2: rgba(79, 184, 232, 0.14);
+
+  --grad-word: linear-gradient(
+    104deg,
+    #63e0ce 0%,
+    #63e0ce 34%,
+    #4fb8e8 100%
+  );
+  --grad-ground: linear-gradient(
+    168deg,
+    #0f1417 0%,
+    #0f1417 52%,
+    rgb(19, 31, 38) 100%
+  );
+  --grad-horizon: linear-gradient(
+    180deg,
+    #0f1417 0%,
+    rgb(21, 36, 44) 62%,
+    rgb(32, 61, 60) 100%
+  );
+  --grad-card: linear-gradient(
+    150deg,
+    rgba(99, 224, 206, 0.12) 0%,
+    rgba(79, 184, 232, 0.09) 100%
+  );
+
+  /* shadow is themed too: paper grounds cast an ink-tinted shadow, dark grounds a deep one,
+     both with a breath of the second colour so the edge belongs to the palette */
+  --shadow-panel:
+    0 24px 60px var(--shadow-cast), 0 0 0 1px rgba(79, 184, 232, 0.07);
+  --shadow-plane: 0 40px 90px var(--shadow-cast);
+
+  --vignette-left: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.24) 45%,
+    rgba(0, 0, 0, 0) 70%
+  );
+  --vignette-night: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.5) 0%,
+    rgba(0, 0, 0, 0.2) 70%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  /* the chrome carries its own protection — it sits on lifted terrain, not on the ground */
+  --chrome-scrim: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.6) 58%,
+    rgba(0, 0, 0, 0.72) 100%
+  );
+  --scrim-wide: radial-gradient(
+    ellipse 68% 140% at -10% 50%,
+    rgba(0, 0, 0, 0.95) 0%,
+    rgba(0, 0, 0, 0.9) 12%,
+    rgba(0, 0, 0, 0.72) 30%,
+    rgba(0, 0, 0, 0.55) 45%,
+    rgba(0, 0, 0, 0.38) 60%,
+    rgba(0, 0, 0, 0.24) 72%,
+    rgba(0, 0, 0, 0.12) 84%,
+    rgba(0, 0, 0, 0.05) 92%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  --scrim-center: radial-gradient(
+    ellipse 46% 40% at 50% 52%,
+    rgba(0, 0, 0, 0.92) 0%,
+    rgba(0, 0, 0, 0.88) 46%,
+    rgba(0, 0, 0, 0.55) 74%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  --scrim-sheet: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.26) 22%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+/* pink — loudest option — one hot point per view */
+[data-theme='pink'] {
+  color-scheme: dark;
+
+  --clif-accent: #ff5ca8;
+  --accent-on-dark: rgb(255, 92, 168);
+  --accent2-on-dark: rgb(255, 155, 92);
+  /* the artboard page is a fixed near-black: the page word needs its own lifted pair */
+  --grad-word-on-dark: linear-gradient(
+    104deg,
+    rgb(255, 92, 168) 0%,
+    rgb(255, 92, 168) 34%,
+    rgb(255, 155, 92) 100%
+  );
+  --clif-accent-2: #ff9b5c;
+  --lip: rgb(207, 108, 76);
+  --lip-hi: rgb(227, 142, 120);
+  --lip-lo: rgb(108, 56, 40);
+  /* the second colour as ink and line: "where you're going" — prev/next, travel paths */
+  --accent2-text: rgb(255, 174, 123);
+  --accent2-line: rgba(255, 155, 92, 0.6);
+  --accent2-solid: rgb(161, 99, 63);
+  --iris-rim: rgb(107, 65, 39);
+  --clif-yellow-100: #ff5ca8;
+  --clif-yellow-60: rgba(255, 92, 168, 0.6);
+  --clif-yellow-35: rgba(255, 92, 168, 0.35);
+  --clif-yellow-30: rgba(255, 92, 168, 0.3);
+  --clif-yellow-12: rgba(255, 92, 168, 0.12);
+  --clif-yellow-20: rgba(255, 92, 168, 0.2);
+  --clif-yellow-07: rgba(255, 92, 168, 0.07);
+
+  --surface-ground: #141014;
+  --shadow-cast: rgba(0, 0, 0, 0.5);
+  /* keycap body: the skirt is the cap's side wall, the well the plate it bottoms out on */
+  --cap-skirt: rgb(71, 48, 41);
+  --cap-face-top: rgba(125, 82, 60, 0.34);
+  --cap-face-solid-top: rgb(58, 48, 43);
+  --cap-face-solid-bottom: rgb(42, 39, 38);
+  --cap-lip: rgba(255, 255, 255, 0.22);
+  --cap-lip-hot: rgba(255, 255, 255, 0.3);
+  --cap-lip-press: rgba(255, 255, 255, 0.1);
+  --cap-shade: rgba(0, 0, 0, 0.4);
+  --cap-shade-press: rgba(0, 0, 0, 0.5);
+  --cap-glass: blur(4px) saturate(1.1) contrast(1.14) brightness(1.18);
+  --cap-face-top-hot: rgba(125, 82, 60, 0.82);
+  --cap-glass-hot: blur(6px) saturate(1) contrast(1) brightness(1.04);
+  --cap-wall-top: rgba(39, 33, 39, 0.22);
+  --cap-wall-bottom: rgba(30, 24, 30, 0.26);
+  --surface-sheet: rgba(30, 24, 30, 0.88);
+  --cap-face-bottom: rgba(102, 66, 50, 0.2);
+  --cap-face-bottom-hot: rgba(102, 66, 50, 0.48);
+  /* keycap legends live on the cap top (--surface-raised), never on the stage ground */
+  --cap-ink: rgb(239, 230, 238);
+  --cap2-ink: rgb(195, 187, 196);
+  --cap-ink-hot: rgb(255, 255, 255);
+  --cap-well: rgb(38, 26, 23);
+  --sclera: #edeae3;
+  --sclera-edge: #9c9890;
+  --eye-shadow: 0 3px 9px rgba(0, 0, 0, 0.55);
+  --surface-raised: #1e181e;
+  --surface-hover: rgb(39, 33, 39);
+
+  --text-strong: #fff;
+  --text-body: #efe6ee;
+  --ink-on-dark: rgb(239, 230, 238);
+  --text-secondary: rgb(195, 187, 196);
+  --ink-on-dark-muted: rgb(142, 128, 144);
+  --text-muted: rgb(195, 187, 196);
+  /* de-emphasis, but legible: measured against --surface-raised, where it is actually used */
+  --text-faint: rgb(194, 191, 194);
+  --text-accent: #ff5ca8;
+  --text-on-accent: #141014;
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
+  --text-accent-small: rgb(255, 159, 204);
+  /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
+  --tab-fill: #ff5ca8;
+  --tab-ink: #141014;
+
+  --border-cta-soft: 1px solid rgba(255, 92, 168, 0.3);
+  --border-color: #271f27;
+  --border-neutral: 1px solid #271f27;
+  --border-content: 1px solid #1e181e;
+
+  --map-space: #141014;
+  --map-land: rgb(87, 72, 68);
+  --map-deep: rgb(51, 42, 41);
+
+  /* The cartography, in this theme's own colours: see :root. */
+  --map-water: rgb(67, 45, 56);
+  --map-green: rgb(76, 62, 52);
+  --map-building: rgb(111, 94, 84);
+  --map-road: rgb(143, 126, 116);
+  --map-road-major: rgb(183, 158, 169);
+  --map-boundary: rgb(184, 90, 134);
+  --map-contour: rgba(255, 92, 168, 0.15);
+  --map-atmosphere: rgba(255, 92, 168, 0.2);
+  --map-atmosphere-2: rgba(255, 155, 92, 0.14);
+
+  --grad-word: linear-gradient(
+    104deg,
+    #ff5ca8 0%,
+    #ff5ca8 34%,
+    #ff9b5c 100%
+  );
+  --grad-ground: linear-gradient(
+    168deg,
+    #141014 0%,
+    #141014 52%,
+    rgb(36, 26, 25) 100%
+  );
+  --grad-horizon: linear-gradient(
+    180deg,
+    #141014 0%,
+    rgb(44, 30, 27) 62%,
+    rgb(67, 31, 50) 100%
+  );
+  --grad-card: linear-gradient(
+    150deg,
+    rgba(255, 92, 168, 0.12) 0%,
+    rgba(255, 155, 92, 0.09) 100%
+  );
+
+  /* shadow is themed too: paper grounds cast an ink-tinted shadow, dark grounds a deep one,
+     both with a breath of the second colour so the edge belongs to the palette */
+  --shadow-panel:
+    0 24px 60px var(--shadow-cast), 0 0 0 1px rgba(255, 155, 92, 0.07);
+  --shadow-plane: 0 40px 90px var(--shadow-cast);
+
+  --vignette-left: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.24) 45%,
+    rgba(0, 0, 0, 0) 70%
+  );
+  --vignette-night: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.5) 0%,
+    rgba(0, 0, 0, 0.2) 70%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  /* the chrome carries its own protection — it sits on lifted terrain, not on the ground */
+  --chrome-scrim: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.6) 58%,
+    rgba(0, 0, 0, 0.72) 100%
+  );
+  --scrim-wide: radial-gradient(
+    ellipse 68% 140% at -10% 50%,
+    rgba(0, 0, 0, 0.95) 0%,
+    rgba(0, 0, 0, 0.9) 12%,
+    rgba(0, 0, 0, 0.72) 30%,
+    rgba(0, 0, 0, 0.55) 45%,
+    rgba(0, 0, 0, 0.38) 60%,
+    rgba(0, 0, 0, 0.24) 72%,
+    rgba(0, 0, 0, 0.12) 84%,
+    rgba(0, 0, 0, 0.05) 92%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  --scrim-center: radial-gradient(
+    ellipse 46% 40% at 50% 52%,
+    rgba(0, 0, 0, 0.92) 0%,
+    rgba(0, 0, 0, 0.88) 46%,
+    rgba(0, 0, 0, 0.55) 74%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  --scrim-sheet: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.26) 22%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+/* cream — lamplit, quiet — softest of the darks */
+[data-theme='cream'] {
+  color-scheme: dark;
+
+  --clif-accent: #f5d9a8;
+  --accent-on-dark: rgb(245, 217, 168);
+  --accent2-on-dark: rgb(232, 168, 124);
+  /* the artboard page is a fixed near-black: the page word needs its own lifted pair */
+  --grad-word-on-dark: linear-gradient(
+    104deg,
+    rgb(245, 217, 168) 0%,
+    rgb(245, 217, 168) 34%,
+    rgb(232, 168, 124) 100%
+  );
+  --clif-accent-2: #e8a87c;
+  --lip: rgb(197, 114, 90);
+  --lip-hi: rgb(221, 146, 128);
+  --lip-lo: rgb(102, 59, 47);
+  /* the second colour as ink and line: "where you're going" — prev/next, travel paths */
+  --accent2-text: rgb(236, 185, 149);
+  --accent2-line: rgba(232, 168, 124, 0.6);
+  --accent2-solid: rgb(150, 110, 82);
+  --iris-rim: rgb(97, 71, 52);
+  --clif-yellow-100: #f5d9a8;
+  --clif-yellow-60: rgba(245, 217, 168, 0.6);
+  --clif-yellow-35: rgba(245, 217, 168, 0.35);
+  --clif-yellow-30: rgba(245, 217, 168, 0.3);
+  --clif-yellow-12: rgba(245, 217, 168, 0.12);
+  --clif-yellow-20: rgba(245, 217, 168, 0.2);
+  --clif-yellow-07: rgba(245, 217, 168, 0.07);
+
+  --surface-ground: #1a1714;
+  --shadow-cast: rgba(0, 0, 0, 0.5);
+  /* keycap body: the skirt is the cap's side wall, the well the plate it bottoms out on */
+  --cap-skirt: rgb(71, 56, 44);
+  --cap-face-top: rgba(120, 92, 71, 0.34);
+  --cap-face-solid-top: rgb(61, 47, 44);
+  --cap-face-solid-bottom: rgb(46, 36, 37);
+  --cap-lip: rgba(255, 255, 255, 0.22);
+  --cap-lip-hot: rgba(255, 255, 255, 0.3);
+  --cap-lip-press: rgba(255, 255, 255, 0.1);
+  --cap-shade: rgba(0, 0, 0, 0.4);
+  --cap-shade-press: rgba(0, 0, 0, 0.5);
+  --cap-glass: blur(4px) saturate(1.1) contrast(1.14) brightness(1.18);
+  --cap-face-top-hot: rgba(120, 92, 71, 0.82);
+  --cap-glass-hot: blur(6px) saturate(1) contrast(1) brightness(1.04);
+  --cap-wall-top: rgba(45, 41, 36, 0.22);
+  --cap-wall-bottom: rgba(36, 32, 27, 0.26);
+  --surface-sheet: rgba(36, 32, 27, 0.88);
+  --cap-face-bottom: rgba(99, 76, 58, 0.2);
+  --cap-face-bottom-hot: rgba(99, 76, 58, 0.48);
+  /* keycap legends live on the cap top (--surface-raised), never on the stage ground */
+  --cap-ink: rgb(242, 233, 220);
+  --cap2-ink: rgb(205, 200, 194);
+  --cap-ink-hot: rgb(255, 255, 255);
+  --cap-well: rgb(41, 32, 26);
+  --sclera: #edeae3;
+  --sclera-edge: #9c9890;
+  --eye-shadow: 0 3px 9px rgba(0, 0, 0, 0.55);
+  --surface-raised: #24201b;
+  --surface-hover: rgb(45, 41, 36);
+
+  --text-strong: #fff;
+  --text-body: #f2e9dc;
+  --ink-on-dark: rgb(242, 233, 220);
+  --text-secondary: rgb(205, 200, 194);
+  --ink-on-dark-muted: rgb(148, 138, 124);
+  --text-muted: rgb(205, 200, 194);
+  /* de-emphasis, but legible: measured against --surface-raised, where it is actually used */
+  --text-faint: rgb(201, 200, 195);
+  --text-accent: #f5d9a8;
+  --text-on-accent: #1a1714;
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
+  --text-accent-small: rgb(245, 217, 168);
+  /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
+  --tab-fill: #f5d9a8;
+  --tab-ink: #1a1714;
+
+  --border-cta-soft: 1px solid rgba(245, 217, 168, 0.3);
+  --border-color: #2d2822;
+  --border-neutral: 1px solid #2d2822;
+  --border-content: 1px solid #24201b;
+
+  --map-space: #1a1714;
+  --map-land: rgb(89, 79, 72);
+  --map-deep: rgb(55, 49, 43);
+
+  /* The cartography, in this theme's own colours: see :root. */
+  --map-water: rgb(61, 54, 43);
+  --map-green: rgb(81, 68, 59);
+  --map-building: rgb(116, 101, 90);
+  --map-road: rgb(147, 134, 125);
+  --map-road-major: rgb(179, 171, 156);
+  --map-boundary: rgb(155, 123, 66);
+  --map-contour: rgba(245, 217, 168, 0.15);
+  --map-atmosphere: rgba(245, 217, 168, 0.2);
+  --map-atmosphere-2: rgba(232, 168, 124, 0.14);
+
+  --grad-word: linear-gradient(
+    104deg,
+    #f5d9a8 0%,
+    #f5d9a8 34%,
+    #e8a87c 100%
+  );
+  --grad-ground: linear-gradient(
+    168deg,
+    #1a1714 0%,
+    #1a1714 52%,
+    rgb(40, 33, 27) 100%
+  );
+  --grad-horizon: linear-gradient(
+    180deg,
+    #1a1714 0%,
+    rgb(47, 38, 30) 62%,
+    rgb(70, 62, 50) 100%
+  );
+  --grad-card: linear-gradient(
+    150deg,
+    rgba(245, 217, 168, 0.12) 0%,
+    rgba(232, 168, 124, 0.09) 100%
+  );
+
+  /* shadow is themed too: paper grounds cast an ink-tinted shadow, dark grounds a deep one,
+     both with a breath of the second colour so the edge belongs to the palette */
+  --shadow-panel:
+    0 24px 60px var(--shadow-cast),
+    0 0 0 1px rgba(232, 168, 124, 0.07);
+  --shadow-plane: 0 40px 90px var(--shadow-cast);
+
+  --vignette-left: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.24) 45%,
+    rgba(0, 0, 0, 0) 70%
+  );
+  --vignette-night: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.5) 0%,
+    rgba(0, 0, 0, 0.2) 70%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  /* the chrome carries its own protection — it sits on lifted terrain, not on the ground */
+  --chrome-scrim: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.6) 58%,
+    rgba(0, 0, 0, 0.72) 100%
+  );
+  --scrim-wide: radial-gradient(
+    ellipse 68% 140% at -10% 50%,
+    rgba(0, 0, 0, 0.95) 0%,
+    rgba(0, 0, 0, 0.9) 12%,
+    rgba(0, 0, 0, 0.72) 30%,
+    rgba(0, 0, 0, 0.55) 45%,
+    rgba(0, 0, 0, 0.38) 60%,
+    rgba(0, 0, 0, 0.24) 72%,
+    rgba(0, 0, 0, 0.12) 84%,
+    rgba(0, 0, 0, 0.05) 92%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  --scrim-center: radial-gradient(
+    ellipse 46% 40% at 50% 52%,
+    rgba(0, 0, 0, 0.92) 0%,
+    rgba(0, 0, 0, 0.88) 46%,
+    rgba(0, 0, 0, 0.55) 74%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  --scrim-sheet: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.26) 22%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+/* paper — inverted — warm paper ground, ink type */
+[data-theme='paper'] {
+  color-scheme: light;
+
+  --clif-accent: #d4402e;
+  --accent-on-dark: rgb(217, 87, 71);
+  --accent2-on-dark: rgb(224, 138, 46);
+  /* the artboard page is a fixed near-black: the page word needs its own lifted pair */
+  --grad-word-on-dark: linear-gradient(
+    104deg,
+    rgb(217, 87, 71) 0%,
+    rgb(217, 87, 71) 34%,
+    rgb(224, 138, 46) 100%
+  );
+  --clif-accent-2: #e08a2e;
+  --lip: rgb(193, 100, 55);
+  --lip-hi: rgb(219, 138, 108);
+  --lip-lo: rgb(100, 52, 29);
+  /* the second colour as ink and line: "where you're going" — prev/next, travel paths */
+  --accent2-text: rgb(112, 69, 23);
+  --accent2-line: rgba(224, 138, 46, 0.6);
+  --accent2-solid: rgb(229, 176, 118);
+  --iris-rim: rgb(94, 58, 19);
+  --clif-yellow-100: #d4402e;
+  --clif-yellow-60: rgba(212, 64, 46, 0.6);
+  --clif-yellow-35: rgba(212, 64, 46, 0.35);
+  --clif-yellow-30: rgba(212, 64, 46, 0.3);
+  --clif-yellow-12: rgba(212, 64, 46, 0.12);
+  --clif-yellow-20: rgba(212, 64, 46, 0.2);
+  --clif-yellow-07: rgba(212, 64, 46, 0.07);
+
+  --surface-ground: #ede9e1;
+  --shadow-cast: rgba(66, 61, 54, 0.18);
+  /* keycap body: the skirt is the cap's side wall, the well the plate it bottoms out on */
+  --cap-skirt: rgb(122, 114, 104);
+  --cap-face-top: rgba(226, 200, 175, 0.3);
+  --cap-face-solid-top: rgb(248, 238, 225);
+  --cap-face-solid-bottom: rgb(237, 222, 204);
+  --cap-lip: rgba(255, 255, 255, 0.85);
+  --cap-lip-hot: rgba(255, 255, 255, 1);
+  --cap-lip-press: rgba(255, 255, 255, 0.5);
+  --cap-shade: rgba(0, 0, 0, 0.12);
+  --cap-shade-press: rgba(0, 0, 0, 0.18);
+  --cap-glass: blur(4px) saturate(1.08) contrast(1.12)
+    brightness(0.98) sepia(0.08);
+  --cap-face-top-hot: rgba(226, 200, 175, 0.72);
+  --cap-glass-hot: blur(6px) saturate(1) contrast(1) brightness(0.98)
+    sepia(0.08);
+  --cap-wall-top: rgba(204, 195, 191, 0.2);
+  --cap-wall-bottom: rgba(213, 211, 207, 0.24);
+  --surface-sheet: rgba(251, 249, 245, 0.88);
+  --cap-face-bottom: rgba(231, 214, 194, 0.2);
+  --cap-face-bottom-hot: rgba(231, 214, 194, 0.48);
+  /* keycap legends live on the cap top (--surface-raised), never on the stage ground */
+  --cap-ink: rgb(26, 24, 21);
+  --cap2-ink: rgb(84, 79, 70);
+  --cap-ink-hot: rgb(26, 24, 21);
+  --cap-well: rgb(170, 161, 149);
+  --sclera: #f7f5f0;
+  --sclera-edge: #cfc9be;
+  --eye-shadow: 0 3px 9px rgba(66, 61, 54, 0.3);
+  --surface-raised: #fbf9f5;
+  --surface-hover: rgb(253, 252, 251);
+
+  --text-strong: #1a1815;
+  --text-body: #1a1815;
+  --ink-on-dark: rgb(163, 162, 160);
+  --text-secondary: rgb(84, 79, 70);
+  --ink-on-dark-muted: rgb(130, 124, 115);
+  --text-muted: rgb(84, 79, 70);
+  /* de-emphasis, but legible: measured against --surface-raised, where it is actually used */
+  --text-faint: rgb(81, 78, 71);
+  --text-accent: #d4402e;
+  --text-on-accent: #ede9e1;
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
+  --text-accent-small: rgb(146, 44, 32);
+  /* #d4402e on this ground is 3.79:1 -- the darkened step carries copy here */
+  --text-accent-body: var(--text-accent-small);
+  /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
+  --tab-fill: #1a1815;
+  --tab-ink: #ede9e1;
+
+  --border-cta-soft: 1px solid rgba(212, 64, 46, 0.3);
+  --border-color: #dad4c8;
+  --border-neutral: 1px solid #dad4c8;
+  --border-content: 1px solid #fbf9f5;
+
+  --map-space: #ede9e1;
+  --map-land: rgb(246, 241, 233);
+  --map-deep: rgb(217, 191, 159);
+
+  /* The cartography, in this theme's own colours: see :root. */
+  --map-water: rgb(203, 163, 159);
+  --map-green: rgb(219, 206, 191);
+  --map-building: rgb(221, 216, 210);
+  --map-road: rgb(230, 227, 225);
+  --map-road-major: rgb(215, 178, 173);
+  --map-boundary: rgb(202, 134, 125);
+  --map-contour: rgba(212, 64, 46, 0.22);
+  --map-atmosphere: rgba(212, 64, 46, 0.16);
+  --map-atmosphere-2: rgba(224, 138, 46, 0.1);
+
+  --grad-word: linear-gradient(
+    104deg,
+    #d4402e 0%,
+    #d4402e 34%,
+    rgb(139, 86, 29) 100%
+  );
+  --grad-ground: linear-gradient(
+    168deg,
+    #ede9e1 0%,
+    #ede9e1 52%,
+    rgb(236, 228, 216) 100%
+  );
+  --grad-horizon: linear-gradient(
+    180deg,
+    #ede9e1 0%,
+    rgb(236, 226, 212) 62%,
+    rgb(233, 206, 196) 100%
+  );
+  --grad-card: linear-gradient(
+    150deg,
+    rgba(212, 64, 46, 0.12) 0%,
+    rgba(224, 138, 46, 0.09) 100%
+  );
+
+  /* shadow is themed too: paper grounds cast an ink-tinted shadow, dark grounds a deep one,
+     both with a breath of the second colour so the edge belongs to the palette */
+  --shadow-panel:
+    0 24px 60px var(--shadow-cast), 0 0 0 1px rgba(224, 138, 46, 0.07);
+  --shadow-plane: 0 40px 90px var(--shadow-cast);
+
+  --vignette-left: linear-gradient(
+    90deg,
+    rgba(237, 233, 225, 0.58) 0%,
+    rgba(237, 233, 225, 0.3) 45%,
+    rgba(237, 233, 225, 0) 70%
+  );
+  --vignette-night: linear-gradient(
+    180deg,
+    rgba(237, 233, 225, 0.78) 0%,
+    rgba(237, 233, 225, 0.3) 70%,
+    rgba(237, 233, 225, 0) 100%
+  );
+  /* the chrome carries its own protection — it sits on lifted terrain, not on the ground */
+  --chrome-scrim: linear-gradient(
+    90deg,
+    rgba(237, 233, 225, 0) 0%,
+    rgba(237, 233, 225, 0.86) 58%,
+    rgba(237, 233, 225, 0.94) 100%
+  );
+  --scrim-wide: radial-gradient(
+    ellipse 68% 140% at -10% 50%,
+    rgba(237, 233, 225, 0.95) 0%,
+    rgba(237, 233, 225, 0.9) 12%,
+    rgba(237, 233, 225, 0.72) 30%,
+    rgba(237, 233, 225, 0.55) 45%,
+    rgba(237, 233, 225, 0.38) 60%,
+    rgba(237, 233, 225, 0.24) 72%,
+    rgba(237, 233, 225, 0.12) 84%,
+    rgba(237, 233, 225, 0.05) 92%,
+    rgba(237, 233, 225, 0) 100%
+  );
+  --scrim-center: radial-gradient(
+    ellipse 46% 40% at 50% 52%,
+    rgba(237, 233, 225, 0.92) 0%,
+    rgba(237, 233, 225, 0.88) 46%,
+    rgba(237, 233, 225, 0.55) 74%,
+    rgba(237, 233, 225, 0) 100%
+  );
+  --scrim-sheet: linear-gradient(
+    180deg,
+    rgba(237, 233, 225, 0.4) 0%,
+    rgba(237, 233, 225, 0.26) 22%,
+    rgba(237, 233, 225, 0.2) 100%
+  );
+}
+
+/* chalk — inverted and cool — the clinical end */
+[data-theme='chalk'] {
+  color-scheme: light;
+
+  --clif-accent: #0e7c8b;
+  --accent-on-dark: rgb(43, 140, 153);
+  --accent2-on-dark: rgb(46, 158, 107);
+  /* the artboard page is a fixed near-black: the page word needs its own lifted pair */
+  --grad-word-on-dark: linear-gradient(
+    104deg,
+    rgb(43, 140, 153) 0%,
+    rgb(43, 140, 153) 34%,
+    rgb(46, 158, 107) 100%
+  );
+  --clif-accent-2: #2e9e6b;
+  --lip: rgb(113, 109, 83);
+  --lip-hi: rgb(173, 143, 124);
+  --lip-lo: rgb(59, 57, 43);
+  /* the second colour as ink and line: "where you're going" — prev/next, travel paths */
+  --accent2-text: rgb(26, 88, 58);
+  --accent2-line: rgba(46, 158, 107, 0.6);
+  --accent2-solid: rgb(124, 192, 162);
+  --iris-rim: rgb(19, 66, 45);
+  --clif-yellow-100: #0e7c8b;
+  --clif-yellow-60: rgba(14, 124, 139, 0.6);
+  --clif-yellow-35: rgba(14, 124, 139, 0.35);
+  --clif-yellow-30: rgba(14, 124, 139, 0.3);
+  --clif-yellow-12: rgba(14, 124, 139, 0.12);
+  --clif-yellow-20: rgba(14, 124, 139, 0.2);
+  --clif-yellow-07: rgba(14, 124, 139, 0.07);
+
+  --surface-ground: #f1f3f4;
+  --shadow-cast: rgba(67, 63, 59, 0.18);
+  /* keycap body: the skirt is the cap's side wall, the well the plate it bottoms out on */
+  --cap-skirt: rgb(111, 120, 117);
+  --cap-face-top: rgba(181, 210, 200, 0.3);
+  --cap-face-solid-top: rgb(234, 245, 240);
+  --cap-face-solid-bottom: rgb(213, 229, 222);
+  --cap-lip: rgba(255, 255, 255, 0.85);
+  --cap-lip-hot: rgba(255, 255, 255, 1);
+  --cap-lip-press: rgba(255, 255, 255, 0.5);
+  --cap-shade: rgba(0, 0, 0, 0.12);
+  --cap-shade-press: rgba(0, 0, 0, 0.18);
+  --cap-glass: blur(4px) saturate(1.08) contrast(1.12)
+    brightness(0.98) sepia(0.08);
+  --cap-face-top-hot: rgba(181, 210, 200, 0.72);
+  --cap-glass-hot: blur(6px) saturate(1) contrast(1) brightness(0.98)
+    sepia(0.08);
+  --cap-wall-top: rgba(196, 202, 204, 0.2);
+  --cap-wall-bottom: rgba(215, 216, 216, 0.24);
+  --surface-sheet: rgba(255, 255, 255, 0.88);
+  --cap-face-bottom: rgba(202, 223, 214, 0.2);
+  --cap-face-bottom-hot: rgba(202, 223, 214, 0.48);
+  /* keycap legends live on the cap top (--surface-raised), never on the stage ground */
+  --cap-ink: rgb(18, 24, 27);
+  --cap2-ink: rgb(74, 82, 86);
+  --cap-ink-hot: rgb(18, 24, 27);
+  --cap-well: rgb(160, 169, 166);
+  --sclera: #f7f5f0;
+  --sclera-edge: #cfc9be;
+  --eye-shadow: 0 3px 9px rgba(67, 63, 59, 0.3);
+  --surface-raised: #ffffff;
+  --surface-hover: rgb(255, 255, 255);
+
+  --text-strong: #12181b;
+  --text-body: #12181b;
+  --ink-on-dark: rgb(160, 162, 163);
+  --text-secondary: rgb(74, 82, 86);
+  --ink-on-dark-muted: rgb(119, 129, 133);
+  --text-muted: rgb(74, 82, 86);
+  /* de-emphasis, but legible: measured against --surface-raised, where it is actually used */
+  --text-faint: rgb(75, 79, 82);
+  --text-accent: #0e7c8b;
+  --text-on-accent: #f1f3f4;
+  /* ground-aware, 9–11px: the 60% step fails 4.5:1 at that size on several
+     accents. This is the tightest of the accent inks; running copy takes
+     --text-accent-body, which only darkens on the grounds that need it. */
+  --text-accent-small: rgb(10, 86, 96);
+  /* #0e7c8b on this ground is 4.41:1 -- the darkened step carries copy here */
+  --text-accent-body: var(--text-accent-small);
+  /* mid-luminance accents clear neither black nor white, so paper themes flip the tab to ink */
+  --tab-fill: #12181b;
+  --tab-ink: #f1f3f4;
+
+  --border-cta-soft: 1px solid rgba(14, 124, 139, 0.3);
+  --border-color: #dce1e3;
+  --border-neutral: 1px solid #dce1e3;
+  --border-content: 1px solid #ffffff;
+
+  --map-space: #f1f3f4;
+  --map-land: rgb(240, 246, 244);
+  --map-deep: rgb(170, 203, 189);
+
+  /* The cartography, in this theme's own colours: see :root. */
+  --map-water: rgb(135, 184, 190);
+  --map-green: rgb(187, 217, 203);
+  --map-building: rgb(212, 222, 217);
+  --map-road: rgb(227, 232, 230);
+  --map-road-major: rgb(151, 197, 204);
+  --map-boundary: rgb(73, 166, 178);
+  --map-contour: rgba(14, 124, 139, 0.22);
+  --map-atmosphere: rgba(14, 124, 139, 0.16);
+  --map-atmosphere-2: rgba(46, 158, 107, 0.1);
+
+  --grad-word: linear-gradient(
+    104deg,
+    #0e7c8b 0%,
+    #0e7c8b 34%,
+    rgb(29, 98, 66) 100%
+  );
+  --grad-ground: linear-gradient(
+    168deg,
+    #f1f3f4 0%,
+    #f1f3f4 52%,
+    rgb(231, 239, 237) 100%
+  );
+  --grad-horizon: linear-gradient(
+    180deg,
+    #f1f3f4 0%,
+    rgb(227, 237, 234) 62%,
+    rgb(205, 224, 227) 100%
+  );
+  --grad-card: linear-gradient(
+    150deg,
+    rgba(14, 124, 139, 0.12) 0%,
+    rgba(46, 158, 107, 0.09) 100%
+  );
+
+  /* shadow is themed too: paper grounds cast an ink-tinted shadow, dark grounds a deep one,
+     both with a breath of the second colour so the edge belongs to the palette */
+  --shadow-panel:
+    0 24px 60px var(--shadow-cast), 0 0 0 1px rgba(46, 158, 107, 0.07);
+  --shadow-plane: 0 40px 90px var(--shadow-cast);
+
+  --vignette-left: linear-gradient(
+    90deg,
+    rgba(241, 243, 244, 0.58) 0%,
+    rgba(241, 243, 244, 0.3) 45%,
+    rgba(241, 243, 244, 0) 70%
+  );
+  --vignette-night: linear-gradient(
+    180deg,
+    rgba(241, 243, 244, 0.78) 0%,
+    rgba(241, 243, 244, 0.3) 70%,
+    rgba(241, 243, 244, 0) 100%
+  );
+  /* the chrome carries its own protection — it sits on lifted terrain, not on the ground */
+  --chrome-scrim: linear-gradient(
+    90deg,
+    rgba(241, 243, 244, 0) 0%,
+    rgba(241, 243, 244, 0.86) 58%,
+    rgba(241, 243, 244, 0.94) 100%
+  );
+  --scrim-wide: radial-gradient(
+    ellipse 68% 140% at -10% 50%,
+    rgba(241, 243, 244, 0.95) 0%,
+    rgba(241, 243, 244, 0.9) 12%,
+    rgba(241, 243, 244, 0.72) 30%,
+    rgba(241, 243, 244, 0.55) 45%,
+    rgba(241, 243, 244, 0.38) 60%,
+    rgba(241, 243, 244, 0.24) 72%,
+    rgba(241, 243, 244, 0.12) 84%,
+    rgba(241, 243, 244, 0.05) 92%,
+    rgba(241, 243, 244, 0) 100%
+  );
+  --scrim-center: radial-gradient(
+    ellipse 46% 40% at 50% 52%,
+    rgba(241, 243, 244, 0.92) 0%,
+    rgba(241, 243, 244, 0.88) 46%,
+    rgba(241, 243, 244, 0.55) 74%,
+    rgba(241, 243, 244, 0) 100%
+  );
+  --scrim-sheet: linear-gradient(
+    180deg,
+    rgba(241, 243, 244, 0.4) 0%,
+    rgba(241, 243, 244, 0.26) 22%,
+    rgba(241, 243, 244, 0.2) 100%
+  );
+}
+
+/*
+ * Theme crossfade: tokens change, the camera holds.
+ *
+ * The bundle's selector is a bare [data-theme], which is wrong twice over,
+ * and both halves were measured in Chromium before this was touched.
+ *
+ * It never reached the page. The only element carrying data-theme is the
+ * documentElement, whose background-color is rgba(0,0,0,0) in all eight
+ * themes -- so that half animates nothing -- and whose color is overridden
+ * by body one level down. body is where the ground and the ink actually
+ * live (tokens/base.css), body has no data-theme, so body snapped:
+ * rgb(22,22,22) to rgb(237,233,225) at t+0, with transition-duration 0s.
+ * The 400ms crossfade this file has always claimed, and that ThemeEye's
+ * comment points at, was not happening. body is named here so that it does.
+ *
+ * It did reach the theme lens's swatches. Each swatch span carries its own
+ * data-theme to re-scope the tokens inside it, which handed it a 400ms
+ * color transition its parent row does not have (140ms) -- measured
+ * lagging at rgb(174,173,173) 200ms after a switch that the row had
+ * already finished. Invisible today, only because no swatch draws text or
+ * uses currentColor. :root pins the rule to the documentElement, so a
+ * nested scope is a scope and nothing more.
+ */
+:root[data-theme],
+body {
+  transition:
+    background-color 400ms linear,
+    color 400ms linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme],
+  body {
+    transition: none;
+  }
+}
