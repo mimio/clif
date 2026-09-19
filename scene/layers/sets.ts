@@ -13,12 +13,10 @@ import {
   pointCollection,
 } from 'scene/layers/geo';
 import type {
-  LayerEntry,
   LayerSet,
   PaintPatch,
   SceneListener,
 } from 'scene/layers/types';
-import { LABEL_MIN_ZOOM, LOCALITY_MIN_ZOOM } from 'scene/theme';
 import type { Palette } from 'styles/tokens/palette';
 
 /*
@@ -29,18 +27,17 @@ import type { Palette } from 'styles/tokens/palette';
  *   projects      the clustered project sites, with the three Colorado
  *                 anchors collapsed into VAIL VALLEY at world zoom.
  *   about         the six work-history stops, their chronological line and
- *                 the ring on the live one, over the place names.
- *   detail        the place names. Artboard 1d is terrain and the shader
- *                 plane and the map is held, so it carries no data of its
- *                 own -- but it is a CITY at z10, and the names of the
- *                 places on it are now the site's to draw.
+ *                 the ring on the live one.
+ *   detail        nothing. Artboard 1d is terrain and the shader plane
+ *                 and the map is held, so it carries no data of its own.
  *
- * THAT LAST BAND IS NEW, AND IT IS HERE BECAUSE IT CANNOT BE ANYWHERE
- * ELSE. Standard used to name places itself above z8, in its own font
- * and at a colour this codebase cannot reach; on the two light themes
- * the result was white text on a bright ground. `basemapLabelsSet`
- * below, and scene/theme.ts's basemapConfig, are the two halves of the
- * answer.
+ * EVERY WORD ON THE MAP IS THE SITE'S OWN DATA, and that is now the whole
+ * of it. The two routes above z8 used to also redraw the basemap's place
+ * names from mapbox-streets-v8, because Standard's own labels are off and
+ * could not have been themed if they were on; the site does not want
+ * those names at all, so the set and its second vector source are gone.
+ * The note above BUILDERS has what went with them, and scene/theme.ts's
+ * basemapConfig still keeps all four of Standard's label toggles off.
  *
  * HELLO AND THE 404 USED TO CARRY A MID BAND AND DO NOT ANY MORE.
  * The prototype's layer-stack note sketched one -- "mid: great-circle
@@ -71,11 +68,6 @@ import type { Palette } from 'styles/tokens/palette';
 
 export const PROJECT_SITES_SET = 'project-sites';
 export const HISTORY_SET = 'history-stops';
-export const BASEMAP_LABELS_SET = 'basemap-labels';
-
-export const PLACE_LABELS = 'basemap-place-labels';
-export const LOCALITY_LABELS = 'basemap-locality-labels';
-
 export const SITE_POINTS = 'project-site-points';
 export const SITE_LABELS = 'project-site-labels';
 export const SITE_COUNTS = 'project-site-counts';
@@ -101,9 +93,8 @@ export const HISTORY_LABELS = 'history-stop-labels';
 /** Mapbox-hosted mono, with the catalogue's universal fallback. */
 const MONO_FONT = ['Roboto Mono Light', 'Arial Unicode MS Regular'];
 
-/** The one size map type is set at, and the one step below it. */
+/** The one size map type is set at. */
 export const MAP_TYPE_SIZE = 11;
-export const MAP_TYPE_SIZE_QUIET = 10;
 
 /** Wide enough to read as a caption rather than as a word. */
 const TRACKING = 0.14;
@@ -747,159 +738,31 @@ const historySet = (options: LayerSetOptions): LayerSet => {
   };
 };
 
-/* ---- the basemap's own place names ------------------------------------
- *
- * THE SITE NAMES THE WORLD, BECAUSE MAPBOX CANNOT BE ASKED TO.
- *
- * Mapbox Standard's place and road labels are off (scene/theme.ts's
- * basemapConfig says why, and the short version is that tier 1's colour
- * LUT reaches a symbol layer's text as surely as it reaches a fill, so
- * Standard's label colour is an input to the terrain ramp rather than a
- * colour the site can choose -- and setPaintProperty cannot address a
- * layer inside the `basemap` fragment at all). This is what replaces
- * them: the same names, from the same tileset Standard reads, drawn at
- * the ROOT scope where there is no LUT and `palette.subInk` arrives as
- * itself.
- *
- * WHAT IT COSTS, PLAINLY. A second vector source. Standard's own copy of
- * mapbox-streets-v8 lives inside the fragment and Style.getOwnSource
- * only sees the root's, so a root layer cannot name it: addLayer
- * resolves a layer's source as makeFQID(source, layer.scope), and an
- * added layer's scope is always the root's. The tiles are therefore
- * fetched twice while the map is above LABEL_MIN_ZOOM. They are not
- * fetched at all below it -- Style._updateSources clears `used` on every
- * source whose layers are all hidden by their zoom range, so the globe
- * routes pay nothing -- and the two routes that do pay are the two that
- * used to be showing Standard's labels anyway.
- *
- * (The dodge of naming the fragment's source by its fully-qualified id
- * was checked and rejected. Style.getLayerSourceCache does look the
- * merged caches up by FQID, and the separator is just a character, so
- * `mapbox.mapbox-streets-v8\u001Fbasemap` would probably resolve -- but
- * `getOwnLayerSourceCache`, which addLayer and the change tracker use,
- * would not, the separator is private, and the id of the source inside
- * Standard is not something this repo can see without a token. A
- * mechanism that cannot be tested and fails silently is the exact shape
- * of the bug this whole file's history is about.)
- *
- * NO ROADS. Standard's road labels are off and nothing redraws them.
- * They were the bulk of the text the owner objected to; at the two zooms
- * that show any label at all the tileset carries little more than
- * motorway names; and a line-placed label on a 60-degree pitch is the
- * least legible thing on the map. The mechanism is here if they are ever
- * wanted -- one more layer on the source that is already loaded.
- */
-
-/** Standard reads this tileset; so, separately, do we. */
-const STREETS_SOURCE = 'mapbox://mapbox.mapbox-streets-v8';
-
-/** The tileset's layer of named populated places. */
-const PLACE_LAYER = 'place_label';
-
-/**
- * The English name where the tile carries one, the local name where it
- * does not. The site is written in English and its own labels are, so a
- * map that switches script halfway across a border is not the same map.
- */
-const PLACE_NAME = ['coalesce', ['get', 'name_en'], ['get', 'name']];
-
-const placeLayer = (
-  id: string,
-  placeClass: string,
-  minzoom: number,
-  size: number,
-): LayerEntry => ({
-  id,
-  type: 'symbol',
-  source: BASEMAP_LABELS_SET,
-  'source-layer': PLACE_LAYER,
-  minzoom,
-  filter: ['==', ['get', 'class'], placeClass],
-  layout: {
-    ...mapType(size),
-    'text-field': PLACE_NAME,
-    // The scene's own labels are uppercased in JS because they come
-    // from content; these come from a tile, so the same treatment
-    // has to be a layout property.
-    'text-transform': 'uppercase',
-    'text-max-width': 7,
-    // Tracked-out caps need room around them or the collision box
-    // hugs the glyphs and two names touch.
-    'text-padding': 4,
-    /*
-     * Density is left to mapbox's collision detection rather than to
-     * a symbolrank cut-off. Nothing in this repo can see a basemap,
-     * so a hand-tuned rank per zoom would be a number chosen blind;
-     * the sort key gives collision the ranking it needs and lets the
-     * bigger place win, which is the same answer without the guess.
-     */
-    'symbol-sort-key': ['get', 'symbolrank'],
-    // Both routes that show these are terrain routes. Without this a
-    // label sits at sea level and a ridge draws over it.
-    'symbol-z-elevate': true,
-  },
-});
-
-const basemapLabelsSet = (options: LayerSetOptions): LayerSet => {
-  const { labels } = options;
-
-  const paint = (palette: Palette): PaintPatch[] =>
-    [
-      [PLACE_LABELS, palette.subInk],
-      [LOCALITY_LABELS, palette.mutedInk],
-    ].flatMap(([id, ink]) => [
-      { layer: id, property: 'text-color', value: ink },
-      {
-        layer: id,
-        property: 'text-halo-color',
-        value: haloColor(palette),
-      },
-      {
-        layer: id,
-        property: 'text-halo-width',
-        value: HALO_WIDTH,
-      },
-      {
-        layer: id,
-        property: 'text-opacity',
-        value: labels ? 1 : 0,
-      },
-    ]);
-
-  return {
-    id: BASEMAP_LABELS_SET,
-    sources: [
-      {
-        id: BASEMAP_LABELS_SET,
-        spec: { type: 'vector', url: STREETS_SOURCE },
-      },
-    ],
-    layers: [
-      placeLayer(
-        PLACE_LABELS,
-        'settlement',
-        LABEL_MIN_ZOOM,
-        MAP_TYPE_SIZE,
-      ),
-      placeLayer(
-        LOCALITY_LABELS,
-        'settlement_subdivision',
-        LOCALITY_MIN_ZOOM,
-        MAP_TYPE_SIZE_QUIET,
-      ),
-    ],
-    interactions: [],
-    paint,
-  };
-};
-
 /*
- * `basemapLabelsSet` goes FIRST on a route that has both, which puts its
- * layers UNDER the route's own. That is not only draw order: mapbox
- * places symbols from the top of the stack down (PauseablePlacement
- * walks _mergedOrder backwards), so the layer on top wins a collision.
- * The site's own names for a place have to beat the tileset's.
+ * THE SITE USED TO NAME THE WORLD HERE, AND DOES NOT ANY MORE.
+ *
+ * `basemapLabelsSet` drew the same place names Standard draws, from the
+ * same tileset, at the ROOT scope -- because Standard's own labels are
+ * off and, at the time, could not have been themed if they were on. Two
+ * symbol layers on a second `mapbox://mapbox.mapbox-streets-v8` source:
+ * settlements from z8 and their subdivisions from z10.
+ *
+ * They are gone because the site does not want them, not because they
+ * stopped working. What is left on the map is the site's OWN data --
+ * project sites, work-history stops -- which still carries its names.
+ *
+ * WHAT WENT WITH THEM. The second vector source, which was the only
+ * thing on the page fetching mapbox-streets-v8 tiles a second time; the
+ * `symbol-z-elevate` and collision tuning that existed to keep a
+ * tile-placed name off a ridge; and MAP_TYPE_SIZE_QUIET, which was the
+ * one step down that only the subdivision names used. A project detail
+ * mounts no layer sets at all now, like the two globe routes.
+ *
+ * Standard's own label toggles stay off, all four of them, at every zoom
+ * -- scene/theme.ts's basemapConfig. Removing the redraw is not a reason
+ * to turn the originals back on; it is the same decision, made once more.
  */
+
 const BUILDERS: Record<
   SceneId,
   ((options: LayerSetOptions) => LayerSet)[]
@@ -907,8 +770,8 @@ const BUILDERS: Record<
   hello: [],
   notFound: [],
   projects: [projectSitesSet],
-  about: [basemapLabelsSet, historySet],
-  projectDetail: [basemapLabelsSet],
+  about: [historySet],
+  projectDetail: [],
 };
 
 /*

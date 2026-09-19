@@ -122,29 +122,6 @@ export type BasemapConfig = {
   show3dObjects: boolean;
 } & Record<BasemapColorKey, string>;
 
-/**
- * The layers card's "no roads or labels below z8", which is now a
- * property of the scene's OWN label layers rather than of Standard's.
- *
- * It used to be applied as a zoom test on the ROUTE's declared zoom,
- * feeding showPlaceLabels/showRoadLabels. Two things were wrong with
- * that and only one of them was the labels themselves: the route's zoom
- * is not the camera's, so scrolling into a city on an interactive route
- * never crossed the threshold, and scrolling away from one never left
- * it. As a layer `minzoom` it is evaluated against the LIVE zoom, every
- * frame, by mapbox -- and it also means the second vector source pays
- * nothing above the globe, because Style._updateSources marks a source
- * unused when every layer that reads it is hidden by its zoom range.
- */
-export const LABEL_MIN_ZOOM = 8;
-
-/**
- * Where the scene starts naming neighbourhoods as well as towns. Two
- * zoom steps past the first label, so a city arrives before its
- * districts do rather than with them.
- */
-export const LOCALITY_MIN_ZOOM = LABEL_MIN_ZOOM + 2;
-
 /*
  * The fog presets are the design's three moods, and Standard's light
  * preset is the closest structural equivalent -- it moves the sun, which
@@ -190,13 +167,11 @@ const LIGHT_PRESETS: Record<
  * THAT CONSTRAINT IS GONE AND THE TOGGLES STAY OFF ANYWAY. With the LUT
  * retired there is no compressor, and Standard's own colorPlaceLabels
  * and colorRoadLabels would now do exactly what they say -- the review
- * record lists both. They are still not used, because by the time the
- * constraint lifted the site had a better answer than Standard's text:
- * the scene names places itself, in the site's own mono, at the sizes
- * and the tracking the rest of the UI uses, from its own symbol layers
- * at the root scope. scene/layers/sets.ts's `basemapLabelsSet` is that,
- * and LABEL_MIN_ZOOM above is where it starts. Turning Standard's labels
- * back on would mean two typefaces naming the same places.
+ * record lists both. They stay off because the site does not want place
+ * names on the map at all: the scene redrew them itself for a while, in
+ * its own mono, and that set is gone too (scene/layers/sets.ts). So this
+ * is no longer a workaround for anything. It is the whole answer, and
+ * the only text left on the map is the site's own data naming itself.
  *
  * (setPaintProperty still cannot reach them either way: it resolves
  * through Style._checkLayer -> getOwnLayer -> this._layers, the ROOT

@@ -26,9 +26,7 @@ import {
   fogFor,
   horizonBlendFor,
   type FogOptions,
-  LABEL_MIN_ZOOM,
   livePalette,
-  LOCALITY_MIN_ZOOM,
   subscribeTheme,
   THEME_DEBOUNCE_MS,
   THEME_EVENT,
@@ -233,11 +231,6 @@ describe('the basemap config', () => {
     expect(configChanges(after, before)).toEqual([
       ['colorWater', 'rgb(1, 2, 3)'],
     ]);
-  });
-
-  it('starts naming places at z8 and districts two steps later', () => {
-    expect(LABEL_MIN_ZOOM).toBe(8);
-    expect(LOCALITY_MIN_ZOOM).toBe(LABEL_MIN_ZOOM + 2);
   });
 });
 
