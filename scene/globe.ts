@@ -178,51 +178,164 @@ export const globeLimbAngle = (
 ): number =>
   Math.atan(globeScreenRadius(zoom, height) / focalLength(height));
 
-/* ---- where the disc lands -------------------------------------------- */
+/* ---- where the globe lands ------------------------------------------- */
 
 /**
  * The globe's placement, as only the map knows it during a flight.
  *
- * Two fields because two things move the disc and they are independent:
- * the zoom decides how big it is, the padding decides where its centre
- * sits. Everything else about the camera -- centre, pitch, bearing --
- * turns the planet inside the disc without moving the disc itself.
+ * Three fields because three things move the silhouette and they are
+ * independent: the zoom decides how big the sphere is, the padding
+ * decides where the projection puts it, and the PITCH tilts the camera
+ * off the sphere's own normal, which slides the silhouette down the
+ * frame. The bearing and the centre turn the planet inside it without
+ * moving it.
  */
 export type GlobeGeometry = {
   zoom: number;
+  pitch: number;
   padding: CameraPadding;
 };
 
-/** The painted disc, in CSS pixels: where its centre is and how wide. */
-export type GlobeDisc = {
-  cx: number;
-  cy: number;
-  r: number;
+/**
+ * Where the sphere's centre sits in the camera's own frame, in pixels.
+ *
+ * At pitch 0 it is straight down the view axis at `d + R`. Pitching
+ * orbits the camera about the point at the centre of the screen -- which
+ * stays on the axis at `d` -- so the centre swings off the axis by the
+ * pitch, and the whole of it is:
+ *
+ *   C = (0, -R sin(pitch), -(d + R cos(pitch)))
+ *
+ * THIS IS MEASURED, NOT ASSUMED. mapbox keeps the same quantity on its
+ * transform as `globeCenterInViewSpace`, and e2e/hermetic/globe-stars
+ * .spec.ts reads it off the live map and compares: the form above
+ * reproduces it to every digit the transform prints, at pitch 0 on `/`
+ * and at pitch 25 on `/projects`. The bearing does not enter it, and
+ * that is measured too -- /projects carries a bearing of -12 and its
+ * centre still has x exactly zero, because the bearing turns the planet
+ * about the axis through that very point.
+ */
+export const globeCenterInView = (
+  zoom: number,
+  pitch: number,
+  height: number,
+): [number, number, number] => {
+  const radians = (pitch * Math.PI) / 180;
+  const r = globeWorldRadius(zoom);
+  return [
+    0,
+    -r * Math.sin(radians),
+    -(cameraToCenter(height) + r * Math.cos(radians)),
+  ];
 };
 
 /**
- * The disc this camera paints in this box.
+ * The silhouette the globe is drawn as, in CSS pixels, and everything a
+ * screen point needs to be measured against it.
  *
- * The centre is scene/camera.ts's `paddingFor` read backwards. That
- * function turns a fraction of the viewport into the padding mapbox
- * takes; this turns the padding back into pixels, because a camera read
- * off the map carries the padding and not the fraction it came from.
- * Both sides of the round trip are held together by
- * test/scene-stars.test.ts.
+ * TWO CENTRES, AND THEY ARE NOT THE SAME POINT. `axis` is where the
+ * camera's own view axis lands -- the middle of the canvas, shifted by
+ * half the padding, which is where the point at the centre of the map
+ * is drawn. `cx, cy` is where the SPHERE's centre lands, which at any
+ * pitch is further down the frame. Confusing the two is what put accent
+ * stars on the planet: measured at /projects' pitch of 25 they are 91
+ * pixels apart.
+ *
+ * AND `cx, cy, r` IS A CIRCLE THROUGH A SHAPE THAT IS NOT ONE. A sphere
+ * off the view axis silhouettes as a conic, not a circle -- at
+ * /projects the painted limb runs 217.8px wide and 223.8px tall about
+ * that centre. The circle is right to within a quarter of a percent
+ * there and exact at pitch 0, which is all a stand-in sphere on the
+ * /specimens board needs; anything deciding whether a POINT is on the
+ * planet wants `limbRadii`, which is exact at any pitch.
+ */
+export type GlobeLimb = {
+  /** Where the view axis lands: the padded projection centre. */
+  axis: { x: number; y: number };
+  /** Where the silhouette's own centre lands, and its radius there. */
+  cx: number;
+  cy: number;
+  r: number;
+  /** The focal length, and the direction and half-angle of the cone. */
+  focal: number;
+  at: readonly [number, number, number];
+  tanLimb: number;
+};
+
+/**
+ * The silhouette this camera paints in this box.
+ *
+ * `axis` is scene/camera.ts's `paddingFor` read backwards. That function
+ * turns a fraction of the viewport into the padding mapbox takes; this
+ * turns the padding back into pixels, because a camera read off the map
+ * carries the padding and not the fraction it came from. Both sides of
+ * the round trip are held together by test/scene-stars.test.tsx.
  *
  * A null viewport is the server's and jsdom's answer, and it is treated
  * the way scene/theme.ts's fogFor treats it: the artboard, which is the
  * box the table's own numbers were resolved at.
  */
-export const globeDisc = (
+export const globeLimb = (
   geometry: GlobeGeometry,
   viewport: Viewport | null,
-): GlobeDisc => {
+): GlobeLimb => {
   const box = viewport ?? ARTBOARD_DESKTOP;
   const { padding } = geometry;
-  return {
-    cx: box.width / 2 + (padding.left - padding.right) / 2,
-    cy: box.height / 2 + (padding.top - padding.bottom) / 2,
-    r: globeScreenRadius(geometry.zoom, box.height),
+  const focal = focalLength(box.height);
+  const at = globeCenterInView(
+    geometry.zoom,
+    geometry.pitch,
+    box.height,
+  );
+  const away = Math.hypot(at[1], at[2]);
+  const radius = globeWorldRadius(geometry.zoom);
+  /*
+   * The tangent cone, as globeScreenRadius derives it: sin(theta) is
+   * R / |C|, so its tangent is R over the other leg. At pitch 0 this is
+   * globeScreenRadius to the digit, and the two are held together by
+   * test/scene-globe.test.ts.
+   */
+  const tanLimb = radius / Math.sqrt(away * away - radius * radius);
+  const axis = {
+    x: box.width / 2 + (padding.left - padding.right) / 2,
+    y: box.height / 2 + (padding.top - padding.bottom) / 2,
   };
+  return {
+    axis,
+    cx: axis.x + (focal * at[0]) / -at[2],
+    cy: axis.y - (focal * at[1]) / -at[2],
+    r: focal * tanLimb,
+    focal,
+    at: [at[0] / away, at[1] / away, at[2] / away],
+    tanLimb,
+  };
+};
+
+/**
+ * How far a screen point sits from the globe's centre, in limb radii:
+ * below 1 it is on the planet, and 1 is exactly the silhouette.
+ *
+ * It is an ANGLE underneath, not a screen distance, because a sphere the
+ * camera is pitched away from does not silhouette as a circle about any
+ * screen point. The point is turned back into the direction the globe's
+ * own camera would draw it at, and compared with the direction of the
+ * sphere's centre; `tan` of each puts the ratio back into the screen
+ * radii the design states its atmosphere in, and makes the silhouette
+ * exactly 1 whatever the pitch.
+ */
+export const limbRadii = (
+  limb: GlobeLimb,
+  x: number,
+  y: number,
+): number => {
+  const vx = x - limb.axis.x;
+  const vy = -(y - limb.axis.y);
+  const vz = -limb.focal;
+  const length = Math.hypot(vx, vy, vz);
+  const along =
+    (vx * limb.at[0] + vy * limb.at[1] + vz * limb.at[2]) / length;
+  // Clamped because a dot product of unit vectors can leave the domain
+  // of acos by an ulp, and Math.acos answers NaN when it does.
+  const angle = Math.acos(Math.min(1, Math.max(-1, along)));
+  return Math.tan(angle) / limb.tanLimb;
 };

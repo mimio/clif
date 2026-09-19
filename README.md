@@ -84,7 +84,9 @@ Outside the stack:
   otherwise do — fading the field out behind the globe and its atmosphere,
   and turning it with the sky, which means rebuilding mapbox's own star
   rotation. `scene/stars.ts` has both, along with the field itself and the
-  numbers mapbox's stars were measured at.
+  numbers mapbox's stars were measured at; the silhouette it fades against
+  comes from `scene/globe.ts`, which is also where the fact that a pitched
+  globe does not silhouette as a circle is worked out.
 - `content/` is data, not components: projects, work history, city anchors,
   per-route cameras and the route table. It imports nothing from the layers.
 

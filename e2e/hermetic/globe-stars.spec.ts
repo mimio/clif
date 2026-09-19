@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
+import { globeCenterInView, globeLimb, limbRadii } from 'scene/globe';
 import {
   type PaintedStar,
   paintedStars,
@@ -32,6 +33,16 @@ import { stubMapboxNetwork } from '../fixtures/mapbox-stub';
  * on the right pixels, so this takes the frame twice -- with the field
  * and with it display:none -- and requires every pixel it changed to lie
  * outside the globe's own silhouette.
+ *
+ * AND IT IS CHECKED ON A PITCHED ROUTE, which is the regression the
+ * third test below exists for. The first version of the mask measured a
+ * star's distance from the PADDING-SHIFTED SCREEN CENTRE, which is where
+ * the sphere's centre lands only when the camera is level. /projects
+ * pitches to 25 and the two points are 91 pixels apart, so four of its
+ * hundred-odd stars came out on the planet. mapbox's own
+ * `unproject` -> `project` round trip is the oracle there: it closes
+ * only on the globe, so it says whether a point is on the ball without
+ * any model of the silhouette at all.
  *
  * THE MOTION, which is the regression this field was rebuilt for. The
  * first version authored the stars in SCREEN space, fixed in the frame,
@@ -660,4 +671,156 @@ test.describe('the accent star field', () => {
     expect(step.theirOverlap).toBeLessThan(0.35);
     expect(step.ourOverlap).toBeLessThan(0.35);
   });
+});
+
+/* ---- the pitched routes ------------------------------------------------ */
+
+/** The transform's own idea of where the sphere is, beside our model's. */
+const readSphere = (
+  page: Page,
+): Promise<{ view: SkyView; centerInViewSpace: number[] }> =>
+  readView(page).then((view) =>
+    page
+      .evaluate(() => {
+        const scene = window.__SCENE__;
+        if (!scene)
+          throw new Error('window.__SCENE__ is not published');
+        const { transform } = scene.map as unknown as {
+          transform: { globeCenterInViewSpace: number[] };
+        };
+        return [...transform.globeCenterInViewSpace];
+      })
+      .then((centerInViewSpace) => ({ view, centerInViewSpace })),
+  );
+
+/**
+ * Which of these screen points mapbox would call part of the globe.
+ *
+ * `unproject` answers a lng/lat for every point in the frame, but off
+ * the globe it is answering about the horizon plane rather than the
+ * ball, and projecting that answer back lands somewhere else. So the
+ * round trip closes on the planet and nowhere else -- which is the same
+ * oracle e2e/fixtures/app.ts bisects the limb with, asked as a
+ * predicate instead.
+ */
+const starsOnGlobe = (
+  page: Page,
+  field: PaintedStar[],
+): Promise<{ x: number; y: number }[]> =>
+  page.evaluate((stars) => {
+    const scene = window.__SCENE__;
+    if (!scene) throw new Error('window.__SCENE__ is not published');
+    const map = scene.map as unknown as {
+      project: (at: [number, number]) => { x: number; y: number };
+      unproject: (at: [number, number]) => {
+        lng: number;
+        lat: number;
+      };
+    };
+    return stars
+      .filter((star) => {
+        const place = map.unproject([star.x, star.y]);
+        const back = map.project([place.lng, place.lat]);
+        return Math.hypot(back.x - star.x, back.y - star.y) < 0.01;
+      })
+      .map((star) => ({ x: star.x, y: star.y }));
+  }, field);
+
+test.describe('the mask, on the routes that tilt the camera', () => {
+  test.use({ reducedMotion: 'reduce' });
+
+  test.beforeEach(async ({ context, page }) => {
+    await stubMapboxNetwork(context);
+    await installSceneDebug(page);
+  });
+
+  /*
+   * Hello is level and /projects pitches to 25, which is the whole range
+   * content/cameras.ts uses. Both, because a mask that is right only
+   * when the camera is level passes on the first and is the bug on the
+   * second.
+   */
+  for (const path of ['/', '/projects']) {
+    test(`keeps every star off the globe on ${path}`, async ({
+      page,
+    }) => {
+      test.setTimeout(120_000);
+      await page.goto(path, { waitUntil: 'load' });
+      await waitForScene(page, 'live');
+      await settle(page);
+
+      const framing = await measureGlobe(page);
+      const { view, centerInViewSpace } = await readSphere(page);
+      const limb = globeLimb(view, framing.box);
+      const at = globeCenterInView(
+        view.zoom,
+        view.pitch,
+        framing.box.height,
+      );
+
+      notice(
+        `stars: ${path} sphere`,
+        `pitch=${view.pitch} zoom=${view.zoom.toFixed(3)} ` +
+          `mapbox=[${centerInViewSpace.map((v) => v.toFixed(3)).join(', ')}] ` +
+          `ours=[${at.map((v) => v.toFixed(3)).join(', ')}] ` +
+          `axis=${limb.axis.x.toFixed(1)},${limb.axis.y.toFixed(1)} ` +
+          `centre=${limb.cx.toFixed(1)},${limb.cy.toFixed(1)} ` +
+          `radii=[${framing.radii.map((v) => v.toFixed(2)).join(', ')}]`,
+      );
+
+      /*
+       * OUR MODEL OF THE SPHERE IS MAPBOX'S. `globeCenterInView` is
+       * derived rather than read -- the transform does not expose it
+       * anywhere the app can reach at paint time -- so this is what
+       * holds the derivation to the library it models. To a twentieth
+       * of a pixel in a thousand, which is the tolerance and not the
+       * error -- the two agree to every digit the transform prints.
+       */
+      expect(at[0]).toBeCloseTo(centerInViewSpace[0], 1);
+      expect(at[1]).toBeCloseTo(centerInViewSpace[1], 1);
+      expect(at[2]).toBeCloseTo(centerInViewSpace[2], 1);
+
+      /*
+       * And the measure the mask is cut with reads exactly one radius at
+       * the painted limb, in all three directions the harness bisects --
+       * including the downward ray, which at pitch is much the longest
+       * of them and is where a circle about the axis goes wrong.
+       */
+      const rays: [number, number][] = [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+      ];
+      framing.radii.forEach((reach, ray) => {
+        const [dx, dy] = rays[ray];
+        expect(
+          limbRadii(
+            limb,
+            framing.centre.x + dx * reach,
+            framing.centre.y + dy * reach,
+          ),
+        ).toBeCloseTo(1, 3);
+      });
+
+      /*
+       * THE ASSERTION THIS TEST EXISTS FOR. Every star the field would
+       * paint, put to mapbox's own round trip: not one of them may be on
+       * the ball. Measured before the fix, /projects painted four.
+       */
+      const field = paintedStars(view, framing.box);
+      const hits = await starsOnGlobe(page, field);
+      notice(
+        `stars: ${path} mask`,
+        `${field.length} painted, ${hits.length} on the globe` +
+          (hits.length === 0
+            ? ''
+            : ` (${hits
+                .slice(0, 5)
+                .map((h) => `${h.x.toFixed(1)},${h.y.toFixed(1)}`)
+                .join(' ')})`),
+      );
+      expect(field.length).toBeGreaterThan(40);
+      expect(hits).toEqual([]);
+    });
+  }
 });
