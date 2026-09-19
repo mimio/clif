@@ -824,3 +824,117 @@ test.describe('the mask, on the routes that tilt the camera', () => {
     });
   }
 });
+
+/* ---- and in the same frame the camera moved in ------------------------- */
+
+type JumpRead = {
+  /** Lit pixels on the canvas straight after the jump, sampled. */
+  painted: number;
+  /** How many of them the NEW camera puts on the planet. */
+  onGlobe: number;
+};
+
+/**
+ * Move the camera and read the field back WITHOUT LETTING A FRAME PASS.
+ *
+ * This is the whole regression, stated so that no timing is involved in
+ * catching it. `jumpTo` dispatches `move` synchronously, so by the time
+ * it returns a field that paints on the report has already repainted
+ * against the new camera, and one that defers to a requestAnimationFrame
+ * still holds the old one. No easing, no frame budget, no load: either
+ * the canvas agrees with the transform on the same line or it does not.
+ *
+ * The jump is chosen so both halves are true of it -- the globe grows by
+ * half again, so the old field lands well inside the new silhouette, and
+ * the new zoom still paints a field rather than the empty canvas of a
+ * globe that fills the frame.
+ */
+const jumpAndRead = (page: Page, zoom: number): Promise<JumpRead> =>
+  page.evaluate((to) => {
+    const scene = window.__SCENE__;
+    if (!scene) throw new Error('window.__SCENE__ is not published');
+    const map = scene.map as unknown as {
+      jumpTo: (options: Record<string, unknown>) => void;
+      project: (at: [number, number]) => { x: number; y: number };
+      unproject: (at: [number, number]) => {
+        lng: number;
+        lat: number;
+      };
+    };
+    const canvas = document.querySelector('.clif-stars');
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error('the field is not on the page');
+    }
+    const context = canvas.getContext('2d');
+    if (!context)
+      throw new Error('no 2d context to read the field from');
+
+    map.jumpTo({ zoom: to });
+
+    const ratio = canvas.width / canvas.getBoundingClientRect().width;
+    const { data } = context.getImageData(
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+    let painted = 0;
+    let onGlobe = 0;
+    for (let y = 0; y < canvas.height; y += 2) {
+      for (let x = 0; x < canvas.width; x += 2) {
+        const px = (y * canvas.width + x) * 4;
+        if (data[px + 3] < 40) continue;
+        painted += 1;
+        const at: [number, number] = [x / ratio, y / ratio];
+        const place = map.unproject(at);
+        const back = map.project([place.lng, place.lat]);
+        if (Math.hypot(back.x - at[0], back.y - at[1]) < 0.01) {
+          onGlobe += 1;
+        }
+      }
+    }
+    return { painted, onGlobe };
+  }, zoom);
+
+test.describe('the mask, when the camera moves under it', () => {
+  test.use({ reducedMotion: 'reduce' });
+
+  test.beforeEach(async ({ context, page }) => {
+    await stubMapboxNetwork(context);
+    await installSceneDebug(page);
+  });
+
+  /*
+   * THE REGRESSION THIS EXISTS FOR. The field used to be painted on a
+   * requestAnimationFrame scheduled by the transform's `move`, which put
+   * every paint one frame after the camera it was computed from. Held
+   * still that is invisible, and every test above it passed; on a hard
+   * zoom in it is a field cut against a SMALLER globe than the one
+   * beside it, and the stars nearest the limb are left sitting on the
+   * planet for as long as the camera keeps moving -- measured on an ease
+   * from the hello camera to zoom 9, about 125 pixels of accent on the
+   * globe at zoom 2.9, where the same camera held still paints none.
+   */
+  test('repaints in the same turn the camera moved in', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.goto('/', { waitUntil: 'load' });
+    await waitForScene(page, 'live');
+    await settle(page);
+
+    const jumped = await jumpAndRead(page, 3.2);
+    notice(
+      'stars: jump',
+      `after a jump to zoom 3.2: ${jumped.painted} sampled px, ` +
+        `${jumped.onGlobe} of them on the globe`,
+    );
+
+    // The canvas still has a field on it, so the count below means
+    // something -- a globe that filled the frame would pass by painting
+    // nothing at all.
+    expect(jumped.painted).toBeGreaterThan(10);
+    // And none of it belongs to the camera we just left.
+    expect(jumped.onGlobe).toBe(0);
+  });
+});
