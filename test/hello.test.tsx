@@ -59,10 +59,13 @@ describe('the hello route', () => {
     expect(word).toHaveClass('w-fit');
 
     const column = word.closest('div')?.parentElement;
-    // 32px between steps on 1a, 20px on 1f, and 1f's lower half.
+    // 60px between steps, 48px under 1000 and 36px under 650, the 800px
+    // desktop measure, and 1f's lower half.
     expect(column).toHaveClass(
-      'gap-8',
-      'max-tablet:gap-5',
+      'gap-15',
+      'max-desktop:gap-12',
+      'max-tablet:gap-9',
+      'desktop:max-w-[800px]',
       'max-tablet:mt-auto',
     );
 
@@ -122,7 +125,12 @@ describe('the hello route', () => {
 
     const tail = screen.getByText(HELLO_BODY_WIDE);
     expect(tail).toHaveClass('max-tablet:hidden');
-    // Still one paragraph, measured to the board's 520px.
-    expect(tail.parentElement).toHaveClass('max-w-[520px]');
+    // Still one paragraph, measured to the board's 520px below 1000px and
+    // handing the measure to the column's 800px above it. Two caps at two
+    // numbers is the failure this pins: the paragraph has to let go.
+    expect(tail.parentElement).toHaveClass(
+      'max-w-[520px]',
+      'desktop:max-w-none',
+    );
   });
 });
