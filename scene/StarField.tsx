@@ -147,34 +147,40 @@ export const StarField = ({
   });
 
   /*
-   * And the subscription, opened once. It feeds the ref and asks for a
-   * paint; it never needs rebuilding, because the paint it asks for is
-   * always the latest one.
+   * And the subscription, opened once. It feeds the ref and paints; it
+   * never needs rebuilding, because the paint it runs is always the
+   * latest one.
    *
-   * ONE PAINT PER FRAME, NOT ONE PER REPORT. A route's flight writes a
-   * camera on every frame mapbox renders, and `move` is dispatched from
-   * inside that render -- so painting synchronously would put a
-   * full-bleed clear and a hundred fills into mapbox's own frame, sixty
-   * times a second, for the length of every move. Coalescing onto the
-   * next animation frame bounds it to the display's rate and collapses a
-   * burst into one, at the cost of the field trailing the globe by a
-   * frame during a flight, which is not a thing anyone can see.
+   * IN THE MAP'S OWN FRAME, NOT THE NEXT ONE. This used to coalesce onto
+   * a requestAnimationFrame, on the argument that painting inside
+   * mapbox's render was work in the wrong place and that a field
+   * trailing the globe by one frame was not a thing anyone could see.
+   * The second half of that is false, and the first half buys nothing.
+   *
+   * It buys nothing because `move` is dispatched once per frame mapbox
+   * renders, so during a flight there is already exactly one report, one
+   * rAF and one paint per frame. Coalescing removed no work at all; it
+   * only moved every paint a frame later than the transform it was
+   * computed from.
+   *
+   * And it is visible, because the mask is cut against the globe. A
+   * frame late is a field drawn against a SMALLER globe than the one
+   * beside it, so on a hard zoom in the stars nearest the limb are left
+   * sitting on the planet: measured on an easeTo from the hello camera
+   * to zoom 9, about 125 pixels of accent on the globe at zoom 2.9,
+   * where the same camera held still paints none.
+   *
+   * So it paints now, in the frame the report came from. The rare case
+   * the old code was really collapsing -- several `move`s inside one
+   * frame, from a gesture and a render together -- is two paints instead
+   * of one, which is the cheaper mistake by a wide margin.
    */
   useEffect(() => {
     if (!follow) return undefined;
-    let frame = 0;
-    const stop = watchSky((view) => {
+    return watchSky((view) => {
       viewRef.current = view;
-      if (frame !== 0) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        paintRef.current();
-      });
+      paintRef.current();
     });
-    return () => {
-      if (frame !== 0) cancelAnimationFrame(frame);
-      stop();
-    };
   }, [follow]);
 
   // Stars would be noise over a bright ground, which is the same reason
