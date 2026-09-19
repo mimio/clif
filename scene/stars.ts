@@ -6,7 +6,8 @@ import {
 import {
   focalLength,
   type GlobeGeometry,
-  globeDisc,
+  globeLimb,
+  limbRadii,
 } from 'scene/globe';
 import type { Palette } from 'styles/tokens/palette';
 
@@ -311,10 +312,14 @@ export type SkyCamera = {
 
 /**
  * Everything a frame of the field needs off the transform: where the
- * camera points, and the zoom and padding that put the globe's disc on
- * screen. It is what scene/mapbox/instance.ts's `watchSky` reports, and
- * the two halves come from different places in mapbox -- see the note on
- * two centres in `paintedStars`.
+ * camera points, and the zoom and padding that put the globe on screen.
+ * It is what scene/mapbox/instance.ts's `watchSky` reports, and the two
+ * halves come from different places in mapbox -- see the note on the
+ * several centres in `paintedStars`.
+ *
+ * The pitch is in both halves, and that is not an accident: it turns the
+ * sky about the camera AND slides the silhouette down the frame, and the
+ * field has to agree with itself about how far it moved each.
  */
 export type SkyView = SkyCamera & GlobeGeometry;
 
@@ -401,9 +406,9 @@ export const starFade = (radii: number): number => {
  * THE SKY IS CENTRED ON THE CANVAS, NOT ON THE GLOBE. `starsProjMatrix`
  * carries no padding, so the vanishing point of the star field is the
  * middle of the frame even on hello, where the globe is pushed to 66% of
- * the width. The disc the field is cut around is the padded one. Those
- * really are two different centres, and mapbox's own stars use the first
- * of them.
+ * the width. The silhouette the field is cut around is the padded one,
+ * and at any pitch its centre is lower still. Those really are three
+ * different points, and mapbox's own stars use the first of them.
  *
  * A null viewport is the server's and jsdom's answer, and it is treated
  * the way scene/theme.ts's fogFor treats it: the artboard.
@@ -414,7 +419,7 @@ export const paintedStars = (
 ): PaintedStar[] => {
   const box = viewport ?? ARTBOARD_DESKTOP;
   const focal = focalLength(box.height);
-  const disc = globeDisc(view, viewport);
+  const limb = globeLimb(view, viewport);
   const rotation = skyRotation(view);
   const painted: PaintedStar[] = [];
   for (const star of stars) {
@@ -440,9 +445,7 @@ export const paintedStars = (
     ) {
       continue;
     }
-    const fade = starFade(
-      Math.hypot(at.x - disc.cx, at.y - disc.cy) / disc.r,
-    );
+    const fade = starFade(limbRadii(limb, at.x, at.y));
     if (fade <= 0) continue;
     painted.push({
       x: at.x,

@@ -29,7 +29,7 @@ import {
   SCENE_REFRAME_MS,
   terrainFor,
 } from 'scene/camera';
-import { globeDisc } from 'scene/globe';
+import { globeLimb } from 'scene/globe';
 import { layerSetsFor } from 'scene/layers/sets';
 import StarField from 'scene/StarField';
 import {
@@ -434,9 +434,10 @@ const BIGGER_THAN_MAPBOX = stars.filter(
  * no Mapbox token in development, so the live scene shows its fallback
  * plate and the real field is never mounted.
  *
- * The disc is not the map. It is a CSS sphere at the radius the hello
- * camera resolves to in this box, wearing the design's two rims at their
- * peak alphas, so that the hole the mask cuts can be seen landing on it.
+ * The sphere is not the map. It is a CSS disc at the place and radius
+ * the hello camera resolves to in this box -- a circle, because hello is
+ * unpitched -- wearing the design's two rims at their peak alphas, so
+ * that the hole the mask cuts can be seen landing on it.
  */
 const StarBoard = () => {
   // The snapshot rather than readPalette(), because this page is
@@ -444,7 +445,7 @@ const StarBoard = () => {
   // React hydrates against before the live scope is read.
   const { palette } = useThemeSnapshot();
   const camera = frameCamera(cameras.hello, STAR_BOARD);
-  const disc = globeDisc(camera, STAR_BOARD);
+  const limb = globeLimb(camera, STAR_BOARD);
   return (
     <div
       className="border border-surface-3"
@@ -460,10 +461,10 @@ const StarBoard = () => {
         aria-hidden="true"
         style={{
           position: 'absolute',
-          left: disc.cx,
-          top: disc.cy,
-          width: 2 * disc.r,
-          height: 2 * disc.r,
+          left: limb.cx,
+          top: limb.cy,
+          width: 2 * limb.r,
+          height: 2 * limb.r,
           transform: 'translate(-50%, -50%)',
           borderRadius: '50%',
           background:
@@ -471,8 +472,8 @@ const StarBoard = () => {
           // A tight accent limb inside a wide accent2 halo, which is what
           // content/cameras.ts states the prototype's surround as.
           boxShadow: `0 0 0 1px ${palette.a(0.2)}, 0 0 ${Math.round(
-            0.2 * disc.r,
-          )}px ${Math.round(0.08 * disc.r)}px ${palette.b(0.13)}`,
+            0.2 * limb.r,
+          )}px ${Math.round(0.08 * limb.r)}px ${palette.b(0.13)}`,
         }}
       />
       <StarField
