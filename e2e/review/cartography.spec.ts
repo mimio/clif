@@ -460,123 +460,188 @@ test.describe('standard cartography', () => {
   /*
    * THE MEASUREMENT EVERY OTHER RECORD IN THIS FILE IS A PROXY FOR.
    *
-   * Every check above reads what the scene SENT and what the style
-   * SAYS. None of them reads what the screen shows, and that gap is
-   * where a report of "I still see green in forest areas" lives: the
-   * config record echoes `colorGreenspace: rgb(81, 64, 49)` on a theme
-   * whose forests are reported green, and the only green literal in the
-   * whole serialized style is `hsl(115, 60%, 84%)` -- which is that same
-   * key's SCHEMA DEFAULT. Those two facts cannot both be describing the
-   * same pixel, so one of them is not describing the pixel at all.
+   * Everything above reads what the scene SENT and what the style SAYS.
+   * Neither reads the screen, and that gap is where "I still see green in
+   * forest areas" lives -- a report the other records insist cannot be
+   * happening.
    *
-   * This samples the real basemap, with the page's own foreground
-   * hidden, and reports a hue histogram plus how many pixels sit near
-   * Mapbox's default greenspace. A run where `mapboxGreen` is non-zero
-   * says the key is not reaching the paint whatever getConfig claims; a
-   * run where the hues cluster on the theme's own says it is.
+   * THE FIRST VERSION OF THIS PROBE WAS NEARLY USELESS and the way it
+   * failed is worth keeping. It histogrammed HUE, and skipped any pixel
+   * whose max channel minus min channel was under 12 as "grey". This
+   * palette is deliberately desaturated -- the map tokens run s=11% to
+   * s=25% -- so that threshold threw away 99.2% of the frame (7,214
+   * counted out of 921,600) and histogrammed what was left: the accent
+   * dots, the atmosphere rim, the stars. It reported 48% of pixels in the
+   * "green band" while measuring almost none of the map.
    *
-   * /about is the camera to do it at: z10.5 over Portland, which is
-   * forest on three sides.
+   * So this one does not bucket by hue and does not filter by
+   * saturation. It counts the actual RGB values, quantised, and reports
+   * the biggest masses with the nearest --map-* token to each. That turns
+   * the question into one line per mass: this much of the screen is this
+   * colour, and it is (or is not) the token we set.
+   *
+   * Two cameras, because they show different things: /projects is the
+   * globe at z2.6, where `landcover` covers whole continents and a forest
+   * mass is at its largest; /about is z10.5 over Portland.
    */
-  test('what the basemap is actually painted', async ({
-    page,
-  }, testInfo) => {
-    await page.goto('/about', { waitUntil: 'load' });
-    await waitForScene(page, 'live').catch(() => undefined);
-    await installBasemapOnly(page);
-    await settle(page);
-    await showBasemapOnly(page, true);
-    await settle(page);
+  for (const route of ['/projects', '/about']) {
+    test(`what the basemap is actually painted on ${route}`, async ({
+      page,
+    }, testInfo) => {
+      await page.goto(route, { waitUntil: 'load' });
+      await waitForScene(page, 'live').catch(() => undefined);
+      await installBasemapOnly(page);
+      await settle(page);
+      await showBasemapOnly(page, true);
+      await settle(page);
 
-    const shot = (await page.screenshot()).toString('base64');
+      const shot = (await page.screenshot()).toString('base64');
 
-    await guard(testInfo, 'pixels', () =>
-      page.evaluate(
-        (encoded) =>
-          new Promise((resolve, reject) => {
-            const image = new Image();
-            image.onerror = () =>
-              reject(new Error('the capture did not decode'));
-            image.onload = () => {
-              const canvas = document.createElement('canvas');
-              canvas.width = image.naturalWidth;
-              canvas.height = image.naturalHeight;
-              const context = canvas.getContext('2d');
-              if (!context) {
-                reject(new Error('no 2d context'));
-                return;
-              }
-              context.drawImage(image, 0, 0);
-              const { data } = context.getImageData(
-                0,
-                0,
-                canvas.width,
-                canvas.height,
-              );
-              /* Mapbox's own greenspace default, as 8-bit. */
-              const MAPBOX_GREEN = [163, 240, 158];
-              const bins: Record<number, number> = {};
-              let mapboxGreen = 0;
-              let counted = 0;
-              const worst: number[][] = [];
-              for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-                const max = Math.max(r, g, b);
-                const min = Math.min(r, g, b);
-                // Greys carry no hue and would swamp the histogram.
-                if (max - min < 12) continue;
-                counted += 1;
-                const d = max - min;
-                let h: number;
-                if (max === r)
-                  h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-                else if (max === g) h = ((b - r) / d + 2) / 6;
-                else h = ((r - g) / d + 4) / 6;
-                const deg = Math.round((h * 360) / 10) * 10;
-                bins[deg] = (bins[deg] ?? 0) + 1;
-                const near =
-                  Math.abs(r - MAPBOX_GREEN[0]) < 40 &&
-                  Math.abs(g - MAPBOX_GREEN[1]) < 40 &&
-                  Math.abs(b - MAPBOX_GREEN[2]) < 40;
-                if (near) {
-                  mapboxGreen += 1;
-                  if (worst.length < 8) worst.push([r, g, b]);
-                }
-              }
-              const top = Object.entries(bins)
-                .sort((a, c) => c[1] - a[1])
-                .slice(0, 12)
-                .map(([deg, n]) => ({
-                  hue: Number(deg),
-                  share: Number((n / counted).toFixed(4)),
-                }));
-              /* Anything in the green band at all, however pale. */
-              const greenBand = Object.entries(bins)
-                .filter(
-                  ([deg]) => Number(deg) >= 70 && Number(deg) <= 170,
-                )
-                .reduce((sum, [, n]) => sum + n, 0);
-              resolve({
-                sampled: data.length / 4,
-                counted,
-                top,
-                greenBandShare: Number(
-                  (greenBand / Math.max(1, counted)).toFixed(4),
-                ),
-                mapboxGreen,
-                mapboxGreenSamples: worst,
-              });
-            };
-            image.src = `data:image/png;base64,${encoded}`;
-          }),
-        shot,
-      ),
-    );
+      await guard(
+        testInfo,
+        `pixels${route.replace(/\//g, '-')}`,
+        () =>
+          page.evaluate(
+            ([encoded, names]) =>
+              new Promise((resolve, reject) => {
+                const image = new Image();
+                image.onerror = () =>
+                  reject(new Error('the capture did not decode'));
+                image.onload = () => {
+                  const canvas = document.createElement('canvas');
+                  canvas.width = image.naturalWidth;
+                  canvas.height = image.naturalHeight;
+                  const context = canvas.getContext('2d');
+                  if (!context) {
+                    reject(new Error('no 2d context'));
+                    return;
+                  }
+                  context.drawImage(image, 0, 0);
+                  const { data } = context.getImageData(
+                    0,
+                    0,
+                    canvas.width,
+                    canvas.height,
+                  );
 
-    await showBasemapOnly(page, false);
-  });
+                  /* The live value of every --map-* token, as rgb. */
+                  const css = getComputedStyle(
+                    document.documentElement,
+                  );
+                  const tokens: [string, number[]][] = (
+                    names as string[]
+                  ).map((name) => {
+                    const probe = document.createElement('div');
+                    probe.style.color = css
+                      .getPropertyValue(name)
+                      .trim();
+                    document.body.append(probe);
+                    const resolved = getComputedStyle(probe).color;
+                    probe.remove();
+                    const n = (
+                      resolved.match(/\d+/g) ?? ['0', '0', '0']
+                    )
+                      .slice(0, 3)
+                      .map(Number);
+                    return [name, n];
+                  });
+
+                  /* Mapbox's own greenspace default, as 8-bit. */
+                  const MAPBOX_GREEN = [163, 240, 158];
+                  const bins = new Map<string, number>();
+                  let mapboxGreen = 0;
+                  const total = data.length / 4;
+                  for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    // Quantised to 4 levels so near-identical shades of
+                    // one fill land in one bin; no saturation filter, so
+                    // the map's own low-chroma surfaces are counted.
+                    const key = `${r >> 2}.${g >> 2}.${b >> 2}`;
+                    bins.set(key, (bins.get(key) ?? 0) + 1);
+                    if (
+                      Math.abs(r - MAPBOX_GREEN[0]) < 40 &&
+                      Math.abs(g - MAPBOX_GREEN[1]) < 40 &&
+                      Math.abs(b - MAPBOX_GREEN[2]) < 40
+                    ) {
+                      mapboxGreen += 1;
+                    }
+                  }
+
+                  const hue = ([r, g, b]: number[]) => {
+                    const mx = Math.max(r, g, b);
+                    const mn = Math.min(r, g, b);
+                    if (mx === mn) return -1;
+                    const d = mx - mn;
+                    const h =
+                      mx === r
+                        ? ((g - b) / d + (g < b ? 6 : 0)) / 6
+                        : mx === g
+                          ? ((b - r) / d + 2) / 6
+                          : ((r - g) / d + 4) / 6;
+                    return Math.round(h * 360);
+                  };
+
+                  const masses = [...bins.entries()]
+                    .sort((a, c) => c[1] - a[1])
+                    .slice(0, 14)
+                    .map(([key, n]) => {
+                      const rgb = key
+                        .split('.')
+                        .map((v) => Number(v) * 4 + 2);
+                      let best = '';
+                      let bestD = Infinity;
+                      for (const [name, value] of tokens) {
+                        const d = Math.hypot(
+                          rgb[0] - value[0],
+                          rgb[1] - value[1],
+                          rgb[2] - value[2],
+                        );
+                        if (d < bestD) {
+                          bestD = d;
+                          best = name;
+                        }
+                      }
+                      return {
+                        rgb,
+                        hue: hue(rgb),
+                        share: Number((n / total).toFixed(4)),
+                        nearest: best,
+                        distance: Math.round(bestD),
+                      };
+                    });
+
+                  resolve({
+                    sampled: total,
+                    masses,
+                    mapboxGreen,
+                    tokens: Object.fromEntries(tokens),
+                  });
+                };
+                image.src = `data:image/png;base64,${encoded}`;
+              }),
+            [
+              shot,
+              [
+                '--map-land',
+                '--map-water',
+                '--map-green',
+                '--map-building',
+                '--map-road',
+                '--map-road-major',
+                '--map-boundary',
+                '--surface-ground',
+                '--clif-accent',
+                '--clif-accent-2',
+              ],
+            ] as [string, string[]],
+          ),
+      );
+
+      await showBasemapOnly(page, false);
+    });
+  }
 
   /* ---- 2: what each camera actually shows ---------------------------- */
 
