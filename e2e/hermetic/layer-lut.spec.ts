@@ -1,10 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 import { paintsAColor } from 'scene/layers/sets';
-import { basemapColor } from 'styles/tokens/lut';
+import { basemapColor } from '../fixtures/lut';
 import {
   makePalette,
   type Palette,
+  PALETTE_KEYS,
+  PALETTE_TOKENS,
   parseRgb,
+  type PaletteColors,
   type Rgb,
 } from 'styles/tokens/palette';
 import {
@@ -130,7 +133,15 @@ const proveTheme = async (page: Page) => {
     seen.root,
     'the stub did not put a colour theme on the root scope, so this test is vacuous',
   ).toBe(true);
-  expect(seen.basemap).toBe(true);
+  /*
+   * The BASEMAP scope holds nothing, and that is the shipped state rather
+   * than a gap in the fixture: the site sets no colour theme on the
+   * import any more -- the cartography is setConfigProperty, per feature
+   * class (styles/tokens/cartography.ts). Asserted rather than ignored,
+   * because a LUT reappearing there would silently re-grade every colour
+   * the config keys just set.
+   */
+  expect(seen.basemap).toBe(false);
   expect(seen.ours.length).toBeGreaterThan(0);
   /*
    * And it reached them. `-use-theme` does not remove the LUT from the
@@ -178,21 +189,23 @@ const everyColorIsSealed = async (page: Page, ours: string[]) => {
 
 /** The palette this frame is wearing, as the app's own reader builds it. */
 const readLivePalette = async (page: Page): Promise<Palette> => {
-  const tokens = await page.evaluate(() => {
-    const css = getComputedStyle(document.documentElement);
-    const read = (name: string) => css.getPropertyValue(name).trim();
-    return {
-      accent: read('--clif-accent'),
-      accent2: read('--clif-accent-2'),
-      space: read('--surface-ground'),
-      land: read('--map-land'),
-      deep: read('--map-deep'),
-      body: read('--text-body'),
-      accentSmall: read('--text-accent-small'),
-      sub: read('--text-secondary'),
-      muted: read('--text-muted'),
-    };
-  });
+  /*
+   * Swept from PALETTE_TOKENS rather than written out. It used to name
+   * all nine by hand, which is a list that silently goes short: the six
+   * cartographic surfaces arrived and this would have built a palette
+   * missing them without failing.
+   */
+  const tokens = await page.evaluate(
+    (names: Record<string, string>) => {
+      const css = getComputedStyle(document.documentElement);
+      const out: Record<string, string> = {};
+      for (const [key, token] of Object.entries(names)) {
+        out[key] = css.getPropertyValue(token).trim();
+      }
+      return out;
+    },
+    PALETTE_TOKENS as Record<string, string>,
+  );
   const rgb = (value: string) => {
     const parsed = parseRgb(value, MISSING);
     // The tokens are authored as hex, so this is the app's own parser
@@ -200,17 +213,11 @@ const readLivePalette = async (page: Page): Promise<Palette> => {
     expect(parsed, `unparsed token: ${value}`).not.toEqual(MISSING);
     return parsed;
   };
-  return makePalette({
-    accent: rgb(tokens.accent),
-    accent2: rgb(tokens.accent2),
-    space: rgb(tokens.space),
-    land: rgb(tokens.land),
-    deep: rgb(tokens.deep),
-    body: rgb(tokens.body),
-    accentSmall: rgb(tokens.accentSmall),
-    sub: rgb(tokens.sub),
-    muted: rgb(tokens.muted),
-  });
+  return makePalette(
+    Object.fromEntries(
+      PALETTE_KEYS.map((key) => [key, rgb(tokens[key])]),
+    ) as PaletteColors,
+  );
 };
 
 /** A screen point near `at` that none of our layers covers. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anchors } from 'content/anchors';
+import { type AnchorId, anchors } from 'content/anchors';
 import {
   ARTBOARD_DESKTOP,
   ARTBOARD_MOBILE,
@@ -38,6 +38,47 @@ import {
   terrainFor,
 } from 'scene/camera';
 import { cubicBezier } from 'scene/ease';
+import { CARTOGRAPHY_MAX_ZOOM } from 'styles/tokens/cartography';
+
+/*
+ * THE CAP AND THE CAMERAS HAVE TO AGREE, and nothing else would say so.
+ *
+ * scene/mapbox/instance.ts constructs the map with
+ * `maxZoom: CARTOGRAPHY_MAX_ZOOM`, because above z13 Standard stops
+ * painting water in the colour the theme asked for. mapbox CLAMPS a
+ * camera to maxZoom rather than refusing it, so a route declared deeper
+ * than the cap would fly to the wrong place, silently, and every
+ * assertion about its zoom that reads the route table rather than the
+ * map would still pass.
+ *
+ * The deepest route today is /about at 10.5, so there is 2.5 of headroom.
+ * This fails the moment either number moves toward the other.
+ */
+describe('the cartography cap', () => {
+  it('is above every camera the site declares', () => {
+    for (const [id, spec] of Object.entries(cameras)) {
+      expect(
+        spec.zoom,
+        `${id} is declared deeper than the map's maxZoom, so mapbox ` +
+          'will clamp it and the route will not arrive where it says',
+      ).toBeLessThanOrEqual(CARTOGRAPHY_MAX_ZOOM);
+    }
+  });
+
+  /*
+   * And a hover refinement is a camera too: cameraForHover nudges the
+   * zoom, and a nudge off the deepest route is the one that could cross
+   * the cap without any route table changing.
+   */
+  it('is above every camera a hover can produce', () => {
+    for (const id of Object.keys(anchors) as AnchorId[]) {
+      const hovered = cameraForHover(cameras.projects, id);
+      expect(hovered.zoom, id).toBeLessThanOrEqual(
+        CARTOGRAPHY_MAX_ZOOM,
+      );
+    }
+  });
+});
 
 describe('route -> camera', () => {
   it('resolves every route in the design table', () => {
@@ -151,9 +192,15 @@ describe('viewport', () => {
     expect(forViewport(cameras.hello, 'hello', true).frame).toBe(
       ORBIT_FRAME_MOBILE,
     );
+    // projects CLEARS its frame on a phone rather than swapping it: there
+    // is no rail beside a full-bleed table, so 1g is a plain zoom, and the
+    // padding has to be cleared with it or the desktop frame's offset
+    // rides along on mapbox's transform.
     const projects = forViewport(cameras.projects, 'projects', true);
     expect(projects.zoom).toBe(2.2);
     expect(projects.pitch).toBe(20);
+    expect(projects.frame).toBeNull();
+    expect(projects.padding).toEqual(NO_PADDING);
     const about = forViewport(cameras.about, 'about', true);
     expect(about.zoom).toBe(10.2);
     expect(about.pitch).toBe(55);
@@ -204,6 +251,23 @@ describe('the artboard cameras are their frames', () => {
       viewport: ARTBOARD_MOBILE,
     },
     {
+      name: 'projects on 1b',
+      spec: cameras.projects,
+      viewport: ARTBOARD_DESKTOP,
+    },
+    {
+      /*
+       * about has no frame -- there is no sphere to size at zoom 10.5 --
+       * but it does state an `at`, and the padding beside it is that
+       * ratio resolved at 1440x900. Same drift, same guard: a
+       * hand-edited padding here would be overwritten by frameCamera on
+       * every real viewport and nothing else would say so.
+       */
+      name: 'about on 1e',
+      spec: cameras.about,
+      viewport: ARTBOARD_DESKTOP,
+    },
+    {
       name: 'the 404 at desktop size',
       spec: cameras.notFound,
       viewport: ARTBOARD_DESKTOP,
@@ -241,10 +305,48 @@ describe('the artboard cameras are their frames', () => {
 });
 
 describe('framing', () => {
-  it('leaves a camera with no frame alone', () => {
-    expect(frameCamera(cameras.projects, ARTBOARD_DESKTOP)).toBe(
-      cameras.projects,
+  it('leaves a camera with neither a frame nor an at alone', () => {
+    expect(frameCamera(cameras.projectDetail, ARTBOARD_DESKTOP)).toBe(
+      cameras.projectDetail,
     );
+  });
+
+  /*
+   * A frameless camera that DOES state where its centre goes gets the
+   * padding half of the resolution and nothing else. This is what puts
+   * the about data below the copy, and the two halves are separable
+   * because only the zoom half needs a sphere: `radius` is a painted
+   * limb, and a pitched mercator camera has none.
+   */
+  it('resolves an at into padding, leaving the zoom alone', () => {
+    const tall = frameCamera(cameras.about, {
+      width: 1200,
+      height: 1000,
+    });
+
+    expect(tall.zoom).toBe(cameras.about.zoom);
+    // 0.7 of the height: the gap between opposing sides is twice the
+    // offset wanted, so 1000 * (2 * 0.7 - 1) lands on the top.
+    expect(tall.padding.top).toBeCloseTo(400, 9);
+    expect(tall.padding.bottom).toBe(0);
+    expect(tall.padding.left).toBe(0);
+    expect(tall.padding.right).toBe(0);
+    // Which is the projection centre at 0.7 down, whatever the box is.
+    expect(
+      (1000 + tall.padding.top - tall.padding.bottom) / 2,
+    ).toBeCloseTo(0.7 * 1000, 9);
+  });
+
+  /*
+   * ONE ANSWER, NOT TWO. A camera with a frame carries an `at` inside it
+   * and states null at the top level, so there is never a pair to
+   * disagree -- asserted over the whole table rather than on the one
+   * camera that could have got it wrong today.
+   */
+  it('never states both a frame and an at', () => {
+    Object.values(cameras).forEach((spec) => {
+      expect(spec.frame === null || spec.at === null).toBe(true);
+    });
   });
 
   it('leaves every camera alone where there is no layout', () => {
@@ -357,12 +459,18 @@ describe('framing', () => {
       false,
     );
     expect(
-      sameCamera(cameras.projects, bent({ ...NO_PADDING, extra: 1 })),
+      sameCamera(
+        cameras.projects,
+        bent({ ...cameras.projects.padding, extra: 1 }),
+      ),
     ).toBe(false);
     // And a rebuilt-but-equal padding is still the same camera, which is
     // what stops a re-render turning into a camera move.
     expect(
-      sameCamera(cameras.projects, bent({ ...NO_PADDING })),
+      sameCamera(
+        cameras.projects,
+        bent({ ...cameras.projects.padding }),
+      ),
     ).toBe(true);
   });
 

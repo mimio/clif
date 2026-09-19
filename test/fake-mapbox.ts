@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { vi } from 'vitest';
+import { type CameraPadding, NO_PADDING } from 'content/cameras';
 import type { MapboxModule } from 'scene/mapbox/loader';
 
 /*
@@ -155,33 +156,70 @@ export const CONFIG_FRAGMENT = 'basemap';
  * `Style.setConfigProperty` reads `fragmentStyle.stylesheet.schema` and
  * returns -- silently, with no error event -- when the key is not in it.
  * The schema lives in the style JSON on Mapbox's servers, so there is
- * nothing in the package to derive this from; it is the documented
- * Standard configuration surface, and it is here so that a typo in
- * scene/theme.ts is a test failure rather than a knob that stops working
- * in production with nothing said.
+ * nothing in the package to derive this from, and it is here so that a
+ * typo in scene/theme.ts is a test failure rather than a knob that stops
+ * working in production with nothing said.
+ *
+ * THIS IS NOW A RECORDING RATHER THAN A RECOLLECTION. It used to be
+ * written from the documented configuration surface, which is how it
+ * came to carry `showRoadsAndTransit` -- a key Standard does not have --
+ * and to be missing eight of the colour keys the cartography needs. It
+ * is `Object.keys(map.getSchema('basemap')).sort()` read off the real
+ * style by e2e/review/cartography.spec.ts, which is the one tier that
+ * loads Standard with a real token. 46 keys, verbatim.
+ *
+ * Re-record it from a CARTO `schema` annotation when Mapbox ships a new
+ * Standard, rather than adding a key by hand: a guessed key here is a
+ * guard that passes while production silently drops the call.
  */
 export const STANDARD_CONFIG_SCHEMA = new Set([
-  'lightPreset',
-  'theme',
-  'font',
-  'showPlaceLabels',
-  'showRoadLabels',
-  'showPointOfInterestLabels',
-  'showTransitLabels',
-  'show3dObjects',
-  'showPedestrianRoads',
-  'showAdminBoundaries',
-  'showRoadsAndTransit',
-  'showLandmarkIcons',
-  'colorMotorways',
-  'colorTrunks',
-  'colorRoads',
-  'colorPlaceLabels',
-  'colorGreenspace',
-  'colorWater',
+  'backgroundPointOfInterestLabels',
   'colorAdminBoundaries',
   'colorBuildingHighlight',
   'colorBuildingSelect',
+  'colorBuildings',
+  'colorCommercial',
+  'colorEducation',
+  'colorGreenspace',
+  'colorHdRoads',
+  'colorIndoorLabelHighlight',
+  'colorIndoorLabelSelect',
+  'colorIndustrial',
+  'colorLand',
+  'colorMedical',
+  'colorModePointOfInterestLabels',
+  'colorMotorways',
+  'colorPlaceLabelHighlight',
+  'colorPlaceLabelSelect',
+  'colorPlaceLabels',
+  'colorPointOfInterestLabels',
+  'colorRoadLabels',
+  'colorRoads',
+  'colorTrunks',
+  'colorWater',
+  'densityPointOfInterestLabels',
+  'font',
+  'fuelingStationModePointOfInterestLabels',
+  'lightPreset',
+  'roadsBrightness',
+  'show3dBuildings',
+  'show3dFacades',
+  'show3dLandmarks',
+  'show3dObjects',
+  'show3dTrees',
+  'showAdminBoundaries',
+  'showHdRoads',
+  'showIndoor',
+  'showIndoorLabels',
+  'showLandmarkIconLabels',
+  'showLandmarkIcons',
+  'showPedestrianRoads',
+  'showPlaceLabels',
+  'showPointOfInterestLabels',
+  'showRoadLabels',
+  'showTransitLabels',
+  'theme',
+  'theme-data',
 ]);
 
 /**
@@ -200,12 +238,21 @@ const CONFIG_DEFAULTS: Record<string, unknown> = {
   font: 'DIN Pro',
 };
 
-/** Events the scene's own lifecycle owns, rather than a layer set. */
+/**
+ * Events the scene's own lifecycle owns, rather than a layer set.
+ *
+ * `move` is one of them. Two subscriptions in scene/mapbox/instance.ts
+ * read the transform back off it -- the coordinate readout's centre and
+ * the star field's disc -- and neither belongs to a route's layers, so
+ * counting them here would make `handlers` report a set that never
+ * unmounted every time something was watching the camera.
+ */
 const LIFECYCLE_EVENTS = [
   'style.load',
   'error',
   'sourcedata',
   'render',
+  'move',
 ];
 
 export type Recorded = {
@@ -287,6 +334,15 @@ export type FakeMapOptions = {
   basemap?: boolean;
 };
 
+/** easeTo's padding, as the scene always sends it: all four sides. */
+const isPadding = (value: unknown): value is CameraPadding =>
+  value !== null &&
+  typeof value === 'object' &&
+  ['top', 'right', 'bottom', 'left'].every(
+    (side) =>
+      typeof (value as Record<string, unknown>)[side] === 'number',
+  );
+
 let installed: FakeMapOptions = {};
 
 export class FakeMap {
@@ -364,6 +420,23 @@ export class FakeMap {
 
   /** The transform's centre, as easeTo leaves it. */
   private center: [number, number] = [0, 0];
+
+  /*
+   * And the rest of what the star field reads back: the zoom and the
+   * padding that put the globe's disc on screen, and the pitch that --
+   * with the bearing and the centre above -- turns the sky. Real mapbox
+   * interpolates all of them across a flight; like `center` above, the
+   * fake lands them in one step, because what a unit test can settle is
+   * that the seam is wired and not what the curve looked like halfway.
+   *
+   * mapbox's own defaults, so a map nobody has moved reads the way one
+   * does in a browser: zoom 0, flat, and no padding at all.
+   */
+  private zoom = 0;
+
+  private pitch = 0;
+
+  private padding: CameraPadding = { ...NO_PADDING };
 
   /*
    * WHETHER A CAMERA FLIGHT OWNS THE TRANSFORM, which is the one thing
@@ -686,6 +759,13 @@ export class FakeMap {
     if (Array.isArray(options.center)) {
       this.center = [...options.center] as [number, number];
     }
+    if (typeof options.zoom === 'number') this.zoom = options.zoom;
+    if (typeof options.pitch === 'number') this.pitch = options.pitch;
+    if (typeof options.bearing === 'number') {
+      this.bearing = options.bearing;
+    }
+    if (isPadding(options.padding))
+      this.padding = { ...options.padding };
     // A zero-duration ease is a jump: real mapbox runs the frame and
     // finishes inside the call rather than scheduling one.
     this.easing = options.duration !== 0;
@@ -707,6 +787,24 @@ export class FakeMap {
 
   getBearing(): number {
     return this.bearing;
+  }
+
+  getZoom(): number {
+    return this.zoom;
+  }
+
+  getPitch(): number {
+    return this.pitch;
+  }
+
+  /*
+   * A COPY, because mapbox hands back its transform's own object and
+   * scene/mapbox/instance.ts snapshots it for exactly that reason. A
+   * fake that returned the same reference every time would let that
+   * snapshot look correct while the real one was not.
+   */
+  getPadding(): CameraPadding {
+    return { ...this.padding };
   }
 
   setBearing(value: number): void {

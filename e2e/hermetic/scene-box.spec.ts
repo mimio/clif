@@ -114,7 +114,7 @@ test.describe('the debug handle', () => {
     ).toBeUndefined();
   });
 
-  test('reports the style, the LUT and a clean error log', async ({
+  test('reports the style, its themeability and a clean error log', async ({
     context,
     page,
   }) => {
@@ -132,7 +132,7 @@ test.describe('the debug handle', () => {
     const seen = await page.evaluate(async () => {
       type Handle = {
         styleStatus: () => string;
-        appliedLut: () => string | null;
+        colorThemeSupported: () => boolean | null;
         errors: () => string[];
         lastAction: () => string;
       };
@@ -144,7 +144,7 @@ test.describe('the debug handle', () => {
       });
       return {
         status: handle.styleStatus(),
-        lut: handle.appliedLut()?.slice(0, 16) ?? null,
+        themeable: handle.colorThemeSupported(),
         errors: handle.errors(),
         lastAction: handle.lastAction(),
       };
@@ -152,15 +152,17 @@ test.describe('the debug handle', () => {
 
     expect(seen).not.toBeNull();
     expect(seen?.status).toBe('ready');
-    // The LUT the scene handed to the map's colour-theme API, read from
-    // the scene rather than inferred from how mapbox decodes it. WHICH
-    // call it made, and which scope ended up wearing it, is
-    // e2e/hermetic/basemap-theme.spec.ts's -- that distinction is the
-    // whole of the bug this one cannot see.
-    expect(seen?.lut).toMatch(/^[A-Za-z0-9+/]+$/);
+    /*
+     * That the style can be themed at all, read from the scene's own
+     * probe rather than inferred. It used to report the colour LUT it had
+     * sent; there is no LUT, and WHAT the basemap ended up holding is
+     * e2e/hermetic/basemap-cartography.spec.ts's -- that distinction is
+     * the whole of the bug this one cannot see.
+     */
+    expect(seen?.themeable).toBe(true);
     expect(seen?.lastAction).not.toBe('none');
-    // Nothing should have gone wrong. If the real Mapbox ever rejects
-    // the LUT or a config key, this is where it will show up.
+    // Nothing should have gone wrong. If the real Mapbox ever rejects a
+    // config key, this is where it will show up.
     expect(seen?.errors).toEqual([]);
   });
 });

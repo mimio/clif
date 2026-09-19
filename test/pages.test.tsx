@@ -14,19 +14,15 @@ import { cameras } from 'content/cameras';
 import { historyStops } from 'content/history';
 import projectsById, { projectsList } from 'content/projects';
 import AboutPage, {
+  aboutStopPath,
   formatStopMeta,
-  SCRUBBER_POSITIONS,
-  toScrubberStops,
 } from 'pagesComponents/about';
 import HelloPage from 'pagesComponents/hello';
 import NotFoundPage from 'pagesComponents/notFound';
 import ProjectDetailPage, {
   richTextToString,
 } from 'pagesComponents/projectDetail';
-import ProjectsPage, {
-  FEATURED_IDS,
-  toRow,
-} from 'pagesComponents/projects';
+import ProjectsPage, { toRow } from 'pagesComponents/projects';
 import MapProvider, { useScene } from 'scene/MapProvider';
 
 const pathname = vi.hoisted(() => ({ current: '/' }));
@@ -88,14 +84,13 @@ describe('route components', () => {
     ).toHaveAttribute('href', '/');
   });
 
-  it('projects shows six featured rows, and all fourteen on request', () => {
-    const { rerender } = render(
-      <ProjectsPage projects={projectsList} />,
-    );
-    expect(FEATURED_IDS).toHaveLength(6);
-    expect(screen.getByText('06 of 14')).toBeVisible();
-    rerender(<ProjectsPage all projects={projectsList} />);
-    expect(screen.getByText('14 of 14')).toBeVisible();
+  it('projects shows every project, with no state to open first', () => {
+    render(<ProjectsPage projects={projectsList} />);
+    expect(screen.getByText('all projects')).toBeVisible();
+    expect(
+      screen.getByText(String(projectsList.length)),
+    ).toBeVisible();
+    expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('projects reports the hovered row so the camera can nudge', async () => {
@@ -113,7 +108,7 @@ describe('route components', () => {
   });
 
   it('projects rows carry the anchor city', () => {
-    expect(toRow(projectsById.gopro, 10).city).toBe('Vail CO');
+    expect(toRow(projectsById.gopro).city).toBe('Vail CO');
   });
 
   it('the detail route renders the prose, links and all', () => {
@@ -139,47 +134,50 @@ describe('route components', () => {
     ).toContain('Wieden + Kennedy team');
   });
 
-  it('about opens on Ubiquiti and pages between stops', () => {
+  it('about opens on Ubiquiti, loose on the page', () => {
     render(<AboutPage stops={historyStops} />);
+    expect(screen.getByText('about me')).toBeVisible();
     expect(
       screen.getByRole('heading', { name: 'Ubiquiti' }),
     ).toBeVisible();
-    expect(screen.getByText('stop 04 / 06')).toBeVisible();
-    expect(screen.getByRole('link', { name: /Nike/ })).toBeVisible();
+    expect(screen.getByText('Software Engineer')).toBeVisible();
     expect(
-      screen.getByRole('link', { name: /Freelancing/ }),
+      screen.getByText(formatStopMeta(historyStops[3])),
+    ).toBeVisible();
+    expect(
+      screen.getByText(historyStops[3].description),
     ).toBeVisible();
   });
 
-  it('about has no previous on the first stop or next on the last', () => {
-    const { rerender } = render(
-      <AboutPage selectedIndex={0} stops={historyStops} />,
-    );
-    expect(
-      screen.queryByRole('link', { name: /New York State Parks/ }),
-    ).toBeNull();
-    rerender(<AboutPage selectedIndex={5} stops={historyStops} />);
-    expect(
-      screen.queryByRole('link', { name: /Salesforce/ }),
-    ).toBeNull();
+  /*
+   * The simplified board has no sheet and no scrubber, so the panel
+   * chrome those carried goes with them. Asserted by absence rather than
+   * left to be noticed: `stop 04 / 06` was the sheet's eyebrow and the
+   * pager caps were its prev/next, and a route that still rendered either
+   * would be the old board wearing the new camera.
+   */
+  it('about draws no sheet, no pager and no scrubber', () => {
+    const { container } = render(<AboutPage stops={historyStops} />);
+    expect(screen.queryByText('stop 04 / 06')).toBeNull();
+    expect(container.querySelector('[data-placement]')).toBeNull();
+    expect(container.querySelector('[data-sheet-pager]')).toBeNull();
   });
 
-  it('about reports scrubber selection', async () => {
-    const onSelectStop = vi.fn();
-    render(
-      <AboutPage onSelectStop={onSelectStop} stops={historyStops} />,
-    );
-    await userEvent.click(screen.getByText('NIKE'));
-    expect(onSelectStop).toHaveBeenCalledWith(2);
-  });
-
-  it('places the scrubber stops where the artboards put them', () => {
-    expect(SCRUBBER_POSITIONS).toEqual([0, 15, 25, 36, 46, 57]);
-    expect(toScrubberStops(historyStops)[3]).toEqual({
-      id: 4,
-      label: 'UBIQUITI',
-      at: 36,
-    });
+  /*
+   * With the map as the only pointing control, these six links are the
+   * route's whole keyboard surface -- see the `stopList` note in
+   * pagesComponents/about.
+   */
+  it('about keeps every stop reachable as a link', () => {
+    render(<AboutPage stops={historyStops} />);
+    for (const stop of historyStops) {
+      expect(
+        screen.getByRole('link', { name: stop.company }),
+      ).toHaveAttribute('href', aboutStopPath(stop));
+    }
+    expect(
+      screen.getByRole('link', { name: 'Ubiquiti' }),
+    ).toHaveAttribute('aria-current', 'true');
   });
 
   it('formats a stop, leaving the current one open-ended', () => {
@@ -359,7 +357,7 @@ describe('page metadata', () => {
     expect(titles).toEqual([
       'hello · Clifton Campbell',
       'projects · Clifton Campbell',
-      'about · Clifton Campbell',
+      'about me · Clifton Campbell',
       'GoPro Mountain Games Event Map · Clifton Campbell',
       '404 · Clifton Campbell',
     ]);

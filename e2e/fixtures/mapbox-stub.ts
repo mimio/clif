@@ -1,5 +1,5 @@
 import type { BrowserContext, Page } from '@playwright/test';
-import { buildLut } from 'styles/tokens/lut';
+import { buildLut } from './lut';
 import { FALLBACK_PALETTE } from 'styles/tokens/palette';
 
 /*
@@ -108,6 +108,13 @@ export type StubRecord = {
   styleUrl: string;
   /** Every setConfigProperty, as [key, value] on the basemap import. */
   config: [string, unknown][];
+  /**
+   * setConfigProperty calls the style could not take: no `basemap`
+   * import, or the wrong fragment id. The real library drops these in
+   * silence, so this is the only place they are visible. Empty is the
+   * healthy state.
+   */
+  configDiscarded: [string, unknown][];
   /** Counts only: that they happened is the assertion, not their values. */
   fog: number;
   /**
@@ -166,6 +173,7 @@ const stubScript = (options: StubOptions): void => {
     rootColorTheme: [],
     styleUrl: '',
     config: [],
+    configDiscarded: [],
     fog: 0,
     bearings: 0,
     spins: 0,
@@ -223,6 +231,17 @@ const stubScript = (options: StubOptions): void => {
      */
     let terrainDirty = false;
     let center: [number, number] = [0, 0];
+    /*
+     * The rest of what the star field reads back: the zoom and padding
+     * that place the globe's disc, and the pitch that turns the sky with
+     * the bearing and the centre. mapbox's own defaults, so a map nobody
+     * has moved answers the way one does in a browser; the scene sends
+     * every one of them on every easeTo, including the routes that want
+     * no padding at all.
+     */
+    let zoom = 0;
+    let pitch = 0;
+    let padding = { top: 0, right: 0, bottom: 0, left: 0 };
     const layers = new Map<string, unknown>();
     const disabled = new Set<string>();
     let bearing = 0;
@@ -312,12 +331,23 @@ const stubScript = (options: StubOptions): void => {
         if (Array.isArray(spec.center)) {
           center = [...spec.center] as [number, number];
         }
+        if (typeof spec.zoom === 'number') zoom = spec.zoom;
+        if (typeof spec.pitch === 'number') pitch = spec.pitch;
+        if (typeof spec.bearing === 'number') bearing = spec.bearing;
+        if (spec.padding) {
+          padding = { ...(spec.padding as typeof padding) };
+        }
         fire('move');
       },
       getCenter: (): { lng: number; lat: number } => ({
         lng: center[0],
         lat: center[1],
       }),
+      getZoom: (): number => zoom,
+      getPitch: (): number => pitch,
+      // A copy: mapbox hands back its transform's own object, and
+      // scene/mapbox/instance.ts snapshots it for that reason.
+      getPadding: (): typeof padding => ({ ...padding }),
       getBearing: (): number => bearing,
       setBearing: (next: number): void => {
         // jumpTo, in the real library, and jumpTo stops the flight. The
@@ -448,7 +478,13 @@ const stubScript = (options: StubOptions): void => {
         value: unknown,
       ): void => {
         guard();
-        if (!hasBasemap || fragment !== 'basemap') return;
+        if (!hasBasemap || fragment !== 'basemap') {
+          // Exactly what the real library does with it, which is
+          // nothing -- but recorded, because a colour dropped here is a
+          // feature class that keeps Mapbox's own and says nothing.
+          record.configDiscarded.push([key, value]);
+          return;
+        }
         record.config.push([key, value]);
       },
     };
@@ -553,6 +589,7 @@ export const readStub = (page: Page): Promise<StubRecord> =>
       rootColorTheme: record.rootColorTheme.map(fingerprint),
       styleUrl: record.styleUrl,
       config: record.config,
+      configDiscarded: record.configDiscarded,
       fog: record.fog,
       bearings: record.bearings,
       spins: record.spins,
@@ -637,22 +674,79 @@ export const measureRecordedLuts = (
  *
  * So a flat stub could not tell the working call from the broken one --
  * and the broken one is what shipped. With the import here, the hermetic
- * tier drives the real library through the real colour-theme path with
- * no network at all, which is where that distinction is now pinned
- * (e2e/hermetic/basemap-theme.spec.ts).
+ * tier drives the real library through the real config path with no
+ * network at all, which is where the same distinction is now pinned for
+ * the cartography (e2e/hermetic/basemap-cartography.spec.ts).
  *
  * `data` rather than `url`: Style._loadImports takes an inline fragment
  * document as-is, so the fragment costs no second request and cannot
  * recurse into the root's own route handler.
  *
- * The schema is Standard's seven configurable knobs -- the ones
- * scene/theme.ts sends -- with types and defaults in the style-spec's
- * `option` shape. It is deliberately exactly those seven: a key the
- * scene sends that is missing here is dropped in silence by the real
- * library, which is the failure e2e/hermetic/routes.spec.ts exists to
- * catch.
+ * THE SCHEMA IS A RECORDING, NOT A RECOLLECTION, and that matters more
+ * than it used to. A key the scene sends that is missing here is dropped
+ * in silence by the real library -- so a hand-written subset makes the
+ * hermetic tier agree with a typo, and there are twelve cartography
+ * colours riding on it now rather than one light preset.
+ *
+ * The key list is `Object.keys(map.getSchema('basemap')).sort()` read off
+ * the real style by e2e/review/cartography.spec.ts, which is the one tier
+ * that loads Standard with a real token. 46 keys. The types and defaults
+ * below are the style-spec `option` shape for the ones the scene actually
+ * sends; the rest are typed loosely on purpose, because their only job
+ * here is to EXIST -- Style.setConfigProperty tests `schema[key]` and
+ * nothing else about it.
+ *
+ * Re-record it from a CARTO `schema` annotation when Mapbox ships a new
+ * Standard. test/fake-mapbox.ts carries the same list for the unit tier.
  */
-const BASEMAP_SCHEMA = {
+const SCHEMA_ONLY_KEYS = [
+  'backgroundPointOfInterestLabels',
+  'colorBuildingHighlight',
+  'colorBuildingSelect',
+  'colorHdRoads',
+  'colorIndoorLabelHighlight',
+  'colorIndoorLabelSelect',
+  'colorModePointOfInterestLabels',
+  'colorPlaceLabelHighlight',
+  'colorPlaceLabelSelect',
+  'colorPlaceLabels',
+  'colorPointOfInterestLabels',
+  'colorRoadLabels',
+  'densityPointOfInterestLabels',
+  'font',
+  'fuelingStationModePointOfInterestLabels',
+  'roadsBrightness',
+  'show3dBuildings',
+  'show3dFacades',
+  'show3dLandmarks',
+  'show3dTrees',
+  'showAdminBoundaries',
+  'showHdRoads',
+  'showIndoor',
+  'showIndoorLabels',
+  'showLandmarkIconLabels',
+  'showLandmarkIcons',
+  'showPedestrianRoads',
+  'theme-data',
+];
+
+/** The twelve the scene paints the cartography with. */
+const COLOR_KEYS = [
+  'colorLand',
+  'colorWater',
+  'colorGreenspace',
+  'colorBuildings',
+  'colorRoads',
+  'colorMotorways',
+  'colorTrunks',
+  'colorAdminBoundaries',
+  'colorCommercial',
+  'colorEducation',
+  'colorIndustrial',
+  'colorMedical',
+];
+
+const BASEMAP_SCHEMA: Record<string, unknown> = {
   lightPreset: {
     type: 'string',
     default: 'day',
@@ -661,13 +755,25 @@ const BASEMAP_SCHEMA = {
   theme: {
     type: 'string',
     default: 'default',
-    values: ['default', 'faded', 'monochrome'],
+    values: ['default', 'faded', 'monochrome', 'custom'],
   },
   showRoadLabels: { type: 'boolean', default: true },
   showPlaceLabels: { type: 'boolean', default: true },
   showPointOfInterestLabels: { type: 'boolean', default: true },
   showTransitLabels: { type: 'boolean', default: true },
   show3dObjects: { type: 'boolean', default: true },
+  ...Object.fromEntries(
+    COLOR_KEYS.map((key) => [
+      key,
+      { type: 'color', default: 'hsl(0, 0%, 50%)' },
+    ]),
+  ),
+  ...Object.fromEntries(
+    SCHEMA_ONLY_KEYS.map((key) => [
+      key,
+      { type: 'string', default: '' },
+    ]),
+  ),
 };
 
 /*

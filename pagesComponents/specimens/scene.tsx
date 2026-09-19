@@ -6,6 +6,7 @@ import {
 } from 'react';
 import type { Specimen } from 'pagesComponents/specimens/types';
 import {
+  ARTBOARD_DESKTOP,
   type CameraSpec,
   cameras,
   type FogColor,
@@ -16,20 +17,42 @@ import {
   SCENE_MOVE_LONG_MS,
   SCENE_MOVE_MS,
   type SceneId,
+  type Viewport,
 } from 'content/cameras';
 import {
   coordLabel,
   forViewport,
+  frameCamera,
   moveDurationFor,
   REDUCED_MOVE_MS,
   SCENE_BY_PATH,
   SCENE_REFRAME_MS,
   terrainFor,
 } from 'scene/camera';
+import { globeLimb } from 'scene/globe';
 import { layerSetsFor } from 'scene/layers/sets';
-import { basemapConfig, lutFor } from 'scene/theme';
-import { buildLut } from 'styles/tokens/lut';
-import { FALLBACK_PALETTE, readPalette } from 'styles/tokens/palette';
+import StarField from 'scene/StarField';
+import {
+  MAPBOX_STAR_COUNT,
+  mapboxStarDiameter,
+  STAR_ALPHA_MAX,
+  STAR_ALPHA_MIN,
+  STAR_COUNT,
+  STAR_MAX_SCALE,
+  STAR_MIN_SCALE,
+  stars,
+} from 'scene/stars';
+import { basemapConfig } from 'scene/theme';
+import {
+  BASEMAP_COLOR_KEYS,
+  BASEMAP_COLORS,
+  basemapColors,
+} from 'styles/tokens/cartography';
+import {
+  FALLBACK_PALETTE,
+  type Palette,
+  readPalette,
+} from 'styles/tokens/palette';
 import {
   applyTheme,
   THEME_IDS,
@@ -78,18 +101,19 @@ const Swatch = ({ color }: { color: string }) => (
 
 /* ---- the live theme --------------------------------------------------- */
 
-type Snapshot = { theme: string; lut: string };
+type Snapshot = { theme: string; palette: Palette };
 
-const SERVER: Snapshot = { theme: 'yellow', lut: '' };
+const SERVER: Snapshot = {
+  theme: 'yellow',
+  palette: FALLBACK_PALETTE,
+};
 
 let snapshot: Snapshot = SERVER;
 
 const readSnapshot = (): Snapshot => {
   const theme = document.documentElement.dataset.theme ?? 'yellow';
-  if (theme === snapshot.theme && snapshot.lut !== '') {
-    return snapshot;
-  }
-  snapshot = { theme, lut: lutFor(readPalette()) };
+  if (theme === snapshot.theme) return snapshot;
+  snapshot = { theme, palette: readPalette() };
   return snapshot;
 };
 
@@ -104,6 +128,18 @@ const subscribe = (onChange: () => void): (() => void) => {
 
 const useThemeSnapshot = (): Snapshot =>
   useSyncExternalStore(subscribe, readSnapshot, () => SERVER);
+
+/*
+ * The two palettes the preset column is read against.
+ *
+ * basemapConfig takes a whole palette now, because it sets the
+ * cartography as well as the structural knobs -- but this column is only
+ * asking what the LIGHT PRESET resolves to, and that turns on
+ * palette.light and nothing else. So the flag is flipped directly rather
+ * than a second theme's tokens being loaded to imply it.
+ */
+const DARK_SAMPLE: Palette = { ...FALLBACK_PALETTE, light: false };
+const LIGHT_SAMPLE: Palette = { ...FALLBACK_PALETTE, light: true };
 
 /* ---- sections --------------------------------------------------------- */
 
@@ -219,9 +255,9 @@ const FogTable = () => (
                 : `${fog.glow.horizonBlend} (mercator)`}
             </td>
             <td className={`${cell} text-fg-4`}>
-              {basemapConfig(id, false).lightPreset} / dark
+              {basemapConfig(id, DARK_SAMPLE).lightPreset} / dark
               {' · '}
-              {basemapConfig(id, true).lightPreset} / light
+              {basemapConfig(id, LIGHT_SAMPLE).lightPreset} / light
             </td>
             <td className={`${cell} text-fg-4`}>{used.join(', ')}</td>
           </tr>
@@ -252,6 +288,7 @@ const LayerTable = () => {
             selectedStop: null,
             onHoverAnchor: noop,
             onSelectAnchor: noop,
+            onSelectStop: noop,
           });
           return (
             <tr className="border-b border-surface-3" key={id}>
@@ -283,22 +320,44 @@ const LayerTable = () => {
   );
 };
 
-const Strip = ({ lut, label }: { lut: string; label: string }) => (
-  <div>
-    <div
-      aria-label={`Mapbox colour-theme LUT for ${label}`}
-      className="h-10 w-full rounded-sm border border-surface-3 bg-cover [image-rendering:pixelated]"
-      role="img"
-      style={{
-        backgroundImage: `url(data:image/png;base64,${lut})`,
-      }}
-    />
-    <code className="block text-[10px] text-fg-4">{label}</code>
-  </div>
-);
+/*
+ * The basemap, as the colours it is actually painted in.
+ *
+ * This is the specimen that replaced the LUT strip, and it is a better
+ * one for the same reason the change was worth making: a cube strip
+ * showed what the grade DID to Mapbox's colours, which nobody could read
+ * back to a feature. These are the features, named, in the colour each
+ * one wears -- so "what is a forest on teal" is a question the page
+ * answers rather than implies.
+ *
+ * Every key Standard has is here, including the two pairs that share a
+ * token, because a swatch that appears twice is the honest picture of a
+ * design that made one decision for both.
+ */
+const SurfaceRow = ({ palette }: { palette: Palette }) => {
+  const colors = basemapColors(palette);
+  return (
+    <div className="grid grid-cols-4 gap-2 max-tablet:grid-cols-2">
+      {BASEMAP_COLOR_KEYS.map((key) => (
+        <div key={key}>
+          <div
+            aria-label={`${key} is ${colors[key]}`}
+            className="h-8 w-full rounded-sm border border-surface-3"
+            role="img"
+            style={{ background: colors[key] }}
+          />
+          <code className="block text-[10px] text-fg-4">{key}</code>
+          <code className="block text-[10px] text-fg-5">
+            --map-{BASEMAP_COLORS[key]} {colors[key]}
+          </code>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 /*
- * Every theme's LUT at once.
+ * Every theme's cartography at once.
  *
  * The themes.css selectors are plain attribute selectors, not :root
  * rules, so a hidden div carrying data-theme="lime" resolves the lime
@@ -306,28 +365,26 @@ const Strip = ({ lut, label }: { lut: string; label: string }) => (
  * eight palettes are read without ever touching the live theme, which is
  * both a render side effect and a flash of seven wrong themes.
  *
- * If two of these strips look the same, the globe does not retheme
+ * If two of these rows look the same, the globe does not retheme
  * between those two.
  */
-const AllStrips = ({ active }: { active: string }) => {
+const AllSurfaces = ({ active }: { active: string }) => {
   const hostRef = useRef<HTMLDivElement>(null);
-  const [strips, setStrips] = useState<{ id: string; lut: string }[]>(
-    [],
-  );
+  const [rows, setRows] = useState<
+    { id: string; palette: Palette }[]
+  >([]);
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    setStrips(
+    setRows(
       THEME_IDS.map((id) => {
         const probe = host.querySelector<HTMLElement>(
           `[data-theme="${id}"]`,
         );
         return {
           id,
-          lut: buildLut(
-            readPalette(probe ?? document.documentElement),
-          ),
+          palette: readPalette(probe ?? document.documentElement),
         };
       }),
     );
@@ -340,18 +397,92 @@ const AllStrips = ({ active }: { active: string }) => {
           <div data-theme={id} key={id} />
         ))}
       </div>
-      <div className="grid grid-cols-2 gap-3 max-tablet:grid-cols-1">
-        {strips.map((strip) => (
-          <Strip
-            key={strip.id}
-            label={
-              strip.id === active ? `${strip.id} (live)` : strip.id
-            }
-            lut={strip.lut}
-          />
+      <div className="flex flex-col gap-4">
+        {rows.map((row) => (
+          <div key={row.id}>
+            <code className="block pb-1 text-[10px] text-fg-3">
+              {row.id === active ? `${row.id} (live)` : row.id}
+            </code>
+            <SurfaceRow palette={row.palette} />
+          </div>
         ))}
       </div>
     </>
+  );
+};
+
+/* ---- the star field --------------------------------------------------- */
+
+/**
+ * Half the artboard, so the patch below is the real field at exactly half
+ * scale: the positions are fractions of the box, the radii scale with its
+ * height, and the globe is reframed against it the way a resize reframes
+ * the live one.
+ */
+const STAR_BOARD: Viewport = {
+  width: ARTBOARD_DESKTOP.width / 2,
+  height: ARTBOARD_DESKTOP.height / 2,
+};
+
+const BIGGER_THAN_MAPBOX = stars.filter(
+  (star) => star.scale > 1,
+).length;
+
+/**
+ * The field, over a stand-in for the globe it keeps out of, and the one
+ * thing in this lane that has to be LOOKED at rather than read: there is
+ * no Mapbox token in development, so the live scene shows its fallback
+ * plate and the real field is never mounted.
+ *
+ * The sphere is not the map. It is a CSS disc at the place and radius
+ * the hello camera resolves to in this box -- a circle, because hello is
+ * unpitched -- wearing the design's two rims at their peak alphas, so
+ * that the hole the mask cuts can be seen landing on it.
+ */
+const StarBoard = () => {
+  // The snapshot rather than readPalette(), because this page is
+  // prerendered: its server value is the yellow fallback, which is what
+  // React hydrates against before the live scope is read.
+  const { palette } = useThemeSnapshot();
+  const camera = frameCamera(cameras.hello, STAR_BOARD);
+  const limb = globeLimb(camera, STAR_BOARD);
+  return (
+    <div
+      className="border border-surface-3"
+      style={{
+        position: 'relative',
+        width: STAR_BOARD.width,
+        height: STAR_BOARD.height,
+        overflow: 'hidden',
+        background: 'var(--surface-ground)',
+      }}
+    >
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          left: limb.cx,
+          top: limb.cy,
+          width: 2 * limb.r,
+          height: 2 * limb.r,
+          transform: 'translate(-50%, -50%)',
+          borderRadius: '50%',
+          background:
+            'radial-gradient(circle at 34% 30%, var(--map-land), var(--map-deep) 68%)',
+          // A tight accent limb inside a wide accent2 halo, which is what
+          // content/cameras.ts states the prototype's surround as.
+          boxShadow: `0 0 0 1px ${palette.a(0.2)}, 0 0 ${Math.round(
+            0.2 * limb.r,
+          )}px ${Math.round(0.08 * limb.r)}px ${palette.b(0.13)}`,
+        }}
+      />
+      <StarField
+        camera={camera}
+        follow={false}
+        palette={palette}
+        viewport={STAR_BOARD}
+      />
+    </div>
   );
 };
 
@@ -376,7 +507,7 @@ const Section = ({
 );
 
 const Scene = () => {
-  const { theme, lut } = useThemeSnapshot();
+  const { theme, palette } = useThemeSnapshot();
 
   return (
     <div className="bg-surface p-4 text-fg-2">
@@ -439,6 +570,13 @@ const Scene = () => {
       </Section>
 
       <Section
+        note={`${STAR_COUNT} accent stars on the same celestial sphere mapbox scatters its own ${MAPBOX_STAR_COUNT.toLocaleString('en')} on — one for every five, turning with the camera rather than fixed in the frame. ${STAR_MIN_SCALE} to ${STAR_MAX_SCALE} times mapbox's largest star (${mapboxStarDiameter(ARTBOARD_DESKTOP.height).toFixed(2)}px on the artboard) at alpha ${STAR_ALPHA_MIN} to ${STAR_ALPHA_MAX}, ${BIGGER_THAN_MAPBOX} of them wider than anything mapbox draws. Drawn on a canvas over the map's and faded out across the globe's atmosphere; half scale here, and one instant of a sky that does not stand still on the route itself. Nothing at all on a light theme, which is the rule that also sends mapbox a star-intensity of zero.`}
+        title="Star field"
+      >
+        <StarBoard />
+      </Section>
+
+      <Section
         note="SceneRoot diffs the active sets against the mounted ones. Every handler is registered through the set's registry, so teardown is total."
         title="Layer sets"
       >
@@ -498,17 +636,17 @@ const Scene = () => {
       </Section>
 
       <Section
-        note="The 32 x 1024 cube strip handed to map.setColorTheme. It re-tints the whole Mapbox Standard basemap, which is how one style wears eight themes. This is the expensive tier: it reloads every tile, so it is debounced and skipped unless the palette key changed."
-        title="Colour-theme LUT — live"
+        note="One setConfigProperty per key on the Mapbox Standard basemap import, straight from this theme's map tokens. These are the colours the globe is painted in, not a grade over Mapbox's own: nothing reloads a tile, and a forest is whatever shade of the theme the token says."
+        title="Basemap cartography — live"
       >
-        {lut === '' ? null : <Strip label={theme} lut={lut} />}
+        <SurfaceRow palette={palette} />
       </Section>
 
       <Section
-        note="If two of these look the same, the globe does not retheme between those two."
-        title="Colour-theme LUT — all eight themes"
+        note="If two of these look the same, the globe does not retheme between those two. Edit the --map-* tokens in styles/tokens/themes.css to move them."
+        title="Basemap cartography — all eight themes"
       >
-        {lut === '' ? null : <AllStrips active={theme} />}
+        <AllSurfaces active={theme} />
       </Section>
     </div>
   );
@@ -517,7 +655,7 @@ const Scene = () => {
 export const scene: Specimen = {
   id: 'scene',
   title: 'Scene',
-  note: 'Camera table, fog presets and the generated LUT strip.',
+  note: "Camera table, fog presets and the basemap's own cartography.",
   render: () => <Scene />,
 };
 

@@ -3,12 +3,9 @@ import {
   haloColor,
   HALO_WIDTH,
   HISTORY_LABELS,
-  LOCALITY_LABELS,
   MAP_TYPE_SIZE,
-  MAP_TYPE_SIZE_QUIET,
-  PLACE_LABELS,
 } from 'scene/layers/sets';
-import { basemapRamp } from 'styles/tokens/lut';
+import { basemapSurfaces } from 'styles/tokens/cartography';
 import {
   contrastRatio,
   makePalette,
@@ -149,10 +146,18 @@ const readLivePalette = async (page: Page) => {
 
 const rgbOf = (value: string): Rgb => parseRgb(value, [-1, -1, -1]);
 
-/** The layers each route is expected to be naming the world with. */
+/*
+ * The layers each route is expected to be drawing text with.
+ *
+ * Both routes used to also carry PLACE_LABELS and LOCALITY_LABELS -- the
+ * basemap's place names, redrawn from mapbox-streets-v8 at the root
+ * scope. The site does not want them, so the only words left on the map
+ * are the ones naming the site's own data, and a project detail carries
+ * none at all.
+ */
 const EXPECTED: Record<string, string[]> = {
-  '/about': [PLACE_LABELS, LOCALITY_LABELS, HISTORY_LABELS],
-  '/projects/gopro': [PLACE_LABELS, LOCALITY_LABELS],
+  '/about': [HISTORY_LABELS],
+  '/projects/gopro': [],
 };
 
 const settleScene = async (page: Page): Promise<void> => {
@@ -195,7 +200,7 @@ const assertMapType = async (
 
   const inks = [palette.subInk, palette.mutedInk];
   const halo = haloColor(palette);
-  const ramp = basemapRamp(palette);
+  const ramp = basemapSurfaces(palette);
 
   for (const text of drawn) {
     const at = `${where}: ${text.id}`;
@@ -203,9 +208,7 @@ const assertMapType = async (
       'Roboto Mono Light',
       'Arial Unicode MS Regular',
     ]);
-    expect([MAP_TYPE_SIZE, MAP_TYPE_SIZE_QUIET], at).toContain(
-      text.size,
-    );
+    expect(text.size, at).toBe(MAP_TYPE_SIZE);
 
     /*
      * The owner's bug, and it is asserted BEFORE the wiring below on
@@ -295,33 +298,23 @@ test.describe('the map names places in the site voice', () => {
   });
 
   /*
-   * WHAT THE SECOND SOURCE COSTS, AS A NUMBER.
+   * THE SECOND SOURCE IS GONE, AND THIS IS WHAT THAT IS WORTH.
    *
-   * Drawing the names ourselves means a second copy of
+   * Drawing the basemap's place names ourselves meant a second copy of
    * mapbox-streets-v8: Standard's lives inside the `basemap` fragment
    * and a root layer cannot name it. Mapbox tiles are billed, so the
-   * claim that this is cheap has to be measured rather than asserted.
+   * cost was measured rather than asserted -- at 1440x900, over the
+   * first eight seconds: `/` 0 TileJSON and 0 tiles, `/about` 1 and 24,
+   * `/projects/gopro` 1 and 25. The globe routes paid nothing because
+   * the label layers carried a zoom floor.
    *
-   * MEASURED at 1440x900, over the first eight seconds of each route:
-   *
-   *   /                 0 TileJSON, 0 tiles
-   *   /about            1 TileJSON, 24 tiles
-   *   /projects/gopro   1 TileJSON, 25 tiles
-   *
-   * The zero is the important one and it is the whole reason
-   * LABEL_MIN_ZOOM moved onto the layers' `minzoom`: mapbox clears a
-   * source's `used` flag when every layer reading it is outside its zoom
-   * range, so the spinning globe on `/` and on the 404 -- the two routes
-   * that run for the life of the tab -- never asks for a single one of
-   * these. The cost falls entirely on the two routes that were already
-   * showing labels, and it is a duplicate of a tile set Standard has
-   * fetched for the same viewport anyway.
-   *
-   * The ceilings below are ceilings, not targets. What would fail this
-   * is the source being requested on a globe route at all, or the label
-   * layers losing their zoom floor.
+   * With the names gone the scene adds no vector source at all, so the
+   * claim is no longer a ceiling on two routes -- it is zero on every
+   * route, including the two that used to pay. That is a stronger thing
+   * to assert and a simpler one to keep true: any request for this
+   * tileset from the root style now means a layer set grew a source back.
    */
-  test('the second source is not paid for above the globe', async ({
+  test('no route pays for a tileset of its own', async ({
     context,
     page,
   }) => {
@@ -335,31 +328,26 @@ test.describe('the map names places in the site voice', () => {
     });
     await page.setViewportSize({ width: 1440, height: 900 });
 
-    await page.goto('/', { waitUntil: 'load' });
-    await settleScene(page);
-    await page.waitForTimeout(4_000);
-    expect(
-      asked,
-      'the globe is paying for a tileset it draws nothing from',
-    ).toEqual([]);
-
-    await page.goto('/about', { waitUntil: 'load' });
-    await settleScene(page);
-    await page.waitForTimeout(6_000);
-    const tiles = asked.filter((url) => url.includes('.mvt'));
-    expect(asked.length - tiles.length).toBe(1);
-    expect(tiles.length).toBeGreaterThan(0);
-    expect(tiles.length).toBeLessThan(64);
+    for (const route of ['/', '/about', '/projects/gopro']) {
+      await page.goto(route, { waitUntil: 'load' });
+      await settleScene(page);
+      await page.waitForTimeout(4_000);
+      expect(
+        asked,
+        `${route} asked for a tileset the scene draws nothing from`,
+      ).toEqual([]);
+    }
   });
 
   /*
-   * The held detail route is the one that had no map type of its own at
-   * all -- 1d is terrain and the shader plane -- so every word on it was
-   * Standard's, and every word on it was one of the white ones. It is
-   * also the route that proves the set is mounted by the scene's own
-   * diff rather than by /about happening to want it.
+   * The held detail route carries no words at all, and that is the
+   * assertion rather than an absence nobody checked. 1d is terrain and
+   * the shader plane, it has no data of its own, and the place names it
+   * used to show are gone -- so a single symbol layer appearing here
+   * means either Standard's label toggles came back on or a set was
+   * mounted by something other than the scene's own route diff.
    */
-  test('a project page is named too, in the same voice', async ({
+  test('a project page carries no map type at all', async ({
     page,
   }) => {
     await page.goto('/projects/gopro', { waitUntil: 'load' });

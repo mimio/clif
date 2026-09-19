@@ -37,6 +37,7 @@ const options = (
   selectedStop: null,
   onHoverAnchor: vi.fn(),
   onSelectAnchor: vi.fn(),
+  onSelectStop: vi.fn(),
   ...overrides,
 });
 

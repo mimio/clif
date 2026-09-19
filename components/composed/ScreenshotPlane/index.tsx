@@ -1,11 +1,23 @@
 import type { CSSProperties } from 'react';
-import Text from 'components/primitives/Text';
 import { cn } from 'utils/cn';
 import GlitchImage from './GlitchImage';
 
 /*
  * The project capture, tilted in perspective over the held map. It is the one
- * place the system uses a shadow (--shadow-plane, themed).
+ * place the system uses a shadow (--shadow-plane, themed), and since the
+ * owner took the border and the caption plate off it, the shadow is the only
+ * thing separating it from the ground: the capture is a screen floating over
+ * the globe rather than a framed figure sitting on the page.
+ *
+ * WHAT WENT, AND WHAT CARRIES THE WORDS NOW. The artboard drew a hairline
+ * border and a caption on its own backdrop plate, naming the product. Both
+ * are gone at the owner's word -- "ditch the border, and ditch the image
+ * label and its background" -- and nothing is lost by it that was not said
+ * twice: on a detail the same string is already in the meta grid under
+ * `product`, and on the index it is the row the pointer is on. The capture's
+ * accessible name is `alt`, which was never the caption's job and still is
+ * not: GlitchImage puts it on the canvas it appends, or on the next/image
+ * fallback where there is no WebGL.
  *
  * The RGB-split wave shader lives in ./GlitchImage -- three.js against a real
  * GL context, amplitude ~0.6px -- and falls back to a plain next/image when
@@ -23,7 +35,6 @@ import GlitchImage from './GlitchImage';
 export type ScreenshotPlaneProps = {
   src?: string;
   alt?: string;
-  caption?: string;
   width?: number;
   height?: number;
   /** Degrees of rotateY. Negative tilts the right edge away. */
@@ -46,7 +57,6 @@ const PLACEHOLDER =
 export const ScreenshotPlane = ({
   src,
   alt = '',
-  caption,
   width = 600,
   height = 380,
   tilt = -18,
@@ -61,7 +71,7 @@ export const ScreenshotPlane = ({
   return (
     <figure
       className={cn(
-        'relative m-0 max-w-full overflow-hidden rounded-[var(--radius-control)] border border-accent-30 shadow-[var(--shadow-plane)]',
+        'relative m-0 max-w-full overflow-hidden rounded-[var(--radius-control)] shadow-[var(--shadow-plane)]',
         className,
       )}
       data-src={src}
@@ -73,21 +83,6 @@ export const ScreenshotPlane = ({
         <div className={SHADER_FILL}>
           <GlitchImage alt={alt} src={src} />
         </div>
-      )}
-      {/* The artboard's caption sits on a dark placeholder weave; a real
-          capture can be any colour, so the caption carries its own plate.
-          --surface-control-backdrop is the themed ground at 69%, which is
-          the one surface --text-body is guaranteed against in all eight
-          themes -- a wash cannot promise that over an arbitrary photo. */}
-      {caption === undefined ? null : (
-        <figcaption className="absolute inset-x-0 bottom-0 bg-backdrop p-[18px]">
-          <Text
-            className="[letter-spacing:var(--type-label-tracking)] text-fg-2 uppercase"
-            variant="readout"
-          >
-            {caption}
-          </Text>
-        </figcaption>
       )}
     </figure>
   );

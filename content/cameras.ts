@@ -107,6 +107,64 @@ export const NOT_FOUND_FRAME_MOBILE: GlobeFrame = {
   zoomOffset: NOT_FOUND_ZOOM_OFFSET,
 };
 
+/*
+ * The projects globe, which is framed rather than zoomed as of the
+ * index's rewrite -- "move the globe so it fits perfectly in the middle of
+ * the open space on the right of the screen".
+ *
+ * THE OPEN SPACE IS A REAL BOX, and these numbers are it, measured at
+ * 1440x900 against the layout's own tokens. The stage caps the reading
+ * column at --reading-max, so at the artboard the table ends at
+ * 112 + 720 = 832, leaving 832..1440 for the rail: 608px wide, centred at
+ * 0.789 of the width.
+ *
+ * The ratios are a little inside that, because the frame is a pair of
+ * constants and the box is not: the column has a floor (--reading-min) and
+ * a cap (--reading-column), so the box grows in fits rather than in
+ * proportion. 0.80 and 0.160 keep the whole disc inside it from 1280 --
+ * where the rail opens at all -- out past 2560, with seventeen pixels or
+ * more of air on both sides at every width in between. The binding case is
+ * 1280, where the column is on its floor and the box is at its narrowest
+ * relative to the disc; everything wider has room to spare. They are the
+ * same kind of number as 1a's 0.66: a ratio chosen to clear a column, not
+ * one the design handed down.
+ *
+ * It is sized off the WIDTH because the box is a width. The height never
+ * binds: 0.168 of any viewport is a third of its own height at worst.
+ *
+ * AND 0.45 IS NOT A TYPO FOR 0.5, for two reasons at once.
+ *
+ * `at` is where the PROJECTION CENTRE goes, and on a pitched camera that is
+ * not where the sphere lands: at pitch 25 the globe is painted about 0.077
+ * of the viewport WIDTH below it. Width, not height -- the drop tracks the
+ * sphere's own radius rather than the camera's distance, and it measured
+ * 0.546 of that radius at every viewport tried. So the correction is worth
+ * roughly 0.12 of the height at a 16:10 window and more at a wider one.
+ *
+ * On top of that the disc is meant to sit BELOW the middle: "the globe can
+ * move farther down in page vertically". 0.45 lands it at about 0.57 of the
+ * height on the artboard, which is low enough to read as deliberate and
+ * still leaves the whole disc on screen down to a 16:10 window. Both halves
+ * are measured rather than derived, so e2e/hermetic/globe-frame.spec.ts
+ * measures them too. hello and the 404 need no correction at all: they are
+ * pitch 0, and their sphere lands where their padding puts it.
+ */
+export const PROJECTS_FRAME: GlobeFrame = {
+  at: [0.8, 0.45],
+  radius: 0.16,
+  of: 'width',
+  zoomOffset: 0,
+};
+
+/**
+ * Where about's projection centre sits, as a fraction of the viewport.
+ *
+ * Horizontally centred, and 0.7 down: the simplified 1e's foreground
+ * clears at 0.404 of the height, and the data is centred in what is left.
+ * See `at` on CameraSpec for the derivation.
+ */
+export const ABOUT_AT: [number, number] = [0.5, 0.7];
+
 /**
  * How long the globe takes to come round once, in seconds.
  *
@@ -137,12 +195,44 @@ export type CameraSpec = {
    */
   frame: GlobeFrame | null;
   /**
+   * Where the projection centre sits, as a fraction of the viewport, or
+   * null to take `padding` below as stated.
+   *
+   * This is `frame.at` for a camera that has no frame. A GlobeFrame says
+   * two things at once -- where the sphere goes AND how big it is -- and
+   * only the first of them means anything to a pitched mercator camera
+   * like about's: there is no limb to size, but there is still a
+   * projection centre, and a route can still want it somewhere other than
+   * the middle of the glass.
+   *
+   * about is the one route that does. The simplified 1e has no sheet and
+   * no scrubber -- the word at top 64, the copy block at top 160 running
+   * about 204px -- so the foreground clears at y 364 of 900, which is
+   * 0.404 of the height. Centring the data in what is left of the frame
+   * puts it at (0.404 + 1) / 2 = 0.702, which is the 0.7 stated below.
+   *
+   * A RATIO AND NOT A PIXEL COUNT, for the reason ORBIT_FRAME is one: it
+   * is the only form that survives a window that is not 1440x900. A fixed
+   * 360px of top padding would bury the data on a laptop and barely move
+   * it on a tall display.
+   *
+   * A camera may not state both this and `frame`. Where `frame` is set it
+   * carries an `at` of its own and that one wins, so this is null there --
+   * one answer to where the centre goes rather than two that can drift.
+   */
+  at: [number, number] | null;
+  /**
    * Where the projection centre sits, in CSS pixels.
    *
    * Every route states it, including the ones that want none, because
    * mapbox's padding is CAMERA STATE: it persists across an easeTo that
    * does not mention it, so a route that said nothing would inherit the
    * previous route's offset and draw its globe off to one side.
+   *
+   * DERIVED wherever `frame` or `at` is set: it is that ratio resolved at
+   * the artboard viewport, which is what ships when there is no box to
+   * measure, and scene/camera.ts's `frameCamera` recomputes it for the
+   * viewport the visitor actually has.
    */
   padding: CameraPadding;
   /** Terrain exaggeration, or null for a flat globe. */
@@ -220,6 +310,7 @@ export const cameras: Record<SceneId, CameraSpec> = {
     pitch: 0,
     bearing: 0,
     frame: ORBIT_FRAME,
+    at: null,
     // 0.32 * 1440: half of it moves the centre to 0.66 * 1440 = 950.4.
     padding: { top: 0, right: 0, bottom: 0, left: 460.8 },
     terrain: null,
@@ -234,11 +325,27 @@ export const cameras: Record<SceneId, CameraSpec> = {
   },
   projects: {
     center: [-98.0, 39.0],
-    zoom: 2.6,
+    /*
+     * PROJECTS_FRAME at 1440x900, NOT the artboards' 2.6.
+     *
+     * 2.6 paints a disc 980px across on a 900px-tall artboard: wider than
+     * the viewport is tall, centred behind the table, and cut off at three
+     * edges. That was right while the index was a 620px column on the left
+     * and the whole right of the screen was ground. It is not right now
+     * that the table runs to 917px and the capture flies into the rail
+     * beside it, so the globe is framed into that rail instead -- whole,
+     * and with the capture crossing it on a hover rather than both of them
+     * fighting for the same third of the screen.
+     */
+    zoom: 1.2445331107606625,
     pitch: 25,
     bearing: -12,
-    frame: null,
-    padding: NO_PADDING,
+    frame: PROJECTS_FRAME,
+    // The frame carries this route's `at`, so the spec-level one is null.
+    at: null,
+    // Half of each gap moves the projection centre: left 864 puts it at
+    // 0.8 * 1440 = 1152, bottom 90 lifts it to 0.45 * 900 = 405.
+    padding: { top: 0, right: 0, bottom: 90, left: 864 },
     terrain: null,
     fog: 'dusk',
     interactive: true,
@@ -251,6 +358,7 @@ export const cameras: Record<SceneId, CameraSpec> = {
     pitch: 60,
     bearing: -20,
     frame: null,
+    at: null,
     padding: NO_PADDING,
     terrain: 1.4,
     fog: 'night',
@@ -265,7 +373,14 @@ export const cameras: Record<SceneId, CameraSpec> = {
     pitch: 60,
     bearing: -12,
     frame: null,
-    padding: NO_PADDING,
+    /*
+     * The data sits below the copy rather than behind it. See `at` on
+     * CameraSpec for where 0.7 comes from; ABOUT_AT is the number, and
+     * the padding on the next line is it resolved at 1440x900.
+     */
+    at: ABOUT_AT,
+    // 0.4 * 900: half of it drops the centre to 0.7 * 900 = 630.
+    padding: { top: 360, right: 0, bottom: 0, left: 0 },
     terrain: 1.4,
     fog: 'night',
     interactive: true,
@@ -280,6 +395,7 @@ export const cameras: Record<SceneId, CameraSpec> = {
     pitch: 0,
     bearing: 0,
     frame: NOT_FOUND_FRAME,
+    at: null,
     padding: { top: 0, right: 0, bottom: 0, left: 460.8 },
     terrain: null,
     fog: 'space',
@@ -379,14 +495,22 @@ export type FogSpec = {
  * `paintSphere`'s two rims, verbatim. Both globe cameras get them,
  * because the prototype draws both globes with the same function --
  * `orbit()` (hello) and `projectsGlobe()` (projects) each call it.
+ *
+ * `satisfies` rather than a `FogGlow` annotation, and exported, because
+ * `haloReach` is the number scene/stars.ts cuts the sky out at -- past
+ * it there is nothing but the space token, so that is where space
+ * begins. Reaching it through `fogPresets.space.glow` would mean
+ * narrowing the union at the other end and carrying a branch that can
+ * never be taken; this way the reach is simply available, once, from
+ * the place that states it.
  */
-const SPHERE_RIMS: FogGlow = {
+export const SPHERE_RIMS = {
   at: 'limb',
   limbReach: 0.14,
   limbFalloff: 2,
   haloReach: 0.34,
   haloFalloff: 2.2,
-};
+} satisfies FogGlow;
 
 export const fogPresets: Record<FogPreset, FogSpec> = {
   space: {

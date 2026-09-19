@@ -20,15 +20,16 @@ import {
   terrainFor,
 } from 'scene/camera';
 import { layerSetsFor } from 'scene/layers/sets';
+import StarField from 'scene/StarField';
 import {
   useScene,
   useSceneHover,
   useSceneViewValue,
+  useStopRequest,
 } from 'scene/MapProvider';
 import {
   applyBasemapConfig,
   applyCamera,
-  applyColorTheme,
   applyFog,
   applyInteractivity,
   applyTerrain,
@@ -159,6 +160,7 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
   const { pathname } = useRouter();
   const { camera: declared } = useScene();
   const { hover, setHover } = useSceneHover();
+  const { requestStop } = useStopRequest();
   const view = useSceneViewValue();
   const isMobile = useIsMobile();
   const viewport = useViewportSize();
@@ -223,8 +225,10 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
         onHoverAnchor: setHover,
         // A tap is the touch equivalent of a hover: it lights the city.
         onSelectAnchor: setHover,
+        // /about's only control. The scene asks; the route navigates.
+        onSelectStop: requestStop,
       }),
-    [sceneId, palette, hover, isMobile, view, setHover],
+    [sceneId, palette, hover, isMobile, view, setHover, requestStop],
   );
 
   /*
@@ -271,14 +275,23 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
   }, []);
 
   /*
-   * Theming tier 1. The painter debounces, and refuses to repaint unless
-   * palette.key changed -- setColorTheme reloads every tile by design.
+   * The theme read. The painter coalesces a burst of lens clicks and
+   * refuses to repaint unless palette.key changed; the scene pass below
+   * is what turns the new palette into setConfigProperty calls.
+   *
+   * It used to also hand a colour LUT straight to the map here, ahead of
+   * the pass, because that call reloaded every visible tile and wanted to
+   * happen as early and as rarely as possible. Nothing it did survives:
+   * the cartography is config now, so it rides the same batched pass as
+   * the fog and the layers. The debounce stays -- coalescing is still
+   * worth it -- but it is guarding a handful of setConfigProperty calls
+   * rather than a full tile reload.
+   *
    * The camera holds through all of it: a theme change is the one scene
    * change with no camera move.
    */
   useEffect(() => {
-    const painter = createThemePainter((next, lut) => {
-      applyColorTheme(lut);
+    const painter = createThemePainter((next) => {
       // Identity matters: `palette` is a dependency of the scene pass, so
       // handing back an equal-but-new object on every paint would re-run
       // the whole pass -- and re-issue a camera move -- for a theme that
@@ -351,12 +364,14 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
       applyTerrain(terrainFor(spec));
       applyInteractivity(spec.interactive);
 
-      // Tier 2: only the properties that actually changed.
-      const next = basemapConfig(spec.fog, palette.light);
+      // Tier 1: only the properties that actually changed. This is now
+      // the cartography as well as the structural knobs, so a theme
+      // switch arrives here as twelve colour keys and nothing else.
+      const next = basemapConfig(spec.fog, palette);
       applyBasemapConfig(configChanges(next, lastConfig.current));
       lastConfig.current = next;
 
-      // Tier 3 rides along with the layer diff.
+      // Tier 2 rides along with the layer diff.
       syncLayers(sets, palette);
     });
 
@@ -386,6 +401,21 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
       style={SCENE_BOX}
     >
       {state === 'fallback' ? <FallbackPlate /> : null}
+      {/*
+       * Only over a live map. The field cuts itself out of the globe's
+       * disc and reads that disc off the transform, so with no map there
+       * is nothing for it to agree with -- and the plate above draws a
+       * sphere of its own, at its own size, which is not the one
+       * scene/stars.ts would be masking against.
+       */}
+      {state === 'live' ? (
+        <StarField
+          camera={target}
+          follow
+          palette={palette}
+          viewport={viewport}
+        />
+      ) : null}
     </div>
   );
 };

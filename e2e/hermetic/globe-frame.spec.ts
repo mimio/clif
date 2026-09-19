@@ -1,5 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ARTBOARD_DESKTOP, ARTBOARD_MOBILE } from 'content/cameras';
+import {
+  ARTBOARD_DESKTOP,
+  ARTBOARD_MOBILE,
+  PROJECTS_FRAME,
+} from 'content/cameras';
 import {
   installSceneDebug,
   openThemeLens,
@@ -83,6 +87,10 @@ const RAYS: [number, number][] = [
 ];
 
 type Framing = {
+  /** The painted silhouette's box, found by bisection on four rays. */
+  disc: { x: [number, number]; y: [number, number] };
+  /** The stage column's right edge: where the reading column stops. */
+  column: number | null;
   /** The layout viewport, which is also the scene container's box. */
   box: { width: number; height: number };
   /** mapbox's own idea of the same box; the two must agree. */
@@ -187,8 +195,31 @@ const measure = (page: Page): Promise<Framing> =>
       return inside;
     };
 
+    /*
+     * The DISC, which on a pitched camera is not the projection centre
+     * with a radius round it: tilting the camera paints the sphere below
+     * the point the padding put it. Four rays from the projection centre
+     * give the painted box directly, and the box is what "the globe sits
+     * in the open space" is a claim about.
+     */
+    const disc = {
+      x: [centre.x - limb(-1, 0), centre.x + limb(1, 0)] as [
+        number,
+        number,
+      ],
+      y: [centre.y - limb(0, -1), centre.y + limb(0, 1)] as [
+        number,
+        number,
+      ],
+    };
+    const column = document
+      .querySelector('.clif-stage-column')
+      ?.getBoundingClientRect();
+
     const root = document.documentElement;
     return {
+      disc,
+      column: column === undefined ? null : column.right,
       box: { width: root.clientWidth, height: root.clientHeight },
       canvas: {
         width: map.transform.width,
@@ -332,6 +363,108 @@ test.describe('the hello globe is framed as the prototype draws it', () => {
 });
 
 /*
+ * THE PROJECTS GLOBE SITS IN THE OPEN SPACE, WHOLE.
+ *
+ * This is the one framed camera with a pitch on it, and pitch is exactly
+ * what a frame cannot express: `at` places the PROJECTION CENTRE, and at
+ * pitch 25 the sphere is painted about 0.077 of the viewport WIDTH below
+ * that point. content/cameras.ts answers it by lifting `at` -- a measured
+ * correction, so it is measured here rather than argued.
+ *
+ * The claim is stated against the layout instead of against the frame's own
+ * ratios, because the frame's ratios are the means and this is the end: the
+ * disc clears the reading column, it is inside the viewport on all four
+ * sides, and it sits where the design wants it in what is left. Read the
+ * column's right edge off the DOM rather than recomputing --reading-max
+ * here, so a change to the rail's tokens is caught instead of duplicated.
+ *
+ * VERTICALLY THE TARGET IS NOT THE MIDDLE. The owner moved the globe down
+ * the page, so what is asserted is the shape of that: below the halfway
+ * line, and by less than a quarter of the height. A globe that drifted back
+ * to centre and one that fell off the bottom are both regressions, and a
+ * band says so where a tolerance around the middle would have called the
+ * first one correct.
+ *
+ * The horizontal tolerance is generous on purpose. The exact centre of the
+ * open box drifts with the viewport once --reading-column caps the table
+ * (past about 1700px), and PROJECTS_FRAME is a pair of constants; what must
+ * hold at every width is that the whole disc is in the box, not that it is
+ * centred to the pixel.
+ */
+test.describe('the projects globe is framed into the open space', () => {
+  const SIZES = [
+    ARTBOARD_DESKTOP,
+    { width: 1280, height: 800 },
+    { width: 1920, height: 1080 },
+  ];
+
+  /** Room to spare on each side of the disc, so "inside" is not "flush". */
+  const AIR_PX = 4;
+
+  for (const size of SIZES) {
+    test(`${size.width}x${size.height}`, async ({
+      context,
+      page,
+    }) => {
+      await stubMapboxNetwork(context);
+      await installSceneDebug(page);
+      await page.setViewportSize(size);
+      await open(page, '/projects');
+
+      const framing = await measure(page);
+      const { disc, column } = framing;
+      const detail = JSON.stringify({ disc, column });
+
+      expect(framing.pitch, detail).toBe(25);
+      expect(framing.sceneErrors).toEqual([]);
+      expect(column, detail).not.toBeNull();
+
+      // Clear of the table on the left, inside the viewport on the right.
+      expect(
+        disc.x[0],
+        `disc starts left of the column: ${detail}`,
+      ).toBeGreaterThanOrEqual((column ?? 0) + AIR_PX);
+      expect(
+        disc.x[1],
+        `disc runs off the right: ${detail}`,
+      ).toBeLessThanOrEqual(size.width - AIR_PX);
+
+      // Whole: nothing cut off top or bottom either.
+      expect(
+        disc.y[0],
+        `disc is cut off at the top: ${detail}`,
+      ).toBeGreaterThanOrEqual(AIR_PX);
+      expect(
+        disc.y[1],
+        `disc is cut off at the bottom: ${detail}`,
+      ).toBeLessThanOrEqual(size.height - AIR_PX);
+
+      // Across: near the middle of the box it is in. An eighth of the box
+      // -- a globe that drifted a quarter of the way out of the open space
+      // is the regression worth catching, not a 20px lean.
+      const boxCentreX = ((column ?? 0) + size.width) / 2;
+      const discCentreX = (disc.x[0] + disc.x[1]) / 2;
+      const discCentreY = (disc.y[0] + disc.y[1]) / 2;
+      expect(
+        Math.abs(discCentreX - boxCentreX),
+        `off centre horizontally: ${detail}`,
+      ).toBeLessThan((size.width - (column ?? 0)) / 8);
+
+      // Down: below the halfway line by design, and not by a quarter of
+      // the page.
+      expect(
+        discCentreY,
+        `the globe drifted back up to the middle: ${detail}`,
+      ).toBeGreaterThan(size.height / 2);
+      expect(
+        discCentreY - size.height / 2,
+        `the globe sank: ${detail}`,
+      ).toBeLessThan(size.height / 4);
+    });
+  }
+});
+
+/*
  * THE FOUR WAYS THE FRAMING CAN BE LOST.
  *
  * The offset is mapbox's camera padding, which is state on the transform
@@ -342,6 +475,11 @@ test.describe('the hello globe is framed as the prototype draws it', () => {
  *   a route change  padding persists across an easeTo that does not
  *                   mention it, so a route that says nothing inherits the
  *                   last one -- and the route back has to restore it.
+ *                   /projects has an offset of its OWN now that its globe
+ *                   is framed into the rail, so the round trip is one
+ *                   frame replacing another rather than one being cleared
+ *                   and put back; the failure it guards against is the
+ *                   same either way.
  *   a theme change  the one scene change with no camera move at all. If
  *                   the repaint re-issued a camera it would issue one
  *                   without the frame.
@@ -367,7 +505,7 @@ test.describe('the framing survives', () => {
       DESKTOP_FRAME.radius,
     );
 
-    // Out to a route with no offset at all, and back.
+    // Out to the route with the OTHER offset, and back.
     await page.evaluate(() =>
       (
         window as unknown as {
@@ -376,8 +514,15 @@ test.describe('the framing survives', () => {
       ).next.router.push('/projects'),
     );
     await page.waitForURL('**/projects');
-    const flat = await measure(page);
-    expect(flat.centre.x).toBeCloseTo(ARTBOARD_DESKTOP.width / 2, 0);
+    const away = await measure(page);
+    expect(away.centre.x).toBeCloseTo(
+      PROJECTS_FRAME.at[0] * ARTBOARD_DESKTOP.width,
+      0,
+    );
+    expect(away.centre.y).toBeCloseTo(
+      PROJECTS_FRAME.at[1] * ARTBOARD_DESKTOP.height,
+      0,
+    );
 
     await page.evaluate(() =>
       (

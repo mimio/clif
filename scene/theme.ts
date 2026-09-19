@@ -8,7 +8,10 @@ import {
   type Viewport,
 } from 'content/cameras';
 import { globeLimbAngle } from 'scene/globe';
-import { buildLut } from 'styles/tokens/lut';
+import {
+  type BasemapColorKey,
+  basemapColors,
+} from 'styles/tokens/cartography';
 import {
   FALLBACK_PALETTE,
   type Palette,
@@ -22,34 +25,36 @@ import { subscribeTheme, THEME_EVENT } from 'styles/theme-bootstrap';
  * The site has dropped its hand-maintained Mapbox style
  * (mapbox://styles/chiefkleef/..., pinned at minZoom 7, which cannot show
  * a globe) for Mapbox Standard, themed at runtime. Eight themes, one
- * style, no style JSON to maintain. It happens in three tiers, cheapest
- * last:
+ * style, no style JSON to maintain. It happens in two tiers now:
  *
- *   1. map.setImportColorTheme('basemap', { data: buildLut(palette) })
- *      A 3D colour LUT that re-tints every basemap fill. This is the tier
- *      that makes the globe wear the theme. It is also the expensive one:
- *      mapbox-gl reloads every tile when the colour theme changes, BY
- *      DESIGN -- the LUT is applied when tiles are coloured, so existing
- *      tiles have to be re-coloured. So it is debounced, and skipped
- *      entirely unless `palette.key` actually changed. buildLut caches
- *      nothing on purpose; `lutFor` below is that cache.
+ *   1. map.setConfigProperty('basemap', ...)
+ *      Standard's own knobs. Two kinds, one call: the structural ones --
+ *      the light preset, the basemap theme, the label toggles -- and the
+ *      CARTOGRAPHY, which is one colour key per feature class, set from
+ *      the theme's own map tokens. This is the tier that makes the globe
+ *      wear the theme, and no part of it reloads a tile.
  *
- *   2. map.setConfigProperty('basemap', ...)
- *      Standard's own structural knobs: the light preset, the basemap
- *      theme, and the label toggles. No tile reload, so these can follow
- *      the camera as well as the theme.
- *
- *   3. setPaintProperty on our own layers, straight from the palette.
+ *   2. setPaintProperty on our own layers, straight from the palette.
  *      Instant, and it lives with the layer sets in scene/layers/sets.ts.
  *
- * Tier 1 and tier 2 both key off the same palette read, so they are
- * driven from one place: the `oneglobe:theme` event, plus a
- * MutationObserver on documentElement[data-theme] because the attribute
- * is the truth even when no event fires.
+ * THERE USED TO BE A TIER ABOVE BOTH OF THEM and it is worth knowing why
+ * it is gone. setImportColorTheme('basemap', { data: buildLut(palette) })
+ * handed Standard a 3D colour cube that re-graded every basemap pixel.
+ * It was the expensive tier -- mapbox-gl reloads every visible tile when
+ * an import's colour theme changes, by design -- and it could not do the
+ * job a colour key does: a cube sees a pixel value, not a feature, so it
+ * could tint a forest but never make one an actual shade of the theme.
+ * styles/tokens/cartography.ts has the measurement that retired it,
+ * including why a cube and the colour keys cannot both be primary.
+ *
+ * Both tiers key off the same palette read, so they are driven from one
+ * place: the `oneglobe:theme` event, plus a MutationObserver on
+ * documentElement[data-theme] because the attribute is the truth even
+ * when no event fires.
  */
 
 /*
- * THE IMPORT EVERY ONE OF THOSE THREE TIERS HAS TO NAME, AND WHY.
+ * THE IMPORT TIER 1 HAS TO NAME, AND WHY.
  *
  * `mapbox://styles/mapbox/standard` is not a flat stylesheet. What the
  * API serves is a thin root style whose whole content is one import --
@@ -77,11 +82,15 @@ import { subscribeTheme, THEME_EVENT } from 'styles/theme-bootstrap';
  *        cleared, so the basemap is re-coloured. This is the call that
  *        makes the globe wear the theme.
  *
- * That is the whole of the bug this constant exists to stop coming back:
- * every tier of this file addresses the fragment by name, and
- * scene/mapbox/instance.ts checks at style.load that the fragment is
- * really there -- because a style without it cannot be themed at all,
- * and used to say nothing about it.
+ * That pair is gone -- the LUT went with the colour keys -- but the
+ * lesson it taught is exactly why this constant is still here, because
+ * setConfigProperty fails the same silent way: `Style.setConfigProperty`
+ * opens `if (!schema || !schema[key]) return`, so a fragment addressed
+ * by the wrong name is a colour that is simply never applied, with no
+ * error, no warning and no event. Every call in this file addresses the
+ * fragment by name, and scene/mapbox/instance.ts checks at style.load
+ * that the fragment is really there -- because a style without one
+ * cannot be themed at all, and used to say nothing about it.
  */
 export const BASEMAP_IMPORT = 'basemap';
 
@@ -91,8 +100,9 @@ export const BASEMAP_IMPORT = 'basemap';
  *
  * getConfigProperty(BASEMAP_IMPORT, key) resolves the fragment and then
  * its schema, so a non-null answer means both exist -- which is exactly
- * the precondition setImportColorTheme and setConfigProperty share. It
- * is a member of BasemapConfig so a rename cannot leave it behind.
+ * the precondition every setConfigProperty call needs, the twelve
+ * cartography colours included. It is a member of BasemapConfig so a
+ * rename cannot leave it behind.
  */
 export const BASEMAP_PROBE_KEY: keyof BasemapConfig = 'lightPreset';
 
@@ -110,30 +120,7 @@ export type BasemapConfig = {
   showPointOfInterestLabels: boolean;
   showTransitLabels: boolean;
   show3dObjects: boolean;
-};
-
-/**
- * The layers card's "no roads or labels below z8", which is now a
- * property of the scene's OWN label layers rather than of Standard's.
- *
- * It used to be applied as a zoom test on the ROUTE's declared zoom,
- * feeding showPlaceLabels/showRoadLabels. Two things were wrong with
- * that and only one of them was the labels themselves: the route's zoom
- * is not the camera's, so scrolling into a city on an interactive route
- * never crossed the threshold, and scrolling away from one never left
- * it. As a layer `minzoom` it is evaluated against the LIVE zoom, every
- * frame, by mapbox -- and it also means the second vector source pays
- * nothing above the globe, because Style._updateSources marks a source
- * unused when every layer that reads it is hidden by its zoom range.
- */
-export const LABEL_MIN_ZOOM = 8;
-
-/**
- * Where the scene starts naming neighbourhoods as well as towns. Two
- * zoom steps past the first label, so a city arrives before its
- * districts do rather than with them.
- */
-export const LOCALITY_MIN_ZOOM = LABEL_MIN_ZOOM + 2;
+} & Record<BasemapColorKey, string>;
 
 /*
  * The fog presets are the design's three moods, and Standard's light
@@ -141,11 +128,11 @@ export const LOCALITY_MIN_ZOOM = LABEL_MIN_ZOOM + 2;
  * is what actually decides whether the basemap reads as space, dusk or
  * night. Deep space is the world-zoom globe, so it takes the lowest sun
  * that still lights a limb (dawn) rather than full night, which would
- * leave the globe unlit under the LUT.
+ * leave the globe unlit.
  *
  * Light themes (paper, chalk) lift every preset one step: their ground is
- * bright, and a night basemap under a light LUT is the "dark mass" that
- * palette.sh exists to avoid.
+ * bright, and a night sun over a light theme's own land tokens is the
+ * "dark mass" the light themes exist to avoid.
  */
 const LIGHT_PRESETS: Record<
   FogPreset,
@@ -167,59 +154,58 @@ const LIGHT_PRESETS: Record<
  * text coming through as just white".
  *
  * The obvious repair is to lift the preset so Standard picks a dark
- * label instead. It does not work, and the reason is our own tier 1.
- *
+ * label instead. It did not work, and the reason was the colour LUT:
  * mapbox-gl applies an import's colour theme to a symbol layer's TEXT
- * exactly as it does to a fill: SymbolBucket.createArrays hands the
- * bucket's lut to the text binder, and the bucket's lut is
- * style.getLut(scope) for the source's scope, which for everything
- * inside Standard is `basemap`. So Standard's label colour is an INPUT
- * to styles/tokens/lut.ts's ramp, not an output, and the ramp is a tone
- * compressor: every source luma from the floor up is mapped onto
- * deep -> land -> highlight. Measured on the shipped palettes, that span
- * is about 1.4:1 end to end on a light theme. White labels come out at
- * 1.21:1 against the land beside them on paper, 1.15:1 on chalk; dark
- * labels come out at 1.36:1 and 1.38:1. Neither is legible, and no
- * lightPreset moves either, because both ends of the source range land
- * in the same place.
+ * exactly as it does to a fill -- SymbolBucket.createArrays hands the
+ * bucket's lut to the text binder -- so Standard's label colour was an
+ * INPUT to a tone compressor whose whole output span was about 1.4:1 on
+ * a light theme. White labels came out at 1.21:1 against the land beside
+ * them on paper and 1.15:1 on chalk; dark labels at 1.36:1 and 1.38:1.
+ * No lightPreset moved either, because both ends of the source range
+ * landed in the same place.
  *
- * Nor can the colour be set directly. setPaintProperty resolves its
- * layer through Style._checkLayer -> getOwnLayer -> this._layers, the
- * ROOT style's own layers, so a layer inside the basemap fragment is not
- * addressable at all.
+ * THAT CONSTRAINT IS GONE AND THE TOGGLES STAY OFF ANYWAY. With the LUT
+ * retired there is no compressor, and Standard's own colorPlaceLabels
+ * and colorRoadLabels would now do exactly what they say -- the review
+ * record lists both. They stay off because the site does not want place
+ * names on the map at all: the scene redrew them itself for a while, in
+ * its own mono, and that set is gone too (scene/layers/sets.ts). So this
+ * is no longer a workaround for anything. It is the whole answer, and
+ * the only text left on the map is the site's own data naming itself.
  *
- * So the toggles are off -- all four of them, at every zoom -- and the
- * scene names places itself, in mono, from its own symbol layers in the
- * root scope, where there is no LUT and a palette token arrives
- * unchanged. scene/layers/sets.ts's `basemapLabelsSet` is that, and
- * LABEL_MIN_ZOOM above is where it starts.
- *
- * WHAT WAS DELIBERATELY NOT CHANGED. The light-preset table and `faded`
- * are both untouched. They were the suspects, and they are not the
- * cause: with no basemap text left, the preset only moves the sun on
- * fills that the LUT re-colours anyway, and the owner's report is that
- * the basemap colouring already reads correctly. Changing either would
- * be changing the one part of this that is working.
+ * (setPaintProperty still cannot reach them either way: it resolves
+ * through Style._checkLayer -> getOwnLayer -> this._layers, the ROOT
+ * style's own layers, so a layer inside the basemap fragment is not
+ * addressable at all. The config keys are the only door.)
  */
 
 /**
- * Tier 2, as data. `faded` on a light theme pulls Standard's own colour
- * back so the LUT's wash is what the eye reads; on a dark theme the LUT
- * has enough contrast to work against the default.
+ * The whole of tier 1, as data.
+ *
+ * `faded` on a light theme pulls back the saturation of what the colour
+ * keys do NOT reach -- hillshade above all -- so it sits under the
+ * authored surfaces instead of competing with them; on a dark theme the
+ * ladder in themes.css already has the contrast to carry the map, so
+ * Standard's default is left alone. Both are unchanged from when a LUT
+ * was doing the colouring, and both are now about the REMAINDER rather
+ * than about the basemap as a whole.
  */
 export const basemapConfig = (
   fog: FogPreset,
-  light: boolean,
+  palette: Palette,
 ): BasemapConfig => {
   const preset = LIGHT_PRESETS[fog];
   return {
-    lightPreset: light ? preset.light : preset.dark,
-    theme: light ? 'faded' : 'default',
+    lightPreset: palette.light ? preset.light : preset.dark,
+    theme: palette.light ? 'faded' : 'default',
     showRoadLabels: false,
     showPlaceLabels: false,
     showPointOfInterestLabels: false,
     showTransitLabels: false,
     show3dObjects: false,
+    // The cartography itself. styles/tokens/cartography.ts has what each
+    // key reaches and why the colour arrives here unshaded.
+    ...basemapColors(palette),
   };
 };
 
@@ -235,30 +221,6 @@ export const configChanges = (
   (Object.keys(next) as (keyof BasemapConfig)[])
     .filter((key) => previous === null || previous[key] !== next[key])
     .map((key) => [key, next[key]]);
-
-/* ---- tier 1: the LUT ------------------------------------------------- */
-
-let cachedKey: string | null = null;
-let cachedLut = '';
-
-/**
- * The colour LUT for a palette, built once per theme. `palette.key` is
- * exactly the value that changes when the theme does, which is why
- * buildLut deliberately does no caching of its own.
- */
-export const lutFor = (palette: Palette): string => {
-  if (palette.key !== cachedKey) {
-    cachedLut = buildLut(palette);
-    cachedKey = palette.key;
-  }
-  return cachedLut;
-};
-
-/** Test-only: drops the memoised LUT so a fresh one is built. */
-export const resetLutCacheForTests = (): void => {
-  cachedKey = null;
-  cachedLut = '';
-};
 
 /** The live token scope, or the yellow fallback when there is no DOM. */
 export const livePalette = (): Palette =>
@@ -278,7 +240,7 @@ export { subscribeTheme, THEME_EVENT };
  *  immediate. A repaint costs every visible tile. */
 export const THEME_DEBOUNCE_MS = 120;
 
-export type ThemePaint = (palette: Palette, lut: string) => void;
+export type ThemePaint = (palette: Palette) => void;
 
 export type ThemePainter = {
   /** Schedules a repaint; repeated calls inside the window coalesce. */
@@ -310,7 +272,7 @@ export const createThemePainter = (
     const palette = livePalette();
     if (palette.key === lastKey) return;
     lastKey = palette.key;
-    paint(palette, lutFor(palette));
+    paint(palette);
   };
 
   return {
@@ -551,7 +513,7 @@ const solve = (fog: FogSpec, limbAngle: number): number => {
 };
 
 /*
- * One slot, like lutFor's.
+ * One slot.
  *
  * The solve is about thirty thousand exp() calls and this is a render
  * path: SceneRoot re-applies the fog on every scene pass, including the
@@ -617,13 +579,19 @@ export type FogOptions = {
    * `color-theme` on a stub ROOT style, and removed to the digit by these
    * three keys.
    *
-   * It is the right fix rather than a workaround, because the LUT exists
-   * to map MAPBOX'S colours into this palette, and these three are
-   * already in it -- they are read straight off the theme's own tokens by
-   * `ink` below. Sending them through the cube applies the palette twice.
+   * It is the right fix rather than a workaround, because a colour
+   * theme's job is to map MAPBOX'S colours into this palette, and these
+   * three are already in it -- they are read straight off the theme's own
+   * tokens by `ink` below. Sending them through a cube applies the
+   * palette twice.
    *
-   * e2e/hermetic/globe-atmosphere.spec.ts now runs a stub whose root
-   * carries a colour theme, so tier 1 can see this class of bug at last.
+   * The site no longer sets a colour theme on the basemap import, so the
+   * only cube that could reach the fog is one the ROOT stylesheet
+   * carries. These three keys stay because they are a property of the
+   * fog's own colours rather than of what the basemap is doing, and
+   * because they cost nothing; e2e/hermetic/globe-atmosphere.spec.ts
+   * still runs a stub whose root carries one, so the class of bug stays
+   * covered.
    */
   'color-use-theme': 'none';
   'high-color-use-theme': 'none';

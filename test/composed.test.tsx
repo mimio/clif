@@ -158,7 +158,6 @@ const REDUCED = '(prefers-reduced-motion: reduce)';
 const rows: ProjectRow[] = [
   {
     id: 'gopro',
-    index: 10,
     title: 'GoPro Mountain Games Event Map',
     client: '970 Design',
     city: 'Vail CO',
@@ -168,7 +167,6 @@ const rows: ProjectRow[] = [
   },
   {
     id: 'haikumi',
-    index: 0,
     title: 'Haikumi',
     client: 'Wieden+Kennedy',
     year: 2023,
@@ -242,44 +240,200 @@ describe('SceneStage', () => {
     expect(screen.getByText('about')).toBeVisible();
     expect(screen.getByText('footer')).toBeVisible();
   });
+
+  /*
+   * PASS-THROUGH IS EVERY BOX THE STAGE OWNS, not just the <main>.
+   *
+   * The stage puts three positioned boxes over the scene -- the landmark
+   * itself, the scrolling column and the footer rail -- and any one of
+   * them left armed is enough to swallow a drag before it reaches the
+   * map. The wash is already `pointer-events-none` at every setting and
+   * stays that way here.
+   *
+   * The column restates it rather than inheriting it because
+   * `pointer-events` is inherited: a pass-through route's own content has
+   * to say `auto` for itself, and a child that does would otherwise make
+   * the whole column catch presses again.
+   */
+  it('lets the pointer through every box it owns when asked', () => {
+    const { container } = render(
+      <SceneStage
+        footer={<p>footer</p>}
+        passThrough
+        vignette="night"
+        word={<h1>word</h1>}
+      >
+        body
+      </SceneStage>,
+    );
+
+    const main = container.querySelector('main');
+    expect(main).toHaveAttribute('data-through', 'true');
+    expect(main).toHaveClass('pointer-events-none');
+    expect(main?.querySelector('.clif-stage-column')).toHaveClass(
+      'pointer-events-none',
+    );
+    expect(screen.getByText('footer').parentElement).toHaveClass(
+      'pointer-events-none',
+    );
+  });
+
+  it('catches presses by default, which is what every other route wants', () => {
+    const { container } = render(
+      <SceneStage footer={<p>footer</p>}>body</SceneStage>,
+    );
+
+    const main = container.querySelector('main');
+    expect(main).toHaveAttribute('data-through', 'false');
+    expect(main).not.toHaveClass('pointer-events-none');
+    expect(main?.querySelector('.clif-stage-column')).not.toHaveClass(
+      'pointer-events-none',
+    );
+    expect(screen.getByText('footer').parentElement).not.toHaveClass(
+      'pointer-events-none',
+    );
+  });
+
+  /*
+   * THE RAIL. A stage with no plane is the stage it always was -- that is
+   * what keeps hello, about and the 404 out of this -- and a stage with one
+   * reserves the space for it whether or not there is an image in it yet.
+   */
+  it('opens no rail, and keeps its travel, without a plane', () => {
+    const { container } = render(<SceneStage>body</SceneStage>);
+    expect(container.querySelector('main')).toHaveAttribute(
+      'data-rail',
+      'false',
+    );
+    expect(container.querySelector('[data-slot="plane"]')).toBeNull();
+    expect(container.querySelector('.clif-stage-column')).toHaveClass(
+      'animate-slide-in',
+    );
+  });
+
+  it('reserves the column against the rail, and stills the column to hold it', () => {
+    const { container } = render(
+      <SceneStage plane={<figure>capture</figure>}>body</SceneStage>,
+    );
+    const column = container.querySelector('.clif-stage-column');
+
+    expect(container.querySelector('main')).toHaveAttribute(
+      'data-rail',
+      'true',
+    );
+    expect(screen.getByText('capture')).toBeVisible();
+    // The cap is the token both project routes read, not a number either
+    // of them keeps.
+    expect(column).toHaveClass('wide:max-w-[var(--reading-max)]');
+    /*
+     * --enter-page fills forwards, so the landed column keeps
+     * `transform: translateY(0)` -- and any transform makes it the
+     * containing block for the rail's fixed box, which lands the plane
+     * inside the column instead of against the viewport.
+     */
+    expect(column).toHaveClass('animate-none');
+    expect(column).not.toHaveClass('animate-slide-in');
+  });
+
+  it('folds the plane into the column below the rail, unless told not to', () => {
+    const { container, rerender } = render(
+      <SceneStage plane={<figure>capture</figure>}>body</SceneStage>,
+    );
+    const rail = () => container.querySelector('[data-slot="plane"]');
+
+    // A detail always has a capture, so below --breakpoint-wide it goes
+    // back into the column rather than disappearing.
+    expect(rail()).toHaveClass('max-wide:mt-2');
+    expect(rail()).not.toHaveClass('max-wide:hidden');
+
+    // The index's is a hover preview, and there is no hover to open it.
+    rerender(
+      <SceneStage plane={<figure>capture</figure>} planeFold={false}>
+        body
+      </SceneStage>,
+    );
+    expect(rail()).toHaveClass('max-wide:hidden');
+  });
+
+  /*
+   * The drift moves the RAIL, not the capture: the capture's own transform
+   * is its perspective tilt, so a page nudging it directly would have to
+   * restate that tilt. It is a written-out `transform` rather than
+   * `translate-y-*` because Tailwind's translate utilities set the
+   * `translate` property, which `transition-transform` does not cover.
+   */
+  it('offsets the rail by the shift it is given, and glides between them', () => {
+    const { container, rerender } = render(
+      <SceneStage plane={<figure>capture</figure>} planeShift={-48}>
+        body
+      </SceneStage>,
+    );
+    const rail = () =>
+      container.querySelector<HTMLElement>('[data-slot="plane"]');
+
+    expect(rail()?.style.getPropertyValue('--plane-shift')).toBe(
+      '-48px',
+    );
+    expect(rail()).toHaveClass(
+      'wide:[transform:translateY(var(--plane-shift,0px))]',
+      'transition-transform',
+    );
+
+    rerender(
+      <SceneStage plane={<figure>capture</figure>}>body</SceneStage>,
+    );
+    expect(rail()?.style.getPropertyValue('--plane-shift')).toBe(
+      '0px',
+    );
+  });
+
+  /*
+   * `center` on a scroll container overflows at BOTH ends and the top end
+   * cannot be scrolled back to, which on a long project detail ate the page
+   * word. `safe center` centres while it fits and starts at the top when it
+   * does not.
+   */
+  it('centres safely, so a column taller than the stage keeps its first line', () => {
+    const { container } = render(<SceneStage>body</SceneStage>);
+    expect(container.querySelector('.clif-stage-column')).toHaveClass(
+      '[justify-content:safe_center]',
+    );
+  });
 });
 
 describe('ProjectTable', () => {
-  it('shows the featured columns and pads the index', () => {
+  it('is one column set, and it carries no ordinal', () => {
     render(<ProjectTable rows={rows} />);
-    expect(PROJECT_TABLE_COLUMNS.featured).toEqual([
-      '##',
+    expect(PROJECT_TABLE_COLUMNS).toEqual([
       'project',
       'client',
+      'city',
       'year',
+      'users',
     ]);
     expect(
       screen.getByRole('columnheader', { name: 'project' }),
     ).toBeVisible();
-    expect(screen.getByText('10')).toBeVisible();
-    expect(screen.getByText('00')).toBeVisible();
+    // The ## column and the numbers under it are gone with browse-all.
+    expect(
+      screen.queryByRole('columnheader', { name: '##' }),
+    ).toBeNull();
+    expect(screen.queryByText('10')).toBeNull();
+    expect(screen.queryByText('00')).toBeNull();
   });
 
-  it('keeps the two column models in step with their headings', () => {
-    expect(PROJECT_TABLE_MODEL.featured.map((c) => c.key)).toEqual([
-      'index',
-      'title',
-      'client',
-      'year',
-    ]);
-    expect(PROJECT_TABLE_MODEL.all.map((c) => c.key)).toEqual([
-      'index',
+  it('keeps the column model in step with its headings', () => {
+    expect(PROJECT_TABLE_MODEL.map((column) => column.key)).toEqual([
       'title',
       'client',
       'city',
       'year',
       'users',
     ]);
-    expect(PROJECT_TABLE_COLUMNS.all).toHaveLength(6);
+    expect(PROJECT_TABLE_COLUMNS).toHaveLength(5);
   });
 
   it('reads every cell off the row, with an em dash for the gaps', () => {
-    expect(cellValue(rows[0], 'index')).toBe('10');
     expect(cellValue(rows[0], 'title')).toBe(
       'GoPro Mountain Games Event Map',
     );
@@ -293,7 +447,9 @@ describe('ProjectTable', () => {
 
   it('never gives itself a surface: it lies on the bare map', () => {
     const { container } = render(<ProjectTable rows={rows} />);
-    const root = container.querySelector('[data-columns]');
+    const root = container.querySelector(
+      '[data-slot="project-table"]',
+    );
     expect(root?.className).not.toMatch(
       /\bbg-(surface|sheet)|shadow-|rounded-\[var\(--radius-card/,
     );
@@ -324,8 +480,7 @@ describe('ProjectTable', () => {
       <ProjectTable
         activeId="gopro"
         className="x"
-        columns="all"
-        count="14 of 14"
+        count="14"
         eyebrow="all projects"
         onHoverRow={onHoverRow}
         onSelectRow={onSelectRow}
@@ -411,13 +566,17 @@ describe('ProjectTable', () => {
       .forEach((name) =>
         expect(name.startsWith('pointer-fine:')).toBe(true),
       );
-    expect(row).toHaveClass('focus-within:bg-accent-07');
-    expect(row).toHaveClass('focus-within:translate-x-[3px]');
+    // Guarded, because the press writes both of these too. See
+    // test/press.test.tsx, which holds that invariant for every component.
+    expect(row).toHaveClass('not-active:focus-within:bg-accent-07');
+    expect(row).toHaveClass(
+      'not-active:focus-within:translate-x-[3px]',
+    );
   });
 
   it('folds the client under the title without repeating the year', () => {
     render(<ProjectTable rows={rows} />);
-    // The mobile grid keeps three columns -- ##, project, year -- so the
+    // The mobile grid keeps two columns -- project and year -- so the
     // fold under the title carries the client alone. It used to carry the
     // year as well, and below 650px the year was on screen twice.
     const fold = screen
@@ -428,16 +587,53 @@ describe('ProjectTable', () => {
     expect(fold.textContent).not.toContain('2017');
   });
 
-  it('scrolls inside itself only in the browse-all state', () => {
-    const { container, rerender } = render(
-      <ProjectTable columns="all" rows={rows} />,
+  /*
+   * It always scrolls now, because it always carries the whole catalogue.
+   * `overflow-x: clip` is the other half and the one that matters: a
+   * scroll container whose other axis is `visible` computes it to `auto`,
+   * so the day a row is one pixel too wide the table answers with a
+   * sideways scrollbar instead of a clipped cell.
+   */
+  it('scrolls down inside itself, and can never scroll sideways', () => {
+    const { container } = render(<ProjectTable rows={rows} />);
+    const tbody = container.querySelector('tbody')?.className;
+    expect(tbody).toMatch(/overflow-y-auto/);
+    expect(tbody).toMatch(/overflow-x-clip/);
+  });
+
+  /*
+   * The closing rule is an OVERFLOW MARK now, not a border: one accent line
+   * under the table means "there is more of this", so a list that ends
+   * where you can see it end draws nothing. jsdom lays nothing out, which
+   * is the not-scrolling case for free; the scrolling one is two measured
+   * properties, which is exactly what the component reads.
+   */
+  it('closes the table with an accent rule only while it is scrolling', () => {
+    const { container } = render(<ProjectTable rows={rows} />);
+    const root = container.querySelector(
+      '[data-slot="project-table"]',
     );
-    expect(container.querySelector('tbody')?.className).toMatch(
-      /overflow-y-auto/,
-    );
-    rerender(<ProjectTable rows={rows} />);
-    expect(container.querySelector('tbody')?.className).not.toMatch(
-      /overflow-y-auto/,
+    const tbody = container.querySelector('tbody');
+
+    expect(root).toHaveAttribute('data-overflow', 'false');
+    expect(container.querySelector('hr')).toBeNull();
+
+    Object.defineProperty(tbody, 'scrollHeight', {
+      configurable: true,
+      value: 640,
+    });
+    Object.defineProperty(tbody, 'clientHeight', {
+      configurable: true,
+      value: 420,
+    });
+    act(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+
+    expect(root).toHaveAttribute('data-overflow', 'true');
+    expect(container.querySelector('hr')).toHaveAttribute(
+      'data-tone',
+      'accent',
     );
   });
 });
@@ -645,21 +841,33 @@ describe('ScreenshotPlane', () => {
       height: '380px',
       transform: 'perspective(1200px) rotateY(-18deg) rotateX(5deg)',
     });
-    expect(container.querySelector('figcaption')).toBeNull();
   });
 
-  it('is the one place the system spends a shadow', () => {
-    const { container } = render(<ScreenshotPlane />);
-    expect(container.querySelector('figure')?.className).toMatch(
+  /*
+   * The border and the caption plate are both gone at the owner's word, so
+   * the shadow is the only thing separating the capture from the ground.
+   * The caption said what the detail's meta grid and the index's hovered
+   * row already say, and `alt` -- which GlitchImage puts on the canvas or
+   * on the fallback image -- was always the accessible name.
+   */
+  it('is a bare capture on a shadow: no border, no caption plate', () => {
+    const { container } = render(
+      <ScreenshotPlane alt="GoPro" src="/gopro.webp" />,
+    );
+    const figure = container.querySelector('figure');
+    expect(figure?.className).toMatch(
       /shadow-\[var\(--shadow-plane\)\]/,
     );
+    expect(figure?.className).not.toMatch(/\bborder\b/);
+    expect(container.querySelector('figcaption')).toBeNull();
+    expect(figure?.textContent).toBe('');
+    expect(screen.getByRole('img', { name: 'GoPro' })).toBeVisible();
   });
 
-  it('takes a source, a caption and a hover tilt', () => {
+  it('takes a source, a box and a hover tilt', () => {
     const { container } = render(
       <ScreenshotPlane
         alt="GoPro"
-        caption="event map sheet"
         className="x"
         height={200}
         src="/gopro.webp"
@@ -667,8 +875,9 @@ describe('ScreenshotPlane', () => {
         width={300}
       />,
     );
-    expect(screen.getByText('event map sheet')).toBeVisible();
     expect(container.querySelector('figure')).toHaveStyle({
+      width: '300px',
+      height: '200px',
       transform: 'perspective(1200px) rotateY(-16deg) rotateX(5deg)',
     });
     // No WebGL in jsdom, so the shader falls back to the plain image.
@@ -719,14 +928,15 @@ describe('the screenshot plane, with a GL context', () => {
     const { container } = render(
       <ScreenshotPlane
         alt="GoPro Mountain Games Event Map"
-        caption="event map sheet"
         src="/gopro.webp"
       />,
     );
 
     // The shader path renders a bare <div> and lets three.js append the
-    // canvas into it, so `alt` had nowhere to land: the figure's entire
-    // text content was the caption, and the capture itself was not there.
+    // canvas into it, so `alt` had nowhere to land: the only text in the
+    // figure was the caption, and the capture itself was not there. The
+    // caption has since gone too, which leaves the canvas as the only
+    // thing in here that can carry a name.
     expect(container.querySelector('img')).toBeNull();
     expect(
       screen.getByRole('img', {

@@ -36,6 +36,91 @@
   --foreground-bottom: 80px;
   --foreground-bottom-mobile: 40px;
 
+  /*
+   * THE PLANE RAIL, and the reading column left of it.
+   *
+   * A project capture can be on screen on either of the two project
+   * routes -- pinned right on a detail, and flown in on a row hover on the
+   * index -- so the space it needs is reserved by the stage rather than by
+   * whichever page happens to be showing one. That is what makes the two
+   * columns the same width: the index's table and a detail's prose are both
+   * "everything left of the rail", not two numbers that have to be kept in
+   * step by hand.
+   *
+   * The rail only exists from --breakpoint-wide up; below it the capture
+   * folds into the column (a detail) or is not shown at all (the index),
+   * and the column is the full stage.
+   *
+   * WHICH OF THE TWO IS STATED, AND WHICH IS WHAT IS LEFT. It used to be
+   * the rail: --plane-width was a clamp on the viewport and the column got
+   * the remainder. That is the wrong way round once the capture is meant to
+   * be big -- "the project image can be quite a bit larger, make it
+   * aggressively larger" -- because the thing with a hard floor is the
+   * COLUMN. A five-track table needs 546px before the project name gets a
+   * pixel (see ProjectTable), and a capture has no such floor: it is a
+   * picture, and a smaller one is still a picture.
+   *
+   * So the column is stated and the rail is the remainder. The column takes
+   * half the viewport, never under --reading-min and never over
+   * --reading-column, and the capture takes everything from --plane-gap
+   * past it to --plane-right off the screen edge. Past ~1720px the column
+   * hits its cap and every further pixel of window goes to the capture,
+   * which is the behaviour the old formula had exactly backwards: the
+   * capture is 488px at 1440 where it was 403, and 828px at 1920 where it
+   * was 538.
+   */
+  --plane-right: 72px;
+  --plane-top: 230px;
+  --plane-gap: 48px;
+
+  /*
+   * The column's floor and its cap.
+   *
+   * --reading-min is the narrowest the five-track table is allowed to be,
+   * and it is set by a pair of real rows: `Ubiquiti Device Setup Flow` and
+   * `Ubiquiti Device Portal` part at the seventeenth character, so a title
+   * track under about 160px abbreviates them to the same string. That is
+   * the point where the capture stops being worth it, whatever the window
+   * has left. It binds from 1280 -- where the rail opens at all -- to about
+   * 1380, and the rail is genuinely small in that band: there are only 1048
+   * pixels between the two insets and the table has first claim on them.
+   *
+   * --reading-column is the other end: the line length past which a
+   * detail's prose stops being readable, which is what stops the column
+   * eating a 2560px window.
+   */
+  --reading-min: 690px;
+  --reading-column: 860px;
+
+  /*
+   * What a railed stage caps its column at. The percentage is resolved
+   * where the token is USED -- as a max-width on the stage's column, whose
+   * containing block is the viewport-wide <main>.
+   */
+  --reading-max: clamp(
+    var(--reading-min),
+    50%,
+    var(--reading-column)
+  );
+
+  /*
+   * And the capture is the rest of the line. `100%` resolves against the
+   * rail's own containing block, which is the viewport -- the rail is
+   * `fixed` -- so it is the same basis --reading-max is measured from.
+   *
+   * The floor keeps a capture that is worth looking at on the narrowest
+   * railed window; the ceiling stops an ultrawide handing it a picture
+   * wider than most laptops.
+   */
+  --plane-width: clamp(
+    320px,
+    calc(
+      100% - var(--foreground-left) - var(--reading-max) -
+        var(--plane-gap) - var(--plane-right)
+    ),
+    960px
+  );
+
   --popup-width: 384px;
   --popup-max-height: 260px;
 

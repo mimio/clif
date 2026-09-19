@@ -5,6 +5,7 @@ import {
   type Page,
 } from '@playwright/test';
 import { BASEMAP_IMPORT } from 'scene/theme';
+import { BASEMAP_COLOR_KEYS } from 'styles/tokens/cartography';
 import {
   THEME_IDS,
   THEME_STORAGE_KEY,
@@ -331,12 +332,6 @@ export type SceneReport = {
    * False means every theme change is a silent no-op on the basemap.
    */
   colorThemeSupported: boolean | null;
-  /**
-   * The LUT the scene handed to setColorTheme, fingerprinted rather than
-   * carried: it is about 175KB of base64 and all eight themes share a
-   * prefix, so the hash is over the whole payload.
-   */
-  lut: string | null;
   /** Recent mapbox failures. Empty is the healthy state. */
   errors: string[];
   /** The last thing the scene asked the map to do; context for a failure. */
@@ -352,21 +347,10 @@ export const readScene = (page: Page): Promise<SceneReport> =>
         'window.__SCENE__ is not published: installSceneDebug() has to run before the app boots',
       );
     }
-    const lut = scene.appliedLut();
-    let hash = 0x811c9dc5;
-    if (lut !== null) {
-      for (let i = 0; i < lut.length; i += 1) {
-        hash = Math.imul(hash ^ lut.charCodeAt(i), 0x01000193);
-      }
-    }
     return {
       styleStatus: scene.styleStatus(),
       styleUrl: scene.styleUrl(),
       colorThemeSupported: scene.colorThemeSupported(),
-      lut:
-        lut === null
-          ? null
-          : `${lut.length}:${(hash >>> 0).toString(36)}`,
       errors: scene.errors(),
       lastAction: scene.lastAction(),
     };
@@ -398,6 +382,12 @@ export const BASEMAP_CONFIG_KEYS = [
   'showPointOfInterestLabels',
   'showTransitLabels',
   'show3dObjects',
+  // And the cartography, which is the rest of what the scene sends and
+  // the half that decides what the globe looks like. Twelve colours, one
+  // per feature class; styles/tokens/cartography.ts has what each
+  // reaches. A key missing from Standard's schema here is a colour
+  // dropped in silence, which is the failure this list exists to catch.
+  ...BASEMAP_COLOR_KEYS,
 ] as const;
 
 /** What the Standard import reports for each key; null means unknown. */
@@ -557,197 +547,6 @@ export const themeOptions = (panel: Locator): Locator =>
 /** One theme's row in the open panel. */
 export const themeOption = (panel: Locator, id: ThemeId): Locator =>
   panel.getByRole('button', { name: id, exact: true });
-
-/* ---- the colour-theme probe ------------------------------------------ */
-
-/**
- * One `new Image()` mapbox-gl decoded from a data URL, which is how and
- * only how it applies a colour theme.
- */
-export type LutImage = {
-  /** Length of the base64 payload. */
-  bytes: number;
-  /**
-   * FNV-1a over the whole payload, which is what tells two themes' LUTs
-   * apart. A prefix would not: every theme's LUT is the same 1024x32 PNG
-   * from the same encoder, so they agree exactly on length and on their
-   * first hundred-odd characters.
-   */
-  hash: string;
-  width: number;
-  height: number;
-  /** Decoded, and within the dimensions mapbox-gl requires. */
-  ok: boolean;
-  /** The image failed to decode at all. */
-  failed: boolean;
-};
-
-declare global {
-  interface Window {
-    /** Present once the LUT probe is installed. */
-    __ONEGLOBE_LUT__?: LutImage[];
-  }
-}
-
-/*
- * THE ONE PLACE THE REAL LIBRARY'S COLOUR THEME IS OBSERVABLE FROM OUTSIDE.
- *
- * Style._loadColorTheme() is the whole of setColorTheme's work: it prefixes
- * the base64 with data:image/png;base64, if it is missing, assigns it to a
- * `new Image()`, and on load checks height <= 32 and width === height * height
- * before uploading the bytes as the style's LUT. Fail either check and it
- * rejects, the LUT stays null, and the basemap keeps Standard's own colours.
- *
- * The app exposes no handle on its Map -- scene/mapbox/instance.ts keeps
- * `instance` module-private and nothing puts it on window -- so there is no
- * way to read map.style._styleColorTheme back. Patching the src setter on
- * HTMLImageElement is: it needs no cooperation from the app, it leaves the
- * app's own bundle of mapbox-gl in place, and it observes exactly the check
- * mapbox-gl is about to make. A recorded entry with ok === true is the
- * condition under which the style's LUT gets set.
- */
-export const lutProbeScript = (): void => {
-  const PREFIX = 'data:image/png;base64,';
-  const seen: LutImage[] = [];
-  window.__ONEGLOBE_LUT__ = seen;
-
-  const descriptor = Object.getOwnPropertyDescriptor(
-    HTMLImageElement.prototype,
-    'src',
-  );
-  if (!descriptor?.set || !descriptor.get) return;
-  const nativeSet = descriptor.set;
-
-  const fingerprint = (payload: string): string => {
-    let hash = 0x811c9dc5;
-    for (let i = 0; i < payload.length; i += 1) {
-      hash = Math.imul(hash ^ payload.charCodeAt(i), 0x01000193);
-    }
-    return (hash >>> 0).toString(36);
-  };
-
-  const watch = (image: HTMLImageElement, value: string): void => {
-    const payload = value.slice(PREFIX.length);
-    const entry: LutImage = {
-      bytes: payload.length,
-      hash: fingerprint(payload),
-      width: 0,
-      height: 0,
-      ok: false,
-      failed: false,
-    };
-    seen.push(entry);
-    // Registered before the assignment returns, so neither outcome is
-    // missed, and mapbox-gl's own onload/onerror still run after these.
-    image.addEventListener('load', () => {
-      entry.width = image.naturalWidth;
-      entry.height = image.naturalHeight;
-      entry.ok =
-        entry.height > 0 &&
-        entry.height <= 32 &&
-        entry.width === entry.height * entry.height;
-    });
-    image.addEventListener('error', () => {
-      entry.failed = true;
-    });
-  };
-
-  Object.defineProperty(HTMLImageElement.prototype, 'src', {
-    configurable: true,
-    enumerable: descriptor.enumerable,
-    get: descriptor.get,
-    set(this: HTMLImageElement, value: string) {
-      if (typeof value === 'string' && value.startsWith(PREFIX)) {
-        watch(this, value);
-      }
-      nativeSet.call(this, value);
-    },
-  });
-};
-
-/** Installs the LUT probe for every document this page loads. */
-export const installLutProbe = async (page: Page): Promise<void> => {
-  // addInitScript hands back a handle for removing the script again;
-  // nothing here ever removes one, so it is dropped rather than returned.
-  await page.addInitScript(lutProbeScript);
-};
-
-/** Reads back every LUT image mapbox-gl has decoded so far. */
-export const readLuts = (page: Page): Promise<LutImage[]> =>
-  page.evaluate(() => window.__ONEGLOBE_LUT__ ?? []);
-
-/* ---- what the LIVE style is actually wearing ------------------------- */
-
-export type BasemapLut = {
-  /**
-   * 'ok'            the basemap scope holds a LUT;
-   * 'no-lut'        it holds none, which is the silent failure;
-   * 'no-style-api'  this build of mapbox-gl no longer answers the
-   *                 question the way this reader asks it.
-   */
-  outcome: 'ok' | 'no-lut' | 'no-style-api';
-  /** `${bytes}:${fnv}` over the LUT the basemap scope holds. */
-  fingerprint: string | null;
-  /** The same for the ROOT style's scope, which should hold none. */
-  root: string | null;
-};
-
-/*
- * THE ONE READ THAT ANSWERS "IS THE GLOBE WEARING IT".
- *
- * Everything else this file offers reports the REQUEST: appliedLut() is
- * what the scene sent, and the LUT probe is what mapbox decoded. Both
- * were green on a deployment where the basemap wore none of the eight
- * themes, because `map.setColorTheme()` succeeds, decodes and applies --
- * to the ROOT style's layers. Standard's own layers live in the
- * `basemap` import and are painted with `style.getLut(layer.scope)`, so
- * the question that actually matters is which SCOPE holds a LUT.
- *
- * Style.getLut(scope) is how mapbox-gl itself asks it, and `map.style`
- * is not public API -- so this reports what it found rather than
- * throwing, and the spec asserts on the outcome. A mapbox-gl that no
- * longer answers this way comes back as 'no-style-api' and fails the
- * assertion with a message that says so, which is the right way for an
- * internal read to break: loudly, and about itself.
- */
-export const readBasemapLut = (page: Page): Promise<BasemapLut> =>
-  page.evaluate((importId) => {
-    const scene = window.__SCENE__;
-    if (!scene) {
-      throw new Error('window.__SCENE__ is not published');
-    }
-    type Lut = { data?: string } | null | undefined;
-    const style = (
-      scene.map as unknown as {
-        style?: { getLut?: (scope: string) => Lut };
-      }
-    ).style;
-    if (!style || typeof style.getLut !== 'function') {
-      return {
-        outcome: 'no-style-api' as const,
-        fingerprint: null,
-        root: null,
-      };
-    }
-    // The same FNV-1a over the same payload readScene() hashes, so the
-    // two fingerprints are comparable by construction.
-    const print = (lut: Lut): string | null => {
-      if (!lut || typeof lut.data !== 'string') return null;
-      let hash = 0x811c9dc5;
-      for (let i = 0; i < lut.data.length; i += 1) {
-        hash = Math.imul(hash ^ lut.data.charCodeAt(i), 0x01000193);
-      }
-      return `${lut.data.length}:${(hash >>> 0).toString(36)}`;
-    };
-    const basemap = print(style.getLut(importId));
-    return {
-      outcome:
-        basemap === null ? ('no-lut' as const) : ('ok' as const),
-      fingerprint: basemap,
-      // The root style's scope is the empty string in mapbox-gl.
-      root: print(style.getLut('')),
-    };
-  }, BASEMAP_IMPORT);
 
 /* ---- sampling what the basemap actually painted ---------------------- */
 

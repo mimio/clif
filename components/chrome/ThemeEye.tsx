@@ -7,6 +7,11 @@ import {
 } from 'react';
 import usePopover from 'components/chrome/usePopover';
 import {
+  PRESS_COMPRESS,
+  PRESS_NOW,
+  PRESS_WASH_DEEP,
+} from 'components/primitives/press';
+import {
   announceThemeEvent,
   applyTheme,
   DEFAULT_THEME,
@@ -50,7 +55,8 @@ import { cn } from 'utils/cn';
  * Picking does NOT close the panel: themes are meant to be compared back to
  * back, and the tokens crossfade over 400ms (tokens/themes.css) while the
  * camera holds position -- the one case where the scene changes without a
- * camera move. Escape closes it (usePopover).
+ * camera move. Escape closes it, and so does a press anywhere outside the
+ * eye and its panel, which is what `ref` below is for (usePopover).
  *
  * THE TRIGGER COMES FIRST IN THE DOM and the panel follows it, even though
  * the panel is drawn above and to the left. Tab order is DOM order: with
@@ -73,20 +79,30 @@ export const SWATCH_SIZE = 18;
  * exactly the touch viewport. Press still answers a finger.
  *
  * ...and hover is scoped to `not-active:` as well, because the two write
- * the SAME property with EQUAL specificity and the press scale is the
- * smaller of the two. Tailwind emits its `@media (pointer: fine)` block
- * after every unconditional rule, so the fine-pointer hover rule for the
- * 1.08 scale was beating the press rule for the 1.02 one, and a pressed
- * ball simply stayed at 1.08 -- the mouse could never produce the press
- * state at all. Excluding :active from the hover selector settles it by
- * condition rather than by the compiler's emit order, which is the point:
- * nothing then depends on how Tailwind chooses to sort its output. Same
- * defect, same fix and the same reasoning as
- * components/primitives/Button/keycap.ts, which has the long version;
- * measured in e2e/hermetic/press-state.spec.ts.
+ * the SAME property with EQUAL specificity and Tailwind emits its
+ * `@media (pointer: fine)` block after every unconditional rule, so the
+ * hover rule was beating the press rule and a pressed ball simply stayed at
+ * 1.08. That is rule 2 in components/primitives/press.ts, which now owns
+ * the reasoning for the whole site.
+ *
+ * WHAT THE GUARD ALONE DID NOT FIX, and what this line is for. With hover
+ * out of the way the press was reachable and still unreadable, for two
+ * reasons the guard has nothing to say about:
+ *
+ *   IT WENT THE WRONG WAY.  The press was `scale(1.02)` against a rest of
+ *   1.0. Smaller than hover, yes -- but a GROWTH from rest, so a tap, a
+ *   keyboard activation or a click that beat the hover all read as a weak
+ *   hover. PRESS_COMPRESS goes below rest and reads from any state.
+ *
+ *   IT NEVER ARRIVED.  Both edges ran this same 180ms ease. Measured on an
+ *   80ms click, the ball travelled 1.08 -> 1.030 -- 1.7px on a 34px ball,
+ *   never reaching its own target -- and then reversed. PRESS_NOW makes the
+ *   down edge immediate and leaves the release on the 180ms curve.
+ *
+ * Both are press.ts's rules 1 and 3; measured in
+ * e2e/hermetic/press-state.spec.ts.
  */
-export const BALL_MOTION =
-  'transition-transform duration-[180ms] ease-[cubic-bezier(.165,.84,.44,1)] pointer-fine:not-active:hover:scale-[1.08] active:scale-[1.02] motion-reduce:transition-none';
+export const BALL_MOTION = `transition-transform duration-[180ms] ease-[cubic-bezier(.165,.84,.44,1)] pointer-fine:not-active:hover:scale-[1.08] ${PRESS_COMPRESS} ${PRESS_NOW} motion-reduce:transition-none`;
 
 const SCLERA_FILL =
   'radial-gradient(circle at 32% 26%, #ffffff 0%, var(--sclera) 56%, var(--sclera-edge) 100%)';
@@ -153,7 +169,7 @@ export const ThemeEye = ({
   defaultOpen = false,
   className,
 }: ThemeEyeProps) => {
-  const { open, toggle } = usePopover(defaultOpen);
+  const { open, ref, toggle } = usePopover(defaultOpen);
   // The panel's visible caption names the group, so the name a screen
   // reader announces and the word on screen cannot drift apart.
   const captionId = `clif-theme-${useId().replace(/:/g, '')}`;
@@ -180,6 +196,7 @@ export const ThemeEye = ({
   return (
     <div
       className={cn('relative select-none', className)}
+      ref={ref}
       style={{ width: EYE_SIZE, height: EYE_SIZE }}
     >
       <button
@@ -223,6 +240,24 @@ export const ThemeEye = ({
           className="absolute top-0 right-[56px] z-[9] box-border animate-slide-in-card rounded-[16px_6px_16px_16px] bg-surface-2 p-[13px] shadow-[var(--shadow-panel)] [border:var(--border-cta-soft)]"
           style={{ ...PANEL_ENTER, width: PANEL_WIDTH }}
         >
+          {/*
+            The tail, in three parts, and the order is the whole point.
+            The panel's border is 30% accent (--border-cta-soft) and so is
+            the tail's edge, and the edge triangle's base sat ON that
+            border: two translucent paints of the same colour, compositing
+            to ~51% in the two shoulders the fill triangle does not reach,
+            which lit a bright 1px point at each of the joints where the
+            tail meets the body.
+
+            So the border is ERASED first, across exactly the 14px the edge
+            triangle's base covers, and the edge is drawn over the gap. Now
+            every part of the outline is a single 30% paint and the border
+            butts into the tail's shoulders instead of running under them.
+            The strip is 2px wide to land its outer edge on the border's
+            outer edge; the inner pixel falls on the panel's own padding,
+            which is this colour already.
+          */}
+          <span className="absolute top-[10px] right-[-1px] h-[14px] w-[2px] bg-surface-2" />
           <span className="absolute top-[10px] right-[-11px] h-0 w-0 border-y-[7px] border-l-[11px] border-y-transparent border-l-accent-30" />
           <span className="absolute top-[11px] right-[-9px] h-0 w-0 border-y-[6px] border-l-[10px] border-y-transparent border-l-surface-2" />
 
@@ -260,9 +295,18 @@ export const ThemeEye = ({
                   aria-pressed={on}
                   className={cn(
                     'flex cursor-pointer items-center gap-[9px] rounded-[var(--radius-sm)] px-[7px] py-[4px] transition-[background-color,color] duration-[140ms] ease-out motion-reduce:transition-none',
+                    /* Picking a theme is the most deliberate click in the
+                       chrome and the row had no press state at all -- only
+                       a hover wash, which a mouse is already wearing when
+                       it presses. PRESS_WASH_DEEP rather than PRESS_WASH
+                       because the SELECTED row hovers to accent-20
+                       already; `not-active:` on both hovers so neither can
+                       outrank it. See components/primitives/press.ts. */
+                    PRESS_WASH_DEEP,
+                    PRESS_NOW,
                     on
-                      ? 'bg-accent-12 pointer-fine:hover:bg-accent-20'
-                      : 'pointer-fine:hover:bg-accent-07',
+                      ? 'bg-accent-12 pointer-fine:not-active:hover:bg-accent-20'
+                      : 'pointer-fine:not-active:hover:bg-accent-07',
                   )}
                   key={id}
                   onClick={() => pick(id)}

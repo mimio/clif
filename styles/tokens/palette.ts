@@ -4,9 +4,10 @@
  * Canvas and Mapbox paint per pixel, so they cannot use var(): they read
  * the live token scope off the document once and mix the numbers
  * themselves (design inventory 6.5). Everything painted outside CSS --
- * the globe, the terrain, the colour-theme LUT in ./lut.ts -- starts here.
+ * the globe, the terrain, the basemap's own cartography in
+ * ./cartography.ts -- starts here.
  *
- * Nine tokens, and one derived flag that changes how all of them are
+ * Fifteen tokens, and one derived flag that changes how all of them are
  * shaded. The rest of the design system stays in CSS.
  */
 
@@ -15,7 +16,7 @@ export type Rgb = readonly [number, number, number];
 /** Index into an Rgb. `sh` needs it to reach the matching ground channel. */
 export type Channel = 0 | 1 | 2;
 
-/** The nine tokens read off the element. */
+/** The fifteen tokens read off the element. */
 export type PaletteColors = {
   accent: Rgb;
   accent2: Rgb;
@@ -28,6 +29,22 @@ export type PaletteColors = {
   accentSmall: Rgb;
   sub: Rgb;
   muted: Rgb;
+  /*
+   * THE CARTOGRAPHY. Six surfaces, each one a colour the basemap is
+   * actually painted in rather than a colour it is graded toward.
+   *
+   * They arrived with the colour theme: Mapbox Standard names every
+   * feature class as a config key, so `land` above stopped being the
+   * middle anchor of a tone ramp and became literally what the ground
+   * is painted, and these six joined it. styles/tokens/cartography.ts
+   * maps each one onto the keys it drives.
+   */
+  water: Rgb;
+  green: Rgb;
+  building: Rgb;
+  road: Rgb;
+  roadMajor: Rgb;
+  boundary: Rgb;
 };
 
 export type Palette = PaletteColors & {
@@ -54,16 +71,18 @@ export type Palette = PaletteColors & {
   mutedInk: string;
   /**
    * The repaint cache key: every colour in the palette, in PALETTE_KEYS
-   * order. Two palettes share a key if and only if all nine tokens match,
-   * so a consumer that skips work while the key holds -- the scene's still
-   * canvases, and scene/theme.ts's LUT cache -- cannot miss a change.
+   * order. Two palettes share a key if and only if all fifteen tokens
+   * match, so a consumer that skips work while the key holds -- the
+   * scene's still canvases, and the config diff in scene/theme.ts --
+   * cannot miss a change.
    *
-   * Design inventory 6.5 keys on accent|space|land alone. That is three of
-   * the nine, and buildLut alone reads five of them plus `light`: two
-   * themes differing only in --map-deep would have shared a key and
-   * produced different LUTs, and the cached one would never have
-   * rebuilt. The eight shipped themes do not collide, but a ninth, or an
-   * edit to --map-deep on an existing one, walks straight into it.
+   * Design inventory 6.5 keys on accent|space|land alone. That is three
+   * of fifteen, and it is now the difference between a theme switch that
+   * repaints the cartography and one that does not: two themes differing
+   * only in --map-water would have shared a key, and the basemap would
+   * have kept the previous theme's ocean. Derived from PALETTE_KEYS
+   * rather than listed, so a token added to PALETTE_TOKENS joins the key
+   * without anyone remembering to widen it.
    */
   key: string;
 };
@@ -79,6 +98,12 @@ export const PALETTE_TOKENS: Record<keyof PaletteColors, string> = {
   accentSmall: '--text-accent-small',
   sub: '--text-secondary',
   muted: '--text-muted',
+  water: '--map-water',
+  green: '--map-green',
+  building: '--map-building',
+  road: '--map-road',
+  roadMajor: '--map-road-major',
+  boundary: '--map-boundary',
 };
 
 /**
@@ -197,7 +222,7 @@ export const contrastRatio = (a: Rgb, b: Rgb): number => {
   );
 };
 
-/** Wraps the nine numbers in everything derived from them. */
+/** Wraps the fifteen numbers in everything derived from them. */
 export const makePalette = (colors: PaletteColors): Palette => {
   const { accent, accent2, space, body, sub, muted, accentSmall } =
     colors;
@@ -243,6 +268,12 @@ export const FALLBACK_PALETTE: Palette = makePalette({
   accentSmall: [255, 229, 32],
   sub: [193, 193, 193],
   muted: [193, 193, 193],
+  water: [57, 55, 34],
+  green: [81, 64, 49],
+  building: [117, 96, 80],
+  road: [148, 129, 113],
+  roadMajor: [173, 169, 133],
+  boundary: [134, 126, 58],
 });
 
 /**
@@ -260,15 +291,15 @@ export const readPalette = (
       cs.getPropertyValue(PALETTE_TOKENS[name]),
       FALLBACK_PALETTE[name],
     );
-  return makePalette({
-    accent: read('accent'),
-    accent2: read('accent2'),
-    space: read('space'),
-    land: read('land'),
-    deep: read('deep'),
-    body: read('body'),
-    accentSmall: read('accentSmall'),
-    sub: read('sub'),
-    muted: read('muted'),
-  });
+  /*
+   * Swept from PALETTE_KEYS rather than written out, so a token added to
+   * PALETTE_TOKENS is read without anyone remembering to add a line here.
+   * This used to name all nine by hand; the six cartographic surfaces
+   * would have been the sixth through fifteenth chance to miss one.
+   */
+  return makePalette(
+    Object.fromEntries(
+      PALETTE_KEYS.map((name) => [name, read(name)]),
+    ) as PaletteColors,
+  );
 };
