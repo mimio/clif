@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { SceneId } from 'content/cameras';
 import {
-  BASEMAP_LABELS_SET,
   haloColor,
   HALO_WIDTH,
   layerSetsFor,
   type LayerSetOptions,
   MAP_TYPE_SIZE,
-  MAP_TYPE_SIZE_QUIET,
 } from 'scene/layers/sets';
 import { basemapConfig } from 'scene/theme';
 import { THEME_IDS, type ThemeId } from 'styles/theme-bootstrap';
@@ -160,9 +158,13 @@ describe('Standard is never asked for text', () => {
  * measures 5.20:1 against its land, so the step exists if it is wanted.
  */
 
+/*
+ * Every word the scene draws, and it is all the site's own data now. The
+ * two `basemap-*-labels` entries were the place names redrawn from
+ * mapbox-streets-v8; that set is gone, so nothing on the map names
+ * anything except the projects and the work-history stops.
+ */
 const LABEL_LAYERS = [
-  'basemap-place-labels',
-  'basemap-locality-labels',
   'project-site-labels',
   'project-site-counts',
   'history-stop-labels',
@@ -243,9 +245,7 @@ describe('every word the scene puts on the map', () => {
         'Roboto Mono Light',
         'Arial Unicode MS Regular',
       ]);
-      expect([MAP_TYPE_SIZE, MAP_TYPE_SIZE_QUIET]).toContain(
-        text.size,
-      );
+      expect(text.size).toBe(MAP_TYPE_SIZE);
     }
   });
 
@@ -327,60 +327,39 @@ describe('every word the scene puts on the map', () => {
   );
 });
 
-/* ---- 3. the second source, and what it is allowed to cost ------------- */
+/* ---- 3. the second source, and the fact that there is not one --------- */
 
-describe('the place-name source', () => {
-  const setFor = (scene: SceneId) =>
-    layerSetsFor(scene, optionsFor(PALETTES[0][1])).find(
-      (one) => one.id === BASEMAP_LABELS_SET,
-    );
+/*
+ * THIS SECTION USED TO METER A SECOND VECTOR SOURCE.
+ *
+ * `basemapLabelsSet` drew the basemap's place names itself, from the same
+ * `mapbox://mapbox.mapbox-streets-v8` Standard reads -- a second copy,
+ * because Standard's own lives inside the `basemap` fragment and a root
+ * layer cannot name it. What this section pinned was the cost: exactly
+ * one source, and a minzoom under every layer on it, so the globe routes
+ * fetched nothing.
+ *
+ * The site does not want those names, so the set is gone and so is the
+ * source. The claim left is the stronger and simpler one -- the scene
+ * adds NO vector source at all, on any route -- and it belongs with the
+ * layer sets rather than here.
+ */
 
-  it('is mounted only where a route can actually show a label', () => {
-    expect(setFor('hello')).toBeUndefined();
-    expect(setFor('notFound')).toBeUndefined();
-    expect(setFor('projects')).toBeUndefined();
-    expect(setFor('about')).toBeDefined();
-    expect(setFor('projectDetail')).toBeDefined();
-  });
-
-  /*
-   * One source, and the tileset Standard itself reads. The duplicate is
-   * unavoidable -- an added layer resolves its source in the ROOT scope,
-   * and Standard's copy lives inside the `basemap` fragment -- so what
-   * is worth pinning is that there is exactly one of them and that every
-   * layer on it carries a minzoom, which is what keeps the tiles
-   * unrequested above the globe.
-   */
-  it('is one vector source, with a floor under every layer', () => {
-    const set = setFor('about');
-    expect(set?.sources).toEqual([
-      {
-        id: BASEMAP_LABELS_SET,
-        spec: {
-          type: 'vector',
-          url: 'mapbox://mapbox.mapbox-streets-v8',
-        },
-      },
-    ]);
-    for (const entry of set?.layers ?? []) {
-      expect(entry.source, entry.id).toBe(BASEMAP_LABELS_SET);
-      expect(entry['source-layer'], entry.id).toBe('place_label');
-      expect(
-        typeof entry.minzoom === 'number' && entry.minzoom >= 8,
-        entry.id,
-      ).toBe(true);
-    }
-  });
-
-  it('hides its type with the rest of the map type', () => {
-    const hidden = layerSetsFor(
-      'about',
-      optionsFor(PALETTES[0][1], { labels: false }),
-    ).find((one) => one.id === BASEMAP_LABELS_SET);
-    const opacities = hidden
-      ?.paint(PALETTES[0][1])
-      .filter((patch) => patch.property === 'text-opacity')
-      .map((patch) => patch.value);
-    expect(opacities).toEqual([0, 0]);
-  });
+describe('the scene adds no tile source of its own', () => {
+  it.each(SCENES)(
+    '%s carries only GeoJSON it built itself',
+    (scene) => {
+      for (const set of layerSetsFor(
+        scene,
+        optionsFor(PALETTES[0][1]),
+      )) {
+        for (const source of set.sources ?? []) {
+          expect(
+            (source.spec as { type?: string }).type,
+            `${scene}/${source.id} is not GeoJSON`,
+          ).toBe('geojson');
+        }
+      }
+    },
+  );
 });

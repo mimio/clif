@@ -2,9 +2,11 @@ import { test, type TestInfo } from '@playwright/test';
 import {
   BASEMAP_IMPORT,
   ROUTES,
+  installBasemapOnly,
   installSceneDebug,
   notice,
   settle,
+  showBasemapOnly,
   waitForScene,
 } from '../fixtures/app';
 
@@ -374,32 +376,45 @@ test.describe('standard cartography', () => {
             .imports?.find((entry) => entry.id === importId)?.data
             ?.layers ?? [];
         /*
-         * The surfaces the globe is made of at world zoom, plus the road
-         * and building fills a z10 route shows. Named rather than swept,
-         * because the whole fragment's paint is far past what an
-         * annotation can carry.
+         * EVERY LAYER THAT PAINTS AN AREA, swept rather than named.
+         *
+         * This was a hand list of thirteen and that was how a leak
+         * stayed hidden: a fill nobody thought to name is exactly the
+         * fill that is still wearing Mapbox's own colour. The fragment
+         * has 190 layers but only a fraction of them are fills, so the
+         * sweep is affordable -- and `usesConfig` tags each one with
+         * whether any ["config", ...] reference appears in its paint at
+         * all, which is the one-bit answer to "is this ours or theirs".
          */
-        const WANTED = [
-          'land',
-          'landcover',
-          'national-park',
-          'landuse',
-          'water',
-          'water-depth',
-          'waterway',
-          'hillshade',
-          'roads',
-          'roads-case',
-          '2d-building',
-          '3d-building',
-          'admin-0-boundary',
+        const AREA = [
+          'background',
+          'fill',
+          'fill-extrusion',
+          'model',
         ];
+        const mentionsConfig = (node: unknown): boolean => {
+          if (Array.isArray(node)) {
+            if (node[0] === 'config') return true;
+            return node.some(mentionsConfig);
+          }
+          if (node !== null && typeof node === 'object') {
+            return Object.values(
+              node as Record<string, unknown>,
+            ).some(mentionsConfig);
+          }
+          return false;
+        };
         return Object.fromEntries(
           layers
-            .filter((layer) => WANTED.includes(layer.id))
+            .filter((layer) => AREA.includes(layer.type))
             .map((layer) => [
               layer.id,
-              { type: layer.type, paint: layer.paint ?? null },
+              {
+                type: layer.type,
+                z: [layer.minzoom ?? null, layer.maxzoom ?? null],
+                usesConfig: mentionsConfig(layer.paint),
+                paint: layer.paint ?? null,
+              },
             ]),
         );
       }, BASEMAP_IMPORT),
@@ -438,6 +453,129 @@ test.describe('standard cartography', () => {
         };
       }, BASEMAP_IMPORT),
     );
+  });
+
+  /* ---- 1b: what the basemap is actually PAINTED, in pixels ----------- */
+
+  /*
+   * THE MEASUREMENT EVERY OTHER RECORD IN THIS FILE IS A PROXY FOR.
+   *
+   * Every check above reads what the scene SENT and what the style
+   * SAYS. None of them reads what the screen shows, and that gap is
+   * where a report of "I still see green in forest areas" lives: the
+   * config record echoes `colorGreenspace: rgb(81, 64, 49)` on a theme
+   * whose forests are reported green, and the only green literal in the
+   * whole serialized style is `hsl(115, 60%, 84%)` -- which is that same
+   * key's SCHEMA DEFAULT. Those two facts cannot both be describing the
+   * same pixel, so one of them is not describing the pixel at all.
+   *
+   * This samples the real basemap, with the page's own foreground
+   * hidden, and reports a hue histogram plus how many pixels sit near
+   * Mapbox's default greenspace. A run where `mapboxGreen` is non-zero
+   * says the key is not reaching the paint whatever getConfig claims; a
+   * run where the hues cluster on the theme's own says it is.
+   *
+   * /about is the camera to do it at: z10.5 over Portland, which is
+   * forest on three sides.
+   */
+  test('what the basemap is actually painted', async ({
+    page,
+  }, testInfo) => {
+    await page.goto('/about', { waitUntil: 'load' });
+    await waitForScene(page, 'live').catch(() => undefined);
+    await installBasemapOnly(page);
+    await settle(page);
+    await showBasemapOnly(page, true);
+    await settle(page);
+
+    const shot = (await page.screenshot()).toString('base64');
+
+    await guard(testInfo, 'pixels', () =>
+      page.evaluate(
+        (encoded) =>
+          new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onerror = () =>
+              reject(new Error('the capture did not decode'));
+            image.onload = () => {
+              const canvas = document.createElement('canvas');
+              canvas.width = image.naturalWidth;
+              canvas.height = image.naturalHeight;
+              const context = canvas.getContext('2d');
+              if (!context) {
+                reject(new Error('no 2d context'));
+                return;
+              }
+              context.drawImage(image, 0, 0);
+              const { data } = context.getImageData(
+                0,
+                0,
+                canvas.width,
+                canvas.height,
+              );
+              /* Mapbox's own greenspace default, as 8-bit. */
+              const MAPBOX_GREEN = [163, 240, 158];
+              const bins: Record<number, number> = {};
+              let mapboxGreen = 0;
+              let counted = 0;
+              const worst: number[][] = [];
+              for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const max = Math.max(r, g, b);
+                const min = Math.min(r, g, b);
+                // Greys carry no hue and would swamp the histogram.
+                if (max - min < 12) continue;
+                counted += 1;
+                const d = max - min;
+                let h: number;
+                if (max === r)
+                  h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+                else if (max === g) h = ((b - r) / d + 2) / 6;
+                else h = ((r - g) / d + 4) / 6;
+                const deg = Math.round((h * 360) / 10) * 10;
+                bins[deg] = (bins[deg] ?? 0) + 1;
+                const near =
+                  Math.abs(r - MAPBOX_GREEN[0]) < 40 &&
+                  Math.abs(g - MAPBOX_GREEN[1]) < 40 &&
+                  Math.abs(b - MAPBOX_GREEN[2]) < 40;
+                if (near) {
+                  mapboxGreen += 1;
+                  if (worst.length < 8) worst.push([r, g, b]);
+                }
+              }
+              const top = Object.entries(bins)
+                .sort((a, c) => c[1] - a[1])
+                .slice(0, 12)
+                .map(([deg, n]) => ({
+                  hue: Number(deg),
+                  share: Number((n / counted).toFixed(4)),
+                }));
+              /* Anything in the green band at all, however pale. */
+              const greenBand = Object.entries(bins)
+                .filter(
+                  ([deg]) => Number(deg) >= 70 && Number(deg) <= 170,
+                )
+                .reduce((sum, [, n]) => sum + n, 0);
+              resolve({
+                sampled: data.length / 4,
+                counted,
+                top,
+                greenBandShare: Number(
+                  (greenBand / Math.max(1, counted)).toFixed(4),
+                ),
+                mapboxGreen,
+                mapboxGreenSamples: worst,
+              });
+            };
+            image.src = `data:image/png;base64,${encoded}`;
+          }),
+        shot,
+      ),
+    );
+
+    await showBasemapOnly(page, false);
   });
 
   /* ---- 2: what each camera actually shows ---------------------------- */

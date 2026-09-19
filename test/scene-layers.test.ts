@@ -11,7 +11,6 @@ import {
 import { createLayerRegistry } from 'scene/layers/registry';
 import {
   anchorFromEvent,
-  BASEMAP_LABELS_SET,
   HISTORY_LABELS,
   HISTORY_LINE,
   HISTORY_POINTS,
@@ -20,9 +19,7 @@ import {
   keepOurColors,
   layerSetsFor,
   type LayerSetOptions,
-  LOCALITY_LABELS,
   paintsAColor,
-  PLACE_LABELS,
   PROJECT_SITES_SET,
   projectSites,
   SITE_COUNTS,
@@ -439,36 +436,29 @@ describe('the route layer sets', () => {
    * e2e/hermetic/globe-clean.spec.ts reads that back off the real map,
    * which is the half of the claim this one cannot make.
    */
-  it('gives hello and 404 nothing at all', () => {
-    for (const scene of ['hello', 'notFound'] as const) {
+  /*
+   * THREE ROUTES OF FIVE NOW CARRY NOTHING. hello and the 404 never did;
+   * the held detail route joined them when the basemap place names went.
+   * 1d is a city at z10 under terrain and it is deliberately wordless --
+   * Standard's own labels are off and nothing redraws them.
+   */
+  it('gives hello, 404 and the held detail route nothing at all', () => {
+    for (const scene of [
+      'hello',
+      'notFound',
+      'projectDetail',
+    ] as const) {
       expect(layerSetsFor(scene, options())).toEqual([]);
     }
   });
 
-  /*
-   * The order is the assertion as much as the membership. The basemap's
-   * own place names go UNDER the route's content, because mapbox places
-   * symbols from the top of the stack down -- so the site's name for a
-   * place has to be the one that wins a collision with the tileset's.
-   */
   it('gives projects the site points and about the stops', () => {
     expect(
       layerSetsFor('projects', options()).map((one) => one.id),
     ).toEqual([PROJECT_SITES_SET]);
     expect(
       layerSetsFor('about', options()).map((one) => one.id),
-    ).toEqual([BASEMAP_LABELS_SET, HISTORY_SET]);
-  });
-
-  /*
-   * The held detail route has no data of its own and still has not. What
-   * it has is a place: 1d is a city at z10 under terrain, and with
-   * Standard's labels off it would otherwise carry no text at all.
-   */
-  it('gives the held detail route the place names and nothing else', () => {
-    expect(
-      layerSetsFor('projectDetail', options()).map((one) => one.id),
-    ).toEqual([BASEMAP_LABELS_SET]);
+    ).toEqual([HISTORY_SET]);
   });
 
   it('mounts cleanly on a real diff between two routes', () => {
@@ -477,11 +467,10 @@ describe('the route layer sets', () => {
     registry.sync(map, layerSetsFor('hello', options()));
     registry.sync(map, layerSetsFor('projects', options()));
     registry.sync(map, layerSetsFor('projectDetail', options()));
-    expect([...map.layers.keys()]).toEqual([
-      PLACE_LABELS,
-      LOCALITY_LABELS,
-    ]);
-    expect([...map.sources.keys()]).toEqual([BASEMAP_LABELS_SET]);
+    // The detail route wants nothing, so the projects layers came off
+    // and nothing replaced them.
+    expect([...map.layers.keys()]).toEqual([]);
+    expect([...map.sources.keys()]).toEqual([]);
     // The site layers' handlers went with them.
     expect(map.bound).toEqual([]);
   });
@@ -941,39 +930,6 @@ const RESTING = {
     },
     { layer: HISTORY_LABELS, property: 'text-halo-width', value: 1 },
   ],
-  /*
-   * The names the site draws in Standard's place. The colours are the
-   * UI's own text tokens, straight off the palette and untouched -- which
-   * is the whole point of drawing them at the root scope. A value here
-   * that is not one of those is the bug this set exists to fix, coming
-   * back.
-   */
-  basemapLabels: [
-    {
-      layer: PLACE_LABELS,
-      property: 'text-color',
-      value: 'rgb(193, 193, 193)',
-    },
-    {
-      layer: PLACE_LABELS,
-      property: 'text-halo-color',
-      value: 'rgb(15.84, 15.84, 15.84)',
-    },
-    { layer: PLACE_LABELS, property: 'text-halo-width', value: 1 },
-    { layer: PLACE_LABELS, property: 'text-opacity', value: 1 },
-    {
-      layer: LOCALITY_LABELS,
-      property: 'text-color',
-      value: 'rgb(193, 193, 193)',
-    },
-    {
-      layer: LOCALITY_LABELS,
-      property: 'text-halo-color',
-      value: 'rgb(15.84, 15.84, 15.84)',
-    },
-    { layer: LOCALITY_LABELS, property: 'text-halo-width', value: 1 },
-    { layer: LOCALITY_LABELS, property: 'text-opacity', value: 1 },
-  ],
 } satisfies Record<string, PaintPatch[]>;
 
 /** The route states a set is built under, beyond the resting one. */
@@ -1028,7 +984,6 @@ describe('the paint the design actually asks for', () => {
   it.each([
     ['projects', PROJECT_SITES_SET, RESTING.projects],
     ['about', HISTORY_SET, RESTING.about],
-    ['about', BASEMAP_LABELS_SET, RESTING.basemapLabels],
   ] as const)(
     'pins every %s/%s value, not just its source',
     (scene, setId, expected) => {

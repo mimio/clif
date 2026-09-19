@@ -134,11 +134,13 @@ const CELL_INK: Record<ProjectColumnKey, string> = {
  *   1000+   458 + 4x16 + 24 = 546px   at 1000: 768px column
  *   1280+   458 + 4x16 + 24 = 546px   at 1280: 690px column (rail open)
  *
- * The 1280 row is the tight one and it is tight by design: the rail takes
- * clamp(320px, 28vw, 600px) and the table keeps the rest, which at the
- * narrowest railed width still leaves 144px for the title and grows to 259
- * at 1440 and 354 past 1800, where --reading-column caps the column and the
- * rail takes everything after it.
+ * The 1280 row is the tight one and it is tight by design. --reading-min is
+ * that row: the column's floor is the width at which `Ubiquiti Device Setup
+ * Flow` and `Ubiquiti Device Portal` still abbreviate to different strings,
+ * and the capture beside it takes whatever is left over. From about 1380
+ * the column grows again -- 174px of title at 1440, 254px at 1600, 314px
+ * from 1720 up, where --reading-column caps it and every further pixel of
+ * window goes to the capture instead.
  *
  * The four fixed tracks are each the longest real value plus nothing:
  * `Deadlock Interactive` is 170px of Roboto Mono at the detail size,
