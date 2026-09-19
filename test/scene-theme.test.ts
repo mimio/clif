@@ -624,7 +624,7 @@ describe('the atmosphere', () => {
 
     expect(at(cameras.hello, desktop)).toBeCloseTo(0.03215, 5);
     expect(at(cameras.notFound, desktop)).toBeCloseTo(0.02103, 5);
-    expect(at(cameras.projects, desktop)).toBeCloseTo(0.02016, 5);
+    expect(at(cameras.projects, desktop)).toBeCloseTo(0.01917, 5);
 
     // 1f's mobile frame: a smaller sphere subtends a smaller angle, so
     // the same reach in RADII is a much narrower fadeout in radians.

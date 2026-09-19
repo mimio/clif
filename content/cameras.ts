@@ -115,18 +115,19 @@ export const NOT_FOUND_FRAME_MOBILE: GlobeFrame = {
  * THE OPEN SPACE IS A REAL BOX, and these numbers are it, measured at
  * 1440x900 against the layout's own tokens. The stage caps the reading
  * column at --reading-max, so at the artboard the table ends at
- * 112 + (1440 - 112 - 40 - 0.28*1440 - 80) = 916.8, leaving 916.8..1440
- * for the rail: 523px wide, centred at 0.818 of the width.
+ * 112 + 720 = 832, leaving 832..1440 for the rail: 608px wide, centred at
+ * 0.789 of the width.
  *
  * The ratios are a little inside that, because the frame is a pair of
- * constants and the box is not: --plane-width is `clamp(320px, 28vw,
- * 600px)` and --reading-column caps the table at 900px, so the box stops
- * growing at about 1700px of viewport while the disc would go on growing.
- * 0.812 and 0.168 keep the whole disc inside the box from 1280 -- where
- * the rail opens at all -- out past 2560, with ten pixels or more of air
- * on both sides at the widths screens actually are. They are the same kind
- * of number as 1a's 0.66: a ratio chosen to clear a column, not one the
- * design handed down.
+ * constants and the box is not: the column has a floor (--reading-min) and
+ * a cap (--reading-column), so the box grows in fits rather than in
+ * proportion. 0.80 and 0.160 keep the whole disc inside it from 1280 --
+ * where the rail opens at all -- out past 2560, with seventeen pixels or
+ * more of air on both sides at every width in between. The binding case is
+ * 1280, where the column is on its floor and the box is at its narrowest
+ * relative to the disc; everything wider has room to spare. They are the
+ * same kind of number as 1a's 0.66: a ratio chosen to clear a column, not
+ * one the design handed down.
  *
  * It is sized off the WIDTH because the box is a width. The height never
  * binds: 0.168 of any viewport is a third of its own height at worst.
@@ -149,8 +150,8 @@ export const NOT_FOUND_FRAME_MOBILE: GlobeFrame = {
  * pitch 0, and their sphere lands where their padding puts it.
  */
 export const PROJECTS_FRAME: GlobeFrame = {
-  at: [0.812, 0.45],
-  radius: 0.168,
+  at: [0.8, 0.45],
+  radius: 0.16,
   of: 'width',
   zoomOffset: 0,
 };
@@ -336,14 +337,15 @@ export const cameras: Record<SceneId, CameraSpec> = {
      * and with the capture crossing it on a hover rather than both of them
      * fighting for the same third of the screen.
      */
-    zoom: 1.327049251179784,
+    zoom: 1.2445331107606625,
     pitch: 25,
     bearing: -12,
     frame: PROJECTS_FRAME,
+    // The frame carries this route's `at`, so the spec-level one is null.
     at: null,
-    // Half of each gap moves the projection centre: left 898.56 puts it at
-    // 0.812 * 1440 = 1169.3, bottom 90 lifts it to 0.45 * 900 = 405.
-    padding: { top: 0, right: 0, bottom: 90, left: 898.56 },
+    // Half of each gap moves the projection centre: left 864 puts it at
+    // 0.8 * 1440 = 1152, bottom 90 lifts it to 0.45 * 900 = 405.
+    padding: { top: 0, right: 0, bottom: 90, left: 864 },
     terrain: null,
     fog: 'dusk',
     interactive: true,
