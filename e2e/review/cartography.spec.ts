@@ -493,7 +493,27 @@ test.describe('standard cartography', () => {
       await installBasemapOnly(page);
       await settle(page);
       await showBasemapOnly(page, true);
+      /*
+       * settle() waits for the map's own `idle`, which it can reach
+       * before a single tile has been decoded on a cold preview. The
+       * previous run photographed exactly that. So: wait for the map to
+       * report its sources loaded, then settle again, then shoot.
+       */
+      await page
+        .waitForFunction(
+          () => {
+            const map = window.__SCENE__?.map as unknown as {
+              areTilesLoaded?: () => boolean;
+              isSourceLoaded?: (id: string) => boolean;
+            };
+            return Boolean(map?.areTilesLoaded?.());
+          },
+          undefined,
+          { timeout: 30_000 },
+        )
+        .catch(() => undefined);
       await settle(page);
+      await page.waitForTimeout(2_000);
 
       const shot = (await page.screenshot()).toString('base64');
 
