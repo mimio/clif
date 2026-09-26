@@ -455,6 +455,9 @@ const StarBoard = () => {
         height: STAR_BOARD.height,
         overflow: 'hidden',
         background: 'var(--surface-ground)',
+        // The field sits at z-index -1, under the sphere as it sits under
+        // the map's canvas; this keeps it above the board's own ground.
+        isolation: 'isolate',
       }}
     >
       <div

@@ -109,6 +109,15 @@ const SCENE_BOX: CSSProperties = {
   inset: 0,
   zIndex: 0,
   overflow: 'hidden',
+  /*
+   * The space behind the globe. mapbox is told to leave its space
+   * transparent (see `space-color` in scene/theme.ts) so the accent stars
+   * can sit UNDER the planet rather than on it, and this is what shows
+   * through: the ground token, which is the colour the map used to clear
+   * its frame to. The star canvas is a child at z-index -1, between the
+   * two.
+   */
+  background: 'var(--surface-ground)',
 };
 
 /**
@@ -402,7 +411,7 @@ export const SceneRoot = ({ className }: SceneRootProps) => {
     >
       {state === 'fallback' ? <FallbackPlate /> : null}
       {/*
-       * Only over a live map. The field cuts itself out of the globe's
+       * Only under a live map. The field fades itself out of the globe's
        * disc and reads that disc off the transform, so with no map there
        * is nothing for it to agree with -- and the plate above draws a
        * sphere of its own, at its own size, which is not the one

@@ -20,18 +20,22 @@ import { stubMapboxNetwork } from '../fixtures/mapbox-stub';
 /*
  * THE ACCENT STARS KEEP OUT OF THE GLOBE, AND TURN WITH THE SKY.
  *
- * scene/StarField.tsx paints its field onto a canvas over the map's own,
- * because mapbox's stars go down in a pass no style layer can join.
- * Everything that buys is free -- the colours, the sizes, and a field
- * that needs no shader -- and it costs two things mapbox would otherwise
- * have done for us, which are the two this file measures.
+ * scene/StarField.tsx paints its field onto a canvas of its own, UNDER
+ * the map's, because mapbox's stars go down in a pass no style layer
+ * can join. Everything that buys is free -- the colours, the sizes, and
+ * a field that needs no shader -- and it costs one thing mapbox would
+ * otherwise have done for us, the motion, which this file measures along
+ * with the occlusion.
  *
  * THE OCCLUSION. mapbox's stars are covered by the planet because the
- * planet is drawn after them; ours are covered by nothing, so they fade
- * themselves out across the band between the globe's limb and the
- * design's atmosphere reach. Only a browser can say whether that lands
- * on the right pixels, so this takes the frame twice -- with the field
- * and with it display:none -- and requires every pixel it changed to lie
+ * planet is drawn after them, and ours are now covered the same way:
+ * mapbox leaves its space transparent and the planet is opaque over the
+ * canvas. That is checked directly, by painting a solid disc onto the
+ * star canvas and requiring the planet to hide every pixel of it. The
+ * field ALSO fades itself out across the band between the limb and the
+ * design's atmosphere reach, because the design paints no stars on the
+ * atmosphere -- so this still takes the frame twice, with the field and
+ * with it display:none, and requires every pixel it changed to lie
  * outside the globe's own silhouette.
  *
  * AND IT IS CHECKED ON A PITCHED ROUTE, which is the regression the
@@ -490,7 +494,7 @@ test.describe('the accent star field', () => {
     await installSceneDebug(page);
   });
 
-  test('is a canvas over the map, out of the way of a drag', async ({
+  test('is a canvas under the map, out of the way of a drag', async ({
     page,
   }) => {
     await page.goto('/', { waitUntil: 'load' });
@@ -576,6 +580,83 @@ test.describe('the accent star field', () => {
       // Most of it is out in the flat space the design paints past 1.34r.
       expect(diff.furthest).toBeGreaterThan(STAR_SPACE_EDGE);
       expect(diff.beyondReach).toBeGreaterThan(diff.painted / 2);
+    });
+
+    /*
+     * THE OCCLUSION IS THE MAP'S, NOT THE FADE'S. The test above proves
+     * the field keeps itself out of the globe; this one proves it would
+     * not matter if it did. A solid disc well past the atmosphere is
+     * painted straight onto the star canvas, centred on the planet, and
+     * nothing inside the silhouette may change -- the globe is drawn on
+     * top of whatever that canvas holds, which is the whole reason it
+     * sits under the map now. Before, a star the mask missed was a star
+     * on the planet; this is what "behind" means.
+     */
+    test('is covered by the globe, whatever it paints', async ({
+      page,
+    }) => {
+      await page.goto('/', { waitUntil: 'load' });
+      await waitForScene(page, 'live');
+      await settle(page);
+      await installBasemapOnly(page);
+      await showBasemapOnly(page, true);
+
+      const framing = await measureGlobe(page);
+      const before = await page.screenshot();
+      await page.evaluate(
+        ([x, y, r]) =>
+          new Promise<void>((resolve) => {
+            const canvas = document.querySelector('.clif-stars');
+            if (!(canvas instanceof HTMLCanvasElement)) {
+              throw new Error('no star canvas');
+            }
+            const context = canvas.getContext('2d');
+            if (context === null) throw new Error('no 2d context');
+            const ratio = canvas.width / canvas.clientWidth;
+            context.setTransform(ratio, 0, 0, ratio, 0, 0);
+            context.fillStyle = 'rgb(255, 0, 0)';
+            context.beginPath();
+            context.arc(x, y, r, 0, Math.PI * 2);
+            context.fill();
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() => resolve()),
+            );
+          }),
+        [
+          framing.centre.x,
+          framing.centre.y,
+          framing.radius * 1.6,
+        ] as const,
+      );
+      const after = await page.screenshot();
+
+      const diff = await diffField(
+        page,
+        after,
+        before,
+        framing.centre,
+        framing.radius,
+        framing.box.width,
+      );
+      notice(
+        'stars: occlusion',
+        `painted=${diff.painted}px dd=${diff.nearest.toFixed(3)}..${diff.furthest.toFixed(3)}`,
+      );
+      // The disc showed where there is only sky...
+      expect(diff.painted).toBeGreaterThan(0);
+      expect(diff.furthest).toBeGreaterThan(STAR_SPACE_EDGE);
+      /*
+       * ...and none of it came through the planet. Six pixels of slack
+       * at the limb, and not one: the outermost few pixels of the
+       * silhouette are mapbox's edge rather than solid planet, and a disc
+       * of pure red behind them shows at 0.986 radii (4.4px in at this
+       * box). The field itself never puts a star there -- `starFade` is
+       * zero at the limb -- so what this guards is the planet, and a
+       * star the mask misplaced by more than a hairline.
+       */
+      expect(diff.nearest).toBeGreaterThanOrEqual(
+        1 - 6 / framing.radius,
+      );
     });
   });
 

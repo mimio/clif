@@ -1741,9 +1741,8 @@ describe('the persistent map', () => {
     expect(fog?.range).toEqual([0.6, 12]);
     expect(fog?.color).toBe(palette.a(0.2));
     expect(fog?.['high-color']).toBe(palette.b(0.13));
-    expect(fog?.['space-color']).toBe(
-      `rgb(${palette.space[0]}, ${palette.space[1]}, ${palette.space[2]})`,
-    );
+    // Transparent, so the accent stars under the map show through it.
+    expect(fog?.['space-color']).toBe('rgba(0, 0, 0, 0)');
     // jsdom has no layout, so the viewport is null and the artboard is
     // what the atmosphere is solved against -- the same fallback
     // frameCamera takes for the camera itself.

@@ -211,19 +211,20 @@ describe('the accent field', () => {
     expect([...inks].sort()).toEqual(['accent', 'accent2']);
   });
 
-  it('puts 770 of the 3200 over mapbox s largest, the widest at 1.70x', () => {
+  it('draws none wider than mapbox s largest, the widest at 3.04px', () => {
     /*
-     * THE POINT OF THE WHOLE FIELD, pinned to the digit because the
-     * seed makes it a fact rather than a distribution. A change to the
-     * seed, the count, the spread or the falloff lands here.
+     * Pinned to the digit because the seed makes it a fact rather than a
+     * distribution. A change to the seed, the count, the spread or the
+     * falloff lands here. The field used to run to 1.7x mapbox's largest,
+     * 5.16px, and read as discs in front of the globe rather than points
+     * behind it.
      */
-    const bigger = stars.filter((star) => star.scale > 1);
-    expect(bigger).toHaveLength(770);
+    expect(stars.filter((star) => star.scale > 1)).toHaveLength(0);
     const widest = Math.max(...stars.map((star) => star.scale));
-    expect(widest).toBeCloseTo(1.6991, 4);
+    expect(widest).toBeCloseTo(0.9995, 4);
     expect(
       widest * mapboxStarDiameter(ARTBOARD_DESKTOP.height),
-    ).toBeCloseTo(5.16, 2);
+    ).toBeCloseTo(3.04, 2);
   });
 
   it('takes both accents from the live palette, at a given alpha', () => {
@@ -511,14 +512,15 @@ describe('StarField', () => {
       />,
     );
 
-  it('is a canvas over the map, out of the way of a drag', () => {
+  it('is a canvas under the map, out of the way of a drag', () => {
     const { container } = field();
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
     expect(canvas).toHaveAttribute('aria-hidden', 'true');
     expect(canvas).toHaveStyle({
       pointerEvents: 'none',
-      zIndex: '1',
+      // Under the map's canvas, so the planet covers what is behind it.
+      zIndex: '-1',
     });
   });
 

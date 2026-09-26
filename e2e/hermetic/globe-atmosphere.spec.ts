@@ -287,10 +287,12 @@ test.describe('the globe atmosphere', () => {
         ...accent2,
         0.13,
       ]);
-      // And past the halo, the ground token itself.
+      // And past the halo, a hole: the scene's own ground shows through
+      // it, with the accent stars on top of that and under the globe.
       expect(numbers(String(seen.fog['space-color']))).toEqual([
-        ...ground,
+        0, 0, 0, 0,
       ]);
+      expect(ground).not.toEqual(MISSING);
       // Solved against this camera's globe, not a constant.
       expect(seen.fog['horizon-blend']).toBeCloseTo(
         horizonBlendFor(

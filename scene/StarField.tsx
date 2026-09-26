@@ -6,7 +6,7 @@ import { paintedStars, type SkyView, starInk } from 'scene/stars';
 import type { Palette } from 'styles/tokens/palette';
 
 /*
- * The accent stars, over the map's own canvas.
+ * The accent stars, UNDER the map's own canvas.
  *
  * WHY IT IS DOM AND NOT MAPBOX. mapbox paints its stars first, before
  * any layer -- `Atmosphere.drawStars` runs at the head of the opaque
@@ -18,11 +18,28 @@ import type { Palette } from 'styles/tokens/palette';
  * `star-intensity` is the only dial the fog exposes and it takes a
  * number, not a colour.
  *
- * So this field sits over the canvas instead, and pays for it twice:
- * once in the occlusion, which it does itself by fading each star across
- * the band between the globe's limb and the design's atmosphere reach,
- * and once in the motion, which it also does itself -- scene/stars.ts
- * rebuilds mapbox's own star rotation so the two fields turn together.
+ * WHY UNDER AND NOT OVER. This field used to sit over the map and fade
+ * itself out around a globe it could only work out, not see. The
+ * arithmetic was right on every still frame the suite measured and the
+ * stars still ended up on the planet on the real site -- a sum about
+ * where mapbox has put the globe is a second opinion, and wherever the
+ * two disagree (a flight, a tile still loading, a zoom past the range
+ * scene/globe.ts is exact over) the accent lands on the ball.
+ *
+ * So the space is a hole now. scene/theme.ts hands mapbox a
+ * `space-color` of transparent black, which leaves the frame see-through
+ * wherever there is no globe and no glow, and this canvas sits UNDER
+ * the map's, on the scene's own ground. The planet is opaque and covers
+ * every star behind it, whatever the camera is doing, because it is
+ * drawn on top of them. And mapbox's atmosphere writes its alpha in a
+ * pass of its own for exactly this case, so over a ground of the old
+ * space colour the glow composites to the pixel it always did -- see
+ * the note on `space-color` in scene/theme.ts for the sum.
+ *
+ * The fade across the halo stays, because it is the design and not the
+ * occlusion: content/cameras.ts puts space past 1.34r, and a star inside
+ * that is a star seen through the atmosphere, which the design does not
+ * draw. It is no longer what keeps a star off the globe.
  *
  * WHY A CANVAS AND NOT SVG. The field is three thousand two hundred
  * stars on a sphere, of which about 157 are in frame at any moment, and
@@ -60,20 +77,24 @@ export type StarFieldProps = {
 };
 
 /*
- * Above the canvas, under everything else.
+ * Under the map's canvas, over the scene's ground.
  *
  * The scene's container is where mapbox appends its own DOM, so this is
- * a sibling of `.mapboxgl-canvas-container` and needs the z-index to
- * clear it -- mapbox's own stack is z-index 0 upwards, and the plate in
- * scene/SceneRoot.tsx goes to -1 for the opposite reason. pointer-events
- * none is not decoration either: the map is draggable on every route but
- * the detail, and a full-bleed sibling that ate the drag would be a
- * scene you cannot turn.
+ * a sibling of `.mapboxgl-canvas-container`, and a negative z-index is
+ * what puts it beneath: the container is a stacking context (fixed, at
+ * z-index 0), so -1 paints after the container's own background and
+ * before any of mapbox's children. Anywhere else this is mounted has to
+ * be a stacking context too, or -1 drops it behind that box's own
+ * background -- the /specimens board isolates itself for this reason.
+ *
+ * pointer-events none is not decoration either: the map is draggable on
+ * every route but the detail, and a full-bleed sibling that ate the drag
+ * would be a scene you cannot turn.
  */
 const STAR_BOX: CSSProperties = {
   position: 'absolute',
   inset: 0,
-  zIndex: 1,
+  zIndex: -1,
   pointerEvents: 'none',
 };
 

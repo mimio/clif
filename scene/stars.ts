@@ -136,32 +136,38 @@ export const STAR_SEED = 1440;
 /**
  * The size spread, in multiples of mapbox's largest star.
  *
- * The bottom sits under mapbox's own smallest (0.45 against 0.33 of the
- * largest) and the top well over its largest, which is the whole point:
- * a field that stopped where mapbox's stops would add colour and nothing
- * else. `STAR_SIZE_FALLOFF` cubes a uniform draw, so most of the field
- * is small and the large ones are rare -- with the seed above, 770 of
- * the 3,200 are wider than anything mapbox draws, and the widest is
- * 1.70x its largest: 5.16px against 3.04px at the artboard height.
+ * The top is mapbox's own largest and no further. The first version ran
+ * to 1.7x it -- 5.16px against 3.04px at the artboard height -- on the
+ * argument that a field which stopped where mapbox's stops would add
+ * colour and nothing else. On the page that read as the opposite of
+ * distance: discs, not points, and the eye put them in front of a globe
+ * they were meant to be behind. A star is a point of light, and what
+ * sets this field apart is its colour and its brightness, not its width.
+ *
+ * The bottom sits near mapbox's own smallest (0.35 against 0.33 of the
+ * largest). `STAR_SIZE_FALLOFF` cubes a uniform draw, so most of the
+ * field is small and the large ones are rare.
  */
-export const STAR_MIN_SCALE = 0.45;
-export const STAR_MAX_SCALE = 1.7;
+export const STAR_MIN_SCALE = 0.35;
+export const STAR_MAX_SCALE = 1;
 const STAR_SIZE_FALLOFF = 3;
 
 /**
  * The alpha spread, over the same draw as the size: a bigger star is a
  * brighter one, which is how a sky reads.
  *
- * The top is well above mapbox's own brightest (0.62 against 0.30), and
- * that is not this field shouting. Alpha is measured against the space
- * token, and a saturated colour needs more of it than white does to
- * still BE that colour: --clif-accent over --surface-ground lands at
- * rgb(92, 84, 25) at mapbox's 0.30, which reads as a grey-olive speck,
- * and at rgb(166, 150, 28) at 0.62, which reads as the accent. White at
- * 0.30 is rgb(92, 92, 92) and has no colour to lose.
+ * Well above mapbox's own brightest (0.30) at both ends, and that is not
+ * this field shouting. Alpha is measured against the space token, and a
+ * saturated colour needs more of it than white does to still BE that
+ * colour: --clif-accent over --surface-ground lands at rgb(92, 84, 25) at
+ * mapbox's 0.30, which reads as a grey-olive speck. White at 0.30 is
+ * rgb(92, 92, 92) and has no colour to lose. The field is also smaller
+ * than it was, and a star a pixel or so wide loses some of its alpha
+ * again to antialiasing, so the floor is over half and the brightest are
+ * the accent itself.
  */
-export const STAR_ALPHA_MIN = 0.16;
-export const STAR_ALPHA_MAX = 0.62;
+export const STAR_ALPHA_MIN = 0.55;
+export const STAR_ALPHA_MAX = 1;
 
 /**
  * How much of the field takes the first accent rather than the second.

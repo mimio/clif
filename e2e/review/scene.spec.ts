@@ -385,10 +385,11 @@ test('all eight themes repaint the live basemap', async ({
  *   it. The app is three siblings in z order, so hiding the scene's two
  *   siblings leaves the globe and nothing else.
  *
- *   THE SAMPLE IS THE MIDDLE OF THE FRAME. The fog is the other themed
- *   thing the scene paints, and `space-color` -- the only part of it
- *   derived from the palette -- is what shows OUTSIDE the globe's limb.
- *   A centred crop at this camera is basemap: land, water and coast.
+ *   THE SAMPLE IS THE MIDDLE OF THE FRAME. The space is the other
+ *   themed thing the scene paints -- the ground token, showing through
+ *   mapbox's transparent `space-color` -- and it is what shows OUTSIDE
+ *   the globe's limb. A centred crop at this camera is basemap: land,
+ *   water and coast.
  *
  *   THE TWO THEMES ARE BOTH DARK. teal and rust are both `color-scheme:
  *   dark`, so they take the same lightPreset and the same basemap

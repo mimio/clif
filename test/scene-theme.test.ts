@@ -27,6 +27,7 @@ import {
   horizonBlendFor,
   type FogOptions,
   livePalette,
+  SPACE_COLOR,
   subscribeTheme,
   THEME_DEBOUNCE_MS,
   THEME_EVENT,
@@ -546,12 +547,10 @@ describe('the atmosphere', () => {
       const fog = fogFor(cameras.hello, palette, desktop);
       expect(fog.color).toBe(palette.a(0.2));
       expect(fog['high-color']).toBe(palette.b(0.13));
-      // Past the halo the prototype paints P.space, so space-color is the
-      // ground token itself -- not the ground shaded to 0.9, which drew
-      // the space behind the globe darker than the page around it.
-      expect(fog['space-color']).toBe(
-        `rgb(${palette.space[0]}, ${palette.space[1]}, ${palette.space[2]})`,
-      );
+      // Past the halo the prototype paints P.space, and that is the
+      // scene's own ground now: mapbox's space is a transparent hole
+      // over it, so the accent stars can sit behind the globe.
+      expect(fog['space-color']).toBe(SPACE_COLOR);
       seen.add(fog.color);
     }
     applyTheme('yellow');

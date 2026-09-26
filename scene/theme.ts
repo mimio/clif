@@ -599,6 +599,33 @@ export type FogOptions = {
 };
 
 /**
+ * The space behind the globe: transparent black, so the frame is a hole
+ * wherever there is no planet and no glow.
+ *
+ * WHY A HOLE. scene/StarField.tsx paints the accent stars on a canvas
+ * UNDER the map's, and they are only behind the globe if the map lets
+ * them through everywhere else. The scene's container (scene/SceneRoot
+ * .tsx) paints the ground token behind both, which is what the
+ * prototype paints past 1.34r -- P.space, exactly, and the colour this
+ * used to send.
+ *
+ * WHY IT IS THE SAME PICTURE. mapbox draws the glow twice for a
+ * translucent space: once for the colour and once, under `ALPHA_PASS`,
+ * for the alpha alone. With the rim weights `c` (0.2) and `h` (0.13)
+ * and the glow's own falloff `t`, the old opaque frame over its cleared
+ * space `S` came to
+ *
+ *   S * (1 - h t - c (1 - h) t^2)  +  (the accents)
+ *
+ * and the new one -- black space, alpha `t (h + c (1 - h) t)`, laid
+ * over a ground of `S` -- comes to exactly the same sum. It is BLACK and
+ * not the ground at zero alpha because the colour pass mixes
+ * `space-color`'s rgb into the glow whatever its alpha; black adds
+ * nothing there, and the ground underneath supplies what it used to.
+ */
+export const SPACE_COLOR = 'rgba(0, 0, 0, 0)';
+
+/**
  * Stars would be noise over a bright ground, so light themes get none.
  * The figure is unchanged from the first version of the scene.
  */
@@ -628,10 +655,8 @@ export const fogFor = (
     // the preset names the token rather than this function assuming it.
     color: ink(palette, fog.color),
     'high-color': ink(palette, fog.highColor),
-    // What the prototype paints past 1.34r: P.space, exactly. It used to
-    // be the ground shaded to 0.9, which drew the space behind the globe
-    // three levels darker than the page it sits on.
-    'space-color': `rgb(${palette.space[0]}, ${palette.space[1]}, ${palette.space[2]})`,
+    // Transparent: see SPACE_COLOR.
+    'space-color': SPACE_COLOR,
     'horizon-blend': horizonBlendFor(
       fog,
       globeLimbAngle(spec.zoom, height),
