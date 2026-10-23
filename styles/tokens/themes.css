@@ -678,15 +678,15 @@
   --border-content: 1px solid #171e22;
 
   --map-space: #0f1417;
-  --map-land: rgb(59, 81, 84);
+  --map-land: rgb(59, 77, 84);
   --map-deep: rgb(36, 47, 53);
 
   /* The cartography, in this theme's own colours: see :root. */
-  --map-water: rgb(27, 54, 55);
-  --map-green: rgb(45, 161, 169);
-  --map-building: rgb(85, 134, 139);
-  --map-road: rgb(123, 159, 163);
-  --map-road-major: rgb(134, 198, 203);
+  --map-water: rgb(27, 49, 55);
+  --map-green: rgb(48, 131, 166);
+  --map-building: rgb(85, 125, 139);
+  --map-road: rgb(123, 152, 163);
+  --map-road-major: rgb(134, 184, 203);
   --map-boundary: rgb(58, 135, 124);
   --map-contour: rgba(99, 224, 206, 0.15);
   --map-atmosphere: rgba(99, 224, 206, 0.2);

@@ -149,6 +149,13 @@ const CROP = {
  */
 const GREENNESS_MARGIN = 0.1;
 
+/**
+ * A mean with green leading both other channels by under 5% of its
+ * brightness has no green in it to the eye; Mapbox's default forest
+ * reads about +0.4 on this scale.
+ */
+const NOT_GREEN = 0.05;
+
 /** Degrees of hue a lit, shaded, partly-clipped forest may wander. */
 const HUE_MARGIN = 40;
 
@@ -433,12 +440,24 @@ const describeTheme = (theme: ThemeId) => {
         ` under day light reads ${rgb(flat)} against a --map-green of ` +
         `${rgb(token)}`;
 
+      /*
+       * Two bounds, and the forest only has to clear the looser one.
+       * A crop over a city-scale forest is not all forest -- land,
+       * roads and rivers pull its mean toward the muted land token --
+       * so a saturated forest token (greenness -0.9 on rust) is never
+       * matched by the crop, and a margin stated from the token alone
+       * failed four themes whose forests were plainly the right colour.
+       * NOT_GREEN is the absolute reading of "no green leads here", and
+       * a crop under it has nothing to answer for whatever its token.
+       */
       expect(
         greenness(flat),
         `${where}: the forest is greener than the theme's own forest ` +
           'token, so the basemap is painting it from a colour the theme ' +
           'never set',
-      ).toBeLessThanOrEqual(greenness(token) + GREENNESS_MARGIN);
+      ).toBeLessThanOrEqual(
+        Math.max(greenness(token) + GREENNESS_MARGIN, NOT_GREEN),
+      );
 
       const clipped = Math.max(...flat) >= CLIP;
       if (
