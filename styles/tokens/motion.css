@@ -1,0 +1,74 @@
+/*
+ * Speeds, transitions, enters and the three keyframes (design inventory
+ * 1.6), ported verbatim.
+ *
+ * The --enter-* tokens are complete animation shorthands, so globals.css
+ * maps Tailwind's --animate-* namespace straight onto them rather than
+ * restating the duration and easing.
+ */
+:root {
+  /* only two product speeds */
+  --speed-short: 0.15s;
+  --speed-long: 0.5s;
+
+  --transition-hue:
+    box-shadow var(--speed-short) linear,
+    color var(--speed-short) linear,
+    background-color var(--speed-short) linear,
+    opacity var(--speed-short) linear, fill var(--speed-short) linear,
+    border-color var(--speed-short) linear;
+  --transition-size:
+    transform var(--speed-short) ease-out,
+    width var(--speed-short) ease-out,
+    height var(--speed-short) ease-out,
+    margin var(--speed-short) ease-out,
+    border-width var(--speed-short) ease-out;
+
+  --enter-page: 0.6s ease-out forwards clif-slidein;
+  --enter-card: 0.3s ease-in forwards clif-slidein;
+  --enter-sheet: 0.22s linear forwards clif-slidein;
+  --stagger-card: 80ms;
+
+  /* One Globe scene choreography */
+  --scene-move: 800ms;
+  --scene-move-long: 900ms;
+  --scene-ease: cubic-bezier(0.65, 0, 0.35, 1);
+  --fg-exit: 150ms;
+  --fg-enter: 240ms;
+  --fg-ease: cubic-bezier(0.165, 0.84, 0.44, 1);
+  --scene-handoff: 60%;
+}
+
+/* The card variant is the same move from twice the distance, so it reads
+   --slide-in-from and a caller can set it inline instead. */
+@keyframes clif-slidein {
+  from {
+    opacity: 0;
+    transform: translateY(var(--slide-in-from, -8px));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes clif-slidein-card {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes clif-live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}

@@ -1,0 +1,20 @@
+/*
+ * The two families, as one stack each.
+ *
+ * The bundle declares @font-face by hand; here next/font/local owns the
+ * faces (styles/fonts.ts) and hands each one out as a CSS variable set on
+ * the app wrapper in pages/_app.tsx. These stacks name the variable with a
+ * literal family as its var() fallback, so if a face is ever pulled --
+ * Adder ships without a license file, see fonts/LICENSE-adder.md -- the
+ * text degrades to the next family instead of the declaration going
+ * invalid and the whole font-family unsetting.
+ *
+ * Named --family-* rather than --font-*: Tailwind owns the --font-*
+ * namespace, and globals.css maps these onto it with @theme inline.
+ */
+:root {
+  --family-display:
+    var(--font-adder, 'Adder'), 'Silkscreen', monospace;
+  --family-mono:
+    var(--font-roboto-mono, 'Roboto Mono'), ui-monospace, monospace;
+}

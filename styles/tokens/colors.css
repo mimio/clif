@@ -1,0 +1,73 @@
+/*
+ * The tokens themes.css does NOT carry.
+ *
+ * The bundle's colors.css is a second, literal copy of the yellow palette
+ * -- --clif-yellow, --clif-grey-1..5, the surfaces, the text ramp -- and
+ * themes.css restates all of it per theme and wins. Restating it here
+ * would write every value twice and change nothing, so the literal base
+ * palette is gone: themes.css is the palette, in all eight scopes.
+ *
+ * What is left is design inventory 8 gap 9: thirteen tokens the bundle
+ * declares once, in #FFE520, and never overrides per theme. Every button,
+ * chip, scrollbar and map point built on them stayed yellow under all
+ * eight themes. They are rederived here as references to the themed
+ * accent and the themed ground, declared ONCE on :root. Custom properties
+ * resolve at the element, and [data-theme] scopes sit on that same <html>,
+ * so a single :root declaration inherits every theme correctly -- there is
+ * no need for (and no value in) eight copies.
+ *
+ * color-mix is how an alpha step that is not on the accent ladder gets
+ * built. The ladder itself (--clif-yellow-100/-60/-35/-30/-20/-12/-07) is
+ * themed in themes.css and is the preferred source; see the opacity note
+ * in globals.css for why a Tailwind /nn modifier is not.
+ */
+:root {
+  /* ---- control chrome -------------------------------------------------
+     The bundle hard-codes rgba(22,22,22,0.69) and rgba(0,0,0,0.4): the
+     ground at 69%, and a scrim at 40%. Rebuilt from the themed ground and
+     the themed cast shadow, which on the two light themes is an
+     ink-tinted 0.18 rather than black -- so a light theme gets a light
+     vignette instead of a hole. */
+  --surface-control-backdrop: color-mix(
+    in srgb,
+    var(--surface-ground) 69%,
+    transparent
+  );
+  --surface-vignette: color-mix(
+    in srgb,
+    var(--shadow-cast) 80%,
+    transparent
+  );
+
+  /* ---- interactive ----------------------------------------------------
+     Every CTA surface in the product. Four ladder steps, no fifth. */
+  --cta-fill: var(--clif-accent);
+  --cta-fill-soft: var(--clif-yellow-30);
+  --cta-fill-ghost: var(--clif-yellow-12);
+  --cta-underline: var(--clif-yellow-60);
+
+  /* ---- scrollbar thumb, the one piece of browser chrome the brand styles.
+     Rest is the ladder's 30% step; 50% and 80% are not ladder steps and
+     are mixed. */
+  --scroll-rest: var(--clif-yellow-30);
+  --scroll-hover: color-mix(
+    in srgb,
+    var(--clif-accent) 50%,
+    transparent
+  );
+  --scroll-active: color-mix(
+    in srgb,
+    var(--clif-accent) 80%,
+    transparent
+  );
+
+  /* ---- map scene ------------------------------------------------------
+     The bundle's --map-water is a flat #121212 from before terrain was
+     themed. --map-deep is its themed replacement: it is exactly what the
+     canvas renderer already paints water with (sh(deep, 0.72 * lit)), and
+     on the light themes it is a tan or a pale green rather than a hole. */
+  --map-water: var(--map-deep);
+  --map-path: var(--clif-yellow-60);
+  --map-point-rest: var(--clif-yellow-60);
+  --map-point-live: var(--clif-accent);
+}
