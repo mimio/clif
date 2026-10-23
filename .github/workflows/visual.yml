@@ -28,6 +28,16 @@ name: Visual review
 #                               or a wrong key is a no-op with no throw,
 #                               no warning and no error event.
 #
+#   e2e/review/forests.spec.ts  the second gate. Fails the build. Flies to
+#                               two forests per theme, photographs each
+#                               under the route's light and under white
+#                               light, and asserts the forest is painted
+#                               from that theme's --map-green and not from
+#                               Mapbox's own green -- the one claim the
+#                               read-back above cannot make, because it
+#                               reads what the import holds and not what
+#                               was drawn.
+#
 #   e2e/review/capture.spec.ts  the soft record. Cannot fail. Photographs
 #                               the five routes at two sizes and the globe
 #                               under all eight themes, attaches every
@@ -300,6 +310,23 @@ jobs:
           PREVIEW_URL: ${{ steps.preview.outputs.url }}
           PREVIEW_BYPASS_TOKEN: ${{ steps.origin.outputs.fork == 'false' && secrets.VERCEL_AUTOMATION_BYPASS_SECRET || '' }}
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/gate
+
+      # THE FORESTS. The second hard gate, and the only measurement in the
+      # suite taken OVER a forest: scene.spec.ts reads the colour the
+      # basemap import is holding, this flies to two forests per theme
+      # and reads the colour that was painted. e2e/review/forests.spec.ts
+      # says why the two are not the same question. Its crops land in
+      # test-results/review-forests, which the screenshots artifact below
+      # carries, so a red run arrives with the pictures.
+      - name: Playwright (tier 2, forests)
+        if: always()
+        run: >-
+          pnpm exec playwright test e2e/review/forests.spec.ts
+          --output=test-results/forests
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+          PREVIEW_BYPASS_TOKEN: ${{ steps.origin.outputs.fork == 'false' && secrets.VERCEL_AUTOMATION_BYPASS_SECRET || '' }}
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/forests
 
       # THE RECORDER. It asserts nothing, and it answers a question no
       # machine outside this job can: what Mapbox Standard's

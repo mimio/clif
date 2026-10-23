@@ -254,6 +254,18 @@ Variables for Production, Preview and Development.
   (Production, Preview and Development) and redeploy.** The scene now logs a
   console error naming the style and the consequence when it detects one, and
   `e2e/review/scene.spec.ts` fails the build on it.
+
+  And because "the import is holding the colour" is not the same claim as
+  "the forest was painted in it", `e2e/review/forests.spec.ts` flies the
+  review deployment's map to two forests per theme -- the Amazon at z4.5,
+  where Standard's `landcover` is the ground, and the Mount Hood National
+  Forest at z9, where `national-park` and `landuse` have joined it --
+  photographs each under the route's own light and under white light, and
+  fails the build if the forest comes off the glass greener than that
+  theme's `--map-green`. The crops are in the `review-screenshots`
+  artifact under `test-results/review-forests/`, one pair per theme and
+  camera, so the question "what colour is the forest on rust" is answered
+  by a picture rather than a read-back.
 - `NEXT_PUBLIC_SITE_URL`, optional: the canonical origin, no trailing slash
   (e.g. `https://clif.mimio.io`). Every route emits a canonical link and
   `og:`/`twitter:` URLs; without this they stay root-relative, which resolves
