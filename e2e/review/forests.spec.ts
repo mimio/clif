@@ -247,6 +247,60 @@ const forestToken = async (page: Page): Promise<Rgb> =>
     [-1, -1, -1],
   );
 
+/*
+ * THE PICTURES GO INTO THE JOB LOG AS WELL, SMALL.
+ *
+ * The attachments and the artifact are the full-size record, but both
+ * are served from a blob host, and the one reader who most needs these
+ * pictures -- whoever is debugging a "the forests are green" report from
+ * a sandbox that can reach api.github.com and nothing else -- cannot get
+ * at either. The job log is readable from anywhere the API is. So each
+ * crop is also scaled down in the page, re-encoded, and written out as
+ * base64 in 3,000-character slices, the way cartography.spec.ts writes
+ * its records: `FOREST-PNG <name> i/n`, reassembled by concatenation.
+ * A 240px-wide PNG of a forest is a few tens of kilobytes, which is a
+ * dozen lines; the reader sees the picture, not a verdict about it.
+ */
+const SLICE = 3_000;
+const LOG_WIDTH = 240;
+
+const emitImage = async (
+  page: Page,
+  name: string,
+  shot: Buffer,
+): Promise<void> => {
+  const small = await page.evaluate(
+    ([encoded, width]) =>
+      new Promise<string>((resolve, reject) => {
+        const image = new Image();
+        image.onerror = () =>
+          reject(new Error('the capture did not decode'));
+        image.onload = () => {
+          const scale = Number(width) / image.naturalWidth;
+          const canvas = document.createElement('canvas');
+          canvas.width = Number(width);
+          canvas.height = Math.round(image.naturalHeight * scale);
+          const context = canvas.getContext('2d');
+          if (!context) {
+            reject(new Error('no 2d context'));
+            return;
+          }
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/png').split(',')[1]);
+        };
+        image.src = `data:image/png;base64,${encoded}`;
+      }),
+    [shot.toString('base64'), LOG_WIDTH] as const,
+  );
+  const parts = Math.max(1, Math.ceil(small.length / SLICE));
+  for (let i = 0; i < parts; i += 1) {
+    notice(
+      `${TAG}-PNG ${name} ${i + 1}/${parts}`,
+      small.slice(i * SLICE, (i + 1) * SLICE),
+    );
+  }
+};
+
 /**
  * Photographs the crop, attaches it, mirrors it under test-results so the
  * review-screenshots artifact carries it, and hands back its mean colour.
@@ -255,10 +309,16 @@ const photograph = async (
   page: Page,
   testInfo: TestInfo,
   name: string,
+  clip: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } = CROP,
 ): Promise<Rgb> => {
   const file = `${name}.png`;
   const shot = await page.screenshot({
-    clip: CROP,
+    clip,
     animations: 'disabled',
     caret: 'hide',
     scale: 'css',
@@ -267,6 +327,7 @@ const photograph = async (
     body: shot,
     contentType: 'image/png',
   });
+  await emitImage(page, name, shot);
   const root = testInfo.config.configFile
     ? path.dirname(testInfo.config.configFile)
     : process.cwd();
@@ -279,7 +340,7 @@ const photograph = async (
   await fs.promises.mkdir(path.dirname(mirror), { recursive: true });
   await fs.promises.writeFile(mirror, shot);
 
-  const stats = await samplePixels(page, CROP);
+  const stats = await samplePixels(page, clip);
   return [stats.red, stats.green, stats.blue];
 };
 
@@ -307,6 +368,16 @@ const describeTheme = (theme: ThemeId) => {
       `--map-green did not resolve on ${theme}`,
     ).not.toEqual([-1, -1, -1]);
     const routeLight = await lightPreset(page);
+
+    // The route's own globe first, whole, under its own light: the
+    // picture the report is about, before any camera of this file's.
+    await showBasemapOnly(page, true);
+    await photograph(page, testInfo, `globe-${theme}`, {
+      x: 0,
+      y: 0,
+      ...DESKTOP,
+    });
+    await showBasemapOnly(page, false);
 
     for (const camera of CAMERAS) {
       // The route's own light first: the picture a visitor sees.
